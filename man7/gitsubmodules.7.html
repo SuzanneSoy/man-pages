@@ -1,0 +1,535 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of GITSUBMODULES</TITLE>
+</HEAD><BODY>
+<H1>GITSUBMODULES</H1>
+Section: Git Manual (7)<BR>Updated: 03/04/2021<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+gitsubmodules - Mounting one repository inside another
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+<PRE>
+.gitmodules, $GIT_DIR/config
+</PRE>
+
+<P>
+<PRE>
+git submodule
+git &lt;command&gt; --recurse-submodules
+</PRE>
+
+<P>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+A submodule is a repository embedded inside another repository. The submodule has its own history; the repository it is embedded in is called a superproject.
+<P>
+On the filesystem, a submodule usually (but not always - see FORMS below) consists of (i) a Git directory located under the <B>$GIT_DIR/modules/</B> directory of its superproject, (ii) a working directory inside the superproject's working directory, and a <B>.git</B> file at the root of the submodule's working directory pointing to (i).
+<P>
+Assuming the submodule has a Git directory at <B>$GIT_DIR/modules/foo/</B> and a working directory at <B>path/to/bar/</B>, the superproject tracks the submodule via a <B>gitlink</B> entry in the tree at <B>path/to/bar</B> and an entry in its <B>.gitmodules</B> file (see <B><A HREF="/cgi-bin/man/man2html?5+gitmodules">gitmodules</A></B>(5)) of the form <B>submodule.foo.path = path/to/bar</B>.
+<P>
+The <B>gitlink</B> entry contains the object name of the commit that the superproject expects the submodule's working directory to be at.
+<P>
+The section <B>submodule.foo.*</B> in the <B>.gitmodules</B> file gives additional hints to Git's porcelain layer. For example, the <B>submodule.foo.url</B> setting specifies where to obtain the submodule.
+<P>
+Submodules can be used for at least two different use cases:
+<P>
+<DL COMPACT><DT id="1"><DD>
+ 1.
+
+
+Using another project while maintaining independent history. Submodules allow you to contain the working tree of another project within your own working tree while keeping the history of both projects separate. Also, since submodules are fixed to an arbitrary version, the other project can be independently developed without affecting the superproject, allowing the superproject project to fix itself to new versions only when desired.
+</DL>
+
+<P>
+<DL COMPACT><DT id="2"><DD>
+ 2.
+
+
+Splitting a (logically single) project into multiple repositories and tying them back together. This can be used to overcome current limitations of Git's implementation to have finer grained access:
+<P>
+<DL COMPACT><DT id="3"><DD>
+&bull;
+
+
+Size of the Git repository: In its current form Git scales up poorly for large repositories containing content that is not compressed by delta computation between trees. For example, you can use submodules to hold large binary assets and these repositories can be shallowly cloned such that you do not have a large history locally.
+</DL>
+
+<P>
+<DL COMPACT><DT id="4"><DD>
+&bull;
+
+
+Transfer size: In its current form Git requires the whole working tree present. It does not allow partial trees to be transferred in fetch or clone. If the project you work on consists of multiple repositories tied together as submodules in a superproject, you can avoid fetching the working trees of the repositories you are not interested in.
+</DL>
+
+<P>
+<DL COMPACT><DT id="5"><DD>
+&bull;
+
+
+Access control: By restricting user access to submodules, this can be used to implement read/write policies for different users.
+</DL>
+
+</DL>
+
+<A NAME="lbAE">&nbsp;</A>
+<H2>THE CONFIGURATION OF SUBMODULES</H2>
+
+<P>
+Submodule operations can be configured using the following mechanisms (from highest to lowest precedence):
+<P>
+<DL COMPACT><DT id="6"><DD>
+&bull;
+
+
+The command line for those commands that support taking submodules as part of their pathspecs. Most commands have a boolean flag
+<B>--recurse-submodules</B>
+which specify whether to recurse into submodules. Examples are
+<B>grep</B>
+and
+<B>checkout</B>. Some commands take enums, such as
+<B>fetch</B>
+and
+<B>push</B>, where you can specify how submodules are affected.
+</DL>
+
+<P>
+<DL COMPACT><DT id="7"><DD>
+&bull;
+
+
+The configuration inside the submodule. This includes
+<B>$GIT_DIR/config</B>
+in the submodule, but also settings in the tree such as a
+<B>.gitattributes</B>
+or
+<B>.gitignore</B>
+files that specify behavior of commands inside the submodule.
+<P>
+For example an effect from the submodule's
+<B>.gitignore</B>
+file would be observed when you run
+<B>git status --ignore-submodules=none</B>
+in the superproject. This collects information from the submodule's working directory by running
+<B>status</B>
+in the submodule while paying attention to the
+<B>.gitignore</B>
+file of the submodule.
+<P>
+The submodule's
+<B>$GIT_DIR/config</B>
+file would come into play when running
+<B>git push --recurse-submodules=check</B>
+in the superproject, as this would check if the submodule has any changes not published to any remote. The remotes are configured in the submodule as usual in the
+<B>$GIT_DIR/config</B>
+file.
+</DL>
+
+<P>
+<DL COMPACT><DT id="8"><DD>
+&bull;
+
+
+The configuration file
+<B>$GIT_DIR/config</B>
+in the superproject. Git only recurses into active submodules (see &quot;ACTIVE SUBMODULES&quot; section below).
+<P>
+If the submodule is not yet initialized, then the configuration inside the submodule does not exist yet, so where to obtain the submodule from is configured here for example.
+</DL>
+
+<P>
+<DL COMPACT><DT id="9"><DD>
+&bull;
+
+
+The
+<B>.gitmodules</B>
+file inside the superproject. A project usually uses this file to suggest defaults for the upstream collection of repositories for the mapping that is required between a submodule's name and its path.
+<P>
+This file mainly serves as the mapping between the name and path of submodules in the superproject, such that the submodule's Git directory can be located.
+<P>
+If the submodule has never been initialized, this is the only place where submodule configuration is found. It serves as the last fallback to specify where to obtain the submodule from.
+</DL>
+
+<A NAME="lbAF">&nbsp;</A>
+<H2>FORMS</H2>
+
+<P>
+Submodules can take the following forms:
+<P>
+<DL COMPACT><DT id="10"><DD>
+&bull;
+
+
+The basic form described in DESCRIPTION with a Git directory, a working directory, a
+<B>gitlink</B>, and a
+<B>.gitmodules</B>
+entry.
+</DL>
+
+<P>
+<DL COMPACT><DT id="11"><DD>
+&bull;
+
+
+&quot;Old-form&quot; submodule: A working directory with an embedded
+<B>.git</B>
+directory, and the tracking
+<B>gitlink</B>
+and
+<B>.gitmodules</B>
+entry in the superproject. This is typically found in repositories generated using older versions of Git.
+<P>
+It is possible to construct these old form repositories manually.
+<P>
+When deinitialized or deleted (see below), the submodule's Git directory is automatically moved to
+<B>$GIT_DIR/modules/&lt;name&gt;/</B>
+of the superproject.
+</DL>
+
+<P>
+<DL COMPACT><DT id="12"><DD>
+&bull;
+
+
+Deinitialized submodule: A
+<B>gitlink</B>, and a
+<B>.gitmodules</B>
+entry, but no submodule working directory. The submodule's Git directory may be there as after deinitializing the Git directory is kept around. The directory which is supposed to be the working directory is empty instead.
+<P>
+A submodule can be deinitialized by running
+<B>git submodule deinit</B>. Besides emptying the working directory, this command only modifies the superproject's
+<B>$GIT_DIR/config</B>
+file, so the superproject's history is not affected. This can be undone using
+<B>git submodule init</B>.
+</DL>
+
+<P>
+<DL COMPACT><DT id="13"><DD>
+&bull;
+
+
+Deleted submodule: A submodule can be deleted by running
+<B>git rm &lt;submodule path&gt; &amp;&amp; git commit</B>. This can be undone using
+<B>git revert</B>.
+<P>
+The deletion removes the superproject's tracking data, which are both the
+<B>gitlink</B>
+entry and the section in the
+<B>.gitmodules</B>
+file. The submodule's working directory is removed from the file system, but the Git directory is kept around as it to make it possible to checkout past commits without requiring fetching from another repository.
+<P>
+To completely remove a submodule, manually delete
+<B>$GIT_DIR/modules/&lt;name&gt;/</B>.
+</DL>
+
+<A NAME="lbAG">&nbsp;</A>
+<H2>ACTIVE SUBMODULES</H2>
+
+<P>
+A submodule is considered active,
+<P>
+<DL COMPACT><DT id="14"><DD>
+ 1.
+
+
+if
+<B>submodule.&lt;name&gt;.active</B>
+is set to
+<B>true</B>
+<P>
+or
+</DL>
+
+<P>
+<DL COMPACT><DT id="15"><DD>
+ 2.
+
+
+if the submodule's path matches the pathspec in
+<B>submodule.active</B>
+<P>
+or
+</DL>
+
+<P>
+<DL COMPACT><DT id="16"><DD>
+ 3.
+
+
+if
+<B>submodule.&lt;name&gt;.url</B>
+is set.
+</DL>
+
+<P>
+and these are evaluated in this order.
+<P>
+For example:
+<P>
+<DL COMPACT><DT id="17"><DD>
+
+
+
+<PRE>
+[submodule &quot;foo&quot;]
+  active = false
+  url = <A HREF="https://example.org/foo">https://example.org/foo</A>
+[submodule &quot;bar&quot;]
+  active = true
+  url = <A HREF="https://example.org/bar">https://example.org/bar</A>
+[submodule &quot;baz&quot;]
+  url = <A HREF="https://example.org/baz">https://example.org/baz</A>
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+In the above config only the submodule <I>bar</I> and <I>baz</I> are active, <I>bar</I> due to (1) and <I>baz</I> due to (3). <I>foo</I> is inactive because (1) takes precedence over (3)
+<P>
+Note that (3) is a historical artefact and will be ignored if the (1) and (2) specify that the submodule is not active. In other words, if we have a <B>submodule.&lt;name&gt;.active</B> set to <B>false</B> or if the submodule's path is excluded in the pathspec in <B>submodule.active</B>, the url doesn't matter whether it is present or not. This is illustrated in the example that follows.
+<P>
+<DL COMPACT><DT id="18"><DD>
+
+
+
+<PRE>
+[submodule &quot;foo&quot;]
+  active = true
+  url = <A HREF="https://example.org/foo">https://example.org/foo</A>
+[submodule &quot;bar&quot;]
+  url = <A HREF="https://example.org/bar">https://example.org/bar</A>
+[submodule &quot;baz&quot;]
+  url = <A HREF="https://example.org/baz">https://example.org/baz</A>
+[submodule &quot;bob&quot;]
+  ignore = true
+[submodule]
+  active = b*
+  active = :(exclude) baz
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+In here all submodules except <I>baz</I> (foo, bar, bob) are active. <I>foo</I> due to its own active flag and all the others due to the submodule active pathspec, which specifies that any submodule starting with <I>b</I> except <I>baz</I> are also active, regardless of the presence of the .url field.
+<A NAME="lbAH">&nbsp;</A>
+<H2>WORKFLOW FOR A THIRD PARTY LIBRARY</H2>
+
+<P>
+<DL COMPACT><DT id="19"><DD>
+
+
+
+<PRE>
+# add a submodule
+git submodule add &lt;url&gt; &lt;path&gt;
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<DL COMPACT><DT id="20"><DD>
+
+
+
+<PRE>
+# occasionally update the submodule to a new version:
+git -C &lt;path&gt; checkout &lt;new version&gt;
+git add &lt;path&gt;
+git commit -m &quot;update submodule to new version&quot;
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<DL COMPACT><DT id="21"><DD>
+
+
+
+<PRE>
+# See the list of submodules in a superproject
+git submodule status
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<DL COMPACT><DT id="22"><DD>
+
+
+
+<PRE>
+# See FORMS on removing submodules
+</PRE>
+
+</DL>
+
+
+
+
+<A NAME="lbAI">&nbsp;</A>
+<H2>WORKFLOW FOR AN ARTIFICIALLY SPLIT REPO</H2>
+
+<P>
+<DL COMPACT><DT id="23"><DD>
+
+
+
+<PRE>
+# Enable recursion for relevant commands, such that
+# regular commands recurse into submodules by default
+git config --global submodule.recurse true
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<DL COMPACT><DT id="24"><DD>
+
+
+
+<PRE>
+# Unlike the other commands below clone still needs
+# its own recurse flag:
+git clone --recurse &lt;URL&gt; &lt;directory&gt;
+cd &lt;directory&gt;
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<DL COMPACT><DT id="25"><DD>
+
+
+
+<PRE>
+# Get to know the code:
+git grep foo
+git ls-files
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<DL COMPACT><DT id="26"><DD>
+
+
+
+<PRE>
+# Get new code
+git fetch
+git pull --rebase
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<DL COMPACT><DT id="27"><DD>
+
+
+
+<PRE>
+# change worktree
+git checkout
+git reset
+</PRE>
+
+</DL>
+
+
+
+
+<A NAME="lbAJ">&nbsp;</A>
+<H2>IMPLEMENTATION DETAILS</H2>
+
+<P>
+When cloning or pulling a repository containing submodules the submodules will not be checked out by default; You can instruct <I>clone</I> to recurse into submodules. The <I>init</I> and <I>update</I> subcommands of <I>git submodule</I> will maintain submodules checked out and at an appropriate revision in your working tree. Alternatively you can set <I>submodule.recurse</I> to have <I>checkout</I> recursing into submodules.
+<A NAME="lbAK">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+<B><A HREF="/cgi-bin/man/man2html?1+git-submodule">git-submodule</A></B>(1), <B><A HREF="/cgi-bin/man/man2html?5+gitmodules">gitmodules</A></B>(5).
+<A NAME="lbAL">&nbsp;</A>
+<H2>GIT</H2>
+
+<P>
+Part of the <B><A HREF="/cgi-bin/man/man2html?1+git">git</A></B>(1) suite
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="28"><A HREF="#lbAB">NAME</A><DD>
+<DT id="29"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="30"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="31"><A HREF="#lbAE">THE CONFIGURATION OF SUBMODULES</A><DD>
+<DT id="32"><A HREF="#lbAF">FORMS</A><DD>
+<DT id="33"><A HREF="#lbAG">ACTIVE SUBMODULES</A><DD>
+<DT id="34"><A HREF="#lbAH">WORKFLOW FOR A THIRD PARTY LIBRARY</A><DD>
+<DT id="35"><A HREF="#lbAI">WORKFLOW FOR AN ARTIFICIALLY SPLIT REPO</A><DD>
+<DT id="36"><A HREF="#lbAJ">IMPLEMENTATION DETAILS</A><DD>
+<DT id="37"><A HREF="#lbAK">SEE ALSO</A><DD>
+<DT id="38"><A HREF="#lbAL">GIT</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:08 GMT, March 31, 2021
+</BODY>
+</HTML>

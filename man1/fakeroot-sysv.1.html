@@ -1,0 +1,445 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of fakeroot</TITLE>
+</HEAD><BODY>
+<H1>fakeroot</H1>
+Section: Debian manual (1)<BR>Updated: 5 October 2014<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+fakeroot - run a command in an environment faking root privileges for file
+manipulation
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<B>fakeroot </B>
+
+<B>[-l|--lib</B>
+
+<I>library]</I>
+
+<B>[--faked</B>
+
+<I>faked-binary</I><B>]</B>
+
+<B>[-i</B>
+
+<I>load-file</I><B>]</B>
+
+<B>[-s</B>
+
+<I>save-file</I><B>]</B>
+
+<B>[-u|--unknown-is-real ]</B>
+
+<B>[-b|--fd-base ]</B>
+
+<B>[-h|--help ]</B>
+
+<B>[-v|--version ]</B>
+
+<B>[--]</B>
+
+<B>[command]</B>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<B>fakeroot</B>
+
+runs a command in an environment wherein it appears to have root privileges
+for file manipulation.  This is useful for allowing users to create archives
+(tar, ar, .deb etc.) with files in them with root permissions/ownership.
+Without 
+<B>fakeroot</B>
+
+one would need to have root privileges to create the constituent files of
+the archives with the correct permissions and ownership, and then pack them
+up, or one would have to construct the archives directly, without using the
+archiver.
+<P>
+<B>fakeroot</B>
+
+works by replacing the file manipulation library functions (<A HREF="/cgi-bin/man/man2html?2+chmod">chmod</A>(2),
+<A HREF="/cgi-bin/man/man2html?2+stat">stat</A>(2) etc.) by ones that simulate the effect the real library
+functions would have had, had the user really been root. These wrapper
+functions are in a shared library
+<B>/usr/lib/*/libfakeroot-*.so</B>
+
+or similar location on your platform.
+The shared object is loaded through the 
+<B>LD_PRELOAD</B>
+
+mechanism of the dynamic loader. (See
+<B><A HREF="/cgi-bin/man/man2html?8+ld.so">ld.so</A></B>(8))
+
+<P>
+If you intend to build packages with 
+<B>fakeroot</B>,
+
+please try building
+the fakeroot package first: the &quot;debian/rules build&quot; stage has a
+few tests (testing mostly for bugs in old fakeroot
+versions). If those tests fail (for example because you have
+certain libc5 programs on your system), other packages you build with
+fakeroot will quite likely fail too, but possibly in much more subtle
+ways.
+<P>
+Also, note that it's best not to do the building of the binaries
+themselves under fakeroot. Especially configure and friends don't like
+it when the system suddenly behaves differently from what they
+expect. (or, they randomly unset some environment variables, some of
+which fakeroot needs).
+<P>
+<A NAME="lbAE">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<DL COMPACT>
+<DT id="1"><B>-l</B> <I>library</I>, <B>--lib</B> <I>library</I><DD>
+Specify an alternative wrapper library.
+<DT id="2"><B>--faked</B><I>&nbsp;binary</I>
+
+<DD>
+Specify an alternative binary to use as faked.
+<DT id="3"><B>[--]</B><I>&nbsp;command</I>
+
+<DD>
+Any command you want to be ran as fakeroot. Use '--' if in the command
+you have other options that may confuse fakeroot's option parsing.
+<DT id="4"><B>-s</B><I>&nbsp;save-file</I>
+
+<DD>
+Save the fakeroot environment to save-file on exit. This file can be
+used to restore the environment later using -i. However, this file will
+leak and fakeroot will behave in odd ways unless you leave the files
+touched inside the fakeroot alone when outside the environment. Still,
+this can be useful. For example, it can be used with <A HREF="/cgi-bin/man/man2html?1+rsync">rsync</A>(1) to back up
+and restore whole directory trees complete with user, group and device
+information without needing to be root. See
+<I>/usr/share/doc/fakeroot/README.saving</I>
+
+for more details.
+<DT id="5"><B>-i</B><I>&nbsp;load-file</I>
+
+<DD>
+Load a fakeroot environment previously saved using -s from load-file.
+Note that this does not implicitly save the file, use -s as well for
+that behaviour. Using the same file for both -i and -s in a single
+<B>fakeroot</B>
+
+invocation is safe.
+<DT id="6"><B>-u</B>, <B>--unknown-is-real</B><DD>
+Use the real ownership of files previously unknown to fakeroot instead of
+pretending they are owned by root:root.
+<DT id="7"><B>-b</B><I>&nbsp;fd</I>
+
+<DD>
+Specify fd base (TCP mode only). fd is the minimum file descriptor
+number to use for TCP connections; this may be important to avoid
+conflicts with the file descriptors used by the programs being run
+under fakeroot.
+<DT id="8"><B>-h</B>
+
+<DD>
+Display help.
+<DT id="9"><B>-v</B>
+
+<DD>
+Display version.
+<P>
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+Here is an example session with 
+<B>fakeroot</B>.
+
+Notice that inside the fake root environment file manipulation that
+requires root privileges succeeds, but is not really happening.
+
+<P>
+<PRE>
+$  whoami
+joost
+$ fakeroot /bin/bash
+#  whoami
+root
+# mknod hda3 b 3 1
+# ls -ld hda3
+brw-r--r--   1 root     root       3,   1 Jul  2 22:58 hda3
+# chown joost:root hda3
+# ls -ld hda3
+brw-r--r--   1 joost    root       3,   1 Jul  2 22:58 hda3
+# ls -ld /
+drwxr-xr-x  20 root     root         1024 Jun 17 21:50 /
+# chown joost:users /
+# chmod a+w /
+# ls -ld /
+drwxrwxrwx  20 joost    users        1024 Jun 17 21:50 /
+# exit
+$ ls -ld /
+drwxr-xr-x  20 root     root         1024 Jun 17 21:50 //
+$ ls -ld hda3
+-rw-r--r--   1 joost    users           0 Jul  2 22:58 hda3
+
+</PRE>
+
+<P>
+
+Only the effects that user
+<B>joost</B>
+
+could do anyway happen for real. 
+<P>
+<B>fakeroot</B>
+
+was specifically written to enable users to create Debian GNU/Linux 
+packages (in the 
+<B><A HREF="/cgi-bin/man/man2html?5+deb">deb</A>(5)</B>
+
+format) without giving them root privileges.
+This can be done by commands like
+<B>dpkg-buildpackage -rfakeroot</B>
+
+or
+<B>debuild -rfakeroot</B>
+
+(actually, -rfakeroot is default in debuild nowadays, so you don't
+need that argument).
+<A NAME="lbAG">&nbsp;</A>
+<H2>SECURITY ASPECTS</H2>
+
+<B>fakeroot</B>
+
+is a regular, non-setuid program. It does not enhance a user's
+privileges, or decrease the system's security.
+<A NAME="lbAH">&nbsp;</A>
+<H2>FILES</H2>
+
+<I>/usr/lib/*/libfakeroot-*.so</I>
+
+The shared library containing the wrapper functions.
+<A NAME="lbAI">&nbsp;</A>
+<H2>ENVIRONMENT</H2>
+
+<B><DL COMPACT>
+<DT id="10">FAKEROOTKEY<DD>
+</B>
+
+The key used to communicate with the fakeroot daemon. Any program
+started with the right 
+<B>LD_PRELOAD</B>
+
+and a
+<B>FAKEROOTKEY</B>
+
+of a running daemon will automatically connect to that daemon, and
+have the same &quot;fake&quot; view of the file system's permissions/ownerships.
+(assuming the daemon and connecting program were started by the same
+user). 
+<B><DT id="11">LD_LIBRARY_PATH<DD>
+</B>
+
+<B><DT id="12">LD_PRELOAD<DD>
+</B>
+
+Fakeroot is implemented by wrapping system calls.  This is
+accomplished by setting LD_LIBRARY_PATH=/usr/lib/fakeroot and
+LD_PRELOAD=libfakeroot.so.0.  That library is loaded before the
+system's C library, and so most of the library functions are
+intercepted by it.  If you need to set either
+<B>LD_LIBRARY_PATH</B>
+
+or
+<B>LD_PRELOAD</B>
+
+from
+within a fakeroot environment, it should be set relative to the
+given paths, as in
+<B>LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/foo/bar/</B>
+
+<P>
+</DL>
+<A NAME="lbAJ">&nbsp;</A>
+<H2>LIMITATIONS</H2>
+
+<B><DL COMPACT>
+<DT id="13">Library versions<DD>
+</B>
+
+Every command executed within 
+<B>fakeroot </B>
+
+needs to be linked to the same version of the C library as
+<B>fakeroot</B>
+
+itself.
+<B><DT id="14">open()/create()<DD>
+</B>
+
+fakeroot doesn't wrap open(), create(), etc. So, if user
+<B>joost</B>
+
+does either
+
+<P>
+<PRE>
+touch foo
+fakeroot 
+ls -al foo
+
+</PRE>
+
+<P>
+
+or the other way around,
+
+<P>
+<PRE>
+fakeroot
+touch foo
+ls -al foo
+
+</PRE>
+
+<P>
+
+fakeroot has no way of knowing that in the first case, the owner of
+foo really should be
+<B>joost</B>
+
+while the second case it should have been
+<B>root</B>.
+
+For the Debian packaging, defaulting to giving all &quot;unknown&quot; files
+uid=gid=0, is always OK. The real way around this is to wrap
+<B>open() </B>
+
+and 
+<B>create()</B>,
+
+but that creates other problems, as demonstrated by the libtricks
+package. This package wrapped many more functions, and tried to do a
+lot more than
+<B>fakeroot .</B>
+
+It turned out that a minor upgrade of libc (from one where the 
+<B>stat()</B>
+
+function didn't use
+<B>open()</B>
+
+to one with a
+<B>stat()</B>
+
+function that did (in some cases) use
+<B>open()</B>),
+
+would cause unexplainable segfaults (that is, the libc6 
+<B>stat()</B>
+
+called the wrapped
+<B>open()</B>,
+
+which would then call the libc6
+<B>stat()</B>,
+
+etc).
+Fixing them wasn't all that easy,
+but once fixed, it was just a matter of time before another function
+started to use open(), never mind trying to port it to a different
+operating system. Thus I decided to keep the number of functions
+wrapped by fakeroot as small as possible, to limit the likelihood
+of 'collisions'.
+<B><DT id="15">GNU configure (and other such programs)<DD>
+</B>
+
+fakeroot, in effect, is changing the way the system
+behaves. Programs that probe the system like GNU configure may get
+confused by this (or if they don't, they may stress fakeroot so much
+that fakeroot itself becomes confused). So, it's advisable not to run
+&quot;configure&quot; from within fakeroot. As configure should be called in the
+&quot;debian/rules build&quot; target, running &quot;dpkg-buildpackage -rfakeroot&quot;
+correctly takes care of this.
+</DL>
+<A NAME="lbAK">&nbsp;</A>
+<H2>BUGS</H2>
+
+It doesn't wrap open(). This isn't bad by itself, but if a program
+does open(&quot;file&quot;, O_WRONLY, 000), writes to file &quot;file&quot;, closes it,
+and then again tries to open to read the file, then that open fails, as
+the mode of the file will be 000. The bug is that if root does the
+same, open() will succeed, as the file permissions aren't checked at
+all for root. I choose not to wrap open(), as open() is used by many
+other functions in libc (also those that are already wrapped), thus
+creating loops (or possible future loops, when the implementation of
+various libc functions slightly change).
+<A NAME="lbAL">&nbsp;</A>
+<H2>COPYING</H2>
+
+<B>fakeroot</B>
+
+is distributed under the GNU General Public License.
+(GPL 2.0 or greater).
+<A NAME="lbAM">&nbsp;</A>
+<H2>AUTHORS</H2>
+
+<DL COMPACT>
+<DT id="16">joost witteveen<DD>
+&lt;<I><A HREF="mailto:joostje@debian.org">joostje@debian.org</A></I>&gt;
+
+<DT id="17">Clint Adams<DD>
+&lt;<I><A HREF="mailto:clint@debian.org">clint@debian.org</A></I>&gt;
+
+<DT id="18">Timo Savola<DD>
+</DL>
+<A NAME="lbAN">&nbsp;</A>
+<H2>MANUAL PAGE</H2>
+
+mostly by J.H.M. Dassen 
+&lt;<A HREF="mailto:jdassen@debian.org">jdassen@debian.org</A>&gt;
+
+Rather a lot mods/additions by joost and Clint.
+<A NAME="lbAO">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?1+faked">faked</A></B>(1)
+
+<B><A HREF="/cgi-bin/man/man2html?1+dpkg-buildpackage">dpkg-buildpackage</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?1+debuild">debuild</A></B>(1)
+
+<B>/usr/share/doc/fakeroot/DEBUG</B>
+
+<P>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="19"><A HREF="#lbAB">NAME</A><DD>
+<DT id="20"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="21"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="22"><A HREF="#lbAE">OPTIONS</A><DD>
+<DT id="23"><A HREF="#lbAF">EXAMPLES</A><DD>
+<DT id="24"><A HREF="#lbAG">SECURITY ASPECTS</A><DD>
+<DT id="25"><A HREF="#lbAH">FILES</A><DD>
+<DT id="26"><A HREF="#lbAI">ENVIRONMENT</A><DD>
+<DT id="27"><A HREF="#lbAJ">LIMITATIONS</A><DD>
+<DT id="28"><A HREF="#lbAK">BUGS</A><DD>
+<DT id="29"><A HREF="#lbAL">COPYING</A><DD>
+<DT id="30"><A HREF="#lbAM">AUTHORS</A><DD>
+<DT id="31"><A HREF="#lbAN">MANUAL PAGE</A><DD>
+<DT id="32"><A HREF="#lbAO">SEE ALSO</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:12 GMT, March 31, 2021
+</BODY>
+</HTML>

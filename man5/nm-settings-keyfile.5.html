@@ -1,0 +1,801 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of NM-SETTINGS-KEYFILE</TITLE>
+</HEAD><BODY>
+<H1>NM-SETTINGS-KEYFILE</H1>
+Section: Configuration (5)<BR>Updated: <BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+nm-settings-keyfile - Description of <I>keyfile</I> settings plugin
+<A NAME="lbAC">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+NetworkManager is based on the concept of connection profiles that contain network configuration (see
+<B><A HREF="/cgi-bin/man/man2html?5+nm-settings">nm-settings</A></B>(5)
+for details). The profiles can be stored in various formats. NetworkManager uses plugins for reading and writing the data. The plugins can be configured in
+<B><A HREF="/cgi-bin/man/man2html?5+NetworkManager.conf">NetworkManager.conf</A></B>(5).
+<P>
+
+The
+<I>keyfile</I>
+plugin is the generic plugin that supports all the connection types and capabilities that NetworkManager has. It writes files out in a .ini-style format in
+/etc/NetworkManager/system-connections/. This plugin is always enabled and will automatically be used to store any connections that are not supported by any other active plugin. For security, it will ignore files that are readable or writable by any user or group other than 'root' since private keys and passphrases may be stored in plaintext inside the file.
+<A NAME="lbAD">&nbsp;</A>
+<H2>FILE FORMAT</H2>
+
+<P>
+
+The
+<I>keyfile</I>
+config format is a simple .ini-style format. It consists of sections (groups) of key-value pairs. Each section corresponds to a setting name as described in the settings specification (<B><A HREF="/cgi-bin/man/man2html?5+nm-settings">nm-settings</A></B>(5)). Each configuration key/value pair in the section is one of the properties listed in the settings specification. The majority of properties of the specification is written in the same format into the
+<I>keyfile</I>
+too. However some values are inconvenient for people to use. These are stored in the files in more readable ways. These properties are described below. An example could be IP addresses that are not written as integer arrays, but more reasonably as &quot;1.2.3.4/12 1.2.3.254&quot;. More information of the generic key file format can be found at
+m[blue]<B>GLib key file format</B>m[]<FONT SIZE="-2">[1]</FONT>
+(Lines beginning with a '#' are comments, lists are separated by character
+;
+etc.).
+<P>
+
+Users can create or modify the
+<I>keyfile</I>
+connection files manually, even if that is not the recommended way of managing the profiles. However, if they choose to do that, they must inform NetworkManager about their changes (see
+<I>monitor-connection-file</I>
+in
+<B><A HREF="/cgi-bin/man/man2html?5+nm-settings">nm-settings</A></B>(5)
+and
+<I>nmcli con (re)load</I>).
+<P>
+
+<B>Examples of keyfile configuration</B>. 
+<P>
+<DL COMPACT><DT id="1"><DD>
+
+
+
+<PRE>
+<B>A sample configuration for an ethernet network:</B>
+[connection]
+id=Main eth0
+uuid=27afa607-ee36-43f0-b8c3-9d245cdc4bb3
+type=802-3-ethernet
+autoconnect=true
+
+[ipv4]
+method=auto
+
+[802-3-ethernet]
+mac-address=00:23:5a:47:1f:71
+            
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+<DL COMPACT><DT id="2"><DD>
+
+
+
+<PRE>
+<B>A sample configuration for WPA-EAP (PEAP with MSCHAPv2) and always-ask secret:</B>
+[connection]
+id=CompanyWIFI
+uuid=cdac6154-a33b-4b15-9904-666772cfa5ee
+type=wifi
+autoconnect=false
+
+[wifi]
+ssid=CorpWLAN
+mode=infrastructure
+security=802-11-wireless-security
+
+[wifi-security]
+key-mgmt=wpa-eap
+
+[ipv4]
+method=auto
+
+[ipv6]
+method=auto
+
+[802-1x]
+eap=peap;
+identity=joe
+ca-cert=/home/joe/.cert/corp.crt
+phase1-peapver=1
+phase2-auth=mschapv2
+password-flags=2
+            
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+<DL COMPACT><DT id="3"><DD>
+
+
+
+<PRE>
+<B>A sample configuration for openvpn:</B>
+[connection]
+id=RedHat-openvpn
+uuid=7f9b3356-b210-4c0e-8123-bd116c9c280f
+type=vpn
+timestamp=1385401165
+
+[vpn]
+service-type=org.freedesktop.NetworkManager.openvpn
+connection-type=password
+password-flags=3
+remote=ovpn.my-company.com
+cipher=AES-256-CBC
+reneg-seconds=0
+port=443
+username=joe
+ca=/etc/openvpn/ISCA.pem
+tls-remote=ovpn.my-company.com
+
+[ipv6]
+method=auto
+
+[ipv4]
+method=auto
+ignore-auto-dns=true
+never-default=true
+            
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+<DL COMPACT><DT id="4"><DD>
+
+
+
+<PRE>
+<B>A sample configuration for a bridge and a bridge port:</B>
+[connection]                                 [connection]
+id=MainBridge                                id=br-port-1
+uuid=171ae855-a0ab-42b6-bd0c-60f5812eea9d    uuid=d6e8ae98-71f8-4b3d-9d2d-2e26048fe794
+interface-name=MainBridge                    interface-name=em1
+type=bridge                                  type=ethernet
+                                             master=MainBridge
+[bridge]                                     slave-type=bridge
+interface-name=MainBridge
+            
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+<DL COMPACT><DT id="5"><DD>
+
+
+
+<PRE>
+<B>A sample configuration for a VLAN:</B>
+[connection]
+id=VLAN for building 4A
+uuid=8ce1c9e0-ce7a-4d2c-aa28-077dda09dd7e
+interface-name=VLAN-4A
+type=vlan
+
+[vlan]
+interface-name=VLAN-4A
+parent=eth0
+id=4
+            
+</PRE>
+
+</DL>
+
+
+
+
+<A NAME="lbAE">&nbsp;</A>
+<H2>DETAILS</H2>
+
+<P>
+
+<I>keyfile</I>
+plugin variables for the majority of NetworkManager properties have one-to-one mapping. It means a NetworkManager property is stored in the keyfile as a variable of the same name and in the same format. There are several exceptions to this rule, mainly for making keyfile syntax easier for humans. The exceptions handled specially by
+<I>keyfile</I>
+plugin are listed below. Refer to
+<B><A HREF="/cgi-bin/man/man2html?5+nm-settings">nm-settings</A></B>(5)
+for all available settings and properties and their description.
+<P>
+
+<B>Name aliases</B>. Some of the NetworkManager setting names are somewhat hard to type or remember. Therefore
+<I>keyfile</I>
+introduces aliases that can be used instead of the names.
+<DL COMPACT><DT id="6"><DD>
+<I>setting name                 keyfile alias</I>
+</DL>
+
+<DL COMPACT><DT id="7"><DD>
+802-3-ethernet            =  ethernet
+</DL>
+
+<DL COMPACT><DT id="8"><DD>
+802-11-wireless           =  wifi
+</DL>
+
+<DL COMPACT><DT id="9"><DD>
+802-11-wireless-security  =  wifi-security
+</DL>
+
+<P>
+
+
+
+<BR>
+
+<B>Table&nbsp;1.&nbsp;bridge setting (section)</B>
+
+<TABLE BORDER>
+<TR VALIGN=top><TD><B>
+Property
+</B></TD><TD><B>
+Keyfile Variable
+</B></TD><TD><B>
+Format
+</B></TD><TD><B>
+Description
+</B><BR></TD></TR>
+<TR VALIGN=top><TD>
+mac-address
+</TD><TD>
+mac-address
+</TD><TD>
+usual hex-digits-and-colons notation
+</TD><TD>
+MAC address in traditional hex-digits-and-colons notation, or semicolon separated list of 6 decimal bytes (obsolete)<B>
+<P>
+Example: </B>mac-address=00:22:68:12:79:A2 mac-address=0;34;104;18;121;162;
+<BR></TD></TR>
+</TABLE>
+
+<P>
+<P>
+
+
+
+<BR>
+
+<B>Table&nbsp;2.&nbsp;infiniband setting (section)</B>
+
+<TABLE BORDER>
+<TR VALIGN=top><TD><B>
+Property
+</B></TD><TD><B>
+Keyfile Variable
+</B></TD><TD><B>
+Format
+</B></TD><TD><B>
+Description
+</B><BR></TD></TR>
+<TR VALIGN=top><TD>
+mac-address
+</TD><TD>
+mac-address
+</TD><TD>
+usual hex-digits-and-colons notation
+</TD><TD>
+MAC address in traditional hex-digits-and-colons notation, or or semicolon separated list of 20 decimal bytes (obsolete)<B>
+<P>
+Example: </B>mac-address= 80:00:00:6d:fe:80:00:00:00:00:00:00:00:02:55:00:70:33:cf:01
+<BR></TD></TR>
+</TABLE>
+
+<P>
+<P>
+
+
+
+<BR>
+
+<B>Table&nbsp;3.&nbsp;ipv4 setting (section)</B>
+
+<TABLE BORDER>
+<TR VALIGN=top><TD><B>
+Property
+</B></TD><TD><B>
+Keyfile Variable
+</B></TD><TD><B>
+Format
+</B></TD><TD><B>
+Description
+</B><BR></TD></TR>
+<TR VALIGN=top><TD>
+dns
+</TD><TD>
+dns
+</TD><TD>
+list of DNS IP addresses
+</TD><TD>
+List of DNS servers.<B>
+<P>
+Example: </B>dns=1.2.3.4;8.8.8.8;8.8.4.4;
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+addresses
+</TD><TD>
+address1, address2, ...
+</TD><TD>
+address/plen
+</TD><TD>
+List of static IP addresses.<B>
+<P>
+Example: </B>address1=192.168.100.100/24 address2=10.1.1.5/24
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+gateway
+</TD><TD>
+gateway
+</TD><TD>
+string
+</TD><TD>
+Gateway IP addresses as a string.<B>
+<P>
+Example: </B>gateway=192.168.100.1
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+routes
+</TD><TD>
+route1, route2, ...
+</TD><TD>
+route/plen[,gateway,metric]
+</TD><TD>
+List of IP routes.<B>
+<P>
+Example: </B>route1=8.8.8.0/24,10.1.1.1,77 route2=7.7.0.0/16
+<BR></TD></TR>
+</TABLE>
+
+<P>
+<P>
+
+
+
+<BR>
+
+<B>Table&nbsp;4.&nbsp;ipv6 setting (section)</B>
+
+<TABLE BORDER>
+<TR VALIGN=top><TD><B>
+Property
+</B></TD><TD><B>
+Keyfile Variable
+</B></TD><TD><B>
+Format
+</B></TD><TD><B>
+Description
+</B><BR></TD></TR>
+<TR VALIGN=top><TD>
+dns
+</TD><TD>
+dns
+</TD><TD>
+list of DNS IP addresses
+</TD><TD>
+List of DNS servers.<B>
+<P>
+Example: </B>dns=2001:4860:4860::8888;2001:4860:4860::8844;
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+addresses
+</TD><TD>
+address1, address2, ...
+</TD><TD>
+address/plen
+</TD><TD>
+List of static IP addresses.<B>
+<P>
+Example: </B>address1=abbe::cafe/96 address2=2001::1234
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+gateway
+</TD><TD>
+gateway
+</TD><TD>
+string
+</TD><TD>
+Gateway IP addresses as a string.<B>
+<P>
+Example: </B>gateway=abbe::1
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+routes
+</TD><TD>
+route1, route2, ...
+</TD><TD>
+route/plen[,gateway,metric]
+</TD><TD>
+List of IP routes.<B>
+<P>
+Example: </B>route1=2001:4860:4860::/64,2620:52:0:2219:222:68ff:fe11:5403
+<BR></TD></TR>
+</TABLE>
+
+<P>
+<P>
+
+
+
+<BR>
+
+<B>Table&nbsp;5.&nbsp;serial setting (section)</B>
+
+<TABLE BORDER>
+<TR VALIGN=top><TD><B>
+Property
+</B></TD><TD><B>
+Keyfile Variable
+</B></TD><TD><B>
+Format
+</B></TD><TD><B>
+Description
+</B><BR></TD></TR>
+<TR VALIGN=top><TD>
+parity
+</TD><TD>
+parity
+</TD><TD>
+'e', 'o', or 'n'
+</TD><TD>
+The connection parity; even, odd, or none. Note that older versions of NetworkManager stored this as an integer: 69 ('E') for even, 111 ('o') for odd, or 110 ('n') for none.<B>
+<P>
+Example: </B>parity=n
+<BR></TD></TR>
+</TABLE>
+
+<P>
+<P>
+
+
+
+<BR>
+
+<B>Table&nbsp;6.&nbsp;vpn setting (section)</B>
+
+<TABLE BORDER>
+<TR VALIGN=top><TD><B>
+Property
+</B></TD><TD><B>
+Keyfile Variable
+</B></TD><TD><B>
+Format
+</B></TD><TD><B>
+Description
+</B><BR></TD></TR>
+<TR VALIGN=top><TD>
+data
+</TD><TD>
+separate variables named after keys of the dictionary
+</TD><TD>
+&nbsp;
+</TD><TD>
+The keys of the data dictionary are used as variable names directly under [vpn] section.<B>
+<P>
+Example: </B>remote=ovpn.corp.com cipher=AES-256-CBC username=joe
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+secrets
+</TD><TD>
+separate variables named after keys of the dictionary
+</TD><TD>
+&nbsp;
+</TD><TD>
+The keys of the secrets dictionary are used as variable names directly under [vpn-secrets] section.<B>
+<P>
+Example: </B>password=Popocatepetl
+<BR></TD></TR>
+</TABLE>
+
+<P>
+<P>
+
+
+
+<BR>
+
+<B>Table&nbsp;7.&nbsp;wifi-p2p setting (section)</B>
+
+<TABLE BORDER>
+<TR VALIGN=top><TD><B>
+Property
+</B></TD><TD><B>
+Keyfile Variable
+</B></TD><TD><B>
+Format
+</B></TD><TD><B>
+Description
+</B><BR></TD></TR>
+<TR VALIGN=top><TD>
+peer
+</TD><TD>
+peer
+</TD><TD>
+usual hex-digits-and-colons notation
+</TD><TD>
+MAC address in traditional hex-digits-and-colons notation (e.g. 00:22:68:12:79:A2), or semicolon separated list of 6 bytes (obsolete) (e.g. 0;34;104;18;121;162).
+<BR></TD></TR>
+</TABLE>
+
+<P>
+<P>
+
+
+
+<BR>
+
+<B>Table&nbsp;8.&nbsp;802-3-ethernet setting (section)</B>
+
+<TABLE BORDER>
+<TR VALIGN=top><TD><B>
+Property
+</B></TD><TD><B>
+Keyfile Variable
+</B></TD><TD><B>
+Format
+</B></TD><TD><B>
+Description
+</B><BR></TD></TR>
+<TR VALIGN=top><TD>
+mac-address
+</TD><TD>
+mac-address
+</TD><TD>
+usual hex-digits-and-colons notation
+</TD><TD>
+MAC address in traditional hex-digits-and-colons notation (e.g. 00:22:68:12:79:A2), or semicolon separated list of 6 bytes (obsolete) (e.g. 0;34;104;18;121;162)
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+cloned-mac-address
+</TD><TD>
+cloned-mac-address
+</TD><TD>
+usual hex-digits-and-colons notation
+</TD><TD>
+Cloned MAC address in traditional hex-digits-and-colons notation (e.g. 00:22:68:12:79:B2), or semicolon separated list of 6 bytes (obsolete) (e.g. 0;34;104;18;121;178).
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+mac-address-blacklist
+</TD><TD>
+mac-address-blacklist
+</TD><TD>
+list of MACs (separated with semicolons)
+</TD><TD>
+MAC address blacklist.<B>
+<P>
+Example: </B>mac-address-blacklist= 00:22:68:12:79:A6;00:22:68:12:79:78
+<BR></TD></TR>
+</TABLE>
+
+<P>
+<P>
+
+
+
+<BR>
+
+<B>Table&nbsp;9.&nbsp;802-11-wireless setting (section)</B>
+
+<TABLE BORDER>
+<TR VALIGN=top><TD><B>
+Property
+</B></TD><TD><B>
+Keyfile Variable
+</B></TD><TD><B>
+Format
+</B></TD><TD><B>
+Description
+</B><BR></TD></TR>
+<TR VALIGN=top><TD>
+ssid
+</TD><TD>
+ssid
+</TD><TD>
+string (or decimal-byte list - obsolete)
+</TD><TD>
+SSID of Wi-Fi network.<B>
+<P>
+Example: </B>ssid=Quick Net
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+mac-address
+</TD><TD>
+mac-address
+</TD><TD>
+usual hex-digits-and-colons notation
+</TD><TD>
+MAC address in traditional hex-digits-and-colons notation (e.g. 00:22:68:12:79:A2), or semicolon separated list of 6 bytes (obsolete) (e.g. 0;34;104;18;121;162).
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+cloned-mac-address
+</TD><TD>
+cloned-mac-address
+</TD><TD>
+usual hex-digits-and-colons notation
+</TD><TD>
+Cloned MAC address in traditional hex-digits-and-colons notation (e.g. 00:22:68:12:79:B2), or semicolon separated list of 6 bytes (obsolete) (e.g. 0;34;104;18;121;178).
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+mac-address-blacklist
+</TD><TD>
+mac-address-blacklist
+</TD><TD>
+list of MACs (separated with semicolons)
+</TD><TD>
+MAC address blacklist.<B>
+<P>
+Example: </B>mac-address-blacklist= 00:22:68:12:79:A6;00:22:68:12:79:78
+<BR></TD></TR>
+</TABLE>
+
+<P>
+<P>
+
+
+
+<BR>
+
+<B>Table&nbsp;10.&nbsp;wpan setting (section)</B>
+
+<TABLE BORDER>
+<TR VALIGN=top><TD><B>
+Property
+</B></TD><TD><B>
+Keyfile Variable
+</B></TD><TD><B>
+Format
+</B></TD><TD><B>
+Description
+</B><BR></TD></TR>
+<TR VALIGN=top><TD>
+mac-address
+</TD><TD>
+mac-address
+</TD><TD>
+usual hex-digits-and-colons notation
+</TD><TD>
+MAC address in hex-digits-and-colons notation (e.g. 76:d8:9b:87:66:60:84:ee).
+<BR></TD></TR>
+</TABLE>
+
+<P>
+<A NAME="lbAF">&nbsp;</A>
+<H3>Secret flags</H3>
+
+<P>
+
+Each secret property in a NetworkManager setting has an associated
+<I>flags</I>
+property that describes how to handle that secret. In the
+<I>keyfile</I>
+plugin, the value of
+<I>-flags</I>
+variable is a decimal number (0 - 7) defined as a sum of the following values:
+<P>
+<DL COMPACT><DT id="10"><DD>
+&bull;
+
+
+0 - (NM owned) - the system is responsible for providing and storing this secret.
+</DL>
+
+<P>
+<DL COMPACT><DT id="11"><DD>
+&bull;
+
+
+1 - (agent-owned) - a user-session secret agent is responsible for providing and storing this secret; when it is required, agents will be asked to provide it.
+</DL>
+
+<P>
+<DL COMPACT><DT id="12"><DD>
+&bull;
+
+
+2 - (not-saved) - this secret should not be saved but should be requested from the user each time it is required.
+</DL>
+
+<P>
+<DL COMPACT><DT id="13"><DD>
+&bull;
+
+
+4 - (not-required) - in some situations it cannot be automatically determined that a secret is required or not. This flag hints that the secret is not required and should not be requested from the user.
+</DL>
+
+<A NAME="lbAG">&nbsp;</A>
+<H2>FILES</H2>
+
+<P>
+
+/etc/NetworkManager/system-connections/*
+<A NAME="lbAH">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?5+nm-settings">nm-settings</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?5+nm-settings-ifcfg-rh">nm-settings-ifcfg-rh</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?8+NetworkManager">NetworkManager</A></B>(8),
+<B><A HREF="/cgi-bin/man/man2html?5+NetworkManager.conf">NetworkManager.conf</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?1+nmcli">nmcli</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?7+nmcli-examples">nmcli-examples</A></B>(7)
+<A NAME="lbAI">&nbsp;</A>
+<H2>NOTES</H2>
+
+<DL COMPACT>
+<DT id="14"> 1.<DD>
+GLib key file format
+<DL COMPACT><DT id="15"><DD>
+<A HREF="https://developer.gnome.org/glib/stable/glib-Key-value-file-parser.html#glib-Key-value-file-parser.description">https://developer.gnome.org/glib/stable/glib-Key-value-file-parser.html#glib-Key-value-file-parser.description</A>
+</DL>
+
+<P>
+</DL>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="16"><A HREF="#lbAB">NAME</A><DD>
+<DT id="17"><A HREF="#lbAC">DESCRIPTION</A><DD>
+<DT id="18"><A HREF="#lbAD">FILE FORMAT</A><DD>
+<DT id="19"><A HREF="#lbAE">DETAILS</A><DD>
+<DL>
+<DT id="20"><A HREF="#lbAF">Secret flags</A><DD>
+</DL>
+<DT id="21"><A HREF="#lbAG">FILES</A><DD>
+<DT id="22"><A HREF="#lbAH">SEE ALSO</A><DD>
+<DT id="23"><A HREF="#lbAI">NOTES</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:04 GMT, March 31, 2021
+</BODY>
+</HTML>

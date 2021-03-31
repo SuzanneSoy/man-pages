@@ -1,0 +1,326 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of APT-SECURE</TITLE>
+</HEAD><BODY>
+<H1>APT-SECURE</H1>
+Section: APT (8)<BR>Updated: 06&nbsp;August&nbsp;2016<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+apt-secure - Archive authentication support for APT
+<A NAME="lbAC">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+Starting with version 0.6,
+<B>APT</B>
+contains code that does signature checking of the Release file for all repositories. This ensures that data like packages in the archive can't be modified by people who have no access to the Release file signing key. Starting with version 1.1
+<B>APT</B>
+requires repositories to provide recent authentication information for unimpeded usage of the repository. Since version 1.5 changes in the information contained in the Release file about the repository need to be confirmed before APT continues to apply updates from this repository.
+<P>
+
+Note: All APT-based package management front-ends like
+<B><A HREF="/cgi-bin/man/man2html?8+apt-get">apt-get</A></B>(8),
+<B><A HREF="/cgi-bin/man/man2html?8+aptitude">aptitude</A></B>(8)
+and
+<B><A HREF="/cgi-bin/man/man2html?8+synaptic">synaptic</A></B>(8)
+support this authentication feature, so this manpage uses
+APT
+to refer to them all for simplicity only.
+<A NAME="lbAD">&nbsp;</A>
+<H2>UNSIGNED REPOSITORIES</H2>
+
+<P>
+
+If an archive has an unsigned Release file or no Release file at all current APT versions will refuse to download data from them by default in
+<B>update</B>
+operations and even if forced to download front-ends like
+<B><A HREF="/cgi-bin/man/man2html?8+apt-get">apt-get</A></B>(8)
+will require explicit confirmation if an installation request includes a package from such an unauthenticated archive.
+<P>
+
+You can force all APT clients to raise only warnings by setting the configuration option
+<B>Acquire::AllowInsecureRepositories</B>
+to
+true. Individual repositories can also be allowed to be insecure via the
+<B><A HREF="/cgi-bin/man/man2html?5+sources.list">sources.list</A></B>(5)
+option
+allow-insecure=yes. Note that insecure repositories are strongly discouraged and all options to force apt to continue supporting them will eventually be removed. Users also have the
+<B>Trusted</B>
+option available to disable even the warnings, but be sure to understand the implications as detailed in
+<B><A HREF="/cgi-bin/man/man2html?5+sources.list">sources.list</A></B>(5).
+<P>
+
+A repository which previously was authenticated but would loose this state in an
+<B>update</B>
+operation raises an error in all APT clients irrespective of the option to allow or forbid usage of insecure repositories. The error can be overcome by additionally setting
+<B>Acquire::AllowDowngradeToInsecureRepositories</B>
+to
+true
+or for Individual repositories with the
+<B><A HREF="/cgi-bin/man/man2html?5+sources.list">sources.list</A></B>(5)
+option
+allow-downgrade-to-insecure=yes.
+<A NAME="lbAE">&nbsp;</A>
+<H2>SIGNED REPOSITORIES</H2>
+
+<P>
+
+The chain of trust from an APT archive to the end user is made up of several steps.
+<B>apt-secure</B>
+is the last step in this chain; trusting an archive does not mean that you trust its packages not to contain malicious code, but means that you trust the archive maintainer. It's the archive maintainer's responsibility to ensure that the archive's integrity is preserved.
+<P>
+
+apt-secure does not review signatures at a package level. If you require tools to do this you should look at
+<B>debsig-verify</B>
+and
+<B>debsign</B>
+(provided in the debsig-verify and devscripts packages respectively).
+<P>
+
+The chain of trust in Debian starts (e.g.) when a maintainer uploads a new package or a new version of a package to the Debian archive. In order to become effective, this upload needs to be signed by a key contained in one of the Debian package maintainer keyrings (available in the debian-keyring package). Maintainers' keys are signed by other maintainers following pre-established procedures to ensure the identity of the key holder. Similar procedures exist in all Debian-based distributions.
+<P>
+
+Once the uploaded package is verified and included in the archive, the maintainer signature is stripped off, and checksums of the package are computed and put in the Packages file. The checksums of all of the Packages files are then computed and put into the Release file. The Release file is then signed by the archive key for this Ubuntu release, and distributed alongside the packages and the Packages files on Ubuntu mirrors. The keys are in the Ubuntu archive keyring available in the
+ubuntu-keyring
+package.
+<P>
+
+End users can check the signature of the Release file, extract a checksum of a package from it and compare it with the checksum of the package they downloaded by hand - or rely on APT doing this automatically.
+<P>
+
+Notice that this is distinct from checking signatures on a per package basis. It is designed to prevent two possible attacks:
+<P>
+<DL COMPACT><DT id="1"><DD>
+&bull;
+
+
+Network &quot;man in the middle&quot; attacks. Without signature checking, malicious agents can introduce themselves into the package download process and provide malicious software either by controlling a network element (router, switch, etc.) or by redirecting traffic to a rogue server (through ARP or DNS spoofing attacks).
+</DL>
+
+<P>
+<DL COMPACT><DT id="2"><DD>
+&bull;
+
+
+Mirror network compromise. Without signature checking, a malicious agent can compromise a mirror host and modify the files in it to propagate malicious software to all users downloading packages from that host.
+</DL>
+
+<P>
+
+However, it does not defend against a compromise of the master server itself (which signs the packages) or against a compromise of the key used to sign the Release files. In any case, this mechanism can complement a per-package signature.
+<A NAME="lbAF">&nbsp;</A>
+<H2>INFORMATION CHANGES</H2>
+
+<P>
+
+A Release file contains beside the checksums for the files in the repository also general information about the repository like the origin, codename or version number of the release.
+<P>
+
+This information is shown in various places so a repository owner should always ensure correctness. Further more user configuration like
+<B><A HREF="/cgi-bin/man/man2html?5+apt_preferences">apt_preferences</A></B>(5)
+can depend and make use of this information. Since version 1.5 the user must therefore explicitly confirm changes to signal that the user is sufficiently prepared e.g. for the new major release of the distribution shipped in the repository (as e.g. indicated by the codename).
+<A NAME="lbAG">&nbsp;</A>
+<H2>USER CONFIGURATION</H2>
+
+<P>
+
+<B>apt-key</B>
+is the program that manages the list of keys used by APT to trust repositories. It can be used to add or remove keys as well as list the trusted keys. Limiting which key(s) are able to sign which archive is possible via the
+<B>Signed-By</B>
+in
+<B><A HREF="/cgi-bin/man/man2html?5+sources.list">sources.list</A></B>(5).
+<P>
+
+Note that a default installation already contains all keys to securely acquire packages from the default repositories, so fiddling with
+<B>apt-key</B>
+is only needed if third-party repositories are added.
+<P>
+
+In order to add a new key you need to first download it (you should make sure you are using a trusted communication channel when retrieving it), add it with
+<B>apt-key</B>
+and then run
+<B>apt-get update</B>
+so that apt can download and verify the
+InRelease
+or
+Release.gpg
+files from the archives you have configured.
+<A NAME="lbAH">&nbsp;</A>
+<H2>REPOSITORY CONFIGURATION</H2>
+
+<P>
+
+If you want to provide archive signatures in an archive under your maintenance you have to:
+<P>
+<DL COMPACT><DT id="3"><DD>
+&bull;
+
+
+<I>Create a toplevel Release file</I>, if it does not exist already. You can do this by running
+<B>apt-ftparchive release</B>
+(provided in apt-utils).
+</DL>
+
+<P>
+<DL COMPACT><DT id="4"><DD>
+&bull;
+
+
+<I>Sign it</I>. You can do this by running
+<B>gpg --clearsign -o InRelease Release</B>
+and
+<B>gpg -abs -o Release.gpg Release</B>.
+</DL>
+
+<P>
+<DL COMPACT><DT id="5"><DD>
+&bull;
+
+
+<I>Publish the key fingerprint</I>, so that your users will know what key they need to import in order to authenticate the files in the archive. It is best to ship your key in its own keyring package like Ubuntu does with
+ubuntu-keyring
+to be able to distribute updates and key transitions automatically later.
+</DL>
+
+<P>
+<DL COMPACT><DT id="6"><DD>
+&bull;
+
+
+<I>Provide instructions on how to add your archive and key</I>. If your users can't acquire your key securely the chain of trust described above is broken. How you can help users add your key depends on your archive and target audience ranging from having your keyring package included in another archive users already have configured (like the default repositories of their distribution) to leveraging the web of trust.
+</DL>
+
+<P>
+
+Whenever the contents of the archive change (new packages are added or removed) the archive maintainer has to follow the first two steps outlined above.
+<A NAME="lbAI">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?5+apt.conf">apt.conf</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?8+apt-get">apt-get</A></B>(8),
+<B><A HREF="/cgi-bin/man/man2html?5+sources.list">sources.list</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?8+apt-key">apt-key</A></B>(8),
+<B><A HREF="/cgi-bin/man/man2html?1+apt-ftparchive">apt-ftparchive</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?1+debsign">debsign</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?1+debsig-verify">debsig-verify</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?1+gpg">gpg</A></B>(1)
+<P>
+
+For more background information you might want to review the
+m[blue]<B>Debian Security Infrastructure</B>m[]<FONT SIZE="-2">[1]</FONT>
+chapter of the Securing Debian Manual (also available in the harden-doc package) and the
+m[blue]<B>Strong Distribution HOWTO</B>m[]<FONT SIZE="-2">[2]</FONT>
+by V. Alex Brennen.
+<A NAME="lbAJ">&nbsp;</A>
+<H2>BUGS</H2>
+
+<P>
+
+m[blue]<B>APT bug page</B>m[]<FONT SIZE="-2">[3]</FONT>. If you wish to report a bug in APT, please see
+/usr/share/doc/debian/bug-reporting.txt
+or the
+<B><A HREF="/cgi-bin/man/man2html?1+reportbug">reportbug</A></B>(1)
+command.
+<A NAME="lbAK">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+<P>
+
+APT was written by the APT team
+&lt;<A HREF="mailto:apt@packages.debian.org">apt@packages.debian.org</A>&gt;.
+<A NAME="lbAL">&nbsp;</A>
+<H2>MANPAGE AUTHORS</H2>
+
+<P>
+
+This man-page is based on the work of Javier Fernández-Sanguino Peña, Isaac Jones, Colin Walters, Florian Weimer and Michael Vogt.
+<A NAME="lbAM">&nbsp;</A>
+<H2>AUTHORS</H2>
+
+<P>
+
+<B>Jason Gunthorpe</B>
+<DL COMPACT><DT id="7"><DD>
+</DL>
+
+<P>
+
+<B>APT team</B>
+<DL COMPACT><DT id="8"><DD>
+</DL>
+
+<A NAME="lbAN">&nbsp;</A>
+<H2>NOTES</H2>
+
+<DL COMPACT>
+<DT id="9"> 1.<DD>
+Debian Security Infrastructure
+<DL COMPACT><DT id="10"><DD>
+<A HREF="https://www.debian.org/doc/manuals/securing-debian-howto/ch7">https://www.debian.org/doc/manuals/securing-debian-howto/ch7</A>
+</DL>
+
+<DT id="11"> 2.<DD>
+Strong Distribution HOWTO
+<DL COMPACT><DT id="12"><DD>
+<A HREF="http://www.cryptnet.net/fdp/crypto/strong_distro.html">http://www.cryptnet.net/fdp/crypto/strong_distro.html</A>
+</DL>
+
+<DT id="13"> 3.<DD>
+APT bug page
+<DL COMPACT><DT id="14"><DD>
+<A HREF="http://bugs.debian.org/src:apt">http://bugs.debian.org/src:apt</A>
+</DL>
+
+<P>
+</DL>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="15"><A HREF="#lbAB">NAME</A><DD>
+<DT id="16"><A HREF="#lbAC">DESCRIPTION</A><DD>
+<DT id="17"><A HREF="#lbAD">UNSIGNED REPOSITORIES</A><DD>
+<DT id="18"><A HREF="#lbAE">SIGNED REPOSITORIES</A><DD>
+<DT id="19"><A HREF="#lbAF">INFORMATION CHANGES</A><DD>
+<DT id="20"><A HREF="#lbAG">USER CONFIGURATION</A><DD>
+<DT id="21"><A HREF="#lbAH">REPOSITORY CONFIGURATION</A><DD>
+<DT id="22"><A HREF="#lbAI">SEE ALSO</A><DD>
+<DT id="23"><A HREF="#lbAJ">BUGS</A><DD>
+<DT id="24"><A HREF="#lbAK">AUTHOR</A><DD>
+<DT id="25"><A HREF="#lbAL">MANPAGE AUTHORS</A><DD>
+<DT id="26"><A HREF="#lbAM">AUTHORS</A><DD>
+<DT id="27"><A HREF="#lbAN">NOTES</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:11 GMT, March 31, 2021
+</BODY>
+</HTML>

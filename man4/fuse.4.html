@@ -1,0 +1,715 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of FUSE</TITLE>
+</HEAD><BODY>
+<H1>FUSE</H1>
+Section: Linux Programmer's Manual (4)<BR>Updated: 2018-02-02<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+fuse - Filesystem in Userspace (FUSE) device
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<PRE>
+<B>#include &lt;<A HREF="file:///usr/include/linux/fuse.h">linux/fuse.h</A>&gt;</B>
+</PRE>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+This device is the primary interface between the FUSE filesystem driver
+and a user-space process wishing to provide the filesystem (referred to
+in the rest of this manual page as the
+<I>filesystem daemon</I>).
+
+This manual page is intended for those
+interested in understanding the kernel interface itself.
+Those implementing a FUSE filesystem may wish to make use of
+a user-space library such as
+<I>libfuse</I>
+
+that abstracts away the low-level interface.
+<P>
+
+At its core, FUSE is a simple client-server protocol, in which the Linux
+kernel is the client and the daemon is the server.
+After obtaining a file descriptor for this device, the daemon may
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)
+
+requests from that file descriptor and is expected to
+<B><A HREF="/cgi-bin/man/man2html?2+write">write</A></B>(2)
+
+back its replies.
+It is important to note that a file descriptor is
+associated with a unique FUSE filesystem.
+In particular, opening a second copy of this device,
+will not allow access to resources created
+through the first file descriptor (and vice versa).
+
+<A NAME="lbAE">&nbsp;</A>
+<H3>The basic protocol</H3>
+
+Every message that is read by the daemon begins with a header described by
+the following structure:
+<P>
+
+
+
+struct fuse_in_header {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;len;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Total&nbsp;length&nbsp;of&nbsp;the&nbsp;data,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;including&nbsp;this&nbsp;header&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;opcode;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;The&nbsp;kind&nbsp;of&nbsp;operation&nbsp;(see&nbsp;below)&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;unique;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;A&nbsp;unique&nbsp;identifier&nbsp;for&nbsp;this&nbsp;request&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;nodeid;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;ID&nbsp;of&nbsp;the&nbsp;filesystem&nbsp;object
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;being&nbsp;operated&nbsp;on&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;uid;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;UID&nbsp;of&nbsp;the&nbsp;requesting&nbsp;process&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;gid;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;GID&nbsp;of&nbsp;the&nbsp;requesting&nbsp;process&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;pid;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;PID&nbsp;of&nbsp;the&nbsp;requesting&nbsp;process&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;padding;
+};
+
+
+<P>
+
+The header is followed by a variable-length data portion
+(which may be empty) specific to the requested operation
+(the requested operation is indicated by
+<I>opcode</I>).
+
+<P>
+
+The daemon should then process the request and if applicable send
+a reply (almost all operations require a reply; if they do not,
+this is documented below), by performing a
+<B><A HREF="/cgi-bin/man/man2html?2+write">write</A></B>(2)
+
+to the file descriptor.
+All replies must start with the following header:
+<P>
+
+
+
+struct fuse_out_header {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;len;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Total&nbsp;length&nbsp;of&nbsp;data&nbsp;written&nbsp;to
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;the&nbsp;file&nbsp;descriptor&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int32_t&nbsp;&nbsp;error;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Any&nbsp;error&nbsp;that&nbsp;occurred&nbsp;(0&nbsp;if&nbsp;none)&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;unique;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;The&nbsp;value&nbsp;from&nbsp;the
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;corresponding&nbsp;request&nbsp;*/
+};
+
+
+<P>
+
+This header is also followed by (potentially empty) variable-sized
+data depending on the executed request.
+However, if the reply is an error reply (i.e.,
+<I>error</I>
+
+is set),
+then no further payload data should be sent, independent of the request.
+
+<A NAME="lbAF">&nbsp;</A>
+<H3>Exchanged messages</H3>
+
+This section should contain documentation for each of the messages
+in the protocol.
+This manual page is currently incomplete,
+so not all messages are documented.
+For each message, first the struct sent by the kernel is given,
+followed by a description of the semantics of the message.
+<DL COMPACT>
+<DT id="1"><B>FUSE_INIT</B>
+
+<DD>
+<DT id="2"><DD>
+
+
+struct fuse_init_in {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;major;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;minor;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;max_readahead;&nbsp;/*&nbsp;Since&nbsp;protocol&nbsp;v7.6&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;flags;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Since&nbsp;protocol&nbsp;v7.6&nbsp;*/
+};
+
+
+<DT id="3"><DD>
+This is the first request sent by the kernel to the daemon.
+It is used to negotiate the protocol version and other filesystem parameters.
+Note that the protocol version may affect the layout of any structure
+in the protocol (including this structure).
+The daemon must thus remember the negotiated version
+and flags for each session.
+As of the writing of this man page,
+the highest supported kernel protocol version is
+<I>7.26</I>.
+
+<DT id="4"><DD>
+Users should be aware that the descriptions in this manual page
+may be incomplete or incorrect for older or more recent protocol versions.
+<DT id="5"><DD>
+The reply for this request has the following format:
+<DT id="6"><DD>
+
+
+struct fuse_init_out {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;major;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;minor;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;max_readahead;&nbsp;&nbsp;&nbsp;/*&nbsp;Since&nbsp;v7.6&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;flags;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Since&nbsp;v7.6;&nbsp;some&nbsp;flags&nbsp;bits
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;were&nbsp;introduced&nbsp;later&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint16_t&nbsp;max_background;&nbsp;&nbsp;/*&nbsp;Since&nbsp;v7.13&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint16_t&nbsp;congestion_threshold;&nbsp;&nbsp;/*&nbsp;Since&nbsp;v7.13&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;max_write;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Since&nbsp;v7.5&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;time_gran;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Since&nbsp;v7.6&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;unused[9];
+};
+
+
+<DT id="7"><DD>
+If the major version supported by the kernel is larger than that supported
+by the daemon, the reply shall consist of only
+<I>uint32_t major</I>
+
+(following the usual header),
+indicating the largest major version supported by the daemon.
+The kernel will then issue a new
+<B>FUSE_INIT</B>
+
+request conforming to the older version.
+In the reverse case, the daemon should
+quietly fall back to the kernel's major version.
+<DT id="8"><DD>
+The negotiated minor version is considered to be the minimum
+of the minor versions provided by the daemon and the kernel and
+both parties should use the protocol corresponding to said minor version.
+<DT id="9"><B>FUSE_GETATTR</B>
+
+<DD>
+<DT id="10"><DD>
+
+
+struct fuse_getattr_in {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;getattr_flags;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;dummy;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;fh;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Set&nbsp;only&nbsp;if
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(getattr_flags&nbsp;&amp;&nbsp;FUSE_GETATTR_FH)
+};
+
+
+<DT id="11"><DD>
+The requested operation is to compute the attributes to be returned
+by
+<B><A HREF="/cgi-bin/man/man2html?2+stat">stat</A></B>(2)
+
+and similar operations for the given filesystem object.
+The object for which the attributes should be computed is indicated
+either by
+<I>header-&gt;nodeid</I>
+
+or, if the
+<I>FUSE_GETATTR_FH</I>
+
+flag is set, by the file handle
+<I>fh</I>.
+
+The latter case of operation is analogous to
+<B><A HREF="/cgi-bin/man/man2html?2+fstat">fstat</A></B>(2).
+
+<DT id="12"><DD>
+For performance reasons, these attributes may be cached in the kernel for
+a specified duration of time.
+While the cache timeout has not been exceeded,
+the attributes will be served from the cache and will not cause additional
+<B>FUSE_GETATTR</B>
+
+requests.
+<DT id="13"><DD>
+The computed attributes and the requested
+cache timeout should then be returned in the following structure:
+<DT id="14"><DD>
+
+
+struct fuse_attr_out {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Attribute&nbsp;cache&nbsp;duration&nbsp;(seconds&nbsp;+&nbsp;nanoseconds)&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;attr_valid;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;attr_valid_nsec;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;dummy;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;fuse_attr&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;ino;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;size;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;blocks;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;atime;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;mtime;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;ctime;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;atimensec;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;mtimensec;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;ctimensec;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;mode;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;nlink;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;uid;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;gid;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;rdev;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;blksize;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;padding;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;attr;
+};
+
+
+<DT id="15"><DD>
+<DT id="16"><B>FUSE_ACCESS</B>
+
+<DD>
+<DT id="17"><DD>
+
+
+struct fuse_access_in {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;mask;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;padding;
+};
+
+
+<DT id="18"><DD>
+If the
+<I>default_permissions</I>
+
+mount options is not used, this request may be used for permissions checking.
+No reply data is expected, but errors may be indicated
+as usual by setting the
+<I>error</I>
+
+field in the reply header (in particular, access denied errors
+may be indicated by returning
+<B>-EACCES</B>).
+
+<DT id="19"><B>FUSE_OPEN</B> and <B>FUSE_OPENDIR</B>
+
+<DD>
+
+
+struct fuse_open_in {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;flags;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;The&nbsp;flags&nbsp;that&nbsp;were&nbsp;passed
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;to&nbsp;the&nbsp;<A HREF="/cgi-bin/man/man2html?2+open">open</A>(2)&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;unused;
+};
+
+
+<DT id="20"><DD>
+The requested operation is to open the node indicated by
+<I>header-&gt;nodeid</I>.
+
+The exact semantics of what this means will depend on the
+filesystem being implemented.
+However, at the very least the
+filesystem should validate that the requested
+<I>flags</I>
+
+are valid for the indicated resource and then send a reply with the
+following format:
+<DT id="21"><DD>
+<DT id="22"><DD>
+
+
+struct fuse_open_out {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;fh;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;open_flags;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;padding;
+};
+
+
+<DT id="23"><DD>
+<DT id="24"><DD>
+The
+<I>fh</I>
+
+field is an opaque identifier that the kernel will use to refer
+to this resource
+The
+<I>open_flags</I>
+
+field is a bit mask of any number of the flags
+that indicate properties of this file handle to the kernel:
+<DL COMPACT><DT id="25"><DD>
+<DL COMPACT>
+<DT id="26"><B>FOPEN_DIRECT_IO</B>
+
+<DD>
+Bypass page cache for this open file.
+<DT id="27"><B>FOPEN_KEEP_CACHE</B>
+
+<DD>
+Don't invalidate the data cache on open.
+<DT id="28"><B>FOPEN_NONSEEKABLE</B>
+
+<DD>
+The file is not seekable.
+</DL>
+</DL>
+
+<DT id="29"><B>FUSE_READ</B> and <B>FUSE_READDIR</B>
+
+<DD>
+<DT id="30"><DD>
+
+
+struct fuse_read_in {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;fh;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;offset;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;size;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;read_flags;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;lock_owner;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;flags;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;padding;
+};
+
+
+<DT id="31"><DD>
+<DT id="32"><DD>
+The requested action is to read up to
+<I>size</I>
+
+bytes of the file or directory, starting at
+<I>offset</I>.
+
+The bytes should be returned directly following the usual reply header.
+<DT id="33"><B>FUSE_INTERRUPT</B>
+
+<DD>
+
+
+struct fuse_interrupt_in {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;unique;
+};
+
+
+<DT id="34"><DD>
+The requested action is to cancel the pending operation indicated by
+<I>unique</I>.
+
+This request requires no response.
+However, receipt of this message does
+not by itself cancel the indicated operation.
+The kernel will still expect a reply to said operation (e.g., an
+<I>EINTR</I>
+
+error or a short read).
+At most one
+<B>FUSE_INTERRUPT</B>
+
+request will be issued for a given operation.
+After issuing said operation,
+the kernel will wait uninterruptibly for completion of the indicated request.
+<DT id="35"><B>FUSE_LOOKUP</B>
+
+<DD>
+Directly following the header is a filename to be looked up in the directory
+indicated by
+<I>header-&gt;nodeid</I>.
+
+The expected reply is of the form:
+<DT id="36"><DD>
+
+
+struct fuse_entry_out {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;nodeid;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Inode&nbsp;ID&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;generation;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Inode&nbsp;generation&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;entry_valid;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;attr_valid;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;entry_valid_nsec;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;attr_valid_nsec;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;fuse_attr&nbsp;attr;
+};
+
+
+<DT id="37"><DD>
+The combination of
+<I>nodeid</I>
+
+and
+<I>generation</I>
+
+must be unique for the filesystem's lifetime.
+<DT id="38"><DD>
+The interpretation of timeouts and
+<I>attr</I>
+
+is as for
+<B>FUSE_GETATTR</B>.
+
+<DT id="39"><B>FUSE_FLUSH</B>
+
+<DD>
+
+
+struct fuse_flush_in {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;fh;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;unused;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;padding;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;lock_owner;
+};
+
+
+<DT id="40"><DD>
+The requested action is to flush any pending changes to the indicated
+file handle.
+No reply data is expected.
+However, an empty reply message
+still needs to be issued once the flush operation is complete.
+<DT id="41"><B>FUSE_RELEASE</B> and <B>FUSE_RELEASEDIR</B>
+
+<DD>
+
+
+struct fuse_release_in {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;fh;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;flags;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;release_flags;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;lock_owner;
+};
+
+
+<DT id="42"><DD>
+These are the converse of
+<B>FUSE_OPEN</B>
+
+and
+<B>FUSE_OPENDIR</B>
+
+respectively.
+The daemon may now free any resources associated with the
+file handle
+<I>fh</I>
+
+as the kernel will no longer refer to it.
+There is no reply data associated with this request,
+but a reply still needs to be issued once the request has
+been completely processed.
+<DT id="43"><B>FUSE_STATFS</B>
+
+<DD>
+This operation implements
+<B><A HREF="/cgi-bin/man/man2html?2+statfs">statfs</A></B>(2)
+
+for this filesystem.
+There is no input data associated with this request.
+The expected reply data has the following structure:
+<DT id="44"><DD>
+
+
+struct fuse_kstatfs {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;blocks;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;bfree;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;bavail;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;files;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;ffree;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;bsize;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;namelen;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;frsize;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;padding;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;spare[6];
+};
+<P>
+struct fuse_statfs_out {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;fuse_kstatfs&nbsp;st;
+};
+
+
+<DT id="45"><DD>
+For the interpretation of these fields, see
+<B><A HREF="/cgi-bin/man/man2html?2+statfs">statfs</A></B>(2).
+
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H2>ERRORS</H2>
+
+<DL COMPACT>
+<DT id="46"><B>E2BIG</B>
+
+<DD>
+Returned from
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)
+
+operations when the kernel's request is too large for the provided buffer
+and the request was
+<B>FUSE_SETXATTR</B>.
+
+<DT id="47"><B>EINVAL</B>
+
+<DD>
+Returned from
+<B><A HREF="/cgi-bin/man/man2html?2+write">write</A></B>(2)
+
+if validation of the reply failed.
+Not all mistakes in replies will be caught by this validation.
+However, basic mistakes, such as short replies or an incorrect
+<I>unique</I>
+
+value, are detected.
+<DT id="48"><B>EIO</B>
+
+<DD>
+Returned from
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)
+
+operations when the kernel's request is too large for the provided buffer.
+<DT id="49"><DD>
+<I>Note</I>:
+
+There are various ways in which incorrect use of these interfaces can cause
+operations on the provided filesystem's files and directories to fail with
+<B>EIO</B>.
+
+Among the possible incorrect uses are:
+<DL COMPACT><DT id="50"><DD>
+<DL COMPACT>
+<DT id="51">*<DD>
+changing
+<I>mode &amp; S_IFMT</I>
+
+for an inode that has previously been reported to the kernel; or
+<DT id="52">*<DD>
+giving replies to the kernel that are shorter than what the kernel expected.
+</DL>
+</DL>
+
+<DT id="53"><B>ENODEV</B>
+
+<DD>
+Returned from
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)
+
+and
+<B><A HREF="/cgi-bin/man/man2html?2+write">write</A></B>(2)
+
+if the FUSE filesystem was unmounted.
+<DT id="54"><B>EPERM</B>
+
+<DD>
+Returned from operations on a
+<I>/dev/fuse</I>
+
+file descriptor that has not been mounted.
+</DL>
+<A NAME="lbAH">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+The FUSE filesystem is Linux-specific.
+<A NAME="lbAI">&nbsp;</A>
+<H2>NOTES</H2>
+
+The following messages are not yet documented in this manual page:
+<P>
+
+
+
+
+<B>FUSE_BATCH_FORGET</B>
+
+<B>FUSE_BMAP</B>
+
+<B>FUSE_CREATE</B>
+
+<B>FUSE_DESTROY</B>
+
+<B>FUSE_FALLOCATE</B>
+
+<B>FUSE_FORGET</B>
+
+<B>FUSE_FSYNC</B>
+
+<B>FUSE_FSYNCDIR</B>
+
+<B>FUSE_GETLK</B>
+
+<B>FUSE_GETXATTR</B>
+
+<B>FUSE_IOCTL</B>
+
+<B>FUSE_LINK</B>
+
+<B>FUSE_LISTXATTR</B>
+
+<B>FUSE_LSEEK</B>
+
+<B>FUSE_MKDIR</B>
+
+<B>FUSE_MKNOD</B>
+
+<B>FUSE_NOTIFY_REPLY</B>
+
+<B>FUSE_POLL</B>
+
+<B>FUSE_READDIRPLUS</B>
+
+<B>FUSE_READLINK</B>
+
+<B>FUSE_REMOVEXATTR</B>
+
+<B>FUSE_RENAME</B>
+
+<B>FUSE_RENAME2</B>
+
+<B>FUSE_RMDIR</B>
+
+<B>FUSE_SETATTR</B>
+
+<B>FUSE_SETLK</B>
+
+<B>FUSE_SETLKW</B>
+
+<B>FUSE_SYMLINK</B>
+
+<B>FUSE_UNLINK</B>
+
+<B>FUSE_WRITE</B>
+
+
+
+<A NAME="lbAJ">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?1+fusermount">fusermount</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?8+mount.fuse">mount.fuse</A></B>(8)
+
+<A NAME="lbAK">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="55"><A HREF="#lbAB">NAME</A><DD>
+<DT id="56"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="57"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DL>
+<DT id="58"><A HREF="#lbAE">The basic protocol</A><DD>
+<DT id="59"><A HREF="#lbAF">Exchanged messages</A><DD>
+</DL>
+<DT id="60"><A HREF="#lbAG">ERRORS</A><DD>
+<DT id="61"><A HREF="#lbAH">CONFORMING TO</A><DD>
+<DT id="62"><A HREF="#lbAI">NOTES</A><DD>
+<DT id="63"><A HREF="#lbAJ">SEE ALSO</A><DD>
+<DT id="64"><A HREF="#lbAK">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:01 GMT, March 31, 2021
+</BODY>
+</HTML>

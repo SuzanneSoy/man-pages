@@ -1,0 +1,316 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of IOCTL-FIDEDUPERANGE</TITLE>
+</HEAD><BODY>
+<H1>IOCTL-FIDEDUPERANGE</H1>
+Section: Linux Programmer's Manual (2)<BR>Updated: 2019-10-10<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+ioctl_fideduperange - share some the data of one file with another file
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<BR>
+
+<B>#include &lt;<A HREF="file:///usr/include/sys/ioctl.h">sys/ioctl.h</A>&gt;</B>
+
+<BR>
+
+<B>#include &lt;<A HREF="file:///usr/include/linux/fs.h">linux/fs.h</A>&gt;</B>
+
+<P>
+
+<B>int ioctl(int </B><I>src_fd</I><B>, FIDEDUPERANGE, struct file_dedupe_range *</B><I>arg</I><B>);</B>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+If a filesystem supports files sharing physical storage between multiple
+files, this
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+operation can be used to make some of the data in the
+<B>src_fd</B>
+
+file appear in the
+<B>dest_fd</B>
+
+file by sharing the underlying storage if the file data is identical
+(&quot;deduplication&quot;).
+Both files must reside within the same filesystem.
+This reduces storage consumption by allowing the filesystem
+to store one shared copy of the data.
+If a file write should occur to a shared
+region, the filesystem must ensure that the changes remain private to the file
+being written.
+This behavior is commonly referred to as &quot;copy on write&quot;.
+<P>
+
+This ioctl performs the &quot;compare and share if identical&quot; operation on up to
+<I>src_length</I>
+
+bytes from file descriptor
+<I>src_fd</I>
+
+at offset
+<I>src_offset</I>.
+
+This information is conveyed in a structure of the following form:
+<P>
+
+
+
+struct file_dedupe_range {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;src_offset;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;src_length;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u16&nbsp;dest_count;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u16&nbsp;reserved1;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u32&nbsp;reserved2;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;file_dedupe_range_info&nbsp;info[0];
+};
+
+
+<P>
+
+Deduplication is atomic with regards to concurrent writes, so no locks need to
+be taken to obtain a consistent deduplicated copy.
+<P>
+
+The fields
+<I>reserved1</I> and <I>reserved2</I>
+
+must be zero.
+<P>
+
+Destinations for the deduplication operation are conveyed in the array at the
+end of the structure.
+The number of destinations is given in
+<I>dest_count</I>,
+
+and the destination information is conveyed in the following form:
+<P>
+
+
+
+struct file_dedupe_range_info {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__s64&nbsp;dest_fd;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;dest_offset;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;bytes_deduped;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__s32&nbsp;status;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u32&nbsp;reserved;
+};
+
+
+<P>
+
+Each deduplication operation targets
+<I>src_length</I>
+
+bytes in file descriptor
+<I>dest_fd</I>
+
+at offset
+<I>dest_offset</I>.
+
+The field
+<I>reserved</I>
+
+must be zero.
+During the call,
+<I>src_fd</I>
+
+must be open for reading and
+<I>dest_fd</I>
+
+must be open for writing.
+The combined size of the struct
+<I>file_dedupe_range</I>
+
+and the struct
+<I>file_dedupe_range_info</I>
+
+array must not exceed the system page size.
+The maximum size of
+<I>src_length</I>
+
+is filesystem dependent and is typically 16&nbsp;MiB.
+This limit will be enforced silently by the filesystem.
+By convention, the storage used by
+<I>src_fd</I>
+
+is mapped into
+<I>dest_fd</I>
+
+and the previous contents in
+<I>dest_fd</I>
+
+are freed.
+<P>
+
+Upon successful completion of this ioctl, the number of bytes successfully
+deduplicated is returned in
+<I>bytes_deduped</I>
+
+and a status code for the deduplication operation is returned in
+<I>status</I>.
+
+If even a single byte in the range does not match, the deduplication
+request will be ignored and
+<I>status</I>
+
+set to
+<B>FILE_DEDUPE_RANGE_DIFFERS</B>.
+
+The
+<I>status</I>
+
+code is set to
+<B>FILE_DEDUPE_RANGE_SAME</B>
+
+for success, a negative error code in case of error, or
+<B>FILE_DEDUPE_RANGE_DIFFERS</B>
+
+if the data did not match.
+<P>
+
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+On error, -1 is returned, and
+<I>errno</I>
+
+is set to indicate the error.
+<P>
+
+<A NAME="lbAF">&nbsp;</A>
+<H2>ERRORS</H2>
+
+Error codes can be one of, but are not limited to, the following:
+<DL COMPACT>
+<DT id="1"><B>EBADF</B>
+
+<DD>
+<I>src_fd</I>
+
+is not open for reading;
+<I>dest_fd</I>
+
+is not open for writing or is open for append-only writes; or the filesystem
+which
+<I>src_fd</I>
+
+resides on does not support deduplication.
+<DT id="2"><B>EINVAL</B>
+
+<DD>
+The filesystem does not support deduplicating the ranges of the given files.
+This error can also appear if either file descriptor represents
+a device, FIFO, or socket.
+Disk filesystems generally require the offset and length arguments
+to be aligned to the fundamental block size.
+Neither Btrfs nor XFS support
+overlapping deduplication ranges in the same file.
+<DT id="3"><B>EISDIR</B>
+
+<DD>
+One of the files is a directory and the filesystem does not support shared
+regions in directories.
+<DT id="4"><B>ENOMEM</B>
+
+<DD>
+The kernel was unable to allocate sufficient memory to perform the
+operation or
+<I>dest_count</I>
+
+is so large that the input argument description spans more than a single
+page of memory.
+<DT id="5"><B>EOPNOTSUPP</B>
+
+<DD>
+This can appear if the filesystem does not support deduplicating either file
+descriptor, or if either file descriptor refers to special inodes.
+<DT id="6"><B>EPERM</B>
+
+<DD>
+<I>dest_fd</I>
+
+is immutable.
+<DT id="7"><B>ETXTBSY</B>
+
+<DD>
+One of the files is a swap file.
+Swap files cannot share storage.
+<DT id="8"><B>EXDEV</B>
+
+<DD>
+<I>dest_fd</I> and <I>src_fd</I>
+
+are not on the same mounted filesystem.
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H2>VERSIONS</H2>
+
+This ioctl operation first appeared in Linux 4.5.
+It was previously known as
+<B>BTRFS_IOC_FILE_EXTENT_SAME</B>
+
+and was private to Btrfs.
+<A NAME="lbAH">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+This API is Linux-specific.
+<A NAME="lbAI">&nbsp;</A>
+<H2>NOTES</H2>
+
+Because a copy-on-write operation requires the allocation of new storage, the
+<B><A HREF="/cgi-bin/man/man2html?2+fallocate">fallocate</A></B>(2)
+
+operation may unshare shared blocks to guarantee that subsequent writes will
+not fail because of lack of disk space.
+<P>
+
+Some filesystems may limit the amount of data that can be deduplicated in a
+single call.
+<A NAME="lbAJ">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+<A NAME="lbAK">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="9"><A HREF="#lbAB">NAME</A><DD>
+<DT id="10"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="11"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="12"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DT id="13"><A HREF="#lbAF">ERRORS</A><DD>
+<DT id="14"><A HREF="#lbAG">VERSIONS</A><DD>
+<DT id="15"><A HREF="#lbAH">CONFORMING TO</A><DD>
+<DT id="16"><A HREF="#lbAI">NOTES</A><DD>
+<DT id="17"><A HREF="#lbAJ">SEE ALSO</A><DD>
+<DT id="18"><A HREF="#lbAK">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:33 GMT, March 31, 2021
+</BODY>
+</HTML>

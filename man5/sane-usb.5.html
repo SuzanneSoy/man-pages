@@ -1,0 +1,249 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of sane-usb</TITLE>
+</HEAD><BODY>
+<H1>sane-usb</H1>
+Section: SANE Scanner Access Now Easy (5)<BR>Updated: 14 Jul 2008<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="ixAAB"></A>
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+sane-usb - USB configuration tips for SANE
+<A NAME="lbAC">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+This manual page contains information on how to access scanners with a USB
+interface. It focusses on two main topics: getting the scanner detected by the
+operating system kernel and using it with SANE.
+<P>
+
+This page applies to USB most backends and scanners, as they use the generic
+sanei_usb interface. However, there is one exceptions: USB Scanners
+supported by the microtek2 backend need a special USB kernel
+driver, see
+<B><A HREF="/cgi-bin/man/man2html?5+sane-microtek2">sane-microtek2</A></B>(5)
+
+for details.
+<P>
+<A NAME="lbAD">&nbsp;</A>
+<H2>QUICK START</H2>
+
+This is a short HOWTO-like section. For the full details, read the following
+sections. The goal of this section is to get the scanner detected by
+<B><A HREF="/cgi-bin/man/man2html?1+sane-find-scanner">sane-find-scanner</A></B>(1).
+
+<P>
+
+Run sane-find-scanner. If it lists your scanner with the correct vendor and
+product ids, you are done. See section
+<B>SANE ISSUES</B>
+
+for details on how to go on.
+<P>
+
+sane-find-scanner doesn't list your scanner? Does it work as root? If yes,
+there is a permission issue. See the
+<B>LIBUSB</B>
+
+section for details.
+<P>
+
+Nothing is found even as root? Check that your kernel supports USB and that
+libusb is installed (see section
+<B>LIBUSB</B>).
+
+<P>
+<A NAME="lbAE">&nbsp;</A>
+<H2>USB ACCESS METHODS</H2>
+
+For accessing USB devices, the USB library libusb is used. There used to exist
+another method to access USB devices: the kernel scanner driver. The kernel
+scanner driver method is deprecated and shouldn't be used anymore. It may be
+removed from SANE at any time. In Linux, the kernel scanner driver has been
+removed in the 2.6.* kernel series. Only libusb access is documented in this
+manual page.
+<P>
+<A NAME="lbAF">&nbsp;</A>
+<H2>LIBUSB</H2>
+
+SANE can only use libusb 0.1.6 or newer. It needs to be installed at
+build-time. Modern Linux distributions and other operating systems come with
+libusb.
+<P>
+
+Libusb can only access your scanner if it's not claimed by the kernel scanner
+driver. If you want to use libusb, unload the kernel driver (e.g. rmmod
+scanner under Linux) or disable the driver when compiling a new kernel. For
+Linux, your kernel needs support for the USB filesystem (usbfs). For kernels
+older than 2.4.19, replace &quot;usbfs&quot; with &quot;usbdevfs&quot; because the name has
+changed. This filesystem must be mounted. That's done automatically at boot
+time, if /etc/fstab contains a line like this:
+<P>
+
+<DL COMPACT><DT id="1"><DD>
+none /proc/bus/usb usbfs defaults  0  0
+</DL>
+
+<P>
+
+The permissions for the device files used by libusb must be adjusted for user
+access. Otherwise only root can use SANE devices. For
+<I>Linux</I>,
+
+the devices are located in /proc/bus/usb/ or in /dev/bus/usb, if you use
+udev. There are directories named e.g. &quot;001&quot; (the bus name) containing files
+&quot;001&quot;, &quot;002&quot; etc. (the device files). The right device files can be found out by
+running scanimage -L as root. Setting permissions with &quot;chmod&quot; is not permanent,
+however. They will be reset after reboot or replugging the scanner.
+<P>
+
+Usually udev or for older distributions the hotplug utilities are used, which
+support dynamic setting of access permissions. SANE comes with udev and hotplug
+scripts in the directory tools/udev and tools/hotplug. They can be used for
+setting permissions, see @DOCDIR@/README.linux, tools/README and the README in
+the tools/hotplug directory for more details.
+<P>
+
+For the
+<B>BSDs</B>,
+
+the device files used by libusb are named
+<I>/dev/ugen*</I>.
+
+Use chmod to apply appropriate permissions.
+<P>
+<A NAME="lbAG">&nbsp;</A>
+<H2>SANE ISSUES</H2>
+
+<P>
+
+This section assumes that your scanner is detected by sane-find-scanner. It
+doesn't make sense to go on, if this is not the case. While sane-find-scanner
+is able to detect any USB scanner, actual scanning will only work if the
+scanner is supported by a SANE backend. Information on the level of support
+can be found on the SANE webpage
+(<I><A HREF="http://www.sane-project.org/">http://www.sane-project.org/</A></I>),
+
+and the individual backend manpages.
+<P>
+
+Most backends can detect USB scanners automatically using &quot;usb&quot; configuration
+file lines. This method allows one to identify scanners by the USB vendor and
+product numbers.  The syntax for specifying a scanner this way is:
+<P>
+
+<DL COMPACT><DT id="2"><DD>
+usb
+<I>VENDOR PRODUCT</I>
+
+</DL>
+
+<P>
+
+where
+<I>VENDOR</I>
+
+is the USB vendor id, and
+<I>PRODUCT</I>
+
+is the USB product id of the scanner. Both ids are non-negative integer numbers
+in decimal or hexadecimal format. The correct values for these fields can be
+found by running sane-find-scanner, looking into the syslog (e.g.,
+/var/log/messages) or under Linux by issuing the command &quot;cat
+/proc/bus/usb/devices&quot;.  This is an example of a config file line:
+<P>
+
+<DL COMPACT><DT id="3"><DD>
+usb 0x055f 0x0006
+</DL>
+
+<P>
+
+would have the effect that all USB devices in the system with a vendor id of
+0x55f and a product id of 0x0006 would be probed and recognized by the
+backend.
+<P>
+
+If your scanner is not detected automatically, it may be necessary to edit the
+appropriate backend configuration file before using SANE for the first time.
+For a detailed description of each backend's configuration file, please refer to
+the relevant backend manual page (e.g.
+<B><A HREF="/cgi-bin/man/man2html?5+sane-mustek_usb">sane-mustek_usb</A></B>(5)
+
+for Mustek USB scanners).
+<P>
+
+Do
+<B>not</B>
+
+create a symlink from
+<I>/dev/scanner</I>
+
+to the USB device because this link is used by the SCSI backends. The scanner
+may be confused if it receives SCSI commands.
+<P>
+<A NAME="lbAH">&nbsp;</A>
+<H2>ENVIRONMENT</H2>
+
+<DL COMPACT>
+<DT id="4"><B>SANE_DEBUG_SANEI_USB</B>
+
+<DD>
+If the library was compiled with debug support enabled, this
+environment variable controls the debug level for the USB I/O
+subsystem.  E.g., a value of 128 requests all debug output to be
+printed.  Smaller levels reduce verbosity. Values greater than 4 enable
+libusb debugging (if available). Example: export SANE_DEBUG_SANEI_USB=4.
+</DL>
+<P>
+
+<DL COMPACT>
+<DT id="5"><B>SANE_USB_WORKAROUND</B>
+
+<DD>
+If your scanner does not work when plugged into a USB3 port, try
+setting the environment variable SANE_USB_WORKAROUND to 1. This
+may work around issues which happen with particular kernel
+versions. Example: export SANE_USB_WORKAROUND=1.
+<P>
+</DL>
+<A NAME="lbAI">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?7+sane">sane</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?1+sane-find-scanner">sane-find-scanner</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?5+sane-backendname">sane-backendname</A></B>(5),
+
+<B><A HREF="/cgi-bin/man/man2html?5+sane-scsi">sane-scsi</A></B>(5)
+
+<P>
+<A NAME="lbAJ">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+Henning Meier-Geinitz &lt;<A HREF="mailto:henning@meier-geinitz.de">henning@meier-geinitz.de</A>&gt;
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="6"><A HREF="#lbAB">NAME</A><DD>
+<DT id="7"><A HREF="#lbAC">DESCRIPTION</A><DD>
+<DT id="8"><A HREF="#lbAD">QUICK START</A><DD>
+<DT id="9"><A HREF="#lbAE">USB ACCESS METHODS</A><DD>
+<DT id="10"><A HREF="#lbAF">LIBUSB</A><DD>
+<DT id="11"><A HREF="#lbAG">SANE ISSUES</A><DD>
+<DT id="12"><A HREF="#lbAH">ENVIRONMENT</A><DD>
+<DT id="13"><A HREF="#lbAI">SEE ALSO</A><DD>
+<DT id="14"><A HREF="#lbAJ">AUTHOR</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:05 GMT, March 31, 2021
+</BODY>
+</HTML>

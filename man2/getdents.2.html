@@ -1,0 +1,424 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of GETDENTS</TITLE>
+</HEAD><BODY>
+<H1>GETDENTS</H1>
+Section: Linux Programmer's Manual (2)<BR>Updated: 2019-03-06<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+getdents, getdents64 - get directory entries
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<PRE>
+<B>int getdents(unsigned int </B><I>fd</I><B>, struct linux_dirent *</B><I>dirp</I><B>,</B>
+<B>             unsigned int </B><I>count</I><B>);</B>
+<B>int getdents64(unsigned int </B><I>fd</I><B>, struct linux_dirent64 *</B><I>dirp</I><B>,</B>
+<B>             unsigned int </B><I>count</I><B>);</B>
+</PRE>
+
+<P>
+
+<I>Note</I>:
+
+There are no glibc wrappers for these system calls; see NOTES.
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+These are not the interfaces you are interested in.
+Look at
+<B><A HREF="/cgi-bin/man/man2html?3+readdir">readdir</A></B>(3)
+
+for the POSIX-conforming C library interface.
+This page documents the bare kernel system call interfaces.
+<A NAME="lbAE">&nbsp;</A>
+<H3>getdents()</H3>
+
+The system call
+<B>getdents</B>()
+
+reads several
+<I>linux_dirent</I>
+
+structures from the directory
+referred to by the open file descriptor
+<I>fd</I>
+
+into the buffer pointed to by
+<I>dirp</I>.
+
+The argument
+<I>count</I>
+
+specifies the size of that buffer.
+<P>
+
+The
+<I>linux_dirent</I>
+
+structure is declared as follows:
+<P>
+
+
+
+struct linux_dirent {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;unsigned&nbsp;long&nbsp;&nbsp;d_ino;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Inode&nbsp;number&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;unsigned&nbsp;long&nbsp;&nbsp;d_off;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Offset&nbsp;to&nbsp;next&nbsp;<I>linux_dirent</I>&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;unsigned&nbsp;short&nbsp;d_reclen;&nbsp;&nbsp;/*&nbsp;Length&nbsp;of&nbsp;this&nbsp;<I>linux_dirent</I>&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;d_name[];&nbsp;&nbsp;/*&nbsp;Filename&nbsp;(null-terminated)&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;length&nbsp;is&nbsp;actually&nbsp;(d_reclen&nbsp;-&nbsp;2&nbsp;-
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;offsetof(struct&nbsp;linux_dirent,&nbsp;d_name))&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pad;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;Zero&nbsp;padding&nbsp;byte
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;d_type;&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;File&nbsp;type&nbsp;(only&nbsp;since&nbsp;Linux
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;2.6.4);&nbsp;offset&nbsp;is&nbsp;(d_reclen&nbsp;-&nbsp;1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;*/
+}
+
+
+<P>
+
+<I>d_ino</I>
+
+is an inode number.
+<I>d_off</I>
+
+is the distance from the start of the directory to the start of the next
+<I>linux_dirent</I>.
+
+<I>d_reclen</I>
+
+is the size of this entire
+<I>linux_dirent</I>.
+
+<I>d_name</I>
+
+is a null-terminated filename.
+<P>
+
+<I>d_type</I>
+
+is a byte at the end of the structure that indicates the file type.
+It contains one of the following values (defined in
+<I>&lt;<A HREF="file:///usr/include/dirent.h">dirent.h</A>&gt;</I>):
+
+<DL COMPACT>
+<DT id="1"><B>DT_BLK</B>
+
+<DD>
+This is a block device.
+<DT id="2"><B>DT_CHR</B>
+
+<DD>
+This is a character device.
+<DT id="3"><B>DT_DIR</B>
+
+<DD>
+This is a directory.
+<DT id="4"><B>DT_FIFO</B>
+
+<DD>
+This is a named pipe (FIFO).
+<DT id="5"><B>DT_LNK</B>
+
+<DD>
+This is a symbolic link.
+<DT id="6"><B>DT_REG</B>
+
+<DD>
+This is a regular file.
+<DT id="7"><B>DT_SOCK</B>
+
+<DD>
+This is a UNIX domain socket.
+<DT id="8"><B>DT_UNKNOWN</B>
+
+<DD>
+The file type is unknown.
+</DL>
+<P>
+
+The
+<I>d_type</I>
+
+field is implemented since Linux 2.6.4.
+It occupies a space that was previously a zero-filled padding byte in the
+<I>linux_dirent</I>
+
+structure.
+Thus, on kernels up to and including 2.6.3,
+attempting to access this field always provides the value 0
+(<B>DT_UNKNOWN</B>).
+
+<P>
+
+Currently,
+
+
+only some filesystems (among them: Btrfs, ext2, ext3, and ext4)
+have full support for returning the file type in
+<I>d_type</I>.
+
+All applications must properly handle a return of
+<B>DT_UNKNOWN</B>.
+
+<A NAME="lbAF">&nbsp;</A>
+<H3>getdents64()</H3>
+
+The original Linux
+<B>getdents</B>()
+
+system call did not handle large filesystems and large file offsets.
+Consequently, Linux 2.4 added
+<B>getdents64</B>(),
+
+with wider types for the
+<I>d_ino</I>
+
+and
+<I>d_off</I>
+
+fields.
+In addition,
+<B>getdents64</B>()
+
+supports an explicit
+<I>d_type</I>
+
+field.
+<P>
+
+The
+<B>getdents64</B>()
+
+system call is like
+<B>getdents</B>(),
+
+except that its second argument is a pointer to a buffer containing
+structures of the following type:
+<P>
+
+
+
+struct linux_dirent64 {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;ino64_t&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;d_ino;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;64-bit&nbsp;inode&nbsp;number&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;off64_t&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;d_off;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;64-bit&nbsp;offset&nbsp;to&nbsp;next&nbsp;structure&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;unsigned&nbsp;short&nbsp;d_reclen;&nbsp;/*&nbsp;Size&nbsp;of&nbsp;this&nbsp;dirent&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;unsigned&nbsp;char&nbsp;&nbsp;d_type;&nbsp;&nbsp;&nbsp;/*&nbsp;File&nbsp;type&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;d_name[];&nbsp;/*&nbsp;Filename&nbsp;(null-terminated)&nbsp;*/
+};
+
+
+<A NAME="lbAG">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+On success, the number of bytes read is returned.
+On end of directory, 0 is returned.
+On error, -1 is returned, and
+<I>errno</I>
+
+is set appropriately.
+<A NAME="lbAH">&nbsp;</A>
+<H2>ERRORS</H2>
+
+<DL COMPACT>
+<DT id="9"><B>EBADF</B>
+
+<DD>
+Invalid file descriptor
+<I>fd</I>.
+
+<DT id="10"><B>EFAULT</B>
+
+<DD>
+Argument points outside the calling process's address space.
+<DT id="11"><B>EINVAL</B>
+
+<DD>
+Result buffer is too small.
+<DT id="12"><B>ENOENT</B>
+
+<DD>
+No such directory.
+<DT id="13"><B>ENOTDIR</B>
+
+<DD>
+File descriptor does not refer to a directory.
+</DL>
+<A NAME="lbAI">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+SVr4.
+
+<A NAME="lbAJ">&nbsp;</A>
+<H2>NOTES</H2>
+
+Glibc does not provide a wrapper for these system calls; call them using
+<B><A HREF="/cgi-bin/man/man2html?2+syscall">syscall</A></B>(2).
+
+You will need to define the
+<I>linux_dirent</I>
+
+or
+<I>linux_dirent64</I>
+
+structure yourself.
+However, you probably want to use
+<B><A HREF="/cgi-bin/man/man2html?3+readdir">readdir</A></B>(3)
+
+instead.
+<P>
+
+These calls supersede
+<B><A HREF="/cgi-bin/man/man2html?2+readdir">readdir</A></B>(2).
+
+<A NAME="lbAK">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+
+
+The program below demonstrates the use of
+<B>getdents</B>().
+
+The following output shows an example of what we see when running this
+program on an ext2 directory:
+<P>
+
+
+
+$<B> ./a.out /testfs/</B>
+
+--------------- nread=120 ---------------
+inode#    file type  d_reclen  d_off   d_name
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2&nbsp;&nbsp;directory&nbsp;&nbsp;&nbsp;&nbsp;16&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;12&nbsp;&nbsp;.
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2&nbsp;&nbsp;directory&nbsp;&nbsp;&nbsp;&nbsp;16&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;24&nbsp;&nbsp;..
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;11&nbsp;&nbsp;directory&nbsp;&nbsp;&nbsp;&nbsp;24&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;44&nbsp;&nbsp;lost+found
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;12&nbsp;&nbsp;regular&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;16&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;56&nbsp;&nbsp;a
+<BR>&nbsp;&nbsp;228929&nbsp;&nbsp;directory&nbsp;&nbsp;&nbsp;&nbsp;16&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;68&nbsp;&nbsp;sub
+<BR>&nbsp;&nbsp;&nbsp;16353&nbsp;&nbsp;directory&nbsp;&nbsp;&nbsp;&nbsp;16&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;80&nbsp;&nbsp;sub2
+<BR>&nbsp;&nbsp;130817&nbsp;&nbsp;directory&nbsp;&nbsp;&nbsp;&nbsp;16&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4096&nbsp;&nbsp;sub3
+
+
+<A NAME="lbAL">&nbsp;</A>
+<H3>Program source</H3>
+
+
+
+#define _GNU_SOURCE
+#include &lt;<A HREF="file:///usr/include/dirent.h">dirent.h</A>&gt;     /* Defines DT_* constants */
+#include &lt;<A HREF="file:///usr/include/fcntl.h">fcntl.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/unistd.h">unistd.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdlib.h">stdlib.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/sys/stat.h">sys/stat.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/sys/syscall.h">sys/syscall.h</A>&gt;
+<P>
+#define handle_error(msg) \
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;do&nbsp;{&nbsp;perror(msg);&nbsp;exit(EXIT_FAILURE);&nbsp;}&nbsp;while&nbsp;(0)
+<P>
+struct linux_dirent {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;long&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;d_ino;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;off_t&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;d_off;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;unsigned&nbsp;short&nbsp;d_reclen;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;d_name[];
+};
+<P>
+#define BUF_SIZE 1024
+<P>
+int
+main(int argc, char *argv[])
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;fd,&nbsp;nread;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;buf[BUF_SIZE];
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;linux_dirent&nbsp;*d;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;bpos;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;d_type;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fd&nbsp;=&nbsp;open(argc&nbsp;&gt;&nbsp;1&nbsp;?&nbsp;argv[1]&nbsp;:&nbsp;&quot;.&quot;,&nbsp;O_RDONLY&nbsp;|&nbsp;O_DIRECTORY);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(fd&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;handle_error(&quot;open&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;(&nbsp;;&nbsp;;&nbsp;)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;nread&nbsp;=&nbsp;syscall(SYS_getdents,&nbsp;fd,&nbsp;buf,&nbsp;BUF_SIZE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(nread&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;handle_error(&quot;getdents&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(nread&nbsp;==&nbsp;0)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;break;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;---------------&nbsp;nread=%d&nbsp;---------------\n&quot;,&nbsp;nread);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;inode#&nbsp;&nbsp;&nbsp;&nbsp;file&nbsp;type&nbsp;&nbsp;d_reclen&nbsp;&nbsp;d_off&nbsp;&nbsp;&nbsp;d_name\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;(bpos&nbsp;=&nbsp;0;&nbsp;bpos&nbsp;&lt;&nbsp;nread;)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;d&nbsp;=&nbsp;(struct&nbsp;linux_dirent&nbsp;*)&nbsp;(buf&nbsp;+&nbsp;bpos);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;%8ld&nbsp;&nbsp;&quot;,&nbsp;d-&gt;d_ino);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;d_type&nbsp;=&nbsp;*(buf&nbsp;+&nbsp;bpos&nbsp;+&nbsp;d-&gt;d_reclen&nbsp;-&nbsp;1);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;%-10s&nbsp;&quot;,&nbsp;(d_type&nbsp;==&nbsp;DT_REG)&nbsp;?&nbsp;&nbsp;&quot;regular&quot;&nbsp;:
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(d_type&nbsp;==&nbsp;DT_DIR)&nbsp;?&nbsp;&nbsp;&quot;directory&quot;&nbsp;:
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(d_type&nbsp;==&nbsp;DT_FIFO)&nbsp;?&nbsp;&quot;FIFO&quot;&nbsp;:
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(d_type&nbsp;==&nbsp;DT_SOCK)&nbsp;?&nbsp;&quot;socket&quot;&nbsp;:
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(d_type&nbsp;==&nbsp;DT_LNK)&nbsp;?&nbsp;&nbsp;&quot;symlink&quot;&nbsp;:
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(d_type&nbsp;==&nbsp;DT_BLK)&nbsp;?&nbsp;&nbsp;&quot;block&nbsp;dev&quot;&nbsp;:
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(d_type&nbsp;==&nbsp;DT_CHR)&nbsp;?&nbsp;&nbsp;&quot;char&nbsp;dev&quot;&nbsp;:&nbsp;&quot;???&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;%4d&nbsp;%10lld&nbsp;&nbsp;%s\n&quot;,&nbsp;d-&gt;d_reclen,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(long&nbsp;long)&nbsp;d-&gt;d_off,&nbsp;d-&gt;d_name);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bpos&nbsp;+=&nbsp;d-&gt;d_reclen;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_SUCCESS);
+}
+
+<A NAME="lbAM">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?2+readdir">readdir</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?3+readdir">readdir</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?7+inode">inode</A></B>(7)
+
+<A NAME="lbAN">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="14"><A HREF="#lbAB">NAME</A><DD>
+<DT id="15"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="16"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DL>
+<DT id="17"><A HREF="#lbAE">getdents()</A><DD>
+<DT id="18"><A HREF="#lbAF">getdents64()</A><DD>
+</DL>
+<DT id="19"><A HREF="#lbAG">RETURN VALUE</A><DD>
+<DT id="20"><A HREF="#lbAH">ERRORS</A><DD>
+<DT id="21"><A HREF="#lbAI">CONFORMING TO</A><DD>
+<DT id="22"><A HREF="#lbAJ">NOTES</A><DD>
+<DT id="23"><A HREF="#lbAK">EXAMPLE</A><DD>
+<DL>
+<DT id="24"><A HREF="#lbAL">Program source</A><DD>
+</DL>
+<DT id="25"><A HREF="#lbAM">SEE ALSO</A><DD>
+<DT id="26"><A HREF="#lbAN">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:32 GMT, March 31, 2021
+</BODY>
+</HTML>

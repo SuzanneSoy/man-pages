@@ -1,0 +1,277 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of Data::Dump::Filtered</TITLE>
+</HEAD><BODY>
+<H1>Data::Dump::Filtered</H1>
+Section: User Contributed Perl Documentation (3pm)<BR>Updated: 2013-05-10<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+Data::Dump::Filtered - Pretty printing with filtering
+<A NAME="lbAC">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+
+The following functions are provided:
+<DL COMPACT>
+<DT id="1">add_dump_filter( \&amp;filter )<DD>
+
+
+This registers a filter function to be used by the regular <I>Data::Dump::dump()</I>
+function.  By default no filters are active.
+
+
+<P>
+
+
+Since registering filters has a global effect is might be more appropriate
+to use the <I>dump_filtered()</I> function instead.
+<DT id="2">remove_dump_filter( \&amp;filter )<DD>
+
+
+Unregister the given callback function as filter callback.
+This undoes the effect of add_filter.
+<DT id="3">dump_filtered(..., \&amp;filter )<DD>
+
+
+Works like <I>Data::Dump::dump()</I>, but the last argument should
+be a filter callback function.  As objects are visited the
+filter callback is invoked at it might influence how objects are dumped.
+
+
+<P>
+
+
+Any filters registered with <I>add_filter()</I> are ignored when
+this interface is invoked.  Actually, passing <TT>&quot;undef&quot;</TT> as \&amp;filter
+is allowed and <TT>&quot;dump_filtered(..., undef)&quot;</TT> is the official way to
+force unfiltered dumps.
+</DL>
+<A NAME="lbAD">&nbsp;</A>
+<H3>Filter callback</H3>
+
+
+
+A filter callback is a function that will be invoked with 2 arguments;
+a context object and reference to the object currently visited.  The return
+value should either be a hash reference or <TT>&quot;undef&quot;</TT>.
+<P>
+
+
+
+<PRE>
+    sub filter_callback {
+        my($ctx, $object_ref) = @_;
+        ...
+        return { ... }
+    }
+
+</PRE>
+
+
+<P>
+
+If the filter callback returns <TT>&quot;undef&quot;</TT> (or nothing) then normal
+processing and formatting of the visited object happens.
+If the filter callback returns a hash it might replace
+or annotate the representation of the current object.
+<A NAME="lbAE">&nbsp;</A>
+<H3>Filter context</H3>
+
+
+
+The context object provide methods that can be used to determine what kind of
+object is currently visited and where it's located.  The context object has the
+following interface:
+<DL COMPACT>
+<DT id="4">$ctx-&gt;object_ref<DD>
+
+
+
+
+Alternative way to obtain a reference to the current object
+<DT id="5">$ctx-&gt;class<DD>
+
+
+
+
+If the object is blessed this return the class.  Returns &quot;&quot;
+for objects not blessed.
+<DT id="6">$ctx-&gt;reftype<DD>
+
+
+
+
+Returns what kind of object this is.  It's a string like ``<FONT SIZE="-1">SCALAR'',
+``ARRAY'', ``HASH'', ``CODE'',...</FONT>
+<DT id="7">$ctx-&gt;is_ref<DD>
+
+
+
+
+Returns true if a reference was provided.
+<DT id="8">$ctx-&gt;is_blessed<DD>
+
+
+
+
+Returns true if the object is blessed.  Actually, this is just an alias
+for <TT>&quot;$ctx-&gt;class&quot;</TT>.
+<DT id="9">$ctx-&gt;is_array<DD>
+
+
+
+
+Returns true if the object is an array
+<DT id="10">$ctx-&gt;is_hash<DD>
+
+
+
+
+Returns true if the object is a hash
+<DT id="11">$ctx-&gt;is_scalar<DD>
+
+
+
+
+Returns true if the object is a scalar (a string or a number)
+<DT id="12">$ctx-&gt;is_code<DD>
+
+
+
+
+Returns true if the object is a function (aka subroutine)
+<DT id="13">$ctx-&gt;container_class<DD>
+
+
+
+
+Returns the class of the innermost container that contains this object.
+Returns &quot;&quot; if there is no blessed container.
+<DT id="14">$ctx-&gt;container_self<DD>
+
+
+
+
+Returns an textual expression relative to the container object that names this
+object.  The variable <TT>$self</TT> in this expression is the container itself.
+<DT id="15">$ctx-&gt;object_isa( $class )<DD>
+
+
+
+
+Returns <FONT SIZE="-1">TRUE</FONT> if the current object is of the given class or is of a subclass.
+<DT id="16">$ctx-&gt;container_isa( $class )<DD>
+
+
+
+
+Returns <FONT SIZE="-1">TRUE</FONT> if the innermost container is of the given class or is of a
+subclass.
+<DT id="17">$ctx-&gt;depth<DD>
+
+
+
+
+Returns how many levels deep have we recursed into the structure (from the
+original <I>dump_filtered()</I> arguments).
+<DT id="18">$ctx-&gt;expr<DD>
+
+
+
+
+
+<DT id="19">$ctx-&gt;expr( $top_level_name )<DD>
+
+
+
+
+
+Returns an textual expression that denotes the current object.  In the
+expression <TT>$var</TT> is used as the name of the top level object dumped.  This
+can be overridden by providing a different name as argument.
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H3>Filter return hash</H3>
+
+
+
+The following elements has significance in the returned hash:
+<DL COMPACT>
+<DT id="20">dump =&gt; $string<DD>
+
+
+
+
+incorporate the given string as the representation for the
+current value
+<DT id="21">object =&gt; $value<DD>
+
+
+
+
+dump the given value instead of the one visited and passed in as <TT>$object</TT>.
+Basically the same as specifying <TT>&quot;dump =&gt; Data::Dump::dump($value)&quot;</TT>.
+<DT id="22">comment =&gt; $comment<DD>
+
+
+
+
+prefix the value with the given comment string
+<DT id="23">bless =&gt; $class<DD>
+
+
+
+
+make it look as if the current object is of the given <TT>$class</TT>
+instead of the class it really has (if any).  The internals of the object
+is dumped in the regular way.  The <TT>$class</TT> can be the empty string
+to make Data::Dump pretend the object wasn't blessed at all.
+<DT id="24">hide_keys =&gt; ['key1', 'key2',...]<DD>
+
+
+
+<DT id="25">hide_keys =&gt; \&amp;code<DD>
+
+
+
+If the <TT>$object</TT> is a hash dump is as normal but pretend that the
+listed keys did not exist.  If the argument is a function then
+the function is called to determine if the given key should be
+hidden.
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+
+Data::Dump
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="26"><A HREF="#lbAB">NAME</A><DD>
+<DT id="27"><A HREF="#lbAC">DESCRIPTION</A><DD>
+<DL>
+<DT id="28"><A HREF="#lbAD">Filter callback</A><DD>
+<DT id="29"><A HREF="#lbAE">Filter context</A><DD>
+<DT id="30"><A HREF="#lbAF">Filter return hash</A><DD>
+</DL>
+<DT id="31"><A HREF="#lbAG">SEE ALSO</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:38 GMT, March 31, 2021
+</BODY>
+</HTML>

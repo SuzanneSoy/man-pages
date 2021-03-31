@@ -1,0 +1,552 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of Glib::Object::Subclass</TITLE>
+</HEAD><BODY>
+<H1>Glib::Object::Subclass</H1>
+Section: User Contributed Perl Documentation (3pm)<BR>Updated: 2020-02-18<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+Glib::Object::Subclass - register a perl class as a GObject class
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+
+
+
+
+<PRE>
+  use Glib::Object::Subclass
+     Some::Base::Class::,   # parent class, derived from Glib::Object
+     signals =&gt; {
+            something_changed =&gt; {
+               class_closure =&gt; sub { do_something_fun () },
+               flags         =&gt; [qw(run-first)],
+               return_type   =&gt; undef,
+               param_types   =&gt; [],
+            },
+            some_existing_signal =&gt; \&amp;class_closure_override,
+     },
+     properties =&gt; [
+        Glib::ParamSpec-&gt;string (
+           'some_string',
+           'Some String Property',
+           'This property is a string that is used as an example',
+           'default value',
+           [qw/readable writable/]
+        ),
+     ];
+
+</PRE>
+
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+
+This module allows you to create your own GObject classes, which is useful
+to e.g. implement your own Gtk2 widgets.
+<P>
+
+It doesn't ``export'' anything into your namespace, but acts more like
+a pragmatic module that modifies your class to make it work as a
+GObject class.
+<P>
+
+You may be wondering why you can't just bless a Glib::Object into a
+different package and add some subs.  Well, if you aren't interested 
+in object parameters, signals, or having your new class interoperate
+transparently with other GObject-based modules (e.g., Gtk2 and friends),
+then you can just re-bless.
+<P>
+
+However, a GObject's signals, properties, virtual functions, and GInterface
+implementations are specific to its GObjectClass.  If you want to create
+a new GObject which was a derivative of GtkDrawingArea, but adds a new
+signal, you must create a new GObjectClass to which to add the new signal.
+If you don't, then <I>all</I> of the GtkDrawingAreas in your application
+will get that new signal!
+<P>
+
+Thus, the only way to create a new signal or object property in the
+Perl bindings for Glib is to register a new subclass with the GLib type
+system via <B>Glib::Type::register_object()</B>.
+The Glib::Object::Subclass module is a Perl-developer-friendly interface
+to this bit of paradigm mismatch.
+<A NAME="lbAE">&nbsp;</A>
+<H3><FONT SIZE="-1">USAGE</FONT></H3>
+
+
+
+This module works similar to the <TT>&quot;use base&quot;</TT> pragma in that it registers
+the current package as a subclass of some other class (which must be a
+GObjectClass implemented either in C or some other language).
+<P>
+
+The pragma requires at least one argument, the parent class name.  The
+remaining arguments are key/value pairs, in any order, all optional:
+<DL COMPACT>
+<DT id="1">- properties =&gt; []<DD>
+
+
+Add object properties; see ``<FONT SIZE="-1">PROPERTIES''</FONT>.
+<DT id="2">- signals =&gt; {}<DD>
+
+
+Add or override signals; see ``<FONT SIZE="-1">SIGNALS''</FONT> and ``<FONT SIZE="-1">OVERRIDING BASE METHODS''</FONT>.
+<DT id="3">- interfaces =&gt; []<DD>
+
+
+Add GInterfaces to your class; see ``<FONT SIZE="-1">INTERFACES''</FONT>.
+</DL>
+<P>
+
+(Actually, these parameters are all passed straight through to
+<B>Glib::Type::register_object()</B>, adding __PACKAGE__ (the current package name)
+as the name of the new child class.)
+<A NAME="lbAF">&nbsp;</A>
+<H3><FONT SIZE="-1">OBJECT METHODS AND FUNCTIONS</FONT></H3>
+
+
+
+The following methods are either added to your class on request (not
+yet implemented), or by default unless your own class implements them
+itself. This means that all these methods and functions will get sensible
+default implementations unless explicitly overwritten by you (by defining
+your own version).
+<P>
+
+Except for <TT>&quot;new&quot;</TT>, all of the following are <I>functions</I> and no
+<I>methods</I>. That means that you should <I>not</I> call the superclass
+method. Instead, the GObject system will call these functions per class as
+required, emulating normal inheritance.
+<DL COMPACT>
+<DT id="4">$class-&gt;new (attr =&gt; value, ...)<DD>
+
+
+
+
+The default constructor just calls <TT>&quot;Glib::Object::new&quot;</TT>, which allows you
+to set properties on the newly created object. This is done because many
+<TT>&quot;new&quot;</TT> methods inherited by Gtk2 or other libraries don't have <TT>&quot;new&quot;</TT>
+methods suitable for subclassing.
+<DT id="5"><FONT SIZE="-1">INIT_INSTANCE</FONT> $self                                 [not a method]<DD>
+
+
+
+
+<TT>&quot;INIT_INSTANCE&quot;</TT> is called on each class in the hierarchy as the object is
+being created (i.e., from <TT>&quot;Glib::Object::new&quot;</TT> or our default <TT>&quot;new&quot;</TT>). Use
+this function to initialize any member data. The default implementation
+will leave the object untouched.
+<DT id="6"><FONT SIZE="-1">GET_PROPERTY</FONT> $self, $pspec                          [not a method]<DD>
+
+
+
+
+
+<DT id="7"><FONT SIZE="-1">SET_PROPERTY</FONT> $self, $pspec, $newval                 [not a method]<DD>
+
+
+
+
+
+<TT>&quot;GET_PROPERTY&quot;</TT> and <TT>&quot;SET_PROPERTY&quot;</TT> are called whenever somebody does
+<TT>&quot;$object-&gt;get ($propname)&quot;</TT> or <TT>&quot;$object-&gt;set ($propname =&gt; $newval)&quot;</TT>
+(from other languages, too).  The default implementations hold property
+values in the object hash, equivalent to
+
+
+<P>
+
+
+
+
+<PRE>
+   sub GET_PROPERTY {
+     my ($self, $pspec) = @_;
+     my $pname = $pspec-&gt;get_name;
+     return (exists $self-&gt;{$pname} ? $self-&gt;{$pname}
+             : $pspec-&gt;get_default_value);  # until set
+   }
+   sub SET_PROPERTY {
+     my ($self, $pspec, $newval) = @_;
+     $self-&gt;{$pspec-&gt;get_name} = $newval;
+   }
+
+</PRE>
+
+
+
+
+<P>
+
+
+Because <TT>&quot;$pspec-&gt;get_name&quot;</TT> converts hyphens to underscores, a property
+<TT>&quot;line-style&quot;</TT> is in the hash as <TT>&quot;line_style&quot;</TT>.
+
+
+<P>
+
+
+These methods let you store/fetch properties in any way you need to.  They
+don't have to be in the hash, you can calculate something, read a file,
+whatever.
+
+
+<P>
+
+
+Most often you'll write your own <TT>&quot;SET_PROPERTY&quot;</TT> so you can take action when
+a property changes, like redraw or resize a widget.  Eg.
+
+
+<P>
+
+
+
+
+<PRE>
+   sub SET_PROPERTY {
+     my ($self, $pspec, $newval) = @_;
+     my $pname = $pspec-&gt;get_name
+     $self-&gt;{$pname} = $newval; # ready for default GET_PROPERTY
+
+     if ($pname eq 'line_style') {
+       $self-&gt;queue_draw;  # redraw with new lines
+     }
+   }
+
+</PRE>
+
+
+
+
+<P>
+
+
+Care must be taken with boxed non-reference-counted types such as
+<TT>&quot;Gtk2::Gdk::Color&quot;</TT>.  In <TT>&quot;SET_PROPERTY&quot;</TT> the <TT>$newval</TT> is generally good
+only for the duration of the call.  Use <TT>&quot;copy&quot;</TT> or similar if keeping it
+longer (see Glib::Boxed).  In <TT>&quot;GET_PROPERTY&quot;</TT> the returned memory must
+last long enough to reach the caller, which generally means returning a
+field, not a newly created object (which is destroyed with the scalar
+holding it).
+
+
+<P>
+
+
+<TT>&quot;GET_PROPERTY&quot;</TT> is different from a C get_property method in that the
+perl method returns the retrieved value. For symmetry, the <TT>$newval</TT>
+and <TT>$pspec</TT> args on <TT>&quot;SET_PROPERTY&quot;</TT> are swapped from the C usage.
+<DT id="8"><FONT SIZE="-1">FINALIZE_INSTANCE</FONT> $self                             [not a method]<DD>
+
+
+
+
+<TT>&quot;FINALIZE_INSTANCE&quot;</TT> is called as the GObject is being finalized, that is,
+as it is being really destroyed.  This is independent of the more common
+<FONT SIZE="-1">DESTROY</FONT> on the perl object; in fact, you must <I></I><FONT SIZE="-1"><I>NOT</I></FONT><I></I> override <TT>&quot;DESTROY&quot;</TT>
+(it's not useful to you, in any case, as it is being called multiple
+times!).
+
+
+<P>
+
+
+Use this hook to release anything you have to clean up manually.
+<FONT SIZE="-1">FINALIZE_INSTANCE</FONT> will be called for each perl instance, in reverse order
+of construction.
+
+
+<P>
+
+
+The default finalizer does nothing.
+<DT id="9">$object-&gt;<FONT SIZE="-1">DESTROY</FONT>           [<FONT SIZE="-1">DO NOT OVERWRITE</FONT>]<DD>
+
+
+
+
+Don't <I>ever</I> overwrite <TT>&quot;DESTROY&quot;</TT>, use <TT>&quot;FINALIZE_INSTANCE&quot;</TT> instead.
+
+
+<P>
+
+
+The <FONT SIZE="-1">DESTROY</FONT> method of all perl classes derived from GTypes is
+implemented in the Glib module and (ab-)used for its own internal
+purposes. Overwriting it is not useful as it will be called
+<I>multiple</I> times, and often long before the object actually gets
+destroyed.  Overwriting might be very harmful to your program, so <I>never</I>
+do that.  Especially watch out for other classes in your <FONT SIZE="-1">ISA</FONT> tree.
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H2>PROPERTIES</H2>
+
+
+
+To create gobject properties, supply a list of Glib::ParamSpec objects as the
+value for the key 'properties'.  There are lots of different paramspec
+constructors, documented in the C <FONT SIZE="-1">API</FONT> reference's Parameters and Values page,
+as well as Glib::ParamSpec.
+<P>
+
+As of Glib 1.060, you can also specify explicit getters and setters for your
+properties at creation time.  The default values in your properties are also
+honored if you don't set anything else.  See Glib::Type::register_object in
+Glib::Type for an example.
+<A NAME="lbAH">&nbsp;</A>
+<H2>SIGNALS</H2>
+
+
+
+Creating new signals for your new object is easy.  Just provide a hash
+of signal names and signal descriptions under the key 'signals'.  Each
+signal description is also a hash, with a few expected keys.  All the 
+keys are allowed to default.
+<DL COMPACT>
+<DT id="10">flags =&gt; GSignalFlags<DD>
+
+
+If not present, assumed to be 'run-first'.
+<DT id="11">param_types =&gt; reference to a list of package names<DD>
+
+
+If not present, assumed to be empty (no parameters).
+<DT id="12">class_closure =&gt; reference to a subroutine to call as the class closure.<DD>
+
+
+may also be a string interpreted as the name of a subroutine to call, but you
+should be very very very careful about that.
+
+
+<P>
+
+
+If not present, the library will attempt to call the method named
+``do_signal_name'' for the signal ``signal_name'' (uses underscores).
+
+
+<P>
+
+
+You'll want to be careful not to let this handler method be a publically
+callable method, or one that has the name name as something that emits the
+signal.  Due to the funky ways in which Glib is different from Perl, the
+class closures <I>should not</I> inherit through normal perl inheritance.
+<DT id="13">return_type =&gt; package name for return value.<DD>
+
+
+If undefined or not present, the signal expects no return value.  if defined,
+the signal is expected to return a value; flags must be set such that the
+signal does not run only first (at least use 'run-last').
+<DT id="14">accumulator =&gt; signal return value accumulator<DD>
+
+
+quoting the Glib manual: ``The signal accumulator is a special callback function
+that can be used to collect return values of the various callbacks that are
+called during a signal emission.''
+
+
+<P>
+
+
+If not specified, the default accumulator is used, and you just get the 
+return value of the last handler to run.
+
+
+<P>
+
+
+Accumulators are not really documented very much in the C reference, and
+the perl interface here is slightly different, so here's an inordinate amount
+of detail for this arcane feature:
+
+
+<P>
+
+
+The accumulator function is called for every handler as
+
+
+<P>
+
+
+
+
+<PRE>
+    ($cont, $acc) = &amp;$func ($invocation_hint, $acc, $ret)
+
+</PRE>
+
+
+
+
+<P>
+
+
+<TT>$invocation_hint</TT> is an anonymous hash (including the signal name); <TT>$acc</TT> is
+the current accumulated return value; <TT>$ret</TT> is the value from the most recent
+handler.
+
+
+<P>
+
+
+The two return values are a boolean <TT>$cont</TT> for whether signal emission
+should continue (false to stop); and a new <TT>$acc</TT> accumulated return value.
+(This is different from the C version, which writes through a return_accu.)
+</DL>
+<A NAME="lbAI">&nbsp;</A>
+<H2>OVERRIDING BASE METHODS</H2>
+
+
+
+GLib pulls some fancy tricks with function pointers to implement methods
+in C.  This is not very language-binding-friendly, as you might guess.
+<P>
+
+However, as described above, every signal allows a ``class closure''; you
+may override the class closure with your own function, and you can chain
+from the overridden method to the original.  This serves to implement
+virtual overrides for language bindings.
+<P>
+
+So, to override a method, you supply a subroutine reference instead of a
+signal description hash as the value for the name of the existing signal
+in the ``signals'' hash described in ``<FONT SIZE="-1">SIGNALS''</FONT>.
+<P>
+
+
+
+<PRE>
+  # override some important widget methods:
+  use Glib::Object::Subclass
+        Gtk2::Widget::,
+        signals =&gt; {
+                expose_event =&gt; \&amp;expose_event,
+                configure_event =&gt; \&amp;configure_event,
+                button_press_event =&gt; \&amp;button_press_event,
+                button_release_event =&gt; \&amp;button_release_event,
+                motion_notify_event =&gt; \&amp;motion_notify_event,
+                # note the choice of names here... see the discussion.
+                size_request =&gt; \&amp;do_size_request,
+        }
+
+</PRE>
+
+
+<P>
+
+It's important to note that the handlers you supply for these are
+class-specific, and that normal perl method inheritance rules are not
+followed to invoke them from within the library.  However, perl code can
+still find them!  Therefore it's rather important that you choose your
+handlers' names carefully, avoiding any public interfaces that you might
+call from perl.  Case in point, since size_request is a widget method, i
+chose do_size_request as the override handler.
+<A NAME="lbAJ">&nbsp;</A>
+<H2>INTERFACES</H2>
+
+
+
+GObject supports only single inheritance; in place of multiple inheritance,
+GObject uses GInterfaces.  In the Perl bindings we have mostly masqueraded
+this with multiple inheritance (that is, simply adding the GInterface class
+to the <TT>@ISA</TT> of the implementing class), but in deriving new objects the
+facade breaks and the magic leaks out.
+<P>
+
+In order to derive an object that implements a GInterface, you have to tell
+the GLib type system you want your class to include a GInterface.  To do
+this, simply pass a list of package names through the ``interfaces'' key;
+this will add these packages to your <TT>@ISA</TT>, and cause perl to invoke methods
+that you must provide.
+<P>
+
+
+
+<PRE>
+  package Mup::MultilineEntry;
+  use Glib::Object::Subclass
+      'Gtk2::TextView',
+      interfaces =&gt; [ 'Gtk2::CellEditable' ],
+      ;
+
+  # perl will now invoke these methods, which are part of the
+  # GtkCellEditable GInterface, when somebody invokes the
+  # corresponding lower-case methods on your objects.
+  sub START_EDITING { warn &quot;start editing\n&quot;; }
+  sub EDITING_DONE { warn &quot;editing done\n&quot;; }
+  sub REMOVE_WIDGET { warn &quot;remove widget\n&quot;; }
+
+</PRE>
+
+
+<A NAME="lbAK">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+
+
+
+<PRE>
+  GObject - <A HREF="http://developer.gnome.org/doc/API/2.0/gobject/">http://developer.gnome.org/doc/API/2.0/gobject/</A>
+
+</PRE>
+
+
+<A NAME="lbAL">&nbsp;</A>
+<H2>AUTHORS</H2>
+
+
+
+Marc Lehmann &lt;<A HREF="mailto:schmorp@schmorp.de">schmorp@schmorp.de</A>&gt;, muppet &lt;scott at asofyet dot org&gt;
+<A NAME="lbAM">&nbsp;</A>
+<H2>COPYRIGHT AND LICENSE</H2>
+
+
+
+Copyright 2003-2004, 2010 by muppet and the gtk2-perl team
+<P>
+
+This library is free software; you can redistribute it and/or modify
+it under the terms of the Lesser General Public License (<FONT SIZE="-1">LGPL</FONT>).  For 
+more information, see <A HREF="http://www.fsf.org/licenses/lgpl.txt">http://www.fsf.org/licenses/lgpl.txt</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="15"><A HREF="#lbAB">NAME</A><DD>
+<DT id="16"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="17"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DL>
+<DT id="18"><A HREF="#lbAE"><FONT SIZE="-1">USAGE</FONT></A><DD>
+<DT id="19"><A HREF="#lbAF"><FONT SIZE="-1">OBJECT METHODS AND FUNCTIONS</FONT></A><DD>
+</DL>
+<DT id="20"><A HREF="#lbAG">PROPERTIES</A><DD>
+<DT id="21"><A HREF="#lbAH">SIGNALS</A><DD>
+<DT id="22"><A HREF="#lbAI">OVERRIDING BASE METHODS</A><DD>
+<DT id="23"><A HREF="#lbAJ">INTERFACES</A><DD>
+<DT id="24"><A HREF="#lbAK">SEE ALSO</A><DD>
+<DT id="25"><A HREF="#lbAL">AUTHORS</A><DD>
+<DT id="26"><A HREF="#lbAM">COPYRIGHT AND LICENSE</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:45 GMT, March 31, 2021
+</BODY>
+</HTML>

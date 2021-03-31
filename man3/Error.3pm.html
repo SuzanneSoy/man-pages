@@ -1,0 +1,888 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of Error</TITLE>
+</HEAD><BODY>
+<H1>Error</H1>
+Section: User Contributed Perl Documentation (3pm)<BR>Updated: 2020-01-31<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+Error - Error/exception handling in an OO-ish way
+<A NAME="lbAC">&nbsp;</A>
+<H2>VERSION</H2>
+
+
+
+version 0.17029
+<A NAME="lbAD">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+
+
+
+
+<PRE>
+    use Error qw(:try);
+
+    throw Error::Simple( &quot;A simple error&quot;);
+
+    sub xyz {
+        ...
+        record Error::Simple(&quot;A simple error&quot;)
+            and return;
+    }
+
+    unlink($file) or throw Error::Simple(&quot;$file: $!&quot;,$!);
+
+    try {
+        do_some_stuff();
+        die &quot;error!&quot; if $condition;
+        throw Error::Simple &quot;Oops!&quot; if $other_condition;
+    }
+    catch Error::IO with {
+        my $E = shift;
+        print STDERR &quot;File &quot;, $E-&gt;{'-file'}, &quot; had a problem\n&quot;;
+    }
+    except {
+        my $E = shift;
+        my $general_handler=sub {send_message $E-&gt;{-description}};
+        return {
+            UserException1 =&gt; $general_handler,
+            UserException2 =&gt; $general_handler
+        };
+    }
+    otherwise {
+        print STDERR &quot;Well I don't know what to say\n&quot;;
+    }
+    finally {
+        close_the_garage_door_already(); # Should be reliable
+    }; # Don't forget the trailing ; or you might be surprised
+
+</PRE>
+
+
+<A NAME="lbAE">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+
+The <TT>&quot;Error&quot;</TT> package provides two interfaces. Firstly <TT>&quot;Error&quot;</TT> provides
+a procedural interface to exception handling. Secondly <TT>&quot;Error&quot;</TT> is a
+base class for errors/exceptions that can either be thrown, for
+subsequent catch, or can simply be recorded.
+<P>
+
+Errors in the class <TT>&quot;Error&quot;</TT> should not be thrown directly, but the
+user should throw errors from a sub-class of <TT>&quot;Error&quot;</TT>.
+<A NAME="lbAF">&nbsp;</A>
+<H2>WARNING</H2>
+
+
+
+Using the ``Error'' module is <B>no longer recommended</B> due to the black-magical
+nature of its syntactic sugar, which often tends to break. Its maintainers
+have stopped actively writing code that uses it, and discourage people
+from doing so. See the ``<FONT SIZE="-1">SEE ALSO''</FONT> section below for better recommendations.
+<A NAME="lbAG">&nbsp;</A>
+<H2>PROCEDURAL INTERFACE</H2>
+
+
+
+<TT>&quot;Error&quot;</TT> exports subroutines to perform exception handling. These will
+be exported if the <TT>&quot;:try&quot;</TT> tag is used in the <TT>&quot;use&quot;</TT> line.
+<DL COMPACT>
+<DT id="1">try <FONT SIZE="-1">BLOCK CLAUSES</FONT><DD>
+
+
+<TT>&quot;try&quot;</TT> is the main subroutine called by the user. All other subroutines
+exported are clauses to the try subroutine.
+
+
+<P>
+
+
+The <FONT SIZE="-1">BLOCK</FONT> will be evaluated and, if no error is throw, try will return
+the result of the block.
+
+
+<P>
+
+
+<TT>&quot;CLAUSES&quot;</TT> are the subroutines below, which describe what to do in the
+event of an error being thrown within <FONT SIZE="-1">BLOCK.</FONT>
+<DT id="2">catch <FONT SIZE="-1">CLASS</FONT> with <FONT SIZE="-1">BLOCK</FONT><DD>
+
+
+This clauses will cause all errors that satisfy <TT>&quot;$err-&gt;isa(CLASS)&quot;</TT>
+to be caught and handled by evaluating <TT>&quot;BLOCK&quot;</TT>.
+
+
+<P>
+
+
+<TT>&quot;BLOCK&quot;</TT> will be passed two arguments. The first will be the error
+being thrown. The second is a reference to a scalar variable. If this
+variable is set by the catch block then, on return from the catch
+block, try will continue processing as if the catch block was never
+found. The error will also be available in <TT>$@</TT>.
+
+
+<P>
+
+
+To propagate the error the catch block may call <TT>&quot;$err-&gt;throw&quot;</TT>
+
+
+<P>
+
+
+If the scalar reference by the second argument is not set, and the
+error is not thrown. Then the current try block will return with the
+result from the catch block.
+<DT id="3">except <FONT SIZE="-1">BLOCK</FONT><DD>
+
+
+When <TT>&quot;try&quot;</TT> is looking for a handler, if an except clause is found
+<TT>&quot;BLOCK&quot;</TT> is evaluated. The return value from this block should be a
+<FONT SIZE="-1">HASHREF</FONT> or a list of key-value pairs, where the keys are class names
+and the values are <FONT SIZE="-1">CODE</FONT> references for the handler of errors of that
+type.
+<DT id="4">otherwise <FONT SIZE="-1">BLOCK</FONT><DD>
+
+
+Catch any error by executing the code in <TT>&quot;BLOCK&quot;</TT>
+
+
+<P>
+
+
+When evaluated <TT>&quot;BLOCK&quot;</TT> will be passed one argument, which will be the
+error being processed. The error will also be available in <TT>$@</TT>.
+
+
+<P>
+
+
+Only one otherwise block may be specified per try block
+<DT id="5">finally <FONT SIZE="-1">BLOCK</FONT><DD>
+
+
+Execute the code in <TT>&quot;BLOCK&quot;</TT> either after the code in the try block has
+successfully completed, or if the try block throws an error then
+<TT>&quot;BLOCK&quot;</TT> will be executed after the handler has completed.
+
+
+<P>
+
+
+If the handler throws an error then the error will be caught, the
+finally block will be executed and the error will be re-thrown.
+
+
+<P>
+
+
+Only one finally block may be specified per try block
+</DL>
+<A NAME="lbAH">&nbsp;</A>
+<H2>COMPATIBILITY</H2>
+
+
+
+Moose exports a keyword called <TT>&quot;with&quot;</TT> which clashes with Error's. This
+example returns a prototype mismatch error:
+<P>
+
+
+
+<PRE>
+    package MyTest;
+
+    use warnings;
+    use Moose;
+    use Error qw(:try);
+
+</PRE>
+
+
+<P>
+
+(Thanks to <TT>&quot;<A HREF="mailto:maik.hentsche@amd.com">maik.hentsche@amd.com</A>&quot;</TT> for the report.).
+<A NAME="lbAI">&nbsp;</A>
+<H2>CLASS INTERFACE</H2>
+
+
+
+<A NAME="lbAJ">&nbsp;</A>
+<H3><FONT SIZE="-1">CONSTRUCTORS</FONT></H3>
+
+
+
+The <TT>&quot;Error&quot;</TT> object is implemented as a <FONT SIZE="-1">HASH.</FONT> This <FONT SIZE="-1">HASH</FONT> is initialized
+with the arguments that are passed to it's constructor. The elements
+that are used by, or are retrievable by the <TT>&quot;Error&quot;</TT> class are listed
+below, other classes may add to these.
+<P>
+
+
+
+<PRE>
+        -file
+        -line
+        -text
+        -value
+        -object
+
+</PRE>
+
+
+<P>
+
+If <TT>&quot;-file&quot;</TT> or <TT>&quot;-line&quot;</TT> are not specified in the constructor arguments
+then these will be initialized with the file name and line number where
+the constructor was called from.
+<P>
+
+If the error is associated with an object then the object should be
+passed as the <TT>&quot;-object&quot;</TT> argument. This will allow the <TT>&quot;Error&quot;</TT> package
+to associate the error with the object.
+<P>
+
+The <TT>&quot;Error&quot;</TT> package remembers the last error created, and also the
+last error associated with a package. This could either be the last
+error created by a sub in that package, or the last error which passed
+an object blessed into that package as the <TT>&quot;-object&quot;</TT> argument.
+<DL COMPACT>
+<DT id="6">Error-&gt;<B>new()</B><DD>
+
+
+See the Error::Simple documentation.
+<DT id="7">throw ( [ <FONT SIZE="-1">ARGS</FONT> ] )<DD>
+
+
+Create a new <TT>&quot;Error&quot;</TT> object and throw an error, which will be caught
+by a surrounding <TT>&quot;try&quot;</TT> block, if there is one. Otherwise it will cause
+the program to exit.
+
+
+<P>
+
+
+<TT>&quot;throw&quot;</TT> may also be called on an existing error to re-throw it.
+<DT id="8">with ( [ <FONT SIZE="-1">ARGS</FONT> ] )<DD>
+
+
+Create a new <TT>&quot;Error&quot;</TT> object and returns it. This is defined for
+syntactic sugar, eg
+
+
+<P>
+
+
+
+
+<PRE>
+    die with Some::Error ( ... );
+
+</PRE>
+
+
+<DT id="9">record ( [ <FONT SIZE="-1">ARGS</FONT> ] )<DD>
+
+
+Create a new <TT>&quot;Error&quot;</TT> object and returns it. This is defined for
+syntactic sugar, eg
+
+
+<P>
+
+
+
+
+<PRE>
+    record Some::Error ( ... )
+        and return;
+
+</PRE>
+
+
+</DL>
+<A NAME="lbAK">&nbsp;</A>
+<H3><FONT SIZE="-1">STATIC METHODS</FONT></H3>
+
+
+
+<DL COMPACT>
+<DT id="10">prior ( [ <FONT SIZE="-1">PACKAGE</FONT> ] )<DD>
+
+
+Return the last error created, or the last error associated with
+<TT>&quot;PACKAGE&quot;</TT>
+<DT id="11">flush ( [ <FONT SIZE="-1">PACKAGE</FONT> ] )<DD>
+
+
+Flush the last error created, or the last error associated with
+<TT>&quot;PACKAGE&quot;</TT>.It is necessary to clear the error stack before exiting the
+package or uncaught errors generated using <TT>&quot;record&quot;</TT> will be reported.
+
+
+<P>
+
+
+
+
+<PRE>
+     $Error-&gt;flush;
+
+</PRE>
+
+
+</DL>
+<A NAME="lbAL">&nbsp;</A>
+<H3><FONT SIZE="-1">OBJECT METHODS</FONT></H3>
+
+
+
+<DL COMPACT>
+<DT id="12">stacktrace<DD>
+
+
+If the variable <TT>$Error::Debug</TT> was non-zero when the error was
+created, then <TT>&quot;stacktrace&quot;</TT> returns a string created by calling
+<TT>&quot;Carp::longmess&quot;</TT>. If the variable was zero the <TT>&quot;stacktrace&quot;</TT> returns
+the text of the error appended with the filename and line number of
+where the error was created, providing the text does not end with a
+newline.
+<DT id="13">object<DD>
+
+
+The object this error was associated with
+<DT id="14">file<DD>
+
+
+The file where the constructor of this error was called from
+<DT id="15">line<DD>
+
+
+The line where the constructor of this error was called from
+<DT id="16">text<DD>
+
+
+The text of the error
+<DT id="17">$err-&gt;associate($obj)<DD>
+
+
+
+
+Associates an error with an object to allow error propagation. I.e:
+
+
+<P>
+
+
+
+
+<PRE>
+    $ber-&gt;encode(...) or
+        return Error-&gt;prior($ber)-&gt;associate($ldap);
+
+</PRE>
+
+
+</DL>
+<A NAME="lbAM">&nbsp;</A>
+<H3><FONT SIZE="-1">OVERLOAD METHODS</FONT></H3>
+
+
+
+<DL COMPACT>
+<DT id="18">stringify<DD>
+
+
+A method that converts the object into a string. This method may simply
+return the same as the <TT>&quot;text&quot;</TT> method, or it may append more
+information. For example the file name and line number.
+
+
+<P>
+
+
+By default this method returns the <TT>&quot;-text&quot;</TT> argument that was passed to
+the constructor, or the string <TT>&quot;Died&quot;</TT> if none was given.
+<DT id="19">value<DD>
+
+
+A method that will return a value that can be associated with the
+error. For example if an error was created due to the failure of a
+system call, then this may return the numeric value of <TT>$!</TT> at the
+time.
+
+
+<P>
+
+
+By default this method returns the <TT>&quot;-value&quot;</TT> argument that was passed
+to the constructor.
+</DL>
+<A NAME="lbAN">&nbsp;</A>
+<H2>PRE-DEFINED ERROR CLASSES</H2>
+
+
+
+<A NAME="lbAO">&nbsp;</A>
+<H3>Error::Simple</H3>
+
+
+
+This class can be used to hold simple error strings and values. It's
+constructor takes two arguments. The first is a text value, the second
+is a numeric value. These values are what will be returned by the
+overload methods.
+<P>
+
+If the text value ends with <TT>&quot;at file line 1&quot;</TT> as $@ strings do, then
+this information will be used to set the <TT>&quot;-file&quot;</TT> and <TT>&quot;-line&quot;</TT> arguments
+of the error object.
+<P>
+
+This class is used internally if an eval'd block die's with an error
+that is a plain string. (Unless <TT>$Error::ObjectifyCallback</TT> is modified)
+<A NAME="lbAP">&nbsp;</A>
+<H2>$Error::ObjectifyCallback</H2>
+
+
+
+
+
+This variable holds a reference to a subroutine that converts errors that
+are plain strings to objects. It is used by Error.pm to convert textual
+errors to objects, and can be overridden by the user.
+<P>
+
+It accepts a single argument which is a hash reference to named parameters.
+Currently the only named parameter passed is <TT>'text'</TT> which is the text
+of the error, but others may be available in the future.
+<P>
+
+For example the following code will cause Error.pm to throw objects of the
+class MyError::Bar by default:
+<P>
+
+
+
+<PRE>
+    sub throw_MyError_Bar
+    {
+        my $args = shift;
+        my $err = MyError::Bar-&gt;new();
+        $err-&gt;{'MyBarText'} = $args-&gt;{'text'};
+        return $err;
+    }
+
+    {
+        local $Error::ObjectifyCallback = \&amp;throw_MyError_Bar;
+
+        # Error handling here.
+    }
+
+</PRE>
+
+
+<A NAME="lbAQ">&nbsp;</A>
+<H2>MESSAGE HANDLERS</H2>
+
+
+
+<TT>&quot;Error&quot;</TT> also provides handlers to extend the output of the <TT>&quot;warn()&quot;</TT> perl
+function, and to handle the printing of a thrown <TT>&quot;Error&quot;</TT> that is not caught
+or otherwise handled. These are not installed by default, but are requested
+using the <TT>&quot;:warndie&quot;</TT> tag in the <TT>&quot;use&quot;</TT> line.
+<P>
+
+
+
+<PRE>
+ use Error qw( :warndie );
+
+</PRE>
+
+
+<P>
+
+These new error handlers are installed in <TT>$SIG{__WARN__}</TT> and
+<TT>$SIG{__DIE__}</TT>. If these handlers are already defined when the tag is
+imported, the old values are stored, and used during the new code. Thus, to
+arrange for custom handling of warnings and errors, you will need to perform
+something like the following:
+<P>
+
+
+
+<PRE>
+ BEGIN {
+   $SIG{__WARN__} = sub {
+     print STDERR &quot;My special warning handler: $_[0]&quot;
+   };
+ }
+
+ use Error qw( :warndie );
+
+</PRE>
+
+
+<P>
+
+Note that setting <TT>$SIG{__WARN__}</TT> after the <TT>&quot;:warndie&quot;</TT> tag has been
+imported will overwrite the handler that <TT>&quot;Error&quot;</TT> provides. If this cannot be
+avoided, then the tag can be explicitly <TT>&quot;import&quot;</TT>ed later
+<P>
+
+
+
+<PRE>
+ use Error;
+
+ $SIG{__WARN__} = ...;
+
+ import Error qw( :warndie );
+
+</PRE>
+
+
+<A NAME="lbAR">&nbsp;</A>
+<H3><FONT SIZE="-1">EXAMPLE</FONT></H3>
+
+
+
+The <TT>&quot;__DIE__&quot;</TT> handler turns messages such as
+<P>
+
+
+
+<PRE>
+ Can't call method &quot;foo&quot; on an undefined value at examples/warndie.pl line 16.
+
+</PRE>
+
+
+<P>
+
+into
+<P>
+
+
+
+<PRE>
+ Unhandled perl error caught at toplevel:
+
+   Can't call method &quot;foo&quot; on an undefined value
+
+ Thrown from: examples/warndie.pl:16
+
+ Full stack trace:
+
+         main::inner('undef') called at examples/warndie.pl line 20
+         main::outer('undef') called at examples/warndie.pl line 23
+
+</PRE>
+
+
+<A NAME="lbAS">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+
+See Exception::Class for a different module providing Object-Oriented
+exception handling, along with a convenient syntax for declaring hierarchies
+for them. It doesn't provide Error's syntactic sugar of <TT>&quot;try { ... }&quot;</TT>,
+<TT>&quot;catch { ... }&quot;</TT>, etc. which may be a good thing or a bad thing based
+on what you want. (Because Error's syntactic sugar tends to break.)
+<P>
+
+Error::Exception aims to combine Error and Exception::Class
+``with correct stringification''.
+<P>
+
+TryCatch and Try::Tiny are similar in concept to Error.pm only providing
+a syntax that hopefully breaks less.
+<A NAME="lbAT">&nbsp;</A>
+<H2>KNOWN BUGS</H2>
+
+
+
+None, but that does not mean there are not any.
+<A NAME="lbAU">&nbsp;</A>
+<H2>AUTHORS</H2>
+
+
+
+Graham Barr &lt;<A HREF="mailto:gbarr@pobox.com">gbarr@pobox.com</A>&gt;
+<P>
+
+The code that inspired me to write this was originally written by
+Peter Seibel &lt;<A HREF="mailto:peter@weblogic.com">peter@weblogic.com</A>&gt; and adapted by Jesse Glick
+&lt;<A HREF="mailto:jglick@sig.bsh.com">jglick@sig.bsh.com</A>&gt;.
+<P>
+
+<TT>&quot;:warndie&quot;</TT> handlers added by Paul Evans &lt;<A HREF="mailto:leonerd@leonerd.org.uk">leonerd@leonerd.org.uk</A>&gt;
+<A NAME="lbAV">&nbsp;</A>
+<H2>MAINTAINER</H2>
+
+
+
+Shlomi Fish, &lt;<A HREF="http://www.shlomifish.org/">http://www.shlomifish.org/</A>&gt; .
+<A NAME="lbAW">&nbsp;</A>
+<H2>PAST MAINTAINERS</H2>
+
+
+
+Arun Kumar U &lt;<A HREF="mailto:u_arunkumar@yahoo.com">u_arunkumar@yahoo.com</A>&gt;
+<A NAME="lbAX">&nbsp;</A>
+<H2>COPYRIGHT</H2>
+
+
+
+Copyright (c) 1997-8  Graham Barr. All rights reserved.
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+<A NAME="lbAY">&nbsp;</A>
+<H2>SUPPORT</H2>
+
+
+
+<A NAME="lbAZ">&nbsp;</A>
+<H3>Websites</H3>
+
+
+
+The following websites have more information about this module, and may be of help to you. As always,
+in addition to those websites please use your favorite search engine to discover more resources.
+<DL COMPACT>
+<DT id="20">&bull;<DD>
+MetaCPAN
+
+
+<P>
+
+
+A modern, open-source <FONT SIZE="-1">CPAN</FONT> search engine, useful to view <FONT SIZE="-1">POD</FONT> in <FONT SIZE="-1">HTML</FONT> format.
+
+
+<P>
+
+
+&lt;<A HREF="https://metacpan.org/release/Error">https://metacpan.org/release/Error</A>&gt;
+<DT id="21">&bull;<DD>
+Search <FONT SIZE="-1">CPAN</FONT>
+
+
+<P>
+
+
+The default <FONT SIZE="-1">CPAN</FONT> search engine, useful to view <FONT SIZE="-1">POD</FONT> in <FONT SIZE="-1">HTML</FONT> format.
+
+
+<P>
+
+
+&lt;<A HREF="http://search.cpan.org/dist/Error">http://search.cpan.org/dist/Error</A>&gt;
+<DT id="22">&bull;<DD>
+<FONT SIZE="-1">RT: CPAN</FONT>'s Bug Tracker
+
+
+<P>
+
+
+The <FONT SIZE="-1">RT</FONT> ( Request Tracker ) website is the default bug/issue tracking system for <FONT SIZE="-1">CPAN.</FONT>
+
+
+<P>
+
+
+&lt;<A HREF="https://rt.cpan.org/Public/Dist/Display.html?Name=Error">https://rt.cpan.org/Public/Dist/Display.html?Name=Error</A>&gt;
+<DT id="23">&bull;<DD>
+<FONT SIZE="-1">CPAN</FONT> Ratings
+
+
+<P>
+
+
+The <FONT SIZE="-1">CPAN</FONT> Ratings is a website that allows community ratings and reviews of Perl modules.
+
+
+<P>
+
+
+&lt;<A HREF="http://cpanratings.perl.org/d/Error">http://cpanratings.perl.org/d/Error</A>&gt;
+<DT id="24">&bull;<DD>
+<FONT SIZE="-1">CPANTS</FONT>
+
+
+<P>
+
+
+The <FONT SIZE="-1">CPANTS</FONT> is a website that analyzes the Kwalitee ( code metrics ) of a distribution.
+
+
+<P>
+
+
+&lt;<A HREF="http://cpants.cpanauthors.org/dist/Error">http://cpants.cpanauthors.org/dist/Error</A>&gt;
+<DT id="25">&bull;<DD>
+<FONT SIZE="-1">CPAN</FONT> Testers
+
+
+<P>
+
+
+The <FONT SIZE="-1">CPAN</FONT> Testers is a network of smoke testers who run automated tests on uploaded <FONT SIZE="-1">CPAN</FONT> distributions.
+
+
+<P>
+
+
+&lt;<A HREF="http://www.cpantesters.org/distro/E/Error">http://www.cpantesters.org/distro/E/Error</A>&gt;
+<DT id="26">&bull;<DD>
+<FONT SIZE="-1">CPAN</FONT> Testers Matrix
+
+
+<P>
+
+
+The <FONT SIZE="-1">CPAN</FONT> Testers Matrix is a website that provides a visual overview of the test results for a distribution on various Perls/platforms.
+
+
+<P>
+
+
+&lt;<A HREF="http://matrix.cpantesters.org/?dist=Error">http://matrix.cpantesters.org/?dist=Error</A>&gt;
+<DT id="27">&bull;<DD>
+<FONT SIZE="-1">CPAN</FONT> Testers Dependencies
+
+
+<P>
+
+
+The <FONT SIZE="-1">CPAN</FONT> Testers Dependencies is a website that shows a chart of the test results of all dependencies for a distribution.
+
+
+<P>
+
+
+&lt;<A HREF="http://deps.cpantesters.org/?module=Error">http://deps.cpantesters.org/?module=Error</A>&gt;
+</DL>
+<A NAME="lbBA">&nbsp;</A>
+<H3>Bugs / Feature Requests</H3>
+
+
+
+Please report any bugs or feature requests by email to <TT>&quot;bug-error at rt.cpan.org&quot;</TT>, or through
+the web interface at &lt;<A HREF="https://rt.cpan.org/Public/Bug/Report.html?Queue=Error">https://rt.cpan.org/Public/Bug/Report.html?Queue=Error</A>&gt;. You will be automatically notified of any
+progress on the request by the system.
+<A NAME="lbBB">&nbsp;</A>
+<H3>Source Code</H3>
+
+
+
+The code is open to the world, and available for you to hack on. Please feel free to browse it and play
+with it, or whatever. If you want to contribute patches, please send me a diff or prod me to pull
+from your repository :)
+<P>
+
+&lt;<A HREF="https://github.com/shlomif/perl-error.pm">https://github.com/shlomif/perl-error.pm</A>&gt;
+<P>
+
+
+
+<PRE>
+  git clone <A HREF="git://github.com/shlomif/perl-error.pm.git">git://github.com/shlomif/perl-error.pm.git</A>
+
+</PRE>
+
+
+<A NAME="lbBC">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+
+
+Shlomi Fish ( <A HREF="http://www.shlomifish.org/">http://www.shlomifish.org/</A> )
+<A NAME="lbBD">&nbsp;</A>
+<H2>BUGS</H2>
+
+
+
+Please report any bugs or feature requests on the bugtracker website
+&lt;<A HREF="https://github.com/shlomif/perl-error.pm/issues">https://github.com/shlomif/perl-error.pm/issues</A>&gt;
+<P>
+
+When submitting a bug or request, please include a test-file or a
+patch to an existing test-file that illustrates the bug or desired
+feature.
+<A NAME="lbBE">&nbsp;</A>
+<H2>COPYRIGHT AND LICENSE</H2>
+
+
+
+This software is copyright (c) 2020 by Shlomi Fish ( <A HREF="http://www.shlomifish.org/">http://www.shlomifish.org/</A> ).
+<P>
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="28"><A HREF="#lbAB">NAME</A><DD>
+<DT id="29"><A HREF="#lbAC">VERSION</A><DD>
+<DT id="30"><A HREF="#lbAD">SYNOPSIS</A><DD>
+<DT id="31"><A HREF="#lbAE">DESCRIPTION</A><DD>
+<DT id="32"><A HREF="#lbAF">WARNING</A><DD>
+<DT id="33"><A HREF="#lbAG">PROCEDURAL INTERFACE</A><DD>
+<DT id="34"><A HREF="#lbAH">COMPATIBILITY</A><DD>
+<DT id="35"><A HREF="#lbAI">CLASS INTERFACE</A><DD>
+<DL>
+<DT id="36"><A HREF="#lbAJ"><FONT SIZE="-1">CONSTRUCTORS</FONT></A><DD>
+<DT id="37"><A HREF="#lbAK"><FONT SIZE="-1">STATIC METHODS</FONT></A><DD>
+<DT id="38"><A HREF="#lbAL"><FONT SIZE="-1">OBJECT METHODS</FONT></A><DD>
+<DT id="39"><A HREF="#lbAM"><FONT SIZE="-1">OVERLOAD METHODS</FONT></A><DD>
+</DL>
+<DT id="40"><A HREF="#lbAN">PRE-DEFINED ERROR CLASSES</A><DD>
+<DL>
+<DT id="41"><A HREF="#lbAO">Error::Simple</A><DD>
+</DL>
+<DT id="42"><A HREF="#lbAP">$Error::ObjectifyCallback</A><DD>
+<DT id="43"><A HREF="#lbAQ">MESSAGE HANDLERS</A><DD>
+<DL>
+<DT id="44"><A HREF="#lbAR"><FONT SIZE="-1">EXAMPLE</FONT></A><DD>
+</DL>
+<DT id="45"><A HREF="#lbAS">SEE ALSO</A><DD>
+<DT id="46"><A HREF="#lbAT">KNOWN BUGS</A><DD>
+<DT id="47"><A HREF="#lbAU">AUTHORS</A><DD>
+<DT id="48"><A HREF="#lbAV">MAINTAINER</A><DD>
+<DT id="49"><A HREF="#lbAW">PAST MAINTAINERS</A><DD>
+<DT id="50"><A HREF="#lbAX">COPYRIGHT</A><DD>
+<DT id="51"><A HREF="#lbAY">SUPPORT</A><DD>
+<DL>
+<DT id="52"><A HREF="#lbAZ">Websites</A><DD>
+<DT id="53"><A HREF="#lbBA">Bugs / Feature Requests</A><DD>
+<DT id="54"><A HREF="#lbBB">Source Code</A><DD>
+</DL>
+<DT id="55"><A HREF="#lbBC">AUTHOR</A><DD>
+<DT id="56"><A HREF="#lbBD">BUGS</A><DD>
+<DT id="57"><A HREF="#lbBE">COPYRIGHT AND LICENSE</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:39 GMT, March 31, 2021
+</BODY>
+</HTML>

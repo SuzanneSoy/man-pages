@@ -1,0 +1,302 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SD_EVENT_ADD_INOTIFY</TITLE>
+</HEAD><BODY>
+<H1>SD_EVENT_ADD_INOTIFY</H1>
+Section: sd_event_add_inotify (3)<BR>Updated: <BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+sd_event_add_inotify, sd_event_source_get_inotify_mask, sd_event_inotify_handler_t - Add an &quot;inotify&quot; file system inode event source to an event loop
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+<B>
+</B><PRE>
+#include &lt;<A HREF="file:///usr/include/systemd/sd-event.h">systemd/sd-event.h</A>&gt;
+</PRE>
+
+
+<P>
+<B>
+</B><PRE>
+typedef struct sd_event_source sd_event_source;
+</PRE>
+
+
+<DL COMPACT>
+<DT id="1">
+<B>typedef int (*sd_event_inotify_handler_t)(sd_event_source&nbsp;*</B><I>s</I><B>, const&nbsp;struct&nbsp;inotify_event&nbsp;*</B><I>event</I><B>, void&nbsp;*</B><I>userdata</I><B>);</B>
+
+<DT id="2">
+<B>int sd_event_add_inotify(sd_event&nbsp;*</B><I>event</I><B>, sd_event_source&nbsp;**</B><I>source</I><B>, const&nbsp;char&nbsp;*</B><I>path</I><B>, uint32_t&nbsp;</B><I>mask</I><B>, sd_event_inotify_handler_t&nbsp;</B><I>handler</I><B>, void&nbsp;*</B><I>userdata</I><B>);</B>
+
+<DT id="3">
+<B>int sd_event_source_get_inotify_mask(sd_event_source&nbsp;*</B><I>source</I><B>, uint32_t&nbsp;*</B><I>mask</I><B>);</B>
+
+</DL>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+<B>sd_event_add_inotify()</B>
+<DD>adds a new
+<B><A HREF="/cgi-bin/man/man2html?7+inotify">inotify</A></B>(7)
+file system inode event source to an event loop. The event loop object is specified in the
+<I>event</I>
+parameter, the event source object is returned in the
+<I>source</I>
+parameter. The
+<I>path</I>
+parameter specifies the path of the file system inode to watch. The
+<I>handler</I>
+must reference a function to call when the inode changes. The handler function will be passed the
+<I>userdata</I>
+pointer, which may be chosen freely by the caller. The handler also receives a pointer to a
+struct inotify_event
+structure containing information about the inode event. The
+<I>mask</I>
+parameter specifie which types of inode events to watch specifically. It must contain an OR-ed combination of
+<B>IN_ACCESS</B>,
+<B>IN_ATTRIB</B>,
+<B>IN_CLOSE_WRITE</B>, ... flags. See
+<B><A HREF="/cgi-bin/man/man2html?7+inotify">inotify</A></B>(7)
+for further information.
+<P>
+
+If multiple event sources are installed for the same inode the backing inotify watch descriptor is automatically shared. The mask parameter may contain any flag defined by the inotify API, with the exception of
+<B>IN_MASK_ADD</B>.
+<P>
+
+The handler is enabled continuously (<B>SD_EVENT_ON</B>), but this may be changed with
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_source_set_enabled">sd_event_source_set_enabled</A></B>(3). Alternatively, the
+<B>IN_ONESHOT</B>
+mask flag may be used to request
+<B>SD_EVENT_ONESHOT</B>
+mode. If the handler function returns a negative error code, it will be disabled after the invocation, even if the
+<B>SD_EVENT_ON</B>
+mode was requested before.
+<P>
+
+As a special limitation the priority of inotify event sources may only be altered (see
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_source_set_priority">sd_event_source_set_priority</A></B>(3)) in the time between creation of the event source object with
+<B>sd_event_add_inotify()</B>
+and the beginning of the next event loop iteration. Attempts of changing the priority any later will be refused. Consider freeing and allocating a new inotify event source to change the priority at that point.
+<P>
+
+To destroy an event source object use
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_source_unref">sd_event_source_unref</A></B>(3), but note that the event source is only removed from the event loop when all references to the event source are dropped. To make sure an event source does not fire anymore, even when there's still a reference to it kept, consider disabling it with
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_source_set_enabled">sd_event_source_set_enabled</A></B>(3).
+<P>
+
+If the second parameter of
+<B>sd_event_add_inotify()</B>
+is passed as NULL no reference to the event source object is returned. In this case the event source is considered &quot;floating&quot;, and will be destroyed implicitly when the event loop itself is destroyed.
+<P>
+
+<B>sd_event_source_get_inotify_mask()</B>
+retrieves the configured inotify watch mask of an event source created previously with
+<B>sd_event_add_inotify()</B>. It takes the event source object as the
+<I>source</I>
+parameter and a pointer to a
+<B>uint32_t</B>
+variable to return the mask in.
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+<P>
+
+On success, these functions return 0 or a positive integer. On failure, they return a negative errno-style error code.
+<A NAME="lbAF">&nbsp;</A>
+<H3>Errors</H3>
+
+<P>
+
+Returned errors may indicate the following problems:
+<P>
+
+<B>-ENOMEM</B>
+<DL COMPACT><DT id="4"><DD>
+Not enough memory to allocate an object.
+</DL>
+
+<P>
+
+<B>-EINVAL</B>
+<DL COMPACT><DT id="5"><DD>
+An invalid argument has been passed. This includes specifying a mask with
+<B>IN_MASK_ADD</B>
+set.
+</DL>
+
+<P>
+
+<B>-ESTALE</B>
+<DL COMPACT><DT id="6"><DD>
+The event loop is already terminated.
+</DL>
+
+<P>
+
+<B>-ECHILD</B>
+<DL COMPACT><DT id="7"><DD>
+The event loop has been created in a different process.
+</DL>
+
+<P>
+
+<B>-EDOM</B>
+<DL COMPACT><DT id="8"><DD>
+The passed event source is not an inotify process event source.
+</DL>
+
+<A NAME="lbAG">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+<P>
+
+<B>Example&nbsp;1.&nbsp;A simple program that uses inotify to monitor one or two directories</B>
+<P>
+<DL COMPACT><DT id="9"><DD>
+
+
+
+<PRE>
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/string.h">string.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/sys/inotify.h">sys/inotify.h</A>&gt;
+
+#include &lt;<A HREF="file:///usr/include/systemd/sd-event.h">systemd/sd-event.h</A>&gt;
+
+#define _cleanup_(f) __attribute__((cleanup(f)))
+
+static int inotify_handler(sd_event_source *source,
+                           const struct inotify_event *event,
+                           void *userdata) {
+
+  const char *desc = NULL;
+
+  sd_event_source_get_description(source, &amp;desc);
+
+  if (event-&gt;mask &amp; IN_Q_OVERFLOW)
+    printf(&quot;inotify-handler &lt;%s&gt;: overflow\n&quot;, desc);
+  else if (event-&gt;mask &amp; IN_CREATE)
+    printf(&quot;inotify-handler &lt;%s&gt;: create on %s\n&quot;, desc, event-&gt;name);
+  else if (event-&gt;mask &amp; IN_DELETE)
+    printf(&quot;inotify-handler &lt;%s&gt;: delete on %s\n&quot;, desc, event-&gt;name);
+  else if (event-&gt;mask &amp; IN_MOVED_TO)
+    printf(&quot;inotify-handler &lt;%s&gt;: moved-to on %s\n&quot;, desc, event-&gt;name);
+
+  /* Terminate the program if an &quot;exit&quot; file appears */
+  if ((event-&gt;mask &amp; (IN_CREATE|IN_MOVED_TO)) &amp;&amp;
+      strcmp(event-&gt;name, &quot;exit&quot;) == 0)
+    sd_event_exit(sd_event_source_get_event(source), 0);
+
+  return 1;
+}
+
+int main(int argc, char **argv) {
+  _cleanup_(sd_event_unrefp) sd_event *event = NULL;
+  _cleanup_(sd_event_source_unrefp) sd_event_source *source1 = NULL, *source2 = NULL;
+
+  const char *path1 = argc &gt; 1 ? argv[1] : &quot;/tmp&quot;;
+  const char *path2 = argc &gt; 2 ? argv[2] : NULL;
+
+  /* Note: failure handling is omitted for brevity */
+
+  sd_event_default(&amp;event);
+
+  sd_event_add_inotify(event, &amp;source1, path1,
+                       IN_CREATE | IN_DELETE | IN_MODIFY | IN_MOVED_TO,
+                       inotify_handler, NULL);
+  if (path2)
+    sd_event_add_inotify(event, &amp;source2, path2,
+                         IN_CREATE | IN_DELETE | IN_MODIFY | IN_MOVED_TO,
+                         inotify_handler, NULL);
+
+  sd_event_loop(event);
+
+  return 0;
+}
+</PRE>
+
+</DL>
+
+
+
+
+<A NAME="lbAH">&nbsp;</A>
+<H2>NOTES</H2>
+
+<P>
+
+These APIs are implemented as a shared library, which can be compiled and linked to with the
+<B>libsystemd</B>&nbsp;<B><A HREF="/cgi-bin/man/man2html?1+pkg-config">pkg-config</A></B>(1)
+file.
+<A NAME="lbAI">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?3+sd-event">sd-event</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_new">sd_event_new</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_now">sd_event_now</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_add_io">sd_event_add_io</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_add_time">sd_event_add_time</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_add_signal">sd_event_add_signal</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_add_defer">sd_event_add_defer</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_add_child">sd_event_add_child</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_source_set_enabled">sd_event_source_set_enabled</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_source_set_priority">sd_event_source_set_priority</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_source_set_userdata">sd_event_source_set_userdata</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_source_set_description">sd_event_source_set_description</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_source_set_floating">sd_event_source_set_floating</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?2+waitid">waitid</A></B>(2)
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="10"><A HREF="#lbAB">NAME</A><DD>
+<DT id="11"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="12"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="13"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DL>
+<DT id="14"><A HREF="#lbAF">Errors</A><DD>
+</DL>
+<DT id="15"><A HREF="#lbAG">EXAMPLES</A><DD>
+<DT id="16"><A HREF="#lbAH">NOTES</A><DD>
+<DT id="17"><A HREF="#lbAI">SEE ALSO</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:55 GMT, March 31, 2021
+</BODY>
+</HTML>

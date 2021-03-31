@@ -1,0 +1,388 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of update-alternatives</TITLE>
+</HEAD><BODY>
+<H1>update-alternatives</H1>
+Section: dpkg suite (1)<BR>Updated: 2020-03-23<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>名前</H2>
+
+update-alternatives - シンボリックリンクを管理してデフォルトのコマンドを決定する
+<A NAME="lbAC">&nbsp;</A>
+<H2>書式</H2>
+
+<B>update-alternatives</B> [<I>option</I>...] <I>command</I>
+<A NAME="lbAD">&nbsp;</A>
+<H2>説明</H2>
+
+<B>update-alternatives</B> は Debian の alternatives
+システムを構成するシンボリックリンクを生成・削除・管理したり、リンクの情報を表示したりするツールである。
+<P>
+
+同一の、あるいは類似の機能を持つ複数のプログラムを一つのシステムに同時にインストールし、共存させることができる。例えば多くのシステムでは、複数のテキストエディタを共存させている。これにより、システムのユーザは好みに応じて別々のエディタを使うことができるようになる。しかしプログラムからすると、特に指定がなかったときにどのエディタを起動すれば良いのかという、なかなか難しい問題を抱えることになる。
+<P>
+
+Debian の alternatives
+システムは、この問題を解決するためのものである。互いに置き換え可能な機能を提供する全てのファイルは、ファイルシステム中の「一般名 (generic
+name)」を共有する。その一般名が実際にどのファイルを参照するかは、 alternatives
+システムとシステム管理者とが決定する。例えば、テキストエディタである <B><A HREF="/cgi-bin/man/man2html?1+ed">ed</A></B>(1) と <B><A HREF="/cgi-bin/man/man2html?1+nvi">nvi</A></B>(1)
+の両方がシステムにインストールされていたとすると、一般名である <I>/usr/bin/editor</I> は、デフォルトでは <I>/usr/bin/nvi</I>
+を参照する。システム管理者はこれを上書きし、 <I>/usr/bin/ed</I>
+を参照させるようにすることもできる。こうすると、その後明示的な設定がなければ、 alternatives システムはその設定を変更しない。
+<P>
+
+一般名は、選ばれた「選択肢 (alternative)」への直接のシンボリックリンクではなく、 <I>alternatives</I> <I>ディレクトリ</I>
+にある名前へのシンボリックリンクになっており、その名前が実際に参照されるファイルへのシンボリックリンクになっている。こうなっている理由は、システム管理者による変更を
+<I>/etc</I> ディレクトリ以下で完結させるためである。なぜこうするのが良いかについては FHS に説明がある。
+<P>
+
+When each package providing a file with a particular functionality is
+installed, changed or removed, <B>update-alternatives</B> is called to update
+information about that file in the alternatives system.
+<B>update-alternatives</B> is usually called from the <B>postinst</B> (configure) or
+<B>prerm</B> (remove and deconfigure) scripts in Debian packages.
+<P>
+
+複数の選択肢を同期させ、グループとして変更すると便利なことが多い。例えば <B><A HREF="/cgi-bin/man/man2html?1+vi">vi</A></B>(1)
+エディタのいろいろな派生システムが同時にインストールされていたとすると、 <I>/usr/share/man/man1/vi.1</I> が参照する man
+ページは、 <I>/usr/bin/vi</I> が参照する実行ファイルに対応しているべきであろう。 <B>update-alternatives</B> は、
+<I>master</I> リンクと <I>slave</I> リンクによってこれを取り扱う。 master が変更されると、それに関連づけされた各 slave
+も同時に変更される。 master リンクとそれに関連づけされた slave とは、 <I>リンクグループ</I> を形成する。
+<P>
+
+各リンクグループは、いかなる時点においても、 automatic または manual の 2 つのモードのいずれかにある。グループが
+automatic モードにある場合は、パッケージのインストール・削除の際にリンクを更新するか、どのように更新するかは、 alternatives
+システムが自動的に決定する。 manual モードでは、 alternatives システムは (何らかの問題が発生した場合を除き)
+リンクを変更せず、システム管理者の行った設定が保持される。
+<P>
+
+リンクグループがシステムに導入されると、まず automatic モードとして機能する。システム管理者がその設定を変更すると、次に
+<B>update-alternatives</B> がリンクグループに対して実行されたときに変更が認識され、そのリンクグループは自動的に manual
+モードに切り換わる。
+<P>
+
+各選択肢は <I>priority</I> 属性を持っている。リンクグループが automatic モードにあるときは、 <I>priority</I>
+のもっとも高いものが、そのグループのメンバーが参照する選択肢になる。
+<P>
+
+When using the <B>--config</B> option, <B>update-alternatives</B> will list all of
+the choices for the link group of which given <I>name</I> is the master
+alternative name.  The current choice is marked with a '*'.  You will then
+be prompted for your choice regarding this link group.  Depending on the
+choice made, the link group might no longer be in <I>auto</I> mode. You will
+need to use the <B>--auto</B> option in order to return to the automatic mode
+(or you can rerun <B>--config</B> and select the entry marked as automatic).
+<P>
+
+非対話的に設定をしたい場合は <B>--set</B> オプションを代わりに使用する (以下を参照)。
+<P>
+
+同一のファイルを提供する異なるパッケージは、これを <B>協調して</B> 行う必要がある。言い換えると、こうした場合、関連するパッケージのすべてで
+<B>update-alternatives</B> の使用が必須となる。<B>update-alternatives</B>
+機構を使用していないパッケージのファイルを上書きすることはできない。
+<A NAME="lbAE">&nbsp;</A>
+<H2>用語</H2>
+
+<B>update-alternatives</B> の動作は極めて複雑なので、ここでいくつかの固有の用語を説明し、動作の理解の助けとしたい。
+<DL COMPACT>
+<DT id="1">一般名 (generic name / alternative link)<DD>
+<I>/usr/bin/editor</I> のような名前。 alternatives システムによって、類似の機能を持つ複数のファイルのいずれかを参照する。
+<DT id="2">選択肢名 (alternative name)<DD>
+alternatives ディレクトリに存在するシンボリックリンク名
+<DT id="3">選択肢 (alternative / alternative path)<DD>
+ファイルシステム中の特定ファイルの名称、alternatives システムによって、一般名からのアクセスが可能となる。
+<DT id="4">alternatives ディレクトリ<DD>
+シンボリックリンクを保持するディレクトリ。デフォルトは <I>/etc/alternatives</I>。
+<DT id="5">administrative ディレクトリ<DD>
+<B>update-alternatives</B> の状態情報を保持するディレクトリ。デフォルトは
+<I>/var/lib/dpkg/alternatives</I>。
+<DT id="6">リンクグループ<DD>
+関連するシンボリックリンクのセットで、グループ単位での更新を行うためのもの。
+<DT id="7">master リンク<DD>
+リンクグループに属する選択肢のリンクで、グループ内の他のリンクの設定を決定するもの。
+<DT id="8">slave リンク<DD>
+リンクグループに属する選択肢のリンクで、 master リンクの設定によって設定されるもの。
+<DT id="9">automatic モード<DD>
+リンクグループが automatic モードにある場合、alternatives システムは、グループ内の各リンクが priority
+のもっとも高い選択肢を参照することを担保する。
+<DT id="10">manual モード<DD>
+リンクグループが manual モードにある場合、alternatives システムはシステム管理者の行った設定を一切変更しない。
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>コマンド</H2>
+
+<DL COMPACT>
+<DT id="11"><B>--install</B> <I>link name path priority</I> [<B>--slave</B> <I>link name path</I>]...<DD>
+選択肢のグループをシステムに追加する。<I>link</I> は master リンクの一般名、<I>name</I> は alternatives
+ディレクトリにおけるシンボリックリンクの名前、 <I>path</I> は master リンクとなる選択肢の名前となる。<B>--slave</B>
+オプションに続く引数は、alternatives ディレクトリでの一般名およびシンボリックリンクの名前と slave
+リンクとなる選択肢のパスの順となる。<B>--slave</B> オプションと、それにに続く 3
+つの引数のセットは、いくつ設定してもよく、まったく設定しないこともできる。master
+となる選択肢は必ず存在している必要があり、存在していない場合は失敗となるが、slave
+の選択肢がインストールされていない場合は、(依然として警告が表示されるものの) 対応する slave
+の選択肢のリンクが単にインストールされないだけである。選択肢のリンクがインストールされるパスに、何らかの実ファイルがインストールされている場合、<B>--force</B>
+が指定されない限り、それらのファイルは保持される。
+<DT id="12"><DD>
+指定された選択肢の名前が既に alternatives
+システム内に存在している場合、与えられた情報は、グループに対する新たな選択肢として追加される。それ以外の場合は、与えられた情報を用いて、新しいグループが
+automatic モードで追加される。グループが automatic モードにあり、新たに追加された選択肢の priority
+がそのグループに対してインストールされている他の選択肢のものより高い場合、シンボリックリンクは新たに追加された選択肢を参照するように更新される。
+<DT id="13"><B>--set</B> <I>name path</I><DD>
+プログラム <I>path</I> を <I>name</I> の選択肢として設定する。 <I>--config</I>
+と同等だが、こちらは非対話的であるため、スクリプト向けである。
+<DT id="14"><B>--remove</B> <I>name path</I><DD>
+(master の) 選択肢とそれに関連する全ての slave リンクを削除する。 <I>name</I> は alternatives
+ディレクトリ内の名前であり、 <I>path</I> は <I>name</I> のリンク先に指定されうるファイル名の絶対パスである。 <I>name</I> が実際に
+<I>path</I> にリンクされている場合には、 <I>name</I> は他の適切な選択肢を参照するよう更新される (グループは automatic
+モードに戻される) が、そのような選択肢が残っていなければ削除される。関連する slave リンクも対応して更新 (削除) される。 <I>name</I>
+が現在その <I>path</I> を参照していなければ、リンクの変更は行われない。その選択肢の情報が削除されるだけである。
+<DT id="15"><B>--remove-all</B> <I>name</I><DD>
+すべての選択肢と、それに関連するすべての slave リンクを削除する。 <I>name</I> は、alternatives ディレクトリ内の名前である。
+<DT id="16"><B>--all</B><DD>
+すべての選択肢に対して <B>--config</B> を呼び出す。これは <B>--skip-auto</B> と組み合わせることで、automatic
+モードで設定されていないすべての選択肢を確認、設定する際に有用である。問題のある選択肢も表示される。問題のある選択肢をすべて修正するためには <B>yes
+'' | update-alternatives --force --all</B> を実行すればよい。
+<DT id="17"><B>--auto</B> <I>name</I><DD>
+<I>name</I> で指定される選択肢のリンクグループを、automatic モードに変更する。この処理を行う際に、master
+のシンボリックリンクと対応する各 slave は、現在インストールされている選択肢のうち、もっとも priority
+の高いものを参照するように更新される。
+<DT id="18"><B>--display</B> <I>name</I><DD>
+Display information about the link group.  Information displayed includes
+the group's mode (auto or manual), the master and slave links, which
+alternative the master link currently points to, what other alternatives are
+available (and their corresponding slave alternatives), and the highest
+priority alternative currently installed.
+<DT id="19"><B>--get-selections</B><DD>
+List all master alternative names (those controlling a link group)  and
+their status (since version 1.15.0).  Each line contains up to 3 fields
+(separated by one or more spaces). The first field is the alternative name,
+the second one is the status (either <B>auto</B> or <B>manual</B>), and the last one
+contains the current choice in the alternative (beware: it's a filename and
+thus might contain spaces).
+<DT id="20"><B>--set-selections</B><DD>
+Read configuration of alternatives on standard input in the format generated
+by <B>--get-selections</B> and reconfigure them accordingly (since version
+1.15.0).
+<DT id="21"><B>--query</B> <I>name</I><DD>
+Display information about the link group like <B>--display</B> does, but in a
+machine parseable way (since version 1.15.0, see section <B>QUERY FORMAT</B>
+below).
+<DT id="22"><B>--list</B> <I>name</I><DD>
+リンクグループのすべての対象を表示する。
+<DT id="23"><B>--config</B> <I>name</I><DD>
+リンクグループで利用可能なすべての選択肢を表示し、対話的に選択肢の 1 つを選択できるようにする。これにより、リンクグループが更新される。
+<DT id="24"><B>--help</B><DD>
+利用方法を表示して終了する。
+<DT id="25"><B>--version</B><DD>
+バージョン情報を表示して終了する。
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H2>オプション</H2>
+
+<DL COMPACT>
+<DT id="26"><B>--altdir</B> <I>directory</I><DD>
+alternatives ディレクトリをデフォルトから変えたいときに指定する。
+<DT id="27"><B>--admindir</B><I> directory</I><DD>
+administrative ディレクトリをデフォルトから変えたいときに指定する。
+<DT id="28"><B>--log</B><I> file</I><DD>
+Specifies the log file (since version 1.15.0), when this is to be different
+from the default (/var/log/alternatives.log).
+<DT id="29"><B>--force</B><DD>
+Allow replacing or dropping any real file that is installed where an
+alternative link has to be installed or removed.
+<DT id="30"><B>--skip-auto</B><DD>
+automatic モードで適切に設定されている選択肢について、設定の確認を行わない。このオプションは <B>--config</B> および <B>--all</B>
+とともに指定した場合のみ有効である。
+<DT id="31"><B>--quiet</B><DD>
+Do not generate any comments unless errors occur.
+<DT id="32"><B>--verbose</B><DD>
+Generate more comments about what is being done.
+<DT id="33"><B>--debug</B><DD>
+Generate even more comments, helpful for debugging, about what is being done
+(since version 1.19.3).
+</DL>
+<A NAME="lbAH">&nbsp;</A>
+<H2>終了ステータス</H2>
+
+<DL COMPACT>
+<DT id="34"><B>0</B><DD>
+指定したアクションが正しく実行された。
+<DT id="35"><B>2</B><DD>
+コマンドラインの解釈か、アクションの実行時に問題が発生した。
+</DL>
+<A NAME="lbAI">&nbsp;</A>
+<H2>環境変数</H2>
+
+<DL COMPACT>
+<DT id="36"><B>DPKG_ADMINDIR</B><DD>
+<B>--admindir</B> オプションが指定されていない場合に、この変数が設定されていると、この値が administrative
+ディレクトリの起点として使用される。
+</DL>
+<A NAME="lbAJ">&nbsp;</A>
+<H2>ファイル</H2>
+
+<DL COMPACT>
+<DT id="37"><I>/etc/alternatives/</I><DD>
+デフォルトの alternatives ディレクトリ。 <B>--altdir</B> オプションによって変更できる。
+<DT id="38"><I>/var/lib/dpkg/alternatives/</I><DD>
+デフォルトの administration ディレクトリ。 <B>--admindir</B> オプションによって変更できる。
+</DL>
+<A NAME="lbAK">&nbsp;</A>
+<H2>QUERY FORMAT</H2>
+
+The <B>--query</B> format is using an RFC822-like flat format. It's made of <I>n</I>
++ 1 blocks where <I>n</I> is the number of alternatives available in the queried
+link group. The first block contains the following fields:
+<DL COMPACT>
+<DT id="39"><B>Name:</B><I> name</I><DD>
+alternative ディレクトリに存在する選択肢の名前
+<DT id="40"><B>Link:</B><I> link</I><DD>
+選択肢の一般名
+<DT id="41"><B>Slaves:</B><I> list-of-slaves</I><DD>
+このヘッダが存在している場合、<B>以降の</B> 行には、この選択肢の master リンクに対応するすべての slave
+リンクが記述される。これは、slave 毎に 1 行ずつ記述され、各行は、1 文字のスペースに続き、slave の選択肢の一般名、スペース、slave
+リンクのパスが記述される。
+<DT id="42"><B>Status:</B><I> status</I><DD>
+選択肢の状況 (<B>auto</B> もしくは <B>manual</B>)
+<DT id="43"><B>Best:</B><I> best-choice</I><DD>
+このリンクグループで最適な選択肢のパス。利用可能な選択肢が存在しない場合、存在しない。
+<DT id="44"><B>Value:</B><I> currently-selected-alternative</I><DD>
+現在選択されている選択肢のパス。リンクが存在しない場合、<B>none</B> という特別な値が設定される場合がある。
+</DL>
+<P>
+
+これ以外のブロックは、クエリ対象のリンクグループにおいて利用可能な選択肢を表示する。
+<DL COMPACT>
+<DT id="45"><B>Alternative:</B><I> path-of-this-alternative</I><DD>
+このブロックの選択肢のパス。
+<DT id="46"><B>Priority:</B><I> priority-value</I><DD>
+この選択肢の priority の値。
+<DT id="47"><B>Slaves:</B><I> list-of-slaves</I><DD>
+このヘッダが存在している場合、<B>以降の</B> 行には、この選択肢の master リンクに対応するすべての slave
+の選択肢が記述される。これは、slave 毎に 1 行ずつ記述され、各行は、1 文字のスペースに続き、slave の選択肢の一般名、スペース、slave
+の選択肢のパスが記述される。
+</DL>
+<A NAME="lbAL">&nbsp;</A>
+<H3>Example</H3>
+
+<PRE>
+$ update-alternatives --query editor
+Name: editor
+Link: /usr/bin/editor
+Slaves:
+ editor.1.gz /usr/share/man/man1/editor.1.gz
+ editor.fr.1.gz /usr/share/man/fr/man1/editor.1.gz
+ editor.it.1.gz /usr/share/man/it/man1/editor.1.gz
+ editor.pl.1.gz /usr/share/man/pl/man1/editor.1.gz
+ editor.ru.1.gz /usr/share/man/ru/man1/editor.1.gz
+Status: auto
+Best: /usr/bin/vim.basic
+Value: /usr/bin/vim.basic
+
+Alternative: /bin/ed
+Priority: -100
+Slaves:
+ editor.1.gz /usr/share/man/man1/ed.1.gz
+
+Alternative: /usr/bin/vim.basic
+Priority: 50
+Slaves:
+ editor.1.gz /usr/share/man/man1/vim.1.gz
+ editor.fr.1.gz /usr/share/man/fr/man1/vim.1.gz
+ editor.it.1.gz /usr/share/man/it/man1/vim.1.gz
+ editor.pl.1.gz /usr/share/man/pl/man1/vim.1.gz
+ editor.ru.1.gz /usr/share/man/ru/man1/vim.1.gz
+</PRE>
+
+<A NAME="lbAM">&nbsp;</A>
+<H2>診断メッセージ</H2>
+
+<B>--verbose</B> を指定した場合、<B>update-alternatives</B> は、実行中の処理内容を逐一標準出力に出力する。問題が起きると、
+<B>update-alternatives</B> はエラーメッセージを標準エラー出力に出力し、終了ステータス 2
+を返す。これらの診断メッセージは、読めばわかるはずである。もしわからなければ、バグとして報告して欲しい。
+<A NAME="lbAN">&nbsp;</A>
+<H2>例</H2>
+
+例えば <B>nvi</B> や <B>vim</B> のように、テキストエディタ <B>vi</B>
+と互換性のあるプログラムを提供するパッケージが複数ある。どのパッケージが使われるかは、リンクグループ <B>vi</B> によって制御される。リンクグループ
+<B>vi</B> にはプログラム自身のリンクと、関連する man ページのリンクが含まれる。
+<P>
+
+<B>vi</B> を提供するパッケージとその現在の設定を表示するには、<B>--display</B> アクションを使用する:
+<P>
+
+<DL COMPACT><DT id="48"><DD>
+<B>update-alternatives --display vi</B>
+</DL>
+
+<P>
+
+特定の <B>vi</B> の実装を選ぶには、root としてこのコマンドを実行し、一覧から数字を選ぶ:
+<P>
+
+<DL COMPACT><DT id="49"><DD>
+<B>update-alternatives --config vi</B>
+</DL>
+
+<P>
+
+<B>vi</B> 実装の選択を自動的に行なうように戻すには、root としてこのコマンドを実行する:
+<P>
+
+<DL COMPACT><DT id="50"><DD>
+<B>update-alternatives --auto vi</B>
+</DL>
+
+<A NAME="lbAO">&nbsp;</A>
+<H2>関連項目</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?1+ln">ln</A></B>(1), FHS, the Filesystem Hierarchy Standard.
+<A NAME="lbAP">&nbsp;</A>
+<H2>翻訳者</H2>
+
+高橋 基信 &lt;<A HREF="mailto:monyo@monyo.com">monyo@monyo.com</A>&gt;.
+喜瀬 浩 &lt;<A HREF="mailto:kise@fuyuneko.jp">kise@fuyuneko.jp</A>&gt;.
+関戸 幸一 &lt;<A HREF="mailto:sekido@mbox.kyoto-inet.or.jp">sekido@mbox.kyoto-inet.or.jp</A>&gt;.
+鍋谷 栄展 &lt;<A HREF="mailto:nabe@debian.or.jp">nabe@debian.or.jp</A>&gt;.
+倉澤 望 &lt;<A HREF="mailto:nabetaro@debian.or.jp">nabetaro@debian.or.jp</A>&gt;.
+石川 睦 &lt;<A HREF="mailto:ishikawa@linux.or.jp">ishikawa@linux.or.jp</A>&gt;.
+鵜飼 文敏 &lt;<A HREF="mailto:ukai@debian.or.jp">ukai@debian.or.jp</A>&gt;.
+中野 武雄 &lt;<A HREF="mailto:nakano@apm.seikei.ac.jp">nakano@apm.seikei.ac.jp</A>&gt;.
+<A NAME="lbAQ">&nbsp;</A>
+<H2>翻訳校正</H2>
+
+Debian JP Documentation ML &lt;<A HREF="mailto:debian-doc@debian.or.jp">debian-doc@debian.or.jp</A>&gt;.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="51"><A HREF="#lbAB">名前</A><DD>
+<DT id="52"><A HREF="#lbAC">書式</A><DD>
+<DT id="53"><A HREF="#lbAD">説明</A><DD>
+<DT id="54"><A HREF="#lbAE">用語</A><DD>
+<DT id="55"><A HREF="#lbAF">コマンド</A><DD>
+<DT id="56"><A HREF="#lbAG">オプション</A><DD>
+<DT id="57"><A HREF="#lbAH">終了ステータス</A><DD>
+<DT id="58"><A HREF="#lbAI">環境変数</A><DD>
+<DT id="59"><A HREF="#lbAJ">ファイル</A><DD>
+<DT id="60"><A HREF="#lbAK">QUERY FORMAT</A><DD>
+<DL>
+<DT id="61"><A HREF="#lbAL">Example</A><DD>
+</DL>
+<DT id="62"><A HREF="#lbAM">診断メッセージ</A><DD>
+<DT id="63"><A HREF="#lbAN">例</A><DD>
+<DT id="64"><A HREF="#lbAO">関連項目</A><DD>
+<DT id="65"><A HREF="#lbAP">翻訳者</A><DD>
+<DT id="66"><A HREF="#lbAQ">翻訳校正</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:05 GMT, March 31, 2021
+</BODY>
+</HTML>

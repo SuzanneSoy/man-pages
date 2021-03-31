@@ -1,0 +1,497 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of user_caps</TITLE>
+</HEAD><BODY>
+<H1>user_caps</H1>
+Section: File Formats (5)<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+user_caps - user-defined terminfo capabilities
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<B>tic -x, infocmp -x</B>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<A NAME="lbAE">&nbsp;</A>
+<H3>Background</H3>
+
+<P>
+
+Before ncurses 5.0,
+terminfo databases used a <I>fixed repertoire</I> of terminal
+capabilities designed for the SVr2 terminal database in 1984,
+and extended in stages through SVr4 (1989),
+and standardized in the Single Unix Specification beginning in 1995.
+<P>
+
+Most of the <I>extensions</I> in this fixed repertoire were additions
+to the tables of boolean, numeric and string capabilities.
+Rather than change the meaning of an existing capability, a new name was added.
+The terminfo database uses a binary format; binary compatibility was
+ensured by using a header which gave the number of items in the
+tables for each type of capability.
+The standardization was incomplete:
+
+<BR>&nbsp;.IP&nbsp;&bull;&nbsp;4
+
+
+The <I>binary format</I> itself is not described
+in the X/Open Curses documentation.
+Only the <I>source format</I> is described.
+<DL COMPACT>
+<DT id="1"><DD>
+Library developers rely upon the SVr4 documentation,
+and reverse-engineering the compiled terminfo files to match the binary format.
+
+<BR>&nbsp;.IP&nbsp;&bull;&nbsp;4
+
+
+Lacking a standard for the binary format, most implementations
+copy the SVr2 binary format, which uses 16-bit signed integers,
+and is limited to 4096-byte entries.
+<DT id="2"><DD>
+The format cannot represent very large numeric capabilities,
+nor can it represent large numbers of special keyboard definitions.
+
+<BR>&nbsp;.IP&nbsp;&bull;&nbsp;4
+
+
+The tables of capability names differ between implementations.
+<DT id="3"><DD>
+Although they <I>may</I> provide all of the standard capability names,
+the position in the tables differs because some features were added as needed,
+while others were added (out of order) to comply with X/Open Curses.
+<DT id="4"><DD>
+While ncurses' repertoire of predefined capabilities is closest to Solaris,
+Solaris's terminfo database has a few differences from
+the list published by X/Open Curses.
+For example, ncurses can be configured with tables which match the
+terminal databases for AIX, HP-UX or OSF/1,
+rather than the default Solaris-like configuration.
+
+<BR>&nbsp;.IP&nbsp;&bull;&nbsp;4
+
+
+In SVr4 curses and ncurses,
+the terminal database is defined at compile-time using a text file
+which lists the different terminal capabilities.
+<DT id="5"><DD>
+In principle, the text-file can be extended,
+but doing this requires recompiling and reinstalling the library.
+The text-file used in ncurses for terminal capabilities includes
+details for various systems past the documented X/Open Curses features.
+For example, ncurses supports these capabilities in each configuration:
+<DL COMPACT><DT id="6"><DD>
+<DL COMPACT>
+<DT id="7">memory_lock<DD>
+(meml)
+lock memory above cursor
+<DT id="8">memory_unlock<DD>
+(memu)
+unlock memory
+<DT id="9">box_chars_1<DD>
+(box1)
+box characters primary set
+</DL>
+</DL>
+
+<DT id="10"><DD>
+The memory lock/unlock capabilities were included because they were used
+in the X11R6 terminal description for <B>xterm</B>.
+The <I>box1</I> capability is used in tic to help with terminal descriptions
+written for AIX. 
+</DL>
+<P>
+
+During the 1990s, some users were reluctant to use terminfo
+in spite of its performance advantages over termcap:
+
+<BR>&nbsp;.IP&nbsp;&bull;&nbsp;4
+
+
+The fixed repertoire prevented users from adding features
+for unanticipated terminal improvements
+(or required them to reuse existing capabilities as a workaround).
+
+<BR>&nbsp;.IP&nbsp;&bull;&nbsp;4
+
+
+The limitation to 16-bit signed integers was also mentioned.
+Because termcap stores everything as a string,
+it could represent larger numbers.
+<P>
+
+Although termcap's extensibility was rarely used
+(it was never the <I>speaker</I> who had actually used the feature),
+the criticism had a point.
+ncurses 5.0 provided a way to detect nonstandard capabilities,
+determine their
+type and optionally store and retrieve them in a way which did not interfere
+with other applications.
+These are referred to as <I>user-defined capabilities</I> because no
+modifications to the toolset's predefined capability names are needed.
+<P>
+
+The ncurses utilities <B>tic</B> and <B>infocmp</B> have a command-line
+option ``-x'' to control whether the nonstandard capabilities
+are stored or retrieved.
+A library function <B>use_extended_names</B>
+is provided for the same purpose.
+<P>
+
+When compiling a terminal database, if ``-x'' is set,
+<B>tic</B> will store a user-defined capability if the capability name is not
+one of the predefined names.
+<P>
+
+Because ncurses provides a termcap library interface,
+these user-defined capabilities may be visible to termcap applications:
+
+<BR>&nbsp;.IP&nbsp;&bull;&nbsp;4
+
+
+The termcap interface (like all implementations of termcap)
+requires that the capability names are 2-characters.
+<DL COMPACT>
+<DT id="11"><DD>
+When the capability is simple enough for use in a termcap application,
+it is provided as a 2-character name.
+
+<BR>&nbsp;.IP&nbsp;&bull;&nbsp;4
+
+
+There are other
+user-defined capabilities which refer to features not usable in termcap,
+e.g., parameterized strings that use more than two parameters
+or use more than the trivial expression support provided by termcap.
+For these, the terminfo database should have only capability names with
+3 or more characters.
+
+<BR>&nbsp;.IP&nbsp;&bull;&nbsp;4
+
+
+Some terminals can send distinct strings for special keys (cursor-,
+keypad- or function-keys) depending on modifier keys (shift, control, etc.).
+While terminfo and termcap have a set of 60 predefined function-key names,
+to which a series of keys can be assigned,
+that is insufficient for more than a dozen keys multiplied by more than
+a couple of modifier combinations.
+The ncurses database uses a convention based on <B>xterm</B> to
+provide extended special-key names.
+<DT id="12"><DD>
+Fitting that into termcap's limitation of 2-character names
+would be pointless.
+These extended keys are available only with terminfo.
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H3>Recognized capabilities</H3>
+
+<P>
+
+The ncurses library uses the user-definable capabilities.
+While the terminfo database may have other extensions,
+ncurses makes explicit checks for these:
+<DL COMPACT><DT id="13"><DD>
+<DL COMPACT>
+<DT id="14">AX<DD>
+<I>boolean</I>, asserts that the terminal interprets SGR 39 and SGR 49
+by resetting the foreground and background color, respectively, to the default.
+<DT id="15"><DD>
+This is a feature recognized by the <B>screen</B> program as well.
+<DT id="16">E3<DD>
+<I>string</I>, tells how to clear the terminal's scrollback buffer.
+When present, the <B><A HREF="/cgi-bin/man/man2html?1+clear">clear</A></B>(1) program sends this before clearing
+the terminal.
+<DT id="17"><DD>
+The command ``<B>tput clear</B>'' does the same thing.
+<DT id="18">RGB<DD>
+<I>boolean</I>, <I>number</I> <B>or</B> <I>string</I>,
+to assert that the
+<B>set_a_foreground</B> and
+<B>set_a_background</B> capabilities correspond to <I>direct colors</I>,
+using an RGB (red/green/blue) convention.
+This capability allows the <B>color_content</B> function to
+return appropriate values without requiring the application
+to initialize colors using <B>init_color</B>.
+<DT id="19"><DD>
+The capability type determines the values which ncurses sees:
+<DL COMPACT><DT id="20"><DD>
+<DL COMPACT>
+<DT id="21"><I>boolean</I><DD>
+implies that the number of bits for red, green and blue are the same.
+Using the maximum number of colors,
+ncurses adds two, divides that sum by three, and assigns the result
+to red, green and blue in that order.
+<DT id="22"><DD>
+If the number of bits needed for the number of colors is not a multiple
+of three, the blue (and green) components lose in comparison to red.
+<DT id="23"><I>number</I><DD>
+tells ncurses what result to add to red, green and blue.
+If ncurses runs out of bits,
+blue (and green) lose just as in the <I>boolean</I> case.
+<DT id="24"><I>string</I><DD>
+explicitly list the number of bits used for red, green and blue components
+as a slash-separated list of decimal integers.
+</DL>
+</DL>
+
+<DT id="25"><DD>
+Because there are several RGB encodings in use,
+applications which make assumptions about the number of bits per color
+are unlikely to work reliably.
+As a trivial case, for example, one could define <B>RGB#1</B>
+to represent the standard eight ANSI colors, i.e., one bit per color.
+<DT id="26">U8<DD>
+<I>number</I>,
+asserts that ncurses must use Unicode values for line-drawing characters,
+and that it should ignore the alternate character set capabilities
+when the locale uses UTF-8 encoding.
+For more information, see the discussion of
+<B>NCURSES_NO_UTF8_ACS</B> in <B><A HREF="/cgi-bin/man/man2html?3X+ncurses">ncurses</A></B>(3X).
+<DT id="27"><DD>
+Set this capability to a nonzero value to enable it.
+<DT id="28">XM<DD>
+<I>string</I>,
+override ncurses's built-in string which
+enables/disables <B>xterm</B> mouse mode.
+<DT id="29"><DD>
+ncurses sends a character sequence to the terminal to initialize mouse mode,
+and when the user clicks the mouse buttons or (in certain modes) moves the
+mouse, handles the characters sent back by the terminal to tell it what
+was done with the mouse.
+<DT id="30"><DD>
+The mouse protocol is enabled when
+the <I>mask</I> passed in the <B>mousemask</B> function is nonzero.
+By default, ncurses handles the responses for the X11 xterm mouse protocol.
+It also knows about the <I>SGR 1006</I> xterm mouse protocol,
+but must to be told to look for this specifically.
+It will not be able to guess which mode is used,
+because the responses are enough alike that only confusion would result.
+<DT id="31"><DD>
+The <B>XM</B> capability has a single parameter.
+If nonzero, the mouse protocol should be enabled.
+If zero, the mouse protocol should be disabled.
+ncurses inspects this capability if it is present,
+to see whether the 1006 protocol is used.
+If so, it expects the responses to use the <I>SGR 1006</I> xterm mouse protocol.
+<DT id="32"><DD>
+The xterm mouse protocol is used by other terminal emulators.
+The terminal database uses building-blocks for the various xterm mouse
+protocols which can be used in customized terminal descriptions.
+<DT id="33"><DD>
+The terminal database building blocks for this mouse
+feature also have an experimental capability <I>xm</I>.
+The ``xm'' capability describes the mouse response.
+Currently there is no interpreter which would use this
+information to make the mouse support completely data-driven.
+<DT id="34"><DD>
+<I>xm</I> shows the format of the mouse responses.
+In this experimental capability, the parameters are
+<DL COMPACT><DT id="35"><DD>
+<DL COMPACT>
+<DT id="36"><I>p1</I>
+
+<DD>
+y-ordinate
+<DT id="37"><I>p2</I>
+
+<DD>
+x-ordinate
+<DT id="38"><I>p3</I>
+
+<DD>
+button
+<DT id="39"><I>p4</I>
+
+<DD>
+state, e.g., pressed or released
+<DT id="40"><I>p5</I>
+
+<DD>
+y-ordinate starting region
+<DT id="41"><I>p6</I>
+
+<DD>
+x-ordinate starting region
+<DT id="42"><I>p7</I>
+
+<DD>
+y-ordinate ending region
+<DT id="43"><I>p8</I>
+
+<DD>
+x-ordinate ending region
+</DL>
+</DL>
+
+<DT id="44"><DD>
+Here are examples from the terminal database for the most commonly used
+xterm mouse protocols:
+<DT id="45"><DD>
+<PRE>
+  xterm+x11mouse|X11 xterm mouse protocol,
+          kmous=\E[M, XM=\E[?1000%?%p1%{1}%=%th%el%;,
+          xm=\E[M
+             %?%p4%t%p3%e%{3}%;%'&nbsp;'%+%c
+             %p2%'!'%+%c
+             %p1%'!'%+%c,
+
+  xterm+sm+1006|xterm SGR-mouse,
+          kmous=\E[&lt;, XM=\E[?1006;1000%?%p1%{1}%=%th%el%;,
+          xm=\E[&lt;%i%p3%d;
+             %p1%d;
+             %p2%d;
+             %?%p4%tM%em%;,
+</PRE>
+
+</DL>
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H3>Extended key-definitions</H3>
+
+<P>
+
+Several terminals provide the ability to send distinct strings for
+combinations of modified special keys.
+There is no standard for what those keys can send.
+<P>
+
+Since 1999, <B>xterm</B> has supported
+<I>shift</I>, <I>control</I>, <I>alt</I>, and <I>meta</I> modifiers which produce
+distinct special-key strings.
+In a terminal description, ncurses has no special knowledge of the
+modifiers used.
+Applications can use the <I>naming convention</I> established for <B>xterm</B>
+to find these special keys in the terminal description.
+<P>
+
+Starting with the curses convention that <I>key names</I> begin with ``k''
+and that shifted special keys are an uppercase name,
+ncurses' terminal database defines these names to which a suffix is added:
+<DL COMPACT><DT id="46"><DD>
+<TABLE>
+<TR VALIGN=top><TD><I>Name</I></TD><TD><I>Description</I><BR></TD></TR>
+<TR VALIGN=top><TD COLSPAN=2><HR></TD></TR>
+<TR VALIGN=top><TD>kDC</TD><TD>special form of kdch1 (delete character)<BR></TD></TR>
+<TR VALIGN=top><TD>kDN</TD><TD>special form of kcud1 (cursor down)<BR></TD></TR>
+<TR VALIGN=top><TD>kEND</TD><TD>special form of kend (End)<BR></TD></TR>
+<TR VALIGN=top><TD>kHOM</TD><TD>special form of khome (Home)<BR></TD></TR>
+<TR VALIGN=top><TD>kLFT</TD><TD>special form of kcub1 (cursor-left or cursor-back)<BR></TD></TR>
+<TR VALIGN=top><TD>kNXT</TD><TD>special form of knext (Next, or Page-Down)<BR></TD></TR>
+<TR VALIGN=top><TD>kPRV</TD><TD>special form of kprev (Prev, or Page-Up)<BR></TD></TR>
+<TR VALIGN=top><TD>kRIT</TD><TD>special form of kcuf1 (cursor-right, or cursor-forward)<BR></TD></TR>
+<TR VALIGN=top><TD>kUP</TD><TD>special form of kcuu1 (cursor-up)<BR></TD></TR>
+</TABLE>
+
+</DL>
+
+<P>
+
+These are the suffixes used to denote the modifiers:
+<DL COMPACT><DT id="47"><DD>
+<TABLE>
+<TR VALIGN=top><TD><I>Value</I></TD><TD><I>Description</I><BR></TD></TR>
+<TR VALIGN=top><TD COLSPAN=2><HR></TD></TR>
+<TR VALIGN=top><TD>2</TD><TD>Shift<BR></TD></TR>
+<TR VALIGN=top><TD>3</TD><TD>Alt<BR></TD></TR>
+<TR VALIGN=top><TD>4</TD><TD>Shift + Alt<BR></TD></TR>
+<TR VALIGN=top><TD>5</TD><TD>Control<BR></TD></TR>
+<TR VALIGN=top><TD>6</TD><TD>Shift + Control<BR></TD></TR>
+<TR VALIGN=top><TD>7</TD><TD>Alt + Control<BR></TD></TR>
+<TR VALIGN=top><TD>8</TD><TD>Shift + Alt + Control<BR></TD></TR>
+<TR VALIGN=top><TD>9</TD><TD>Meta<BR></TD></TR>
+<TR VALIGN=top><TD>10</TD><TD>Meta + Shift<BR></TD></TR>
+<TR VALIGN=top><TD>11</TD><TD>Meta + Alt<BR></TD></TR>
+<TR VALIGN=top><TD>12</TD><TD>Meta + Alt + Shift<BR></TD></TR>
+<TR VALIGN=top><TD>13</TD><TD>Meta + Ctrl<BR></TD></TR>
+<TR VALIGN=top><TD>14</TD><TD>Meta + Ctrl + Shift<BR></TD></TR>
+<TR VALIGN=top><TD>15</TD><TD>Meta + Ctrl + Alt<BR></TD></TR>
+<TR VALIGN=top><TD>16</TD><TD>Meta + Ctrl + Alt + Shift<BR></TD></TR>
+</TABLE>
+
+</DL>
+
+<P>
+
+None of these are predefined; terminal descriptions can refer to <I>names</I>
+which ncurses will allocate at runtime to <I>key-codes</I>.
+To use these keys in an ncurses program, an application could do this:
+
+<BR>&nbsp;.IP&nbsp;&bull;&nbsp;4
+
+
+using a list of extended key <I>names</I>,
+ask <B><A HREF="/cgi-bin/man/man2html?3X+tigetstr">tigetstr</A></B>(3X) for their values, and
+
+<BR>&nbsp;.IP&nbsp;&bull;&nbsp;4
+
+
+given the list of values,
+ask <B><A HREF="/cgi-bin/man/man2html?3X+key_defined">key_defined</A></B>(3X) for the <I>key-code</I> which
+would be returned for those keys by <B><A HREF="/cgi-bin/man/man2html?3X+wgetch">wgetch</A></B>(3X).
+<P>
+
+<A NAME="lbAH">&nbsp;</A>
+<H2>PORTABILITY</H2>
+
+<P>
+
+The ``-x'' extension feature of <B>tic</B> and <B>infocmp</B>
+has been adopted in NetBSD curses.
+That implementation stores user-defined capabilities,
+but makes no use of these capabilities itself.
+<A NAME="lbAI">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?1+tic">tic</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?1+infocmp">infocmp</A></B>(1).
+<A NAME="lbAJ">&nbsp;</A>
+<H2>AUTHORS</H2>
+
+<P>
+
+Thomas E. Dickey
+<BR>
+
+beginning with ncurses 5.0 (1999)
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="48"><A HREF="#lbAB">NAME</A><DD>
+<DT id="49"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="50"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DL>
+<DT id="51"><A HREF="#lbAE">Background</A><DD>
+<DT id="52"><A HREF="#lbAF">Recognized capabilities</A><DD>
+<DT id="53"><A HREF="#lbAG">Extended key-definitions</A><DD>
+</DL>
+<DT id="54"><A HREF="#lbAH">PORTABILITY</A><DD>
+<DT id="55"><A HREF="#lbAI">SEE ALSO</A><DD>
+<DT id="56"><A HREF="#lbAJ">AUTHORS</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:06 GMT, March 31, 2021
+</BODY>
+</HTML>

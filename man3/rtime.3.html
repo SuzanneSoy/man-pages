@@ -1,0 +1,226 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of RTIME</TITLE>
+</HEAD><BODY>
+<H1>RTIME</H1>
+Section: Linux Programmer's Manual (3)<BR>Updated: 2019-03-06<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+rtime - get time from a remote machine
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<PRE>
+<B>#include &lt;<A HREF="file:///usr/include/rpc/auth_des.h">rpc/auth_des.h</A>&gt;</B>
+
+<B>int rtime(struct sockaddr_in *</B><I>addrp</I><B>, struct rpc_timeval *</B><I>timep</I><B>,</B>
+<B>          struct rpc_timeval *</B><I>timeout</I><B>);</B>
+</PRE>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+This function uses the Time Server Protocol as described in
+RFC&nbsp;868 to obtain the time from a remote machine.
+<P>
+
+The Time Server Protocol gives the time in seconds since
+00:00:00 UTC, 1 Jan 1900,
+and this function subtracts the appropriate constant in order to
+convert the result to seconds since the
+Epoch, 1970-01-01 00:00:00 +0000 (UTC).
+<P>
+
+When
+<I>timeout</I>
+
+is non-NULL, the udp/time socket (port 37) is used.
+Otherwise, the tcp/time socket (port 37) is used.
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+On success, 0 is returned, and the obtained 32-bit time value is stored in
+<I>timep-&gt;tv_sec</I>.
+
+In case of error -1 is returned, and
+<I>errno</I>
+
+is set appropriately.
+<A NAME="lbAF">&nbsp;</A>
+<H2>ERRORS</H2>
+
+All errors for underlying functions
+(<B><A HREF="/cgi-bin/man/man2html?2+sendto">sendto</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+poll">poll</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+recvfrom">recvfrom</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+connect">connect</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2))
+
+can occur.
+Moreover:
+<DL COMPACT>
+<DT id="1"><B>EIO</B>
+
+<DD>
+The number of returned bytes is not 4.
+<DT id="2"><B>ETIMEDOUT</B>
+
+<DD>
+The waiting time as defined in timeout has expired.
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H2>ATTRIBUTES</H2>
+
+For an explanation of the terms used in this section, see
+<B><A HREF="/cgi-bin/man/man2html?7+attributes">attributes</A></B>(7).
+
+<TABLE BORDER>
+<TR VALIGN=top><TD><B>Interface</B></TD><TD><B>Attribute</B></TD><TD><B>Value</B><BR></TD></TR>
+<TR VALIGN=top><TD>
+<B>rtime</B>()
+
+</TD><TD>Thread safety</TD><TD>MT-Safe<BR></TD></TR>
+</TABLE>
+
+<A NAME="lbAH">&nbsp;</A>
+<H2>NOTES</H2>
+
+Only IPv4 is supported.
+<P>
+
+Some
+<I>in.timed</I>
+
+versions support only TCP.
+Try the example program with
+<I>use_tcp</I>
+
+set to 1.
+<P>
+
+Libc5 uses the prototype
+<P>
+
+<PRE>
+    int rtime(struct sockaddr_in *, struct timeval *, struct timeval *);
+</PRE>
+
+<P>
+
+and requires
+<I>&lt;<A HREF="file:///usr/include/sys/time.h">sys/time.h</A>&gt;</I>
+
+instead of
+<I>&lt;<A HREF="file:///usr/include/rpc/auth_des.h">rpc/auth_des.h</A>&gt;</I>.
+
+<A NAME="lbAI">&nbsp;</A>
+<H2>BUGS</H2>
+
+<B>rtime</B>()
+
+in glibc 2.2.5 and earlier does not work properly on 64-bit machines.
+<A NAME="lbAJ">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+This example requires that port 37 is up and open.
+You may check
+that the time entry within
+<I>/etc/inetd.conf</I>
+
+is not commented out.
+<P>
+
+The program connects to a computer called &quot;linux&quot;.
+Using &quot;localhost&quot; does not work.
+The result is the localtime of the computer &quot;linux&quot;.
+<P>
+
+
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdlib.h">stdlib.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/errno.h">errno.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/string.h">string.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/time.h">time.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/rpc/auth_des.h">rpc/auth_des.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/netdb.h">netdb.h</A>&gt;
+<P>
+static int use_tcp = 0;
+static char *servername = &quot;linux&quot;;
+<P>
+int
+main(void)
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;sockaddr_in&nbsp;name;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;rpc_timeval&nbsp;time1&nbsp;=&nbsp;{0,0};
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;rpc_timeval&nbsp;timeout&nbsp;=&nbsp;{1,0};
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;hostent&nbsp;*hent;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;ret;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;memset(&amp;name,&nbsp;0,&nbsp;sizeof(name));
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;<A HREF="/cgi-bin/man/man2html?1+sethostent">sethostent</A>(1);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;hent&nbsp;=&nbsp;gethostbyname(servername);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;memcpy(&amp;name.sin_addr,&nbsp;hent-&gt;h_addr,&nbsp;hent-&gt;h_length);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;ret&nbsp;=&nbsp;rtime(&amp;name,&nbsp;&amp;time1,&nbsp;use_tcp&nbsp;?&nbsp;NULL&nbsp;:&nbsp;&amp;timeout);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(ret&nbsp;&lt;&nbsp;0)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;perror(&quot;rtime&nbsp;error&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;else&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;time_t&nbsp;t&nbsp;=&nbsp;time1.tv_sec;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;%s\n&quot;,&nbsp;ctime(&amp;t));
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_SUCCESS);
+}
+
+<A NAME="lbAK">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+<B><A HREF="/cgi-bin/man/man2html?1+ntpdate">ntpdate</A></B>(1),
+
+
+<B><A HREF="/cgi-bin/man/man2html?8+inetd">inetd</A></B>(8)
+
+<A NAME="lbAL">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="3"><A HREF="#lbAB">NAME</A><DD>
+<DT id="4"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="5"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="6"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DT id="7"><A HREF="#lbAF">ERRORS</A><DD>
+<DT id="8"><A HREF="#lbAG">ATTRIBUTES</A><DD>
+<DT id="9"><A HREF="#lbAH">NOTES</A><DD>
+<DT id="10"><A HREF="#lbAI">BUGS</A><DD>
+<DT id="11"><A HREF="#lbAJ">EXAMPLE</A><DD>
+<DT id="12"><A HREF="#lbAK">SEE ALSO</A><DD>
+<DT id="13"><A HREF="#lbAL">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:54 GMT, March 31, 2021
+</BODY>
+</HTML>

@@ -1,0 +1,398 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of Net::DBus::Binding::Connection</TITLE>
+</HEAD><BODY>
+<H1>Net::DBus::Binding::Connection</H1>
+Section: User Contributed Perl Documentation (3pm)<BR>Updated: 2019-12-26<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+Net::DBus::Binding::Connection - A connection between client and server
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+
+
+Creating a connection to a server and sending a message
+<P>
+
+
+
+<PRE>
+  use Net::DBus::Binding::Connection;
+
+  my $con = Net::DBus::Binding::Connection-&gt;new(address =&gt; &quot;unix:path=/path/to/socket&quot;);
+
+  $con-&gt;send($message);
+
+</PRE>
+
+
+<P>
+
+Registering message handlers
+<P>
+
+
+
+<PRE>
+  sub handle_something {
+      my $con = shift;
+      my $msg = shift;
+
+      ... do something with the message...
+  }
+
+  $con-&gt;register_message_handler(
+    &quot;/some/object/path&quot;,
+    \&amp;handle_something);
+
+</PRE>
+
+
+<P>
+
+Hooking up to an event loop:
+<P>
+
+
+
+<PRE>
+  my $reactor = Net::DBus::Binding::Reactor-&gt;new();
+
+  $reactor-&gt;manage($con);
+
+  $reactor-&gt;run();
+
+</PRE>
+
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+
+An outgoing connection to a server, or an incoming connection
+from a client. The methods defined on this module have a close
+correspondence to the dbus_connection_XXX methods in the C <FONT SIZE="-1">API,</FONT>
+so for further details on their behaviour, the C <FONT SIZE="-1">API</FONT> documentation
+may be of use.
+<A NAME="lbAE">&nbsp;</A>
+<H2>METHODS</H2>
+
+
+
+<DL COMPACT>
+<DT id="1">my $con = Net::DBus::Binding::Connection-&gt;new(address =&gt; &quot;unix:path=/path/to/socket&quot;);<DD>
+
+
+
+
+Creates a new connection to the remove server specified by
+the parameter <TT>&quot;address&quot;</TT>. If the <TT>&quot;private&quot;</TT> parameter is
+supplied, and set to a True value the connection opened is
+private; otherwise a shared connection is opened. A private
+connection must be explicitly shutdown with the <TT>&quot;disconnect&quot;</TT>
+method before the last reference to the object is released.
+A shared connection must never be explicitly disconnected.
+<DT id="2">$status = $con-&gt;<B>is_connected()</B>;<DD>
+
+
+
+
+Returns zero if the connection has been disconnected,
+otherwise a positive value is returned.
+<DT id="3">$status = $con-&gt;<B>is_authenticated()</B>;<DD>
+
+
+
+
+Returns zero if the connection has not yet successfully
+completed authentication, otherwise a positive value is
+returned.
+<DT id="4">$con-&gt;<B>disconnect()</B><DD>
+
+
+
+
+Closes this connection to the remote host. This method
+is called automatically during garbage collection (ie
+in the <FONT SIZE="-1">DESTROY</FONT> method) if the programmer forgets to
+explicitly disconnect.
+<DT id="5">$con-&gt;<B>flush()</B><DD>
+
+
+
+
+Blocks execution until all data in the outgoing data
+stream has been sent. This method will not re-enter
+the application event loop.
+<DT id="6">$con-&gt;send($message)<DD>
+
+
+
+
+Queues a message up for sending to the remote host.
+The data will be sent asynchronously as the applications
+event loop determines there is space in the outgoing
+socket send buffer. To force immediate sending of the
+data, follow this method will a call to <TT>&quot;flush&quot;</TT>. This
+method will return the serial number of the message,
+which can be used to identify a subsequent reply (if
+any).
+<DT id="7">my $reply = $con-&gt;send_with_reply_and_block($msg, $timeout);<DD>
+
+
+
+
+Queues a message up for sending to the remote host
+and blocks until it has been sent, and a corresponding
+reply received. The return value of this method will
+be a <TT>&quot;Net::DBus::Binding::Message::MethodReturn&quot;</TT> or <TT>&quot;Net::DBus::Binding::Message::Error&quot;</TT>
+object.
+<DT id="8">my $pending_call = $con-&gt;send_with_reply($msg, $timeout);<DD>
+
+
+
+
+Queues a message up for sending to the remote host
+and returns immediately providing a reference to a
+<TT>&quot;Net::DBus::Binding::PendingCall&quot;</TT> object. This object
+can be used to wait / watch for a reply. This allows
+methods to be processed asynchronously.
+<DT id="9">$con-&gt;dispatch;<DD>
+
+
+
+
+Dispatches any pending messages in the incoming queue
+to their message handlers. This method is typically
+called on each iteration of the main application event
+loop where data has been read from the incoming socket.
+<DT id="10">$message = $con-&gt;borrow_message<DD>
+
+
+
+
+Temporarily removes the first message from the incoming
+message queue. No other thread may access the message
+while it is 'borrowed', so it should be replaced in the
+queue with the <TT>&quot;return_message&quot;</TT> method, or removed
+permanently with th <TT>&quot;steal_message&quot;</TT> method as soon as
+is practical.
+<DT id="11">$con-&gt;return_message($msg)<DD>
+
+
+
+
+Replaces a previously borrowed message in the incoming
+message queue for subsequent dispatch to registered
+message handlers.
+<DT id="12">$con-&gt;steal_message($msg)<DD>
+
+
+
+
+Permanently remove a borrowed message from the incoming
+message queue. No registered message handlers will now
+be run for this message.
+<DT id="13">$msg = $con-&gt;<B>pop_message()</B>;<DD>
+
+
+
+
+Permanently removes the first message on the incoming
+message queue, without running any registered message
+handlers. If you have hooked the connection up to an
+event loop (<TT>&quot;Net::DBus::Binding::Reactor&quot;</TT> for example), you probably
+don't want to be calling this method.
+<DT id="14">$con-&gt;set_watch_callbacks(\&amp;add_watch, \&amp;remove_watch, \&amp;toggle_watch);<DD>
+
+
+
+
+Register a set of callbacks for adding, removing &amp; updating
+watches in the application's event loop. Each parameter
+should be a code reference, which on each invocation, will be
+supplied with two parameters, the connection object and the
+watch object. If you are using a <TT>&quot;Net::DBus::Binding::Reactor&quot;</TT> object
+as the application event loop, then the 'manage' method on
+that object will call this on your behalf.
+<DT id="15">$con-&gt;set_timeout_callbacks(\&amp;add_timeout, \&amp;remove_timeout, \&amp;toggle_timeout);<DD>
+
+
+
+
+Register a set of callbacks for adding, removing &amp; updating
+timeouts in the application's event loop. Each parameter
+should be a code reference, which on each invocation, will be
+supplied with two parameters, the connection object and the
+timeout object. If you are using a <TT>&quot;Net::DBus::Binding::Reactor&quot;</TT> object
+as the application event loop, then the 'manage' method on
+that object will call this on your behalf.
+<DT id="16">$con-&gt;register_object_path($path, \&amp;handler)<DD>
+
+
+
+
+Registers a handler for messages whose path matches
+that specified in the <TT>$path</TT> parameter. The supplied
+code reference will be invoked with two parameters, the
+connection object on which the message was received,
+and the message to be processed (an instance of the
+<TT>&quot;Net::DBus::Binding::Message&quot;</TT> class).
+<DT id="17">$con-&gt;unregister_object_path($path)<DD>
+
+
+
+
+Unregisters the handler associated with the object path <TT>$path</TT>. The
+handler would previously have been registered with the <TT>&quot;register_object_path&quot;</TT>
+or <TT>&quot;register_fallback&quot;</TT> methods.
+<DT id="18">$con-&gt;register_fallback($path, \&amp;handler)<DD>
+
+
+
+
+Registers a handler for messages whose path starts with
+the prefix specified in the <TT>$path</TT> parameter. The supplied
+code reference will be invoked with two parameters, the
+connection object on which the message was received,
+and the message to be processed (an instance of the
+<TT>&quot;Net::DBus::Binding::Message&quot;</TT> class).
+<DT id="19">$con-&gt;set_max_message_size($bytes)<DD>
+
+
+
+
+Sets the maximum allowable size of a single incoming
+message. Messages over this size will be rejected
+prior to exceeding this threshold. The message size
+is specified in bytes.
+<DT id="20">$bytes = $con-&gt;<B>get_max_message_size()</B>;<DD>
+
+
+
+
+Retrieves the maximum allowable incoming
+message size. The returned size is measured
+in bytes.
+<DT id="21">$con-&gt;set_max_received_size($bytes)<DD>
+
+
+
+
+Sets the maximum size of the incoming message queue.
+Once this threshold is exceeded, no more messages will
+be read from wire before one or more of the existing
+messages are dispatched to their registered handlers.
+The implication is that the message queue can exceed
+this threshold by at most the size of a single message.
+<DT id="22">$bytes $con-&gt;<B>get_max_received_size()</B><DD>
+
+
+
+
+Retrieves the maximum incoming message queue size.
+The returned size is measured in bytes.
+<DT id="23">$con-&gt;add_filter($coderef);<DD>
+
+
+
+
+Adds a filter to the connection which will be invoked whenever a
+message is received. The <TT>$coderef</TT> should be a reference to a
+subroutine, which returns a true value if the message should be
+filtered out, or a false value if the normal message dispatch
+should be performed.
+<DT id="24">my $msg = $con-&gt;make_raw_message($rawmsg)<DD>
+
+
+
+
+Creates a new message, initializing it from the low level C message
+object provided by the <TT>$rawmsg</TT> parameter. The returned object
+will be cast to the appropriate subclass of Net::DBus::Binding::Message.
+<DT id="25">my $msg = $con-&gt;make_error_message( replyto =&gt; $method_call, name =&gt; $name, description =&gt; $description);<DD>
+
+
+
+
+Creates a new message, representing an error which occurred during
+the handling of the method call object passed in as the <TT>&quot;replyto&quot;</TT>
+parameter. The <TT>&quot;name&quot;</TT> parameter is the formal name of the error
+condition, while the <TT>&quot;description&quot;</TT> is a short piece of text giving
+more specific information on the error.
+<DT id="26">my $call = $con-&gt;make_method_call_message( $service_name, $object_path, $interface, $method_name);<DD>
+
+
+
+
+Create a message representing a call on the object located at
+the path <TT>$object_path</TT> within the client owning the well-known
+name given by <TT>$service_name</TT>. The method to be invoked has
+the name <TT>$method_name</TT> within the interface specified by the
+<TT>$interface</TT> parameter.
+<DT id="27">my $msg = $con-&gt;make_method_return_message( replyto =&gt; $method_call);<DD>
+
+
+
+
+Create a message representing a reply to the method call passed in
+the <TT>&quot;replyto&quot;</TT> parameter.
+<DT id="28">my $signal = $con-&gt;make_signal_message( object_path =&gt; $path, interface =&gt; $interface, signal_name =&gt; $name);<DD>
+
+
+
+
+Creates a new message, representing a signal [to be] emitted by
+the object located under the path given by the <TT>&quot;object_path&quot;</TT>
+parameter. The name of the signal is given by the <TT>&quot;signal_name&quot;</TT>
+parameter, and is scoped to the interface given by the
+<TT>&quot;interface&quot;</TT> parameter.
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+
+
+Daniel P. Berrange
+<A NAME="lbAG">&nbsp;</A>
+<H2>COPYRIGHT</H2>
+
+
+
+Copyright (C) 2004-2011 Daniel P. Berrange
+<A NAME="lbAH">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+
+Net::DBus::Binding::Server, Net::DBus::Binding::Bus, Net::DBus::Binding::Message::Signal, Net::DBus::Binding::Message::MethodCall, Net::DBus::Binding::Message::MethodReturn, Net::DBus::Binding::Message::Error
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="29"><A HREF="#lbAB">NAME</A><DD>
+<DT id="30"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="31"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="32"><A HREF="#lbAE">METHODS</A><DD>
+<DT id="33"><A HREF="#lbAF">AUTHOR</A><DD>
+<DT id="34"><A HREF="#lbAG">COPYRIGHT</A><DD>
+<DT id="35"><A HREF="#lbAH">SEE ALSO</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:48 GMT, March 31, 2021
+</BODY>
+</HTML>

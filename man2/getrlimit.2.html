@@ -1,0 +1,1139 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of GETRLIMIT</TITLE>
+</HEAD><BODY>
+<H1>GETRLIMIT</H1>
+Section: Linux Programmer's Manual (2)<BR>Updated: 2018-04-30<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+getrlimit, setrlimit, prlimit - get/set resource limits
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<B>#include &lt;<A HREF="file:///usr/include/sys/time.h">sys/time.h</A>&gt;</B>
+
+<BR>
+
+<B>#include &lt;<A HREF="file:///usr/include/sys/resource.h">sys/resource.h</A>&gt;</B>
+
+<P>
+
+<B>int getrlimit(int </B><I>resource</I><B>, struct rlimit *</B><I>rlim</I><B>);</B>
+
+<BR>
+
+<B>int setrlimit(int </B><I>resource</I><B>, const struct rlimit *</B><I>rlim</I><B>);</B>
+
+<P>
+
+<B>int prlimit(pid_t </B><I>pid</I><B>, int </B><I>resource</I><B>, const struct rlimit *</B><I>new_limit</I><B>,</B>
+
+<BR>
+
+<B>            struct rlimit *</B><I>old_limit</I><B>);</B>
+
+<P>
+
+
+Feature Test Macro Requirements for glibc (see
+<B><A HREF="/cgi-bin/man/man2html?7+feature_test_macros">feature_test_macros</A></B>(7)):
+
+
+<P>
+
+<B>prlimit</B>():
+
+_GNU_SOURCE
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+The
+<B>getrlimit</B>()
+
+and
+<B>setrlimit</B>()
+
+system calls get and set resource limits.
+Each resource has an associated soft and hard limit, as defined by the
+<I>rlimit</I>
+
+structure:
+<P>
+
+
+
+struct rlimit {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;rlim_t&nbsp;rlim_cur;&nbsp;&nbsp;/*&nbsp;Soft&nbsp;limit&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;rlim_t&nbsp;rlim_max;&nbsp;&nbsp;/*&nbsp;Hard&nbsp;limit&nbsp;(ceiling&nbsp;for&nbsp;rlim_cur)&nbsp;*/
+};
+
+
+<P>
+
+The soft limit is the value that the kernel enforces for the
+corresponding resource.
+The hard limit acts as a ceiling for the soft limit:
+an unprivileged process may set only its soft limit to a value in the
+range from 0 up to the hard limit, and (irreversibly) lower its hard limit.
+A privileged process (under Linux: one with the
+<B>CAP_SYS_RESOURCE</B>
+
+capability in the initial user namespace)
+may make arbitrary changes to either limit value.
+<P>
+
+The value
+<B>RLIM_INFINITY</B>
+
+denotes no limit on a resource (both in the structure returned by
+<B>getrlimit</B>()
+
+and in the structure passed to
+<B>setrlimit</B>()).
+
+<P>
+
+The
+<I>resource</I>
+
+argument must be one of:
+<DL COMPACT>
+<DT id="1"><B>RLIMIT_AS</B>
+
+<DD>
+This is the maximum size of the process's virtual memory
+(address space).
+The limit is specified in bytes, and is rounded down to the system page size.
+
+This limit affects calls to
+<B><A HREF="/cgi-bin/man/man2html?2+brk">brk</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+mmap">mmap</A></B>(2),
+
+and
+<B><A HREF="/cgi-bin/man/man2html?2+mremap">mremap</A></B>(2),
+
+which fail with the error
+<B>ENOMEM</B>
+
+upon exceeding this limit.
+In addition, automatic stack expansion fails
+(and generates a
+<B>SIGSEGV</B>
+
+that kills the process if no alternate stack
+has been made available via
+<B><A HREF="/cgi-bin/man/man2html?2+sigaltstack">sigaltstack</A></B>(2)).
+
+Since the value is a <I>long</I>, on machines with a 32-bit <I>long</I>
+either this limit is at most 2&nbsp;GiB, or this resource is unlimited.
+<DT id="2"><B>RLIMIT_CORE</B>
+
+<DD>
+This is the maximum size of a
+<I>core</I>
+
+file (see
+<B><A HREF="/cgi-bin/man/man2html?5+core">core</A></B>(5))
+
+in bytes that the process may dump.
+When 0 no core dump files are created.
+When nonzero, larger dumps are truncated to this size.
+<DT id="3"><B>RLIMIT_CPU</B>
+
+<DD>
+This is a limit, in seconds,
+on the amount of CPU time that the process can consume.
+When the process reaches the soft limit, it is sent a
+<B>SIGXCPU</B>
+
+signal.
+The default action for this signal is to terminate the process.
+However, the signal can be caught, and the handler can return control to
+the main program.
+If the process continues to consume CPU time, it will be sent
+<B>SIGXCPU</B>
+
+once per second until the hard limit is reached, at which time
+it is sent
+<B>SIGKILL</B>.
+
+(This latter point describes Linux behavior.
+Implementations vary in how they treat processes which continue to
+consume CPU time after reaching the soft limit.
+Portable applications that need to catch this signal should
+perform an orderly termination upon first receipt of
+<B>SIGXCPU</B>.)
+
+<DT id="4"><B>RLIMIT_DATA</B>
+
+<DD>
+This is the maximum size
+of the process's data segment (initialized data,
+uninitialized data, and heap).
+The limit is specified in bytes, and is rounded down to the system page size.
+This limit affects calls to
+<B><A HREF="/cgi-bin/man/man2html?2+brk">brk</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+sbrk">sbrk</A></B>(2),
+
+and (since Linux 4.7)
+<B><A HREF="/cgi-bin/man/man2html?2+mmap">mmap</A></B>(2),
+
+
+
+
+
+which fail with the error
+<B>ENOMEM</B>
+
+upon encountering the soft limit of this resource.
+<DT id="5"><B>RLIMIT_FSIZE</B>
+
+<DD>
+This is the maximum size in bytes of files that the process may create.
+Attempts to extend a file beyond this limit result in delivery of a
+<B>SIGXFSZ</B>
+
+signal.
+By default, this signal terminates a process, but a process can
+catch this signal instead, in which case the relevant system call (e.g.,
+<B><A HREF="/cgi-bin/man/man2html?2+write">write</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+truncate">truncate</A></B>(2))
+
+fails with the error
+<B>EFBIG</B>.
+
+<DT id="6"><B>RLIMIT_LOCKS</B> (early Linux 2.4 only)
+
+<DD>
+
+This is a limit on the combined number of
+<B><A HREF="/cgi-bin/man/man2html?2+flock">flock</A></B>(2)
+
+locks and
+<B><A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A></B>(2)
+
+leases that this process may establish.
+<DT id="7"><B>RLIMIT_MEMLOCK</B>
+
+<DD>
+This is the maximum number of bytes of memory that may be locked
+into RAM.
+This limit is in effect rounded down to the nearest multiple
+of the system page size.
+This limit affects
+<B><A HREF="/cgi-bin/man/man2html?2+mlock">mlock</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+mlockall">mlockall</A></B>(2),
+
+and the
+<B><A HREF="/cgi-bin/man/man2html?2+mmap">mmap</A></B>(2)
+
+<B>MAP_LOCKED</B>
+
+operation.
+Since Linux 2.6.9, it also affects the
+<B><A HREF="/cgi-bin/man/man2html?2+shmctl">shmctl</A></B>(2)
+
+<B>SHM_LOCK</B>
+
+operation, where it sets a maximum on the total bytes in
+shared memory segments (see
+<B><A HREF="/cgi-bin/man/man2html?2+shmget">shmget</A></B>(2))
+
+that may be locked by the real user ID of the calling process.
+The
+<B><A HREF="/cgi-bin/man/man2html?2+shmctl">shmctl</A></B>(2)
+
+<B>SHM_LOCK</B>
+
+locks are accounted for separately from the per-process memory
+locks established by
+<B><A HREF="/cgi-bin/man/man2html?2+mlock">mlock</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+mlockall">mlockall</A></B>(2),
+
+and
+<B><A HREF="/cgi-bin/man/man2html?2+mmap">mmap</A></B>(2)
+
+<B>MAP_LOCKED</B>;
+
+a process can lock bytes up to this limit in each of these
+two categories.
+<DT id="8"><DD>
+In Linux kernels before 2.6.9, this limit controlled the amount of
+memory that could be locked by a privileged process.
+Since Linux 2.6.9, no limits are placed on the amount of memory
+that a privileged process may lock, and this limit instead governs
+the amount of memory that an unprivileged process may lock.
+<DT id="9"><B>RLIMIT_MSGQUEUE</B> (since Linux 2.6.8)
+
+<DD>
+This is a limit on the number of bytes that can be allocated
+for POSIX message queues for the real user ID of the calling process.
+This limit is enforced for
+<B><A HREF="/cgi-bin/man/man2html?3+mq_open">mq_open</A></B>(3).
+
+Each message queue that the user creates counts (until it is removed)
+against this limit according to the formula:
+<DT id="10"><DD>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;Since&nbsp;Linux&nbsp;3.5:
+<DT id="11"><DD>
+
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bytes&nbsp;=&nbsp;attr.mq_maxmsg&nbsp;*&nbsp;sizeof(struct&nbsp;msg_msg)&nbsp;+
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;min(attr.mq_maxmsg,&nbsp;MQ_PRIO_MAX)&nbsp;*
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sizeof(struct&nbsp;posix_msg_tree_node)+
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;For&nbsp;overhead&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;attr.mq_maxmsg&nbsp;*&nbsp;attr.mq_msgsize;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;For&nbsp;message&nbsp;data&nbsp;*/
+
+<DT id="12"><DD>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;Linux&nbsp;3.4&nbsp;and&nbsp;earlier:
+<DT id="13"><DD>
+
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bytes&nbsp;=&nbsp;attr.mq_maxmsg&nbsp;*&nbsp;sizeof(struct&nbsp;msg_msg&nbsp;*)&nbsp;+
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;For&nbsp;overhead&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;attr.mq_maxmsg&nbsp;*&nbsp;attr.mq_msgsize;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;For&nbsp;message&nbsp;data&nbsp;*/
+
+<DT id="14"><DD>
+where
+<I>attr</I>
+
+is the
+<I>mq_attr</I>
+
+structure specified as the fourth argument to
+<B><A HREF="/cgi-bin/man/man2html?3+mq_open">mq_open</A></B>(3),
+
+and the
+<I>msg_msg</I>
+
+and
+<I>posix_msg_tree_node</I>
+
+structures are kernel-internal structures.
+<DT id="15"><DD>
+The &quot;overhead&quot; addend in the formula accounts for overhead
+bytes required by the implementation
+and ensures that the user cannot
+create an unlimited number of zero-length messages (such messages
+nevertheless each consume some system memory for bookkeeping overhead).
+<DT id="16"><B>RLIMIT_NICE</B> (since Linux 2.6.12, but see BUGS below)
+
+<DD>
+This specifies a ceiling to which the process's nice value can be raised using
+<B><A HREF="/cgi-bin/man/man2html?2+setpriority">setpriority</A></B>(2)
+
+or
+<B><A HREF="/cgi-bin/man/man2html?2+nice">nice</A></B>(2).
+
+The actual ceiling for the nice value is calculated as
+<I>20&nbsp;-&nbsp;rlim_cur</I>.
+
+The useful range for this limit is thus from 1
+(corresponding to a nice value of 19) to 40
+(corresponding to a nice value of -20).
+This unusual choice of range was necessary
+because negative numbers cannot be specified
+as resource limit values, since they typically have special meanings.
+For example,
+<B>RLIM_INFINITY</B>
+
+typically is the same as -1.
+For more detail on the nice value, see
+<B><A HREF="/cgi-bin/man/man2html?7+sched">sched</A></B>(7).
+
+<DT id="17"><B>RLIMIT_NOFILE</B>
+
+<DD>
+This specifies a value one greater than the maximum file descriptor number
+that can be opened by this process.
+Attempts
+(<B><A HREF="/cgi-bin/man/man2html?2+open">open</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+pipe">pipe</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+dup">dup</A></B>(2),
+
+etc.)
+to exceed this limit yield the error
+<B>EMFILE</B>.
+
+(Historically, this limit was named
+<B>RLIMIT_OFILE</B>
+
+on BSD.)
+<DT id="18"><DD>
+Since Linux 4.5,
+this limit also defines the maximum number of file descriptors that
+an unprivileged process (one without the
+<B>CAP_SYS_RESOURCE</B>
+
+capability) may have &quot;in flight&quot; to other processes,
+by being passed across UNIX domain sockets.
+This limit applies to the
+<B><A HREF="/cgi-bin/man/man2html?2+sendmsg">sendmsg</A></B>(2)
+
+system call.
+For further details, see
+<B><A HREF="/cgi-bin/man/man2html?7+unix">unix</A></B>(7).
+
+<DT id="19"><B>RLIMIT_NPROC</B>
+
+<DD>
+This is a limit on the number of extant process
+(or, more precisely on Linux, threads)
+for the real user ID of the calling process.
+So long as the current number of processes belonging to this
+process's real user ID is greater than or equal to this limit,
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2)
+
+fails with the error
+<B>EAGAIN</B>.
+
+<DT id="20"><DD>
+The
+<B>RLIMIT_NPROC</B>
+
+limit is not enforced for processes that have either the
+<B>CAP_SYS_ADMIN</B>
+
+or the
+<B>CAP_SYS_RESOURCE</B>
+
+capability.
+<DT id="21"><B>RLIMIT_RSS</B>
+
+<DD>
+This is a limit (in bytes) on the process's resident set
+(the number of virtual pages resident in RAM).
+This limit has effect only in Linux 2.4.x, x &lt; 30, and there
+affects only calls to
+<B><A HREF="/cgi-bin/man/man2html?2+madvise">madvise</A></B>(2)
+
+specifying
+<B>MADV_WILLNEED</B>.
+
+
+
+
+<DT id="22"><B>RLIMIT_RTPRIO</B> (since Linux 2.6.12, but see BUGS)
+
+<DD>
+This specifies a ceiling on the real-time priority that may be set for
+this process using
+<B><A HREF="/cgi-bin/man/man2html?2+sched_setscheduler">sched_setscheduler</A></B>(2)
+
+and
+<B><A HREF="/cgi-bin/man/man2html?2+sched_setparam">sched_setparam</A></B>(2).
+
+<DT id="23"><DD>
+For further details on real-time scheduling policies, see
+<B><A HREF="/cgi-bin/man/man2html?7+sched">sched</A></B>(7)
+
+<DT id="24"><B>RLIMIT_RTTIME</B> (since Linux 2.6.25)
+
+<DD>
+This is a limit (in microseconds)
+on the amount of CPU time that a process scheduled
+under a real-time scheduling policy may consume without making a blocking
+system call.
+For the purpose of this limit,
+each time a process makes a blocking system call,
+the count of its consumed CPU time is reset to zero.
+The CPU time count is not reset if the process continues trying to
+use the CPU but is preempted, its time slice expires, or it calls
+<B><A HREF="/cgi-bin/man/man2html?2+sched_yield">sched_yield</A></B>(2).
+
+<DT id="25"><DD>
+Upon reaching the soft limit, the process is sent a
+<B>SIGXCPU</B>
+
+signal.
+If the process catches or ignores this signal and
+continues consuming CPU time, then
+<B>SIGXCPU</B>
+
+will be generated once each second until the hard limit is reached,
+at which point the process is sent a
+<B>SIGKILL</B>
+
+signal.
+<DT id="26"><DD>
+The intended use of this limit is to stop a runaway
+real-time process from locking up the system.
+<DT id="27"><DD>
+For further details on real-time scheduling policies, see
+<B><A HREF="/cgi-bin/man/man2html?7+sched">sched</A></B>(7)
+
+<DT id="28"><B>RLIMIT_SIGPENDING</B> (since Linux 2.6.8)
+
+<DD>
+This is a limit on the number of signals
+that may be queued for the real user ID of the calling process.
+Both standard and real-time signals are counted for the purpose of
+checking this limit.
+However, the limit is enforced only for
+<B><A HREF="/cgi-bin/man/man2html?3+sigqueue">sigqueue</A></B>(3);
+
+it is always possible to use
+<B><A HREF="/cgi-bin/man/man2html?2+kill">kill</A></B>(2)
+
+to queue one instance of any of the signals that are not already
+queued to the process.
+
+
+<DT id="29"><B>RLIMIT_STACK</B>
+
+<DD>
+This is the maximum size of the process stack, in bytes.
+Upon reaching this limit, a
+<B>SIGSEGV</B>
+
+signal is generated.
+To handle this signal, a process must employ an alternate signal stack
+(<B><A HREF="/cgi-bin/man/man2html?2+sigaltstack">sigaltstack</A></B>(2)).
+
+<DT id="30"><DD>
+Since Linux 2.6.23,
+this limit also determines the amount of space used for the process's
+command-line arguments and environment variables; for details, see
+<B><A HREF="/cgi-bin/man/man2html?2+execve">execve</A></B>(2).
+
+</DL>
+<A NAME="lbAE">&nbsp;</A>
+<H3>prlimit()</H3>
+
+
+
+
+
+
+
+
+
+
+
+
+
+The Linux-specific
+<B>prlimit</B>()
+
+system call combines and extends the functionality of
+<B>setrlimit</B>()
+
+and
+<B>getrlimit</B>().
+
+It can be used to both set and get the resource limits of an arbitrary process.
+<P>
+
+The
+<I>resource</I>
+
+argument has the same meaning as for
+<B>setrlimit</B>()
+
+and
+<B>getrlimit</B>().
+
+<P>
+
+If the
+<I>new_limit</I>
+
+argument is a not NULL, then the
+<I>rlimit</I>
+
+structure to which it points is used to set new values for
+the soft and hard limits for
+<I>resource</I>.
+
+If the
+<I>old_limit</I>
+
+argument is a not NULL, then a successful call to
+<B>prlimit</B>()
+
+places the previous soft and hard limits for
+<I>resource</I>
+
+in the
+<I>rlimit</I>
+
+structure pointed to by
+<I>old_limit</I>.
+
+<P>
+
+The
+<I>pid</I>
+
+argument specifies the ID of the process on which the call is to operate.
+If
+<I>pid</I>
+
+is 0, then the call applies to the calling process.
+To set or get the resources of a process other than itself,
+the caller must have the
+<B>CAP_SYS_RESOURCE</B>
+
+capability in the user namespace of the process
+whose resource limits are being changed, or the
+real, effective, and saved set user IDs of the target process
+must match the real user ID of the caller
+<I>and</I>
+
+the real, effective, and saved set group IDs of the target process
+must match the real group ID of the caller.
+
+
+
+<A NAME="lbAF">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+On success, these system calls return 0.
+On error, -1 is returned, and
+<I>errno</I>
+
+is set appropriately.
+<A NAME="lbAG">&nbsp;</A>
+<H2>ERRORS</H2>
+
+<DL COMPACT>
+<DT id="31"><B>EFAULT</B>
+
+<DD>
+A pointer argument points to a location
+outside the accessible address space.
+<DT id="32"><B>EINVAL</B>
+
+<DD>
+The value specified in
+<I>resource</I>
+
+is not valid;
+or, for
+<B>setrlimit</B>()
+
+or
+<B>prlimit</B>():
+
+<I>rlim-&gt;rlim_cur</I>
+
+was greater than
+<I>rlim-&gt;rlim_max</I>.
+
+<DT id="33"><B>EPERM</B>
+
+<DD>
+An unprivileged process tried to raise the hard limit; the
+<B>CAP_SYS_RESOURCE</B>
+
+capability is required to do this.
+<DT id="34"><B>EPERM</B>
+
+<DD>
+The caller tried to increase the hard
+<B>RLIMIT_NOFILE</B>
+
+limit above the maximum defined by
+<I>/proc/sys/fs/nr_open</I>
+
+(see
+<B><A HREF="/cgi-bin/man/man2html?5+proc">proc</A></B>(5))
+
+<DT id="35"><B>EPERM</B>
+
+<DD>
+(<B>prlimit</B>())
+
+The calling process did not have permission to set limits
+for the process specified by
+<I>pid</I>.
+
+<DT id="36"><B>ESRCH</B>
+
+<DD>
+Could not find a process with the ID specified in
+<I>pid</I>.
+
+</DL>
+<A NAME="lbAH">&nbsp;</A>
+<H2>VERSIONS</H2>
+
+The
+<B>prlimit</B>()
+
+system call is available since Linux 2.6.36.
+Library support is available since glibc 2.13.
+<A NAME="lbAI">&nbsp;</A>
+<H2>ATTRIBUTES</H2>
+
+For an explanation of the terms used in this section, see
+<B><A HREF="/cgi-bin/man/man2html?7+attributes">attributes</A></B>(7).
+
+<TABLE BORDER>
+<TR VALIGN=top><TD><B>Interface</B></TD><TD><B>Attribute</B></TD><TD><B>Value</B><BR></TD></TR>
+<TR VALIGN=top><TD>
+<B>getrlimit</B>(),
+
+<B>setrlimit</B>(),
+
+<B>prlimit</B>()
+
+</TD><TD>Thread safety</TD><TD>MT-Safe<BR></TD></TR>
+</TABLE>
+
+<P>
+<A NAME="lbAJ">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+<B>getrlimit</B>(),
+
+<B>setrlimit</B>():
+
+POSIX.1-2001, POSIX.1-2008, SVr4, 4.3BSD.
+<P>
+
+<B>prlimit</B>():
+
+Linux-specific.
+<P>
+
+<B>RLIMIT_MEMLOCK</B>
+
+and
+<B>RLIMIT_NPROC</B>
+
+derive from BSD and are not specified in POSIX.1;
+they are present on the BSDs and Linux, but on few other implementations.
+<B>RLIMIT_RSS</B>
+
+derives from BSD and is not specified in POSIX.1;
+it is nevertheless present on most implementations.
+<B>RLIMIT_MSGQUEUE</B>,
+
+<B>RLIMIT_NICE</B>,
+
+<B>RLIMIT_RTPRIO</B>,
+
+<B>RLIMIT_RTTIME</B>,
+
+and
+<B>RLIMIT_SIGPENDING</B>
+
+are Linux-specific.
+<A NAME="lbAK">&nbsp;</A>
+<H2>NOTES</H2>
+
+A child process created via
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2)
+
+inherits its parent's resource limits.
+Resource limits are preserved across
+<B><A HREF="/cgi-bin/man/man2html?2+execve">execve</A></B>(2).
+
+<P>
+
+Resource limits are per-process attributes that are shared
+by all of the threads in a process.
+<P>
+
+Lowering the soft limit for a resource below the process's
+current consumption of that resource will succeed
+(but will prevent the process from further increasing
+its consumption of the resource).
+<P>
+
+One can set the resource limits of the shell using the built-in
+<I>ulimit</I>
+
+command
+(<I>limit</I>
+
+in
+<B><A HREF="/cgi-bin/man/man2html?1+csh">csh</A></B>(1)).
+
+The shell's resource limits are inherited by the processes that
+it creates to execute commands.
+<P>
+
+Since Linux 2.6.24, the resource limits of any process can be inspected via
+<I>/proc/[pid]/limits</I>;
+
+see
+<B><A HREF="/cgi-bin/man/man2html?5+proc">proc</A></B>(5).
+
+<P>
+
+Ancient systems provided a
+<B>vlimit</B>()
+
+function with a similar purpose to
+<B>setrlimit</B>().
+
+For backward compatibility, glibc also provides
+<B>vlimit</B>().
+
+All new applications should be written using
+<B>setrlimit</B>().
+
+<A NAME="lbAL">&nbsp;</A>
+<H3>C library/kernel ABI differences</H3>
+
+Since version 2.13, the glibc
+<B>getrlimit</B>()
+
+and
+<B>setrlimit</B>()
+
+wrapper functions no longer invoke the corresponding system calls,
+but instead employ
+<B>prlimit</B>(),
+
+for the reasons described in BUGS.
+<P>
+
+The name of the glibc wrapper function is
+<B>prlimit</B>();
+
+the underlying system call is
+<B>prlimit64</B>().
+
+<A NAME="lbAM">&nbsp;</A>
+<H2>BUGS</H2>
+
+In older Linux kernels, the
+<B>SIGXCPU</B>
+
+and
+<B>SIGKILL</B>
+
+signals delivered when a process encountered the soft and hard
+<B>RLIMIT_CPU</B>
+
+limits were delivered one (CPU) second later than they should have been.
+This was fixed in kernel 2.6.8.
+<P>
+
+In 2.6.x kernels before 2.6.17, a
+<B>RLIMIT_CPU</B>
+
+limit of 0 is wrongly treated as &quot;no limit&quot; (like
+<B>RLIM_INFINITY</B>).
+
+Since Linux 2.6.17, setting a limit of 0 does have an effect,
+but is actually treated as a limit of 1 second.
+
+<P>
+
+A kernel bug means that
+
+<B>RLIMIT_RTPRIO</B>
+
+does not work in kernel 2.6.12; the problem is fixed in kernel 2.6.13.
+<P>
+
+In kernel 2.6.12, there was an off-by-one mismatch
+between the priority ranges returned by
+<B><A HREF="/cgi-bin/man/man2html?2+getpriority">getpriority</A></B>(2)
+
+and
+<B>RLIMIT_NICE</B>.
+
+This had the effect that the actual ceiling for the nice value
+was calculated as
+<I>19&nbsp;-&nbsp;rlim_cur</I>.
+
+This was fixed in kernel 2.6.13.
+
+<P>
+
+Since Linux 2.6.12,
+
+
+
+
+
+if a process reaches its soft
+<B>RLIMIT_CPU</B>
+
+limit and has a handler installed for
+<B>SIGXCPU</B>,
+
+then, in addition to invoking the signal handler,
+the kernel increases the soft limit by one second.
+This behavior repeats if the process continues to consume CPU time,
+until the hard limit is reached,
+at which point the process is killed.
+Other implementations
+
+do not change the
+<B>RLIMIT_CPU</B>
+
+soft limit in this manner,
+and the Linux behavior is probably not standards conformant;
+portable applications should avoid relying on this Linux-specific behavior.
+
+The Linux-specific
+<B>RLIMIT_RTTIME</B>
+
+limit exhibits the same behavior when the soft limit is encountered.
+<P>
+
+Kernels before 2.4.22 did not diagnose the error
+<B>EINVAL</B>
+
+for
+<B>setrlimit</B>()
+
+when
+<I>rlim-&gt;rlim_cur</I>
+
+was greater than
+<I>rlim-&gt;rlim_max</I>.
+
+
+<P>
+
+Linux doesn't return an error when an attempt to set
+<B>RLIMIT_CPU</B>
+
+has failed, for compatibility reasons.
+
+<A NAME="lbAN">&nbsp;</A>
+<H3>Representation of large resource limit values on 32-bit platforms</H3>
+
+The glibc
+<B>getrlimit</B>()
+
+and
+<B>setrlimit</B>()
+
+wrapper functions use a 64-bit
+<I>rlim_t</I>
+
+data type, even on 32-bit platforms.
+However, the
+<I>rlim_t</I>
+
+data type used in the
+<B>getrlimit</B>()
+
+and
+<B>setrlimit</B>()
+
+system calls is a (32-bit)
+<I>unsigned long</I>.
+
+
+
+
+
+Furthermore, in Linux,
+the kernel represents resource limits on 32-bit platforms as
+<I>unsigned long</I>.
+
+However, a 32-bit data type is not wide enough.
+
+
+The most pertinent limit here is
+<B>RLIMIT_FSIZE</B>,
+
+which specifies the maximum size to which a file can grow:
+to be useful, this limit must be represented using a type
+that is as wide as the type used to
+represent file offsets---that is, as wide as a 64-bit
+<B>off_t</B>
+
+(assuming a program compiled with
+<I>_FILE_OFFSET_BITS=64</I>).
+
+<P>
+
+To work around this kernel limitation,
+if a program tried to set a resource limit to a value larger than
+can be represented in a 32-bit
+<I>unsigned long</I>,
+
+then the glibc
+<B>setrlimit</B>()
+
+wrapper function silently converted the limit value to
+<B>RLIM_INFINITY</B>.
+
+In other words, the requested resource limit setting was silently ignored.
+<P>
+
+Since version 2.13,
+
+glibc works around the limitations of the
+<B>getrlimit</B>()
+
+and
+<B>setrlimit</B>()
+
+system calls by implementing
+<B>setrlimit</B>()
+
+and
+<B>getrlimit</B>()
+
+as wrapper functions that call
+<B>prlimit</B>().
+
+<A NAME="lbAO">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+The program below demonstrates the use of
+<B>prlimit</B>().
+
+<P>
+
+
+#define _GNU_SOURCE
+#define _FILE_OFFSET_BITS 64
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/time.h">time.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdlib.h">stdlib.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/unistd.h">unistd.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/sys/resource.h">sys/resource.h</A>&gt;
+<P>
+#define errExit(msg) do { perror(msg); exit(EXIT_FAILURE); \
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;while&nbsp;(0)
+<P>
+int
+main(int argc, char *argv[])
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;rlimit&nbsp;old,&nbsp;new;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;rlimit&nbsp;*newp;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;pid_t&nbsp;pid;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(!(argc&nbsp;==&nbsp;2&nbsp;||&nbsp;argc&nbsp;==&nbsp;4))&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;Usage:&nbsp;%s&nbsp;&lt;pid&gt;&nbsp;[&lt;new-soft-limit&gt;&nbsp;&quot;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;&lt;new-hard-limit&gt;]\n&quot;,&nbsp;argv[0]);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;pid&nbsp;=&nbsp;atoi(argv[1]);&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;PID&nbsp;of&nbsp;target&nbsp;process&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;newp&nbsp;=&nbsp;NULL;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(argc&nbsp;==&nbsp;4)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;new.rlim_cur&nbsp;=&nbsp;atoi(argv[2]);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;new.rlim_max&nbsp;=&nbsp;atoi(argv[3]);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;newp&nbsp;=&nbsp;&amp;new;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Set&nbsp;CPU&nbsp;time&nbsp;limit&nbsp;of&nbsp;target&nbsp;process;&nbsp;retrieve&nbsp;and&nbsp;display
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;previous&nbsp;limit&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(prlimit(pid,&nbsp;RLIMIT_CPU,&nbsp;newp,&nbsp;&amp;old)&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errExit(&quot;prlimit-1&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;Previous&nbsp;limits:&nbsp;soft=%lld;&nbsp;hard=%lld\n&quot;,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(long&nbsp;long)&nbsp;old.rlim_cur,&nbsp;(long&nbsp;long)&nbsp;old.rlim_max);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Retrieve&nbsp;and&nbsp;display&nbsp;new&nbsp;CPU&nbsp;time&nbsp;limit&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(prlimit(pid,&nbsp;RLIMIT_CPU,&nbsp;NULL,&nbsp;&amp;old)&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errExit(&quot;prlimit-2&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;New&nbsp;limits:&nbsp;soft=%lld;&nbsp;hard=%lld\n&quot;,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(long&nbsp;long)&nbsp;old.rlim_cur,&nbsp;(long&nbsp;long)&nbsp;old.rlim_max);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_SUCCESS);
+}
+
+<A NAME="lbAP">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?1+prlimit">prlimit</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?2+dup">dup</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+getrusage">getrusage</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+mlock">mlock</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+mmap">mmap</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+open">open</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+quotactl">quotactl</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+sbrk">sbrk</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+shmctl">shmctl</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?3+malloc">malloc</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+sigqueue">sigqueue</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+ulimit">ulimit</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?5+core">core</A></B>(5),
+
+<B><A HREF="/cgi-bin/man/man2html?7+capabilities">capabilities</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+cgroups">cgroups</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+credentials">credentials</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+signal">signal</A></B>(7)
+
+<A NAME="lbAQ">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="37"><A HREF="#lbAB">NAME</A><DD>
+<DT id="38"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="39"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DL>
+<DT id="40"><A HREF="#lbAE">prlimit()</A><DD>
+</DL>
+<DT id="41"><A HREF="#lbAF">RETURN VALUE</A><DD>
+<DT id="42"><A HREF="#lbAG">ERRORS</A><DD>
+<DT id="43"><A HREF="#lbAH">VERSIONS</A><DD>
+<DT id="44"><A HREF="#lbAI">ATTRIBUTES</A><DD>
+<DT id="45"><A HREF="#lbAJ">CONFORMING TO</A><DD>
+<DT id="46"><A HREF="#lbAK">NOTES</A><DD>
+<DL>
+<DT id="47"><A HREF="#lbAL">C library/kernel ABI differences</A><DD>
+</DL>
+<DT id="48"><A HREF="#lbAM">BUGS</A><DD>
+<DL>
+<DT id="49"><A HREF="#lbAN">Representation of large resource limit values on 32-bit platforms</A><DD>
+</DL>
+<DT id="50"><A HREF="#lbAO">EXAMPLE</A><DD>
+<DT id="51"><A HREF="#lbAP">SEE ALSO</A><DD>
+<DT id="52"><A HREF="#lbAQ">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:32 GMT, March 31, 2021
+</BODY>
+</HTML>

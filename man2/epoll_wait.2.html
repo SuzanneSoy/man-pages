@@ -1,0 +1,408 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of EPOLL_WAIT</TITLE>
+</HEAD><BODY>
+<H1>EPOLL_WAIT</H1>
+Section: Linux Programmer's Manual (2)<BR>Updated: 2019-03-06<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+epoll_wait, epoll_pwait - wait for an I/O event on an epoll file descriptor
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<PRE>
+<B>#include &lt;<A HREF="file:///usr/include/sys/epoll.h">sys/epoll.h</A>&gt;</B>
+
+<B>int epoll_wait(int </B><I>epfd</I><B>, struct epoll_event *</B><I>events</I><B>,</B>
+<B>               int </B><I>maxevents</I><B>, int </B><I>timeout</I><B>);</B>
+<B>int epoll_pwait(int </B><I>epfd</I><B>, struct epoll_event *</B><I>events</I><B>,</B>
+<B>               int </B><I>maxevents</I><B>, int </B><I>timeout</I><B>,</B>
+<B>               const sigset_t *</B><I>sigmask</I><B>);</B>
+</PRE>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+The
+<B>epoll_wait</B>()
+
+system call waits for events on the
+<B><A HREF="/cgi-bin/man/man2html?7+epoll">epoll</A></B>(7)
+
+instance referred to by the file descriptor
+<I>epfd</I>.
+
+The memory area pointed to by
+<I>events</I>
+
+will contain the events that will be available for the caller.
+Up to
+<I>maxevents</I>
+
+are returned by
+<B>epoll_wait</B>().
+
+The
+<I>maxevents</I>
+
+argument must be greater than zero.
+<P>
+
+The
+<I>timeout</I>
+
+argument specifies the number of milliseconds that
+<B>epoll_wait</B>()
+
+will block.
+Time is measured against the
+<B>CLOCK_MONOTONIC</B>
+
+clock.
+The call will block until either:
+<DL COMPACT>
+<DT id="1">*<DD>
+a file descriptor delivers an event;
+<DT id="2">*<DD>
+the call is interrupted by a signal handler; or
+<DT id="3">*<DD>
+the timeout expires.
+</DL>
+<P>
+
+Note that the
+<I>timeout</I>
+
+interval will be rounded up to the system clock granularity,
+and kernel scheduling delays mean that the blocking interval
+may overrun by a small amount.
+Specifying a
+<I>timeout</I>
+
+of -1 causes
+<B>epoll_wait</B>()
+
+to block indefinitely, while specifying a
+<I>timeout</I>
+
+equal to zero cause
+<B>epoll_wait</B>()
+
+to return immediately, even if no events are available.
+<P>
+
+The
+<I>struct epoll_event</I>
+
+is defined as:
+<P>
+
+
+
+typedef union epoll_data {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;void&nbsp;&nbsp;&nbsp;&nbsp;*ptr;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fd;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;u32;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;u64;
+} epoll_data_t;
+<P>
+struct epoll_event {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;events;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Epoll&nbsp;events&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;epoll_data_t&nbsp;data;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;User&nbsp;data&nbsp;variable&nbsp;*/
+};
+
+
+<P>
+
+The
+<I>data</I>
+
+field of each returned structure contains the same data as was specified
+in the most recent call to
+<B><A HREF="/cgi-bin/man/man2html?2+epoll_ctl">epoll_ctl</A></B>(2)
+
+(<B>EPOLL_CTL_ADD</B>, <B>EPOLL_CTL_MOD</B>)
+
+for the corresponding open file description.
+The
+<I>events</I>
+
+field contains the returned event bit field.
+<A NAME="lbAE">&nbsp;</A>
+<H3>epoll_pwait()</H3>
+
+The relationship between
+<B>epoll_wait</B>()
+
+and
+<B>epoll_pwait</B>()
+
+is analogous to the relationship between
+<B><A HREF="/cgi-bin/man/man2html?2+select">select</A></B>(2)
+
+and
+<B><A HREF="/cgi-bin/man/man2html?2+pselect">pselect</A></B>(2):
+
+like
+<B><A HREF="/cgi-bin/man/man2html?2+pselect">pselect</A></B>(2),
+
+<B>epoll_pwait</B>()
+
+allows an application to safely wait until either a file descriptor
+becomes ready or until a signal is caught.
+<P>
+
+The following
+<B>epoll_pwait</B>()
+
+call:
+<P>
+
+
+
+ready = epoll_pwait(epfd, &amp;events, maxevents, timeout, &amp;sigmask);
+
+
+<P>
+
+is equivalent to
+<I>atomically</I>
+
+executing the following calls:
+<P>
+
+
+
+sigset_t origmask;
+<P>
+pthread_sigmask(SIG_SETMASK, &amp;sigmask, &amp;origmask);
+ready = epoll_wait(epfd, &amp;events, maxevents, timeout);
+pthread_sigmask(SIG_SETMASK, &amp;origmask, NULL);
+
+
+<P>
+
+The
+<I>sigmask</I>
+
+argument may be specified as NULL, in which case
+<B>epoll_pwait</B>()
+
+is equivalent to
+<B>epoll_wait</B>().
+
+<A NAME="lbAF">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+When successful,
+<B>epoll_wait</B>()
+
+returns the number of file descriptors ready for the requested I/O, or zero
+if no file descriptor became ready during the requested
+<I>timeout</I>
+
+milliseconds.
+When an error occurs,
+<B>epoll_wait</B>()
+
+returns -1 and
+<I>errno</I>
+
+is set appropriately.
+<A NAME="lbAG">&nbsp;</A>
+<H2>ERRORS</H2>
+
+<DL COMPACT>
+<DT id="4"><B>EBADF</B>
+
+<DD>
+<I>epfd</I>
+
+is not a valid file descriptor.
+<DT id="5"><B>EFAULT</B>
+
+<DD>
+The memory area pointed to by
+<I>events</I>
+
+is not accessible with write permissions.
+<DT id="6"><B>EINTR</B>
+
+<DD>
+The call was interrupted by a signal handler before either (1) any of the
+requested events occurred or (2) the
+<I>timeout</I>
+
+expired; see
+<B><A HREF="/cgi-bin/man/man2html?7+signal">signal</A></B>(7).
+
+<DT id="7"><B>EINVAL</B>
+
+<DD>
+<I>epfd</I>
+
+is not an
+<B>epoll</B>
+
+file descriptor, or
+<I>maxevents</I>
+
+is less than or equal to zero.
+</DL>
+<A NAME="lbAH">&nbsp;</A>
+<H2>VERSIONS</H2>
+
+<B>epoll_wait</B>()
+
+was added to the kernel in version 2.6.
+
+
+Library support is provided in glibc starting with version 2.3.2.
+<P>
+
+<B>epoll_pwait</B>()
+
+was added to Linux in kernel 2.6.19.
+Library support is provided in glibc starting with version 2.6.
+<A NAME="lbAI">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+<B>epoll_wait</B>()
+
+is Linux-specific.
+<A NAME="lbAJ">&nbsp;</A>
+<H2>NOTES</H2>
+
+While one thread is blocked in a call to
+<B>epoll_wait</B>(),
+
+it is possible for another thread to add a file descriptor to the waited-upon
+<B>epoll</B>
+
+instance.
+If the new file descriptor becomes ready,
+it will cause the
+<B>epoll_wait</B>()
+
+call to unblock.
+<P>
+
+If more than
+<I>maxevents</I>
+
+file descriptors are ready when
+<B>epoll_wait</B>()
+
+is called, then successive
+<B>epoll_wait</B>()
+
+calls will round robin through the set of ready file descriptors.
+This behavior helps avoid starvation scenarios,
+where a process fails to notice that additional file descriptors
+are ready because it focuses on a set of file descriptors that
+are already known to be ready.
+<P>
+
+Note that it is possible to call
+<B>epoll_wait</B>()
+
+on an
+<B>epoll</B>
+
+instance whose interest list is currently empty
+(or whose interest list becomes empty because file descriptors are closed
+or removed from the interest in another thread).
+The call will block until some file descriptor is later added to the
+interest list (in another thread) and that file descriptor becomes ready.
+<A NAME="lbAK">&nbsp;</A>
+<H2>BUGS</H2>
+
+In kernels before 2.6.37, a
+<I>timeout</I>
+
+value larger than approximately
+<I>LONG_MAX / HZ</I>
+
+milliseconds is treated as -1 (i.e., infinity).
+Thus, for example, on a system where
+<I>sizeof(long)</I>
+
+is 4 and the kernel
+<I>HZ</I>
+
+value is 1000,
+this means that timeouts greater than 35.79 minutes are treated as infinity.
+<A NAME="lbAL">&nbsp;</A>
+<H3>C library/kernel differences</H3>
+
+The raw
+<B>epoll_pwait</B>()
+
+system call has a sixth argument,
+<I>size_t sigsetsize</I>,
+
+which specifies the size in bytes of the
+<I>sigmask</I>
+
+argument.
+The glibc
+<B>epoll_pwait</B>()
+
+wrapper function specifies this argument as a fixed value
+(equal to
+<I>sizeof(sigset_t)</I>).
+
+<A NAME="lbAM">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?2+epoll_create">epoll_create</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+epoll_ctl">epoll_ctl</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?7+epoll">epoll</A></B>(7)
+
+<A NAME="lbAN">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="8"><A HREF="#lbAB">NAME</A><DD>
+<DT id="9"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="10"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DL>
+<DT id="11"><A HREF="#lbAE">epoll_pwait()</A><DD>
+</DL>
+<DT id="12"><A HREF="#lbAF">RETURN VALUE</A><DD>
+<DT id="13"><A HREF="#lbAG">ERRORS</A><DD>
+<DT id="14"><A HREF="#lbAH">VERSIONS</A><DD>
+<DT id="15"><A HREF="#lbAI">CONFORMING TO</A><DD>
+<DT id="16"><A HREF="#lbAJ">NOTES</A><DD>
+<DT id="17"><A HREF="#lbAK">BUGS</A><DD>
+<DL>
+<DT id="18"><A HREF="#lbAL">C library/kernel differences</A><DD>
+</DL>
+<DT id="19"><A HREF="#lbAM">SEE ALSO</A><DD>
+<DT id="20"><A HREF="#lbAN">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:32 GMT, March 31, 2021
+</BODY>
+</HTML>

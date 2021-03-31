@@ -1,0 +1,392 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SPLICE</TITLE>
+</HEAD><BODY>
+<H1>SPLICE</H1>
+Section: Linux Programmer's Manual (2)<BR>Updated: 2019-05-09<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+splice - splice data to/from a pipe
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<PRE>
+<B>#define _GNU_SOURCE</B>         /* See <A HREF="/cgi-bin/man/man2html?7+feature_test_macros">feature_test_macros</A>(7) */
+<B>#include &lt;<A HREF="file:///usr/include/fcntl.h">fcntl.h</A>&gt;</B>
+
+<B>ssize_t splice(int </B><I>fd_in</I><B>, loff_t *</B><I>off_in</I><B>, int </B><I>fd_out</I><B>,</B>
+<B>               loff_t *</B><I>off_out</I><B>, size_t </B><I>len</I><B>, unsigned int </B><I>flags</I><B>);</B>
+</PRE>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<B>splice</B>()
+
+moves data between two file descriptors
+without copying between kernel address space and user address space.
+It transfers up to
+<I>len</I>
+
+bytes of data from the file descriptor
+<I>fd_in</I>
+
+to the file descriptor
+<I>fd_out</I>,
+
+where one of the file descriptors must refer to a pipe.
+<P>
+
+The following semantics apply for
+<I>fd_in</I>
+
+and
+<I>off_in</I>:
+
+<DL COMPACT>
+<DT id="1">*<DD>
+If
+<I>fd_in</I>
+
+refers to a pipe, then
+<I>off_in</I>
+
+must be NULL.
+<DT id="2">*<DD>
+If
+<I>fd_in</I>
+
+does not refer to a pipe and
+<I>off_in</I>
+
+is NULL, then bytes are read from
+<I>fd_in</I>
+
+starting from the file offset,
+and the file offset is adjusted appropriately.
+<DT id="3">*<DD>
+If
+<I>fd_in</I>
+
+does not refer to a pipe and
+<I>off_in</I>
+
+is not NULL, then
+<I>off_in</I>
+
+must point to a buffer which specifies the starting
+offset from which bytes will be read from
+<I>fd_in</I>;
+
+in this case, the file offset of
+<I>fd_in</I>
+
+is not changed.
+</DL>
+<P>
+
+Analogous statements apply for
+<I>fd_out</I>
+
+and
+<I>off_out</I>.
+
+<P>
+
+The
+<I>flags</I>
+
+argument is a bit mask that is composed by ORing together
+zero or more of the following values:
+<DL COMPACT>
+<DT id="4"><B>SPLICE_F_MOVE</B>
+
+<DD>
+Attempt to move pages instead of copying.
+This is only a hint to the kernel:
+pages may still be copied if the kernel cannot move the
+pages from the pipe, or if
+the pipe buffers don't refer to full pages.
+The initial implementation of this flag was buggy:
+therefore starting in Linux 2.6.21 it is a no-op
+(but is still permitted in a
+<B>splice</B>()
+
+call);
+in the future, a correct implementation may be restored.
+<DT id="5"><B>SPLICE_F_NONBLOCK</B>
+
+<DD>
+Do not block on I/O.
+This makes the splice pipe operations nonblocking, but
+<B>splice</B>()
+
+may nevertheless block because the file descriptors that
+are spliced to/from may block (unless they have the
+<B>O_NONBLOCK</B>
+
+flag set).
+<DT id="6"><B>SPLICE_F_MORE</B>
+
+<DD>
+More data will be coming in a subsequent splice.
+This is a helpful hint when
+the
+<I>fd_out</I>
+
+refers to a socket (see also the description of
+<B>MSG_MORE</B>
+
+in
+<B><A HREF="/cgi-bin/man/man2html?2+send">send</A></B>(2),
+
+and the description of
+<B>TCP_CORK</B>
+
+in
+<B><A HREF="/cgi-bin/man/man2html?7+tcp">tcp</A></B>(7)).
+
+<DT id="7"><B>SPLICE_F_GIFT</B>
+
+<DD>
+Unused for
+<B>splice</B>();
+
+see
+<B><A HREF="/cgi-bin/man/man2html?2+vmsplice">vmsplice</A></B>(2).
+
+</DL>
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+Upon successful completion,
+<B>splice</B>()
+
+returns the number of bytes
+spliced to or from the pipe.
+<P>
+
+A return value of 0 means end of input.
+If
+<I>fd_in</I>
+
+refers to a pipe, then this means that there was no data to transfer,
+and it would not make sense to block because there are no writers
+connected to the write end of the pipe.
+<P>
+
+On error,
+<B>splice</B>()
+
+returns -1 and
+<I>errno</I>
+
+is set to indicate the error.
+<A NAME="lbAF">&nbsp;</A>
+<H2>ERRORS</H2>
+
+<DL COMPACT>
+<DT id="8"><B>EAGAIN</B>
+
+<DD>
+<B>SPLICE_F_NONBLOCK</B>
+
+was specified in
+<I>flags</I>
+
+or one of the file descriptors had been marked as nonblocking
+(<B>O_NONBLOCK</B>)<B>,</B>
+
+and the operation would block.
+<DT id="9"><B>EBADF</B>
+
+<DD>
+One or both file descriptors are not valid,
+or do not have proper read-write mode.
+<DT id="10"><B>EINVAL</B>
+
+<DD>
+The target filesystem doesn't support splicing.
+<DT id="11"><B>EINVAL</B>
+
+<DD>
+The target file is opened in append mode.
+
+
+<DT id="12"><B>EINVAL</B>
+
+<DD>
+Neither of the file descriptors refers to a pipe.
+<DT id="13"><B>EINVAL</B>
+
+<DD>
+An offset was given for nonseekable device (e.g., a pipe).
+<DT id="14"><B>EINVAL</B>
+
+<DD>
+<I>fd_in</I>
+
+and
+<I>fd_out</I>
+
+refer to the same pipe.
+<DT id="15"><B>ENOMEM</B>
+
+<DD>
+Out of memory.
+<DT id="16"><B>ESPIPE</B>
+
+<DD>
+Either
+<I>off_in</I>
+
+or
+<I>off_out</I>
+
+was not NULL, but the corresponding file descriptor refers to a pipe.
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H2>VERSIONS</H2>
+
+The
+<B>splice</B>()
+
+system call first appeared in Linux 2.6.17;
+library support was added to glibc in version 2.5.
+<A NAME="lbAH">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+This system call is Linux-specific.
+<A NAME="lbAI">&nbsp;</A>
+<H2>NOTES</H2>
+
+The three system calls
+<B>splice</B>(),
+
+<B><A HREF="/cgi-bin/man/man2html?2+vmsplice">vmsplice</A></B>(2),
+
+and
+<B><A HREF="/cgi-bin/man/man2html?2+tee">tee</A></B>(2),
+
+provide user-space programs with full control over an arbitrary
+kernel buffer, implemented within the kernel using the same type
+of buffer that is used for a pipe.
+In overview, these system calls perform the following tasks:
+<DL COMPACT>
+<DT id="17"><B>splice</B>()
+
+<DD>
+moves data from the buffer to an arbitrary file descriptor, or vice versa,
+or from one buffer to another.
+<DT id="18"><B><A HREF="/cgi-bin/man/man2html?2+tee">tee</A></B>(2)
+
+<DD>
+&quot;copies&quot; the data from one buffer to another.
+<DT id="19"><B><A HREF="/cgi-bin/man/man2html?2+vmsplice">vmsplice</A></B>(2)
+
+<DD>
+&quot;copies&quot; data from user space into the buffer.
+</DL>
+<P>
+
+Though we talk of copying, actual copies are generally avoided.
+The kernel does this by implementing a pipe buffer as a set
+of reference-counted pointers to pages of kernel memory.
+The kernel creates &quot;copies&quot; of pages in a buffer by creating new
+pointers (for the output buffer) referring to the pages,
+and increasing the reference counts for the pages:
+only pointers are copied, not the pages of the buffer.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<P>
+
+In Linux 2.6.30 and earlier,
+exactly one of
+<I>fd_in</I>
+
+and
+<I>fd_out</I>
+
+was required to be a pipe.
+Since Linux 2.6.31,
+
+both arguments may refer to pipes.
+<A NAME="lbAJ">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+See
+<B><A HREF="/cgi-bin/man/man2html?2+tee">tee</A></B>(2).
+
+<A NAME="lbAK">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?2+copy_file_range">copy_file_range</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+sendfile">sendfile</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+tee">tee</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+vmsplice">vmsplice</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?7+pipe">pipe</A></B>(7)
+
+<A NAME="lbAL">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="20"><A HREF="#lbAB">NAME</A><DD>
+<DT id="21"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="22"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="23"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DT id="24"><A HREF="#lbAF">ERRORS</A><DD>
+<DT id="25"><A HREF="#lbAG">VERSIONS</A><DD>
+<DT id="26"><A HREF="#lbAH">CONFORMING TO</A><DD>
+<DT id="27"><A HREF="#lbAI">NOTES</A><DD>
+<DT id="28"><A HREF="#lbAJ">EXAMPLE</A><DD>
+<DT id="29"><A HREF="#lbAK">SEE ALSO</A><DD>
+<DT id="30"><A HREF="#lbAL">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:34 GMT, March 31, 2021
+</BODY>
+</HTML>

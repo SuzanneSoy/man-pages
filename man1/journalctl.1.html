@@ -1,0 +1,1268 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of JOURNALCTL</TITLE>
+</HEAD><BODY>
+<H1>JOURNALCTL</H1>
+Section: journalctl (1)<BR>Updated: <BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+journalctl - Query the systemd journal
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<DL COMPACT>
+<DT id="1">
+<B>journalctl</B> [OPTIONS...] [MATCHES...]
+</DL>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+<B>journalctl</B>
+<DD>may be used to query the contents of the
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1)
+journal as written by
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-journald.service">systemd-journald.service</A></B>(8).
+<P>
+
+If called without parameters, it will show the full contents of the journal, starting with the oldest entry collected.
+<P>
+
+If one or more match arguments are passed, the output is filtered accordingly. A match is in the format
+&quot;FIELD=VALUE&quot;, e.g.
+&quot;_SYSTEMD_UNIT=httpd.service&quot;, referring to the components of a structured journal entry. See
+<B><A HREF="/cgi-bin/man/man2html?7+systemd.journal-fields">systemd.journal-fields</A></B>(7)
+for a list of well-known fields. If multiple matches are specified matching different fields, the log entries are filtered by both, i.e. the resulting output will show only entries matching all the specified matches of this kind. If two matches apply to the same field, then they are automatically matched as alternatives, i.e. the resulting output will show entries matching any of the specified matches for the same field. Finally, the character
+&quot;+&quot;
+may appear as a separate word between other terms on the command line. This causes all matches before and after to be combined in a disjunction (i.e. logical OR).
+<P>
+
+It is also possible to filter the entries by specifying an absolute file path as an argument. The file path may be a file or a symbolic link and the file must exist at the time of the query. If a file path refers to an executable binary, an
+&quot;_EXE=&quot;
+match for the canonicalized binary path is added to the query. If a file path refers to an executable script, a
+&quot;_COMM=&quot;
+match for the script name is added to the query. If a file path refers to a device node,
+&quot;_KERNEL_DEVICE=&quot;
+matches for the kernel name of the device and for each of its ancestor devices is added to the query. Symbolic links are dereferenced, kernel names are synthesized, and parent devices are identified from the environment at the time of the query. In general, a device node is the best proxy for an actual device, as log entries do not usually contain fields that identify an actual device. For the resulting log entries to be correct for the actual device, the relevant parts of the environment at the time the entry was logged, in particular the actual device corresponding to the device node, must have been the same as those at the time of the query. Because device nodes generally change their corresponding devices across reboots, specifying a device node path causes the resulting entries to be restricted to those from the current boot.
+<P>
+
+Additional constraints may be added using options
+<B>--boot</B>,
+<B>--unit=</B>, etc., to further limit what entries will be shown (logical AND).
+<P>
+
+Output is interleaved from all accessible journal files, whether they are rotated or currently being written, and regardless of whether they belong to the system itself or are accessible user journals.
+<P>
+
+The set of journal files which will be used can be modified using the
+<B>--user</B>,
+<B>--system</B>,
+<B>--directory</B>, and
+<B>--file</B>
+options, see below.
+<P>
+
+All users are granted access to their private per-user journals. However, by default, only root and users who are members of a few special groups are granted access to the system journal and the journals of other users. Members of the groups
+&quot;systemd-journal&quot;,
+&quot;adm&quot;, and
+&quot;wheel&quot;
+can read all journal files. Note that the two latter groups traditionally have additional privileges specified by the distribution. Members of the
+&quot;wheel&quot;
+group can often perform administrative tasks.
+<P>
+
+The output is paged through
+<B>less</B>
+by default, and long lines are &quot;truncated&quot; to screen width. The hidden part can be viewed by using the left-arrow and right-arrow keys. Paging can be disabled; see the
+<B>--no-pager</B>
+option and the &quot;Environment&quot; section below.
+<P>
+
+When outputting to a tty, lines are colored according to priority: lines of level ERROR and higher are colored red; lines of level NOTICE and higher are highlighted; lines of level DEBUG are colored lighter grey; other lines are displayed normally.
+<A NAME="lbAE">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<P>
+
+The following options are understood:
+<P>
+
+<B>--no-full</B>, <B>--full</B>, <B>-l</B>
+<DL COMPACT><DT id="2"><DD>
+Ellipsize fields when they do not fit in available columns. The default is to show full fields, allowing them to wrap or be truncated by the pager, if one is used.
+<P>
+The old options
+<B>-l</B>/<B>--full</B>
+are not useful anymore, except to undo
+<B>--no-full</B>.
+</DL>
+
+<P>
+
+<B>-a</B>, <B>--all</B>
+<DL COMPACT><DT id="3"><DD>
+Show all fields in full, even if they include unprintable characters or are very long. By default, fields with unprintable characters are abbreviated as &quot;blob data&quot;. (Note that the pager may escape unprintable characters again.)
+</DL>
+
+<P>
+
+<B>-f</B>, <B>--follow</B>
+<DL COMPACT><DT id="4"><DD>
+Show only the most recent journal entries, and continuously print new entries as they are appended to the journal.
+</DL>
+
+<P>
+
+<B>-e</B>, <B>--pager-end</B>
+<DL COMPACT><DT id="5"><DD>
+Immediately jump to the end of the journal inside the implied pager tool. This implies
+<B>-n1000</B>
+to guarantee that the pager will not buffer logs of unbounded size. This may be overridden with an explicit
+<B>-n</B>
+with some other numeric value, while
+<B>-nall</B>
+will disable this cap. Note that this option is only supported for the
+<B><A HREF="/cgi-bin/man/man2html?1+less">less</A></B>(1)
+pager.
+</DL>
+
+<P>
+
+<B>-n</B>, <B>--lines=</B>
+<DL COMPACT><DT id="6"><DD>
+Show the most recent journal events and limit the number of events shown. If
+<B>--follow</B>
+is used, this option is implied. The argument is a positive integer or
+&quot;all&quot;
+to disable line limiting. The default value is 10 if no argument is given.
+</DL>
+
+<P>
+
+<B>--no-tail</B>
+<DL COMPACT><DT id="7"><DD>
+Show all stored output lines, even in follow mode. Undoes the effect of
+<B>--lines=</B>.
+</DL>
+
+<P>
+
+<B>-r</B>, <B>--reverse</B>
+<DL COMPACT><DT id="8"><DD>
+Reverse output so that the newest entries are displayed first.
+</DL>
+
+<P>
+
+<B>-o</B>, <B>--output=</B>
+<DL COMPACT><DT id="9"><DD>
+Controls the formatting of the journal entries that are shown. Takes one of the following options:
+<P>
+
+<B>short</B>
+<DL COMPACT><DT id="10"><DD>
+is the default and generates an output that is mostly identical to the formatting of classic syslog files, showing one line per journal entry.
+</DL>
+
+<P>
+
+<B>short-full</B>
+<DL COMPACT><DT id="11"><DD>
+is very similar, but shows timestamps in the format the
+<B>--since=</B>
+and
+<B>--until=</B>
+options accept. Unlike the timestamp information shown in
+<B>short</B>
+output mode this mode includes weekday, year and timezone information in the output, and is locale-independent.
+</DL>
+
+<P>
+
+<B>short-iso</B>
+<DL COMPACT><DT id="12"><DD>
+is very similar, but shows ISO 8601 wallclock timestamps.
+</DL>
+
+<P>
+
+<B>short-iso-precise</B>
+<DL COMPACT><DT id="13"><DD>
+as for
+<B>short-iso</B>
+but includes full microsecond precision.
+</DL>
+
+<P>
+
+<B>short-precise</B>
+<DL COMPACT><DT id="14"><DD>
+is very similar, but shows classic syslog timestamps with full microsecond precision.
+</DL>
+
+<P>
+
+<B>short-monotonic</B>
+<DL COMPACT><DT id="15"><DD>
+is very similar, but shows monotonic timestamps instead of wallclock timestamps.
+</DL>
+
+<P>
+
+<B>short-unix</B>
+<DL COMPACT><DT id="16"><DD>
+is very similar, but shows seconds passed since January 1st 1970 UTC instead of wallclock timestamps (&quot;UNIX time&quot;). The time is shown with microsecond accuracy.
+</DL>
+
+<P>
+
+<B>verbose</B>
+<DL COMPACT><DT id="17"><DD>
+shows the full-structured entry items with all fields.
+</DL>
+
+<P>
+
+<B>export</B>
+<DL COMPACT><DT id="18"><DD>
+serializes the journal into a binary (but mostly text-based) stream suitable for backups and network transfer (see
+m[blue]<B>Journal Export Format</B>m[]<FONT SIZE="-2">[1]</FONT>
+for more information). To import the binary stream back into native journald format use
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-journal-remote">systemd-journal-remote</A></B>(8).
+</DL>
+
+<P>
+
+<B>json</B>
+<DL COMPACT><DT id="19"><DD>
+formats entries as JSON objects, separated by newline characters (see
+m[blue]<B>Journal JSON Format</B>m[]<FONT SIZE="-2">[2]</FONT>
+for more information). Field values are generally encoded as JSON strings, with three exceptions:
+<P>
+<DL COMPACT><DT id="20"><DD>
+ 1.
+
+
+Fields larger than 4096 bytes are encoded as
+<B>null</B>
+values. (This may be turned off by passing
+<B>--all</B>, but be aware that this may allocate overly long JSON objects.)
+</DL>
+
+<P>
+<DL COMPACT><DT id="21"><DD>
+ 2.
+
+
+Journal entries permit non-unique fields within the same log entry. JSON does not allow non-unique fields within objects. Due to this, if a non-unique field is encountered a JSON array is used as field value, listing all field values as elements.
+</DL>
+
+<P>
+<DL COMPACT><DT id="22"><DD>
+ 3.
+
+
+Fields containing non-printable or non-UTF8 bytes are encoded as arrays containing the raw bytes individually formatted as unsigned numbers.
+</DL>
+
+<P>
+Note that this encoding is reversible (with the exception of the size limit).
+</DL>
+
+<P>
+
+<B>json-pretty</B>
+<DL COMPACT><DT id="23"><DD>
+formats entries as JSON data structures, but formats them in multiple lines in order to make them more readable by humans.
+</DL>
+
+<P>
+
+<B>json-sse</B>
+<DL COMPACT><DT id="24"><DD>
+formats entries as JSON data structures, but wraps them in a format suitable for
+m[blue]<B>Server-Sent Events</B>m[]<FONT SIZE="-2">[3]</FONT>.
+</DL>
+
+<P>
+
+<B>json-seq</B>
+<DL COMPACT><DT id="25"><DD>
+formats entries as JSON data structures, but prefixes them with an ASCII Record Separator character (0x1E) and suffixes them with an ASCII Line Feed character (0x0A), in accordance with
+m[blue]<B>JavaScript Object Notation (JSON) Text Sequences</B>m[]<FONT SIZE="-2">[4]</FONT>
+(&quot;application/json-seq&quot;).
+</DL>
+
+<P>
+
+<B>cat</B>
+<DL COMPACT><DT id="26"><DD>
+generates a very terse output, only showing the actual message of each journal entry with no metadata, not even a timestamp.
+</DL>
+
+<P>
+
+<B>with-unit</B>
+<DL COMPACT><DT id="27"><DD>
+similar to short-full, but prefixes the unit and user unit names instead of the traditional syslog identifier. Useful when using templated instances, as it will include the arguments in the unit names.
+</DL>
+
+</DL>
+
+<P>
+
+<B>--output-fields=</B>
+<DL COMPACT><DT id="28"><DD>
+A comma separated list of the fields which should be included in the output. This only has an effect for the output modes which would normally show all fields (<B>verbose</B>,
+<B>export</B>,
+<B>json</B>,
+<B>json-pretty</B>,
+<B>json-sse</B>
+and
+<B>json-seq</B>). The
+&quot;__CURSOR&quot;,
+&quot;__REALTIME_TIMESTAMP&quot;,
+&quot;__MONOTONIC_TIMESTAMP&quot;, and
+&quot;_BOOT_ID&quot;
+fields are always printed.
+</DL>
+
+<P>
+
+<B>--utc</B>
+<DL COMPACT><DT id="29"><DD>
+Express time in Coordinated Universal Time (UTC).
+</DL>
+
+<P>
+
+<B>--no-hostname</B>
+<DL COMPACT><DT id="30"><DD>
+Don't show the hostname field of log messages originating from the local host. This switch only has an effect on the
+<B>short</B>
+family of output modes (see above).
+</DL>
+
+<P>
+
+<B>-x</B>, <B>--catalog</B>
+<DL COMPACT><DT id="31"><DD>
+Augment log lines with explanation texts from the message catalog. This will add explanatory help texts to log messages in the output where this is available. These short help texts will explain the context of an error or log event, possible solutions, as well as pointers to support forums, developer documentation, and any other relevant manuals. Note that help texts are not available for all messages, but only for selected ones. For more information on the message catalog, please refer to the
+m[blue]<B>Message Catalog Developer Documentation</B>m[]<FONT SIZE="-2">[5]</FONT>.
+<P>
+Note: when attaching
+<B>journalctl</B>
+output to bug reports, please do
+<I>not</I>
+use
+<B>-x</B>.
+</DL>
+
+<P>
+
+<B>-q</B>, <B>--quiet</B>
+<DL COMPACT><DT id="32"><DD>
+Suppresses all informational messages (i.e. &quot;-- Logs begin at ...&quot;, &quot;-- Reboot --&quot;), any warning messages regarding inaccessible system journals when run as a normal user.
+</DL>
+
+<P>
+
+<B>-m</B>, <B>--merge</B>
+<DL COMPACT><DT id="33"><DD>
+Show entries interleaved from all available journals, including remote ones.
+</DL>
+
+<P>
+
+<B>-b </B><B>[[</B><I>ID</I>][<I>&plusmn;offset</I>]|<B>all</B>], <B>--boot</B><B>[=[</B><I>ID</I>][<I>&plusmn;offset</I>]|<B>all</B>]
+<DL COMPACT><DT id="34"><DD>
+Show messages from a specific boot. This will add a match for
+&quot;_BOOT_ID=&quot;.
+<P>
+The argument may be empty, in which case logs for the current boot will be shown.
+<P>
+If the boot ID is omitted, a positive
+<I>offset</I>
+will look up the boots starting from the beginning of the journal, and an equal-or-less-than zero
+<I>offset</I>
+will look up boots starting from the end of the journal. Thus,
+<B>1</B>
+means the first boot found in the journal in chronological order,
+<B>2</B>
+the second and so on; while
+<B>-0</B>
+is the last boot,
+<B>-1</B>
+the boot before last, and so on. An empty
+<I>offset</I>
+is equivalent to specifying
+<B>-0</B>, except when the current boot is not the last boot (e.g. because
+<B>--directory</B>
+was specified to look at logs from a different machine).
+<P>
+If the 32-character
+<I>ID</I>
+is specified, it may optionally be followed by
+<I>offset</I>
+which identifies the boot relative to the one given by boot
+<I>ID</I>. Negative values mean earlier boots and positive values mean later boots. If
+<I>offset</I>
+is not specified, a value of zero is assumed, and the logs for the boot given by
+<I>ID</I>
+are shown.
+<P>
+The special argument
+<B>all</B>
+can be used to negate the effect of an earlier use of
+<B>-b</B>.
+</DL>
+
+<P>
+
+<B>--list-boots</B>
+<DL COMPACT><DT id="35"><DD>
+Show a tabular list of boot numbers (relative to the current boot), their IDs, and the timestamps of the first and last message pertaining to the boot.
+</DL>
+
+<P>
+
+<B>-k</B>, <B>--dmesg</B>
+<DL COMPACT><DT id="36"><DD>
+Show only kernel messages. This implies
+<B>-b</B>
+and adds the match
+&quot;_TRANSPORT=kernel&quot;.
+</DL>
+
+<P>
+
+<B>-t</B>, <B>--identifier=</B><B></B><I>SYSLOG_IDENTIFIER</I>
+<DL COMPACT><DT id="37"><DD>
+Show messages for the specified syslog identifier
+<I>SYSLOG_IDENTIFIER</I>.
+<P>
+This parameter can be specified multiple times.
+</DL>
+
+<P>
+
+<B>-u</B>, <B>--unit=</B><B></B><I>UNIT</I><B>|</B><B></B><I>PATTERN</I>
+<DL COMPACT><DT id="38"><DD>
+Show messages for the specified systemd unit
+<I>UNIT</I>
+(such as a service unit), or for any of the units matched by
+<I>PATTERN</I>. If a pattern is specified, a list of unit names found in the journal is compared with the specified pattern and all that match are used. For each unit name, a match is added for messages from the unit (&quot;_SYSTEMD_UNIT=<I>UNIT</I>&quot;), along with additional matches for messages from systemd and messages about coredumps for the specified unit. A match is also added for
+&quot;_SYSTEMD_SLICE=<I>UNIT</I>&quot;, such that if the provided
+<I>UNIT</I>
+is a
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.slice">systemd.slice</A></B>(5)
+unit, all logs of the children of the slice will be logged.
+<P>
+This parameter can be specified multiple times.
+</DL>
+
+<P>
+
+<B>--user-unit=</B>
+<DL COMPACT><DT id="39"><DD>
+Show messages for the specified user session unit. This will add a match for messages from the unit (&quot;_SYSTEMD_USER_UNIT=&quot;
+and
+&quot;_UID=&quot;) and additional matches for messages from session systemd and messages about coredumps for the specified unit. A match is also added for
+&quot;_SYSTEMD_USER_SLICE=<I>UNIT</I>&quot;, such that if the provided
+<I>UNIT</I>
+is a
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.slice">systemd.slice</A></B>(5)
+unit, all logs of the children of the unit will be logged.
+<P>
+This parameter can be specified multiple times.
+</DL>
+
+<P>
+
+<B>-p</B>, <B>--priority=</B>
+<DL COMPACT><DT id="40"><DD>
+Filter output by message priorities or priority ranges. Takes either a single numeric or textual log level (i.e. between 0/&quot;emerg&quot;
+and 7/&quot;debug&quot;), or a range of numeric/text log levels in the form FROM..TO. The log levels are the usual syslog log levels as documented in
+<B><A HREF="/cgi-bin/man/man2html?3+syslog">syslog</A></B>(3), i.e.
+&quot;emerg&quot;&nbsp;(0),
+&quot;alert&quot;&nbsp;(1),
+&quot;crit&quot;&nbsp;(2),
+&quot;err&quot;&nbsp;(3),
+&quot;warning&quot;&nbsp;(4),
+&quot;notice&quot;&nbsp;(5),
+&quot;info&quot;&nbsp;(6),
+&quot;debug&quot;&nbsp;(7). If a single log level is specified, all messages with this log level or a lower (hence more important) log level are shown. If a range is specified, all messages within the range are shown, including both the start and the end value of the range. This will add
+&quot;PRIORITY=&quot;
+matches for the specified priorities.
+</DL>
+
+<P>
+
+<B>--facility=</B>
+<DL COMPACT><DT id="41"><DD>
+Filter output by syslog facility. Takes a comma-separated list of numbers or facility names. The names are the usual syslog facilities as documented in
+<B><A HREF="/cgi-bin/man/man2html?3+syslog">syslog</A></B>(3).
+<B>--facility=help</B>
+may be used to display a list of known facility names and exit.
+</DL>
+
+<P>
+
+<B>-g</B>, <B>--grep=</B>
+<DL COMPACT><DT id="42"><DD>
+Filter output to entries where the
+<I>MESSAGE=</I>
+field matches the specified regular expression. PERL-compatible regular expressions are used, see
+<B><A HREF="/cgi-bin/man/man2html?3+pcre2pattern">pcre2pattern</A></B>(3)
+for a detailed description of the syntax.
+<P>
+If the pattern is all lowercase, matching is case insensitive. Otherwise, matching is case sensitive. This can be overridden with the
+<B>--case-sensitive</B>
+option, see below.
+</DL>
+
+<P>
+
+<B>--case-sensitive</B><B>[=BOOLEAN]</B>
+<DL COMPACT><DT id="43"><DD>
+Make pattern matching case sensitive or case insenstive.
+</DL>
+
+<P>
+
+<B>-c</B>, <B>--cursor=</B>
+<DL COMPACT><DT id="44"><DD>
+Start showing entries from the location in the journal specified by the passed cursor.
+</DL>
+
+<P>
+
+<B>--cursor-file=</B><B></B><I>FILE</I>
+<DL COMPACT><DT id="45"><DD>
+If
+<I>FILE</I>
+exists and contains a cursor, start showing entries
+<I>after</I>
+this location. Otherwise the show entries according the other given options. At the end, write the cursor of the last entry to
+<I>FILE</I>. Use this option to continually read the journal by sequentially calling
+<B>journalctl</B>.
+</DL>
+
+<P>
+
+<B>--after-cursor=</B>
+<DL COMPACT><DT id="46"><DD>
+Start showing entries from the location in the journal
+<I>after</I>
+the location specified by the passed cursor. The cursor is shown when the
+<B>--show-cursor</B>
+option is used.
+</DL>
+
+<P>
+
+<B>--show-cursor</B>
+<DL COMPACT><DT id="47"><DD>
+The cursor is shown after the last entry after two dashes:
+<P>
+<DL COMPACT><DT id="48"><DD>
+
+
+
+<PRE>
+-- cursor: s=0639...
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+The format of the cursor is private and subject to change.
+</DL>
+
+<P>
+
+<B>-S</B>, <B>--since=</B>, <B>-U</B>, <B>--until=</B>
+<DL COMPACT><DT id="49"><DD>
+Start showing entries on or newer than the specified date, or on or older than the specified date, respectively. Date specifications should be of the format
+&quot;2012-10-30 18:17:16&quot;. If the time part is omitted,
+&quot;00:00:00&quot;
+is assumed. If only the seconds component is omitted,
+&quot;:00&quot;
+is assumed. If the date component is omitted, the current day is assumed. Alternatively the strings
+&quot;yesterday&quot;,
+&quot;today&quot;,
+&quot;tomorrow&quot;
+are understood, which refer to 00:00:00 of the day before the current day, the current day, or the day after the current day, respectively.
+&quot;now&quot;
+refers to the current time. Finally, relative times may be specified, prefixed with
+&quot;-&quot;
+or
+&quot;+&quot;, referring to times before or after the current time, respectively. For complete time and date specification, see
+<B><A HREF="/cgi-bin/man/man2html?7+systemd.time">systemd.time</A></B>(7). Note that
+<B>--output=short-full</B>
+prints timestamps that follow precisely this format.
+</DL>
+
+<P>
+
+<B>-F</B>, <B>--field=</B>
+<DL COMPACT><DT id="50"><DD>
+Print all possible data values the specified field can take in all entries of the journal.
+</DL>
+
+<P>
+
+<B>-N</B>, <B>--fields</B>
+<DL COMPACT><DT id="51"><DD>
+Print all field names currently used in all entries of the journal.
+</DL>
+
+<P>
+
+<B>--system</B>, <B>--user</B>
+<DL COMPACT><DT id="52"><DD>
+Show messages from system services and the kernel (with
+<B>--system</B>). Show messages from service of current user (with
+<B>--user</B>). If neither is specified, show all messages that the user can see.
+</DL>
+
+<P>
+
+<B>-M</B>, <B>--machine=</B>
+<DL COMPACT><DT id="53"><DD>
+Show messages from a running, local container. Specify a container name to connect to.
+</DL>
+
+<P>
+
+<B>-D </B><B></B><I>DIR</I>, <B>--directory=</B><B></B><I>DIR</I>
+<DL COMPACT><DT id="54"><DD>
+Takes a directory path as argument. If specified, journalctl will operate on the specified journal directory
+<I>DIR</I>
+instead of the default runtime and system journal paths.
+</DL>
+
+<P>
+
+<B>--file=</B><B></B><I>GLOB</I>
+<DL COMPACT><DT id="55"><DD>
+Takes a file glob as an argument. If specified, journalctl will operate on the specified journal files matching
+<I>GLOB</I>
+instead of the default runtime and system journal paths. May be specified multiple times, in which case files will be suitably interleaved.
+</DL>
+
+<P>
+
+<B>--root=</B><B></B><I>ROOT</I>
+<DL COMPACT><DT id="56"><DD>
+Takes a directory path as an argument. If specified, journalctl will operate on journal directories and catalog file hierarchy underneath the specified directory instead of the root directory (e.g.
+<B>--update-catalog</B>
+will create
+<I>ROOT</I>/var/lib/systemd/catalog/database, and journal files under
+<I>ROOT</I>/run/journal
+or
+<I>ROOT</I>/var/log/journal
+will be displayed).
+</DL>
+
+<P>
+
+<B>--namespace=</B><B></B><I>NAMESPACE</I>
+<DL COMPACT><DT id="57"><DD>
+Takes a journal namespace identifier string as argument. If not specified the data collected by the default namespace is shown. If specified shows the log data of the specified namespace instead. If the namespace is specified as
+&quot;*&quot;
+data from all namespaces is shown, interleaved. If the namespace identifier is prefixed with
+&quot;+&quot;
+data from the specified namespace and the default namespace is shown, interleaved, but no other. For details about journal namespaces see
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-journald.service">systemd-journald.service</A></B>(8).
+</DL>
+
+<P>
+
+<B>--header</B>
+<DL COMPACT><DT id="58"><DD>
+Instead of showing journal contents, show internal header information of the journal fields accessed.
+</DL>
+
+<P>
+
+<B>--disk-usage</B>
+<DL COMPACT><DT id="59"><DD>
+Shows the current disk usage of all journal files. This shows the sum of the disk usage of all archived and active journal files.
+</DL>
+
+<P>
+
+<B>--vacuum-size=</B>, <B>--vacuum-time=</B>, <B>--vacuum-files=</B>
+<DL COMPACT><DT id="60"><DD>
+Removes the oldest archived journal files until the disk space they use falls below the specified size (specified with the usual
+&quot;K&quot;,
+&quot;M&quot;,
+&quot;G&quot;
+and
+&quot;T&quot;
+suffixes), or all archived journal files contain no data older than the specified timespan (specified with the usual
+&quot;s&quot;,
+&quot;m&quot;,
+&quot;h&quot;,
+&quot;days&quot;,
+&quot;months&quot;,
+&quot;weeks&quot;
+and
+&quot;years&quot;
+suffixes), or no more than the specified number of separate journal files remain. Note that running
+<B>--vacuum-size=</B>
+has only an indirect effect on the output shown by
+<B>--disk-usage</B>, as the latter includes active journal files, while the vacuuming operation only operates on archived journal files. Similarly,
+<B>--vacuum-files=</B>
+might not actually reduce the number of journal files to below the specified number, as it will not remove active journal files.
+<P>
+<B>--vacuum-size=</B>,
+<B>--vacuum-time=</B>
+and
+<B>--vacuum-files=</B>
+may be combined in a single invocation to enforce any combination of a size, a time and a number of files limit on the archived journal files. Specifying any of these three parameters as zero is equivalent to not enforcing the specific limit, and is thus redundant.
+<P>
+These three switches may also be combined with
+<B>--rotate</B>
+into one command. If so, all active files are rotated first, and the requested vacuuming operation is executed right after. The rotation has the effect that all currently active files are archived (and potentially new, empty journal files opened as replacement), and hence the vacuuming operation has the greatest effect as it can take all log data written so far into account.
+</DL>
+
+<P>
+
+<B>--list-catalog </B><B>[</B><I>128-bit-ID...</I>]<B> </B>
+<DL COMPACT><DT id="61"><DD>
+List the contents of the message catalog as a table of message IDs, plus their short description strings.
+<P>
+If any
+<I>128-bit-ID</I>s are specified, only those entries are shown.
+</DL>
+
+<P>
+
+<B>--dump-catalog </B><B>[</B><I>128-bit-ID...</I>]<B> </B>
+<DL COMPACT><DT id="62"><DD>
+Show the contents of the message catalog, with entries separated by a line consisting of two dashes and the ID (the format is the same as
+.catalog
+files).
+<P>
+If any
+<I>128-bit-ID</I>s are specified, only those entries are shown.
+</DL>
+
+<P>
+
+<B>--update-catalog</B>
+<DL COMPACT><DT id="63"><DD>
+Update the message catalog index. This command needs to be executed each time new catalog files are installed, removed, or updated to rebuild the binary catalog index.
+</DL>
+
+<P>
+
+<B>--setup-keys</B>
+<DL COMPACT><DT id="64"><DD>
+Instead of showing journal contents, generate a new key pair for Forward Secure Sealing (FSS). This will generate a sealing key and a verification key. The sealing key is stored in the journal data directory and shall remain on the host. The verification key should be stored externally. Refer to the
+<B>Seal=</B>
+option in
+<B><A HREF="/cgi-bin/man/man2html?5+journald.conf">journald.conf</A></B>(5)
+for information on Forward Secure Sealing and for a link to a refereed scholarly paper detailing the cryptographic theory it is based on.
+</DL>
+
+<P>
+
+<B>--force</B>
+<DL COMPACT><DT id="65"><DD>
+When
+<B>--setup-keys</B>
+is passed and Forward Secure Sealing (FSS) has already been configured, recreate FSS keys.
+</DL>
+
+<P>
+
+<B>--interval=</B>
+<DL COMPACT><DT id="66"><DD>
+Specifies the change interval for the sealing key when generating an FSS key pair with
+<B>--setup-keys</B>. Shorter intervals increase CPU consumption but shorten the time range of undetectable journal alterations. Defaults to 15min.
+</DL>
+
+<P>
+
+<B>--verify</B>
+<DL COMPACT><DT id="67"><DD>
+Check the journal file for internal consistency. If the file has been generated with FSS enabled and the FSS verification key has been specified with
+<B>--verify-key=</B>, authenticity of the journal file is verified.
+</DL>
+
+<P>
+
+<B>--verify-key=</B>
+<DL COMPACT><DT id="68"><DD>
+Specifies the FSS verification key to use for the
+<B>--verify</B>
+operation.
+</DL>
+
+<P>
+
+<B>--sync</B>
+<DL COMPACT><DT id="69"><DD>
+Asks the journal daemon to write all yet unwritten journal data to the backing file system and synchronize all journals. This call does not return until the synchronization operation is complete. This command guarantees that any log messages written before its invocation are safely stored on disk at the time it returns.
+</DL>
+
+<P>
+
+<B>--flush</B>
+<DL COMPACT><DT id="70"><DD>
+Asks the journal daemon to flush any log data stored in
+/run/log/journal/
+into
+/var/log/journal/, if persistent storage is enabled. This call does not return until the operation is complete. Note that this call is idempotent: the data is only flushed from
+/run/log/journal/
+into
+/var/log/journal
+once during system runtime (but see
+<B>--relinquish-var</B>
+below), and this command exits cleanly without executing any operation if this has already happened. This command effectively guarantees that all data is flushed to
+/var/log/journal
+at the time it returns.
+</DL>
+
+<P>
+
+<B>--relinquish-var</B>
+<DL COMPACT><DT id="71"><DD>
+Asks the journal daemon for the reverse operation to
+<B>--flush</B>: if requested the daemon will write further log data to
+/run/log/journal/
+and stops writing to
+/var/log/journal/. A subsequent call to
+<B>--flush</B>
+causes the log output to switch back to
+/var/log/journal/, see above.
+</DL>
+
+<P>
+
+<B>--smart-relinquish-var</B>
+<DL COMPACT><DT id="72"><DD>
+Similar to
+<B>--relinquish-var</B>
+but executes no operation if the root file system and
+/var/lib/journal/
+reside on the same mount point. This operation is used during system shutdown in order to make the journal daemon stop writing data to
+/var/log/journal/
+in case that directory is located on a mount point that needs to be unmounted.
+</DL>
+
+<P>
+
+<B>--rotate</B>
+<DL COMPACT><DT id="73"><DD>
+Asks the journal daemon to rotate journal files. This call does not return until the rotation operation is complete. Journal file rotation has the effect that all currently active journal files are marked as archived and renamed, so that they are never written to in future. New (empty) journal files are then created in their place. This operation may be combined with
+<B>--vacuum-size=</B>,
+<B>--vacuum-time=</B>
+and
+<B>--vacuum-file=</B>
+into a single command, see above.
+</DL>
+
+<P>
+
+<B>-h</B>, <B>--help</B>
+<DL COMPACT><DT id="74"><DD>
+Print a short help text and exit.
+</DL>
+
+<P>
+
+<B>--version</B>
+<DL COMPACT><DT id="75"><DD>
+Print a short version string and exit.
+</DL>
+
+<P>
+
+<B>--no-pager</B>
+<DL COMPACT><DT id="76"><DD>
+Do not pipe output into a pager.
+</DL>
+
+<A NAME="lbAF">&nbsp;</A>
+<H2>EXIT STATUS</H2>
+
+<P>
+
+On success, 0 is returned; otherwise, a non-zero failure code is returned.
+<A NAME="lbAG">&nbsp;</A>
+<H2>ENVIRONMENT</H2>
+
+<P>
+
+<I>$SYSTEMD_PAGER</I>
+<DL COMPACT><DT id="77"><DD>
+Pager to use when
+<B>--no-pager</B>
+is not given; overrides
+<I>$PAGER</I>. If neither
+<I>$SYSTEMD_PAGER</I>
+nor
+<I>$PAGER</I>
+are set, a set of well-known pager implementations are tried in turn, including
+<B><A HREF="/cgi-bin/man/man2html?1+less">less</A></B>(1)
+and
+<B><A HREF="/cgi-bin/man/man2html?1+more">more</A></B>(1), until one is found. If no pager implementation is discovered no pager is invoked. Setting this environment variable to an empty string or the value
+&quot;cat&quot;
+is equivalent to passing
+<B>--no-pager</B>.
+</DL>
+
+<P>
+
+<I>$SYSTEMD_LESS</I>
+<DL COMPACT><DT id="78"><DD>
+Override the options passed to
+<B>less</B>
+(by default
+&quot;FRSXMK&quot;).
+<P>
+Users might want to change two options in particular:
+<P>
+
+<B>K</B>
+<DL COMPACT><DT id="79"><DD>
+This option instructs the pager to exit immediately when
+Ctrl+C
+is pressed. To allow
+<B>less</B>
+to handle
+Ctrl+C
+itself to switch back to the pager command prompt, unset this option.
+<P>
+If the value of
+<I>$SYSTEMD_LESS</I>
+does not include
+&quot;K&quot;, and the pager that is invoked is
+<B>less</B>,
+Ctrl+C
+will be ignored by the executable, and needs to be handled by the pager.
+</DL>
+
+<P>
+
+<B>X</B>
+<DL COMPACT><DT id="80"><DD>
+This option instructs the pager to not send termcap initialization and deinitialization strings to the terminal. It is set by default to allow command output to remain visible in the terminal even after the pager exits. Nevertheless, this prevents some pager functionality from working, in particular paged output cannot be scrolled with the mouse.
+</DL>
+
+<P>
+See
+<B><A HREF="/cgi-bin/man/man2html?1+less">less</A></B>(1)
+for more discussion.
+</DL>
+
+<P>
+
+<I>$SYSTEMD_LESSCHARSET</I>
+<DL COMPACT><DT id="81"><DD>
+Override the charset passed to
+<B>less</B>
+(by default
+&quot;utf-8&quot;, if the invoking terminal is determined to be UTF-8 compatible).
+</DL>
+
+<P>
+
+<I>$SYSTEMD_COLORS</I>
+<DL COMPACT><DT id="82"><DD>
+The value must be a boolean. Controls whether colorized output should be generated. This can be specified to override the decision that
+<B>systemd</B>
+makes based on
+<I>$TERM</I>
+and what the console is connected to.
+</DL>
+
+<P>
+
+<I>$SYSTEMD_URLIFY</I>
+<DL COMPACT><DT id="83"><DD>
+The value must be a boolean. Controls whether clickable links should be generated in the output for terminal emulators supporting this. This can be specified to override the decision that
+<B>systemd</B>
+makes based on
+<I>$TERM</I>
+and other conditions.
+</DL>
+
+<A NAME="lbAH">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+<P>
+
+Without arguments, all collected logs are shown unfiltered:
+<P>
+<DL COMPACT><DT id="84"><DD>
+
+
+
+<PRE>
+journalctl
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+With one match specified, all entries with a field matching the expression are shown:
+<P>
+<DL COMPACT><DT id="85"><DD>
+
+
+
+<PRE>
+journalctl _SYSTEMD_UNIT=avahi-daemon.service
+journalctl _SYSTEMD_CGROUP=/user.slice/user-42.slice/session-c1.scope
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+If two different fields are matched, only entries matching both expressions at the same time are shown:
+<P>
+<DL COMPACT><DT id="86"><DD>
+
+
+
+<PRE>
+journalctl _SYSTEMD_UNIT=avahi-daemon.service _PID=28097
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+If two matches refer to the same field, all entries matching either expression are shown:
+<P>
+<DL COMPACT><DT id="87"><DD>
+
+
+
+<PRE>
+journalctl _SYSTEMD_UNIT=avahi-daemon.service _SYSTEMD_UNIT=dbus.service
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+If the separator
+&quot;+&quot;
+is used, two expressions may be combined in a logical OR. The following will show all messages from the Avahi service process with the PID 28097 plus all messages from the D-Bus service (from any of its processes):
+<P>
+<DL COMPACT><DT id="88"><DD>
+
+
+
+<PRE>
+journalctl _SYSTEMD_UNIT=avahi-daemon.service _PID=28097 + _SYSTEMD_UNIT=dbus.service
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+To show all fields emitted
+<I>by</I>
+a unit and
+<I>about</I>
+the unit, option
+<B>-u</B>/<B>--unit=</B>
+should be used.
+<B>journalctl -u </B><B></B><I>name</I>
+expands to a complex filter similar to
+<P>
+<DL COMPACT><DT id="89"><DD>
+
+
+
+<PRE>
+_SYSTEMD_UNIT=<I>name</I>.service
+  + UNIT=<I>name</I>.service _PID=1
+  + OBJECT_SYSTEMD_UNIT=<I>name</I>.service _UID=0
+  + COREDUMP_UNIT=<I>name</I>.service _UID=0 MESSAGE_ID=fc2e22bc6ee647b6b90729ab34a250b1
+    
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+(see
+<B><A HREF="/cgi-bin/man/man2html?7+systemd.journal-fields">systemd.journal-fields</A></B>(7)
+for an explanation of those patterns).
+<P>
+
+Show all logs generated by the D-Bus executable:
+<P>
+<DL COMPACT><DT id="90"><DD>
+
+
+
+<PRE>
+journalctl /usr/bin/dbus-daemon
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+Show all kernel logs from previous boot:
+<P>
+<DL COMPACT><DT id="91"><DD>
+
+
+
+<PRE>
+journalctl -k -b -1
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+Show a live log display from a system service
+apache.service:
+<P>
+<DL COMPACT><DT id="92"><DD>
+
+
+
+<PRE>
+journalctl -f -u apache
+</PRE>
+
+</DL>
+
+
+
+
+<A NAME="lbAI">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-journald.service">systemd-journald.service</A></B>(8),
+<B><A HREF="/cgi-bin/man/man2html?1+systemctl">systemctl</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?1+coredumpctl">coredumpctl</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?7+systemd.journal-fields">systemd.journal-fields</A></B>(7),
+<B><A HREF="/cgi-bin/man/man2html?5+journald.conf">journald.conf</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?7+systemd.time">systemd.time</A></B>(7),
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-journal-remote.service">systemd-journal-remote.service</A></B>(8),
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-journal-upload.service">systemd-journal-upload.service</A></B>(8)
+<A NAME="lbAJ">&nbsp;</A>
+<H2>NOTES</H2>
+
+<DL COMPACT>
+<DT id="93"> 1.<DD>
+Journal Export Format
+<DL COMPACT><DT id="94"><DD>
+<A HREF="https://www.freedesktop.org/wiki/Software/systemd/export">https://www.freedesktop.org/wiki/Software/systemd/export</A>
+</DL>
+
+<DT id="95"> 2.<DD>
+Journal JSON Format
+<DL COMPACT><DT id="96"><DD>
+<A HREF="https://www.freedesktop.org/wiki/Software/systemd/json">https://www.freedesktop.org/wiki/Software/systemd/json</A>
+</DL>
+
+<DT id="97"> 3.<DD>
+Server-Sent Events
+<DL COMPACT><DT id="98"><DD>
+<A HREF="https://developer.mozilla.org/en-US/docs/Server-sent_events/Using_server-sent_events">https://developer.mozilla.org/en-US/docs/Server-sent_events/Using_server-sent_events</A>
+</DL>
+
+<DT id="99"> 4.<DD>
+JavaScript Object Notation (JSON) Text Sequences
+<DL COMPACT><DT id="100"><DD>
+<A HREF="https://tools.ietf.org/html/rfc7464">https://tools.ietf.org/html/rfc7464</A>
+</DL>
+
+<DT id="101"> 5.<DD>
+Message Catalog Developer Documentation
+<DL COMPACT><DT id="102"><DD>
+<A HREF="https://www.freedesktop.org/wiki/Software/systemd/catalog">https://www.freedesktop.org/wiki/Software/systemd/catalog</A>
+</DL>
+
+<P>
+</DL>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="103"><A HREF="#lbAB">NAME</A><DD>
+<DT id="104"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="105"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="106"><A HREF="#lbAE">OPTIONS</A><DD>
+<DT id="107"><A HREF="#lbAF">EXIT STATUS</A><DD>
+<DT id="108"><A HREF="#lbAG">ENVIRONMENT</A><DD>
+<DT id="109"><A HREF="#lbAH">EXAMPLES</A><DD>
+<DT id="110"><A HREF="#lbAI">SEE ALSO</A><DD>
+<DT id="111"><A HREF="#lbAJ">NOTES</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:17 GMT, March 31, 2021
+</BODY>
+</HTML>

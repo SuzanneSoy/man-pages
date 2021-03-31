@@ -1,0 +1,203 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SD_JOURNAL_NEXT</TITLE>
+</HEAD><BODY>
+<H1>SD_JOURNAL_NEXT</H1>
+Section: sd_journal_next (3)<BR>Updated: <BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+sd_journal_next, sd_journal_previous, sd_journal_next_skip, sd_journal_previous_skip, SD_JOURNAL_FOREACH, SD_JOURNAL_FOREACH_BACKWARDS - Advance or set back the read pointer in the journal
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+<B>
+</B><PRE>
+#include &lt;<A HREF="file:///usr/include/systemd/sd-journal.h">systemd/sd-journal.h</A>&gt;
+</PRE>
+
+
+<DL COMPACT>
+<DT id="1">
+<B>int sd_journal_next(sd_journal&nbsp;*</B><I>j</I><B>);</B>
+
+<DT id="2">
+<B>int sd_journal_previous(sd_journal&nbsp;*</B><I>j</I><B>);</B>
+
+<DT id="3">
+<B>int sd_journal_next_skip(sd_journal&nbsp;*</B><I>j</I><B>, uint64_t&nbsp;</B><I>skip</I><B>);</B>
+
+<DT id="4">
+<B>int sd_journal_previous_skip(sd_journal&nbsp;*</B><I>j</I><B>, uint64_t&nbsp;</B><I>skip</I><B>);</B>
+
+<DT id="5">
+<B>SD_JOURNAL_FOREACH(sd_journal&nbsp;*</B><I>j</I><B>);</B>
+
+<DT id="6">
+<B>SD_JOURNAL_FOREACH_BACKWARDS(sd_journal&nbsp;*</B><I>j</I><B>);</B>
+
+</DL>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+<B>sd_journal_next()</B>
+<DD>advances the read pointer into the journal by one entry. The only argument taken is a journal context object as allocated via
+<B><A HREF="/cgi-bin/man/man2html?3+sd_journal_open">sd_journal_open</A></B>(3). After successful invocation the entry may be read with functions such as
+<B><A HREF="/cgi-bin/man/man2html?3+sd_journal_get_data">sd_journal_get_data</A></B>(3).
+<P>
+
+Similarly,
+<B>sd_journal_previous()</B>
+sets the read pointer back one entry.
+<P>
+
+<B>sd_journal_next_skip()</B>
+and
+<B>sd_journal_previous_skip()</B>
+advance/set back the read pointer by multiple entries at once, as specified in the
+<I>skip</I>
+parameter.
+<P>
+
+The journal is strictly ordered by reception time, and hence advancing to the next entry guarantees that the entry then pointing to is later in time than then previous one, or has the same timestamp.
+<P>
+
+Note that
+<B><A HREF="/cgi-bin/man/man2html?3+sd_journal_get_data">sd_journal_get_data</A></B>(3)
+and related calls will fail unless
+<B>sd_journal_next()</B>
+has been invoked at least once in order to position the read pointer on a journal entry.
+<P>
+
+Note that the
+<B>SD_JOURNAL_FOREACH()</B>
+macro may be used as a wrapper around
+<B><A HREF="/cgi-bin/man/man2html?3+sd_journal_seek_head">sd_journal_seek_head</A></B>(3)
+and
+<B>sd_journal_next()</B>
+in order to make iterating through the journal easier. See below for an example. Similarly,
+<B>SD_JOURNAL_FOREACH_BACKWARDS()</B>
+may be used for iterating the journal in reverse order.
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+<P>
+
+The four calls return the number of entries advanced/set back on success or a negative errno-style error code. When the end or beginning of the journal is reached, a number smaller than requested is returned. More specifically, if
+<B>sd_journal_next()</B>
+or
+<B>sd_journal_previous()</B>
+reach the end/beginning of the journal they will return 0, instead of 1 when they are successful. This should be considered an EOF marker.
+<A NAME="lbAF">&nbsp;</A>
+<H2>NOTES</H2>
+
+<P>
+
+All functions listed here are thread-agnostic and only a single specific thread may operate on a given object during its entire lifetime. It's safe to allocate multiple independent objects and use each from a specific thread in parallel. However, it's not safe to allocate such an object in one thread, and operate or free it from any other, even if locking is used to ensure these threads don't operate on it at the very same time.
+<P>
+
+These APIs are implemented as a shared library, which can be compiled and linked to with the
+<B>libsystemd</B>&nbsp;<B><A HREF="/cgi-bin/man/man2html?1+pkg-config">pkg-config</A></B>(1)
+file.
+<A NAME="lbAG">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+<P>
+
+Iterating through the journal:
+<P>
+<DL COMPACT><DT id="7"><DD>
+
+
+
+<PRE>
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/string.h">string.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/systemd/sd-journal.h">systemd/sd-journal.h</A>&gt;
+
+int main(int argc, char *argv[]) {
+  int r;
+  sd_journal *j;
+  r = sd_journal_open(&amp;j, SD_JOURNAL_LOCAL_ONLY);
+  if (r &lt; 0) {
+    fprintf(stderr, &quot;Failed to open journal: %s\n&quot;, strerror(-r));
+    return 1;
+  }
+  SD_JOURNAL_FOREACH(j) {
+    const char *d;
+    size_t l;
+
+    r = sd_journal_get_data(j, &quot;MESSAGE&quot;, (const void **)&amp;d, &amp;l);
+    if (r &lt; 0) {
+      fprintf(stderr, &quot;Failed to read message field: %s\n&quot;, strerror(-r));
+      continue;
+    }
+
+    printf(&quot;%.*s\n&quot;, (int) l, d);
+  }
+  sd_journal_close(j);
+  return 0;
+}
+</PRE>
+
+</DL>
+
+
+
+
+<A NAME="lbAH">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?3+sd-journal">sd-journal</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_journal_open">sd_journal_open</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_journal_get_data">sd_journal_get_data</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_journal_get_realtime_usec">sd_journal_get_realtime_usec</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_journal_get_cursor">sd_journal_get_cursor</A></B>(3)
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="8"><A HREF="#lbAB">NAME</A><DD>
+<DT id="9"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="10"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="11"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DT id="12"><A HREF="#lbAF">NOTES</A><DD>
+<DT id="13"><A HREF="#lbAG">EXAMPLES</A><DD>
+<DT id="14"><A HREF="#lbAH">SEE ALSO</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:55 GMT, March 31, 2021
+</BODY>
+</HTML>

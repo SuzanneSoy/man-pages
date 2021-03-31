@@ -1,0 +1,389 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of dpkg-shlibdeps</TITLE>
+</HEAD><BODY>
+<H1>dpkg-shlibdeps</H1>
+Section: dpkg-suite (1)<BR>Updated: 2020-03-23<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAAM</H2>
+
+dpkg-shlibdeps - genereert substitutievariabelen over
+afhankelijkheidsrelaties tot gedeelde bibliotheken
+<A NAME="lbAC">&nbsp;</A>
+<H2>OVERZICHT</H2>
+
+<B>dpkg-shlibdeps</B> [<I>optie</I>...] [<B>-e</B>]<I>programma</I> [<I>optie</I>...]
+<A NAME="lbAD">&nbsp;</A>
+<H2>BESCHRIJVING</H2>
+
+<B>dpkg-shlibdeps</B> berekent de afhankelijkheidsrelaties tot gedeelde
+bibliotheken voor de programma's die genoemd worden in zijn argumenten. De
+afhankelijkheden worden in het bestand met substitutievariabelen
+<B>debian/substvars</B> toegevoegd als variabelenaam
+<B>shlibs:</B><I>afhankelijkheidsveld</I>, waarbij <I>afhankelijkheidsveld</I> de naam
+van een afhankelijkheidsveld is. Eventuele andere variabelen die met
+<B>shlibs:</B> beginnen worden uit het bestand verwijderd.
+<P>
+
+<B>dpkg-shlibdeps</B> heeft twee mogelijke informatiebronnen om
+afhankelijkheidsinformatie te genereren, ofwel <I>symbols</I>-bestanden ofwel
+<I>shlibs</I>-bestanden. Voor elke binair pakket dat <B>dpkg-shlibdeps</B>
+analyseert, zoekt het de lijst van bibliotheken op waarmee het gelinkt
+is. Vervolgens zoekt het voor iedere bibliotheek ofwel het
+<I>symbols</I>-bestand of het <I>shlibs</I>-bestand (indien het eerste niet bestaat
+of indien debian/shlibs.local de relevante afhankelijkheidsinformatie bevat)
+op. Beide bestanden worden verondersteld geleverd te worden door het
+bibliotheekpakket en zouden dus te vinden moeten zijn als
+/var/lib/dpkg/info/<I>pakket</I>.<I>symbols</I> of
+/var/lib/dpkg/info/<I>pakket</I>.<I>shlibs</I>. De naam van het pakket wordt in twee
+stappen gevonden: het bibliotheekbestand opzoeken op het systeem (er wordt
+in dezelfde mappen gezocht als die welke <B>ld.so</B> zou gebruiken) en dan
+<B>dpkg -S </B><I>bibliotheekbestand</I> gebruiken om het pakket op te zoeken dat de
+bibliotheek levert.
+<A NAME="lbAE">&nbsp;</A>
+<H3>Symbolenbestanden</H3>
+
+Symbolenbestanden bevatten fijnmazige afhankelijkheidsinformatie door voor
+ieder symbool dat de bibliotheek exporteert, de minimumvereiste op te
+geven. Het script tracht een symbolenbestand dat bij een bibliotheekpakket
+hoort op de volgende plaatsen te vinden (het eerste dat gevonden wordt,
+wordt gebruikt):
+<DL COMPACT>
+<DT id="1">debian/*/DEBIAN/symbols<DD>
+Informatie over gedeelde bibliotheken die gegenereerd werd door het huidige
+bouwproces dat ook <B>dpkg-shlibdeps</B> aanriep. Zij worden gegenereerd door
+<B><A HREF="/cgi-bin/man/man2html?1+dpkg-gensymbols">dpkg-gensymbols</A></B>(1). Ze worden enkel gebruikt als de bibliotheek
+aangetroffen wordt in de bouwboom van een pakket. Het bestand symbols in die
+bouwboom heeft voorrang op symbolenbestanden van andere binaire pakketten.
+<DT id="2">/etc/dpkg/symbols/<I>pakket</I>.symbols.<I>arch</I><DD>
+<DT id="3">/etc/dpkg/symbols/<I>pakket</I>.symbols<DD>
+Systeemspecifieke vervangingsinformatie over afhankelijkheidsrelaties tot
+gedeelde bibliotheken. <I>arch</I> is de architectuur van het huidige systeem
+(verkregen door <B>dpkg-architecture -qDEB_HOST_ARCH</B>).
+<DT id="4">Uitvoer van "<B>dpkg-query --control-path</B> <I>pakket</I> symbols"<DD>
+Door een pakket verstrekte informatie over afhankelijkheidsrelaties tot
+gedeelde bibliotheken. Tenzij anders bepaald door <B>--admindir</B>, zijn deze
+bestanden te vinden in /var/lib/dpkg.
+</DL>
+<P>
+
+Tijdens het doorzoeken van de door al de programma's gebruikte symbolen,
+onthoudt <B>dpkg-shlibdeps</B> van elke bibliotheek de (hoogste) minimale versie
+die nodig is. Op het eind van het proces is het in staat voor elke gebruikte
+bibliotheek uit te schrijven wat de minimale vereiste is (in de
+veronderstelling dat de informatie uit de <I>symbols</I>-bestanden accuraat is).
+<P>
+
+Bij wijze van beschermende maatregel kan een symbols-bestand een
+meta-informatieveld <B>Build-Depends-Pakket</B> bevatten. Dan zal
+<B>dpkg-shlibdeps</B> de door het corresponderende pakket vereiste minimale
+versie halen uit het veld <B>Build-Depends</B> en deze versie gebruiken als ze
+hoger is dan de minimale versie die berekend werd via het doorzoeken van
+symbolen.
+<A NAME="lbAF">&nbsp;</A>
+<H3>Shlibs-bestanden</H3>
+
+Shlibs-bestanden koppelen rechtstreeks een bibliotheek aan een vereiste
+(zonder naar de symbolen te kijken). Dit is dus dikwijls strikter dan echt
+nodig, maar erg veilig en gemakkelijk te hanteren.
+<P>
+
+De afhankelijkheidsrelaties tot een bibliotheek worden op verschillende
+plaatsen opgezocht. Het eerste bestand dat informatie biedt over de
+bibliotheek in kwestie, wordt gebruikt:
+<DL COMPACT>
+<DT id="5">debian/shlibs.local<DD>
+Pakket-eigen vervangende informatie over afhankelijkheidsrelaties tot
+gedeelde bibliotheken.
+<DT id="6">/etc/dpkg/shlibs.override<DD>
+Systeemspecifieke vervangende informatie over afhankelijkheidsrelaties tot
+gedeelde bibliotheken.
+<DT id="7">debian/*/DEBIAN/shlibs<DD>
+Informatie over gedeelde bibliotheken die gegenereerd werd door het huidige
+bouwproces dat ook <B>dpkg-shlibdeps</B> inriep. Ze wordt enkel gebruikt als de
+bibliotheek aangetroffen wordt in de bouwboom van het pakket. Het
+shlibs-bestand in die bouwboom heeft voorrang op shlibs-bestanden van andere
+binaire pakketten.
+<DT id="8">Uitvoer van "<B>dpkg-query --control-path</B> <I>pakket</I> shlibs"<DD>
+Door een pakket verstrekte informatie over afhankelijkheidsrelaties tot
+gedeelde bibliotheken. Tenzij anders bepaald door <B>--admindir</B>, zijn deze
+bestanden te vinden in /var/lib/dpkg.
+<DT id="9">/etc/dpkg/shlibs.default<DD>
+Systeemspecifieke standaardinformatie over afhankelijkheidsrelaties tot
+gedeelde bibliotheken.
+</DL>
+<P>
+
+De uitgelichte afhankelijkheden worden dan rechtstreeks gebruikt (behalve
+als ze uitgefilterd werden omdat ze als duplicaten onderkend werden of als
+zwakker dan een andere afhankelijkheid).
+<A NAME="lbAG">&nbsp;</A>
+<H2>OPTIES</H2>
+
+Argumenten die geen opties zijn, worden door <B>dpkg-shlibdeps</B>
+ge&iuml;nterpreteerd als namen van programma's, net alsof ze opgegeven werden als
+<B>-e</B><I>programma</I>.
+<DL COMPACT>
+<DT id="10"><B>-e</B><I>programma</I><DD>
+Voeg de gepaste afhankelijkheidsrelaties tot gedeelde bibliotheken toe die
+nodig zijn voor <I>programma</I>. Deze optie kan meermaals gebruikt worden.
+<DT id="11"><B>-l</B><I>map</I><DD>
+Voeg <I>map</I> vooraan toe aan de lijst van mappen waarin naar particuliere
+gedeelde bibliotheken gezocht moet worden (sinds dpkg 1.17.0). Deze optie
+kan meermaals gebruikt worden.
+<P>
+Opmerking: gebruik deze optie in de plaats van het instellen van
+<B>LD_LIBRARY_PATH</B>, aangezien die omgevingsvariabele gebruikt wordt om de
+runtime linker aan te sturen. Daarvan misbruik maken om de paden van
+gedeelde bibliotheken in te stellen tijdens het bouwen van het programma,
+kan problematisch zijn, bijvoorbeeld bij het cross-compileren.
+<DT id="12"><B>-d</B><I>afhankelijkheidsveld</I><DD>
+Geef afhankelijkheidsinformatie op die toegevoegd moet worden aan het
+afhankelijkheidsveld <I>afhankelijkheidsveld</I> van het bestand control. (De
+afhankelijkheidsinformatie voor dit veld wordt in de variabele
+<B>shlibs:</B><I>dependency-field</I> geplaatst.)
+<P>
+De optie <B>-d</B><I>afhankelijkheidsveld</I> heeft uitwerking voor alle programma's
+na de optie tot aan het volgende <B>-d</B><I>afhankelijkheidsveld</I>. Het standaard
+<I>afhankelijkheidsveld</I> is <B>Depends</B>.
+<P>
+Indien hetzelfde afhankelijkheidsitem (of set van alternatieven) te vinden
+is in meer dan een van de herkende namen voor afhankelijkheidsvelden
+<B>Pre-Depends</B>, <B>Depends</B>, <B>Recommends</B>, <B>Enhances</B> of <B>Suggests</B>, zal
+<B>dpkg-shlibdeps</B> de afhankelijkheid automatisch uit alle velden
+verwijderen, behalve uit het veld dat de belangrijkste afhankelijkheid
+vertegenwoordigt.
+<DT id="13"><B>-p</B><I>variabelenaamprefix</I><DD>
+Begin substitutievariabelen met <I>variabelenaamprefix</I><B>:</B> in plaats van met
+<B>shlibs:</B>. Op dezelfde wijze worden eventuele substitutievariabelen die
+beginnen met <I>variabelenaamprefix</I><B>:</B> (in plaats van met <B>shlibs:</B>),
+verwijderd uit het bestand met substitutievariabelen.
+<DT id="14"><B>-O</B>[<I>bestandsnaam</I>]<DD>
+Geef de instellingen in verband met substitutievariabelen weer op de
+standaarduitvoer (of in <I>bestandsnaam</I> als die opgegeven werd; sinds dpkg
+1.17.2), eerder dan ze toe te voegen aan het bestand met
+substitutievariabelen (standaard is dat <B>debian/substvars</B>).
+<DT id="15"><B>-t</B><I>type</I><DD>
+Geef de voorrang aan informatie over afhankelijkheidsrelaties tot gedeelde
+bibliotheken die gemarkeerd werd als geldend voor het opgegeven
+pakkettype. Indien er geen gemarkeerde informatie te vinden is, wordt
+teruggevallen op niet-gemarkeerde informatie. Het standaardpakkettype is
+<B>deb</B>. Informatie over afhankelijkheidsrelaties tot gedeelde bibliotheken
+wordt gemarkeerd als geldend voor een bepaald type door ze te laten
+voorafgaan door de naam van dat type, een dubbele punt en witruimte.
+<DT id="16"><B>-L</B><I>lokaal-shlibs-bestand</I><DD>
+Lees vervangende informatie over afhankelijkheidsrelaties tot gedeelde
+bibliotheken uit <I>lokaal-shlibs-bestand</I> in plaats van uit
+<B>debian/shlibs.local</B>.
+<DT id="17"><B>-T</B><I>substvars-bestand</I><DD>
+Schrijf substitutievariabelen neer in <I>substvars-bestand</I>. Standaard is dat
+<B>debian/substvars</B>.
+<DT id="18"><B>-v</B><DD>
+Schakel de breedsprakige modus in (sinds dpkg 1.14.8). Talrijke berichten
+worden weergegeven om uit te leggen wat <B>dpkg-shlibdeps</B> doet.
+<DT id="19"><B>-x</B><I>pakket</I><DD>
+Sluit het pakket uit van de gegenereerde afhankelijkheden (sinds dpkg
+1.14.8). Dit is nuttig om een afhankelijkheid van zichzelf te vermijden voor
+pakketten die binaire bestanden van het type ELF aanleveren (programma's of
+bibliotheekuitbreidingen), waarbij die binaire bestanden gebruik maken van
+een bibliotheek die in hetzelfde pakket te vinden is. Deze optie kan
+meermaals gebruikt worden om meerdere pakketten uit te sluiten.
+<DT id="20"><B>-S</B><I>pakket-bouwmap</I><DD>
+Zoek eerst in <I>pakket-bouwmap</I> bij het zoeken naar een bibliotheek (sinds
+dpkg 1.14.15). Dit is nuttig als het broncodepakket meerdere varianten van
+dezelfde bibliotheek bouwt en u zeker wilt zijn dat u de afhankelijkheden
+krijgt van een specifiek binair pakket. U kunt deze optie meermaals
+gebruiken: mappen zullen in de opgegeven volgorde doorzocht worden vooraleer
+gezocht wordt in de mappen van andere binaire pakketten.
+<DT id="21"><B>-I</B><I>pakketbouwmap</I><DD>
+Sla <I>pakketbouwmap</I> over bij het zoeken naar shlibs-, symbolen- en gedeelde
+bibliotheek-bestanden (sinds dpkg 1.18.5). U kunt deze optie meermaals
+gebruiken.
+<DT id="22"><B>--ignore-missing-info</B><DD>
+Beschouw het niet als een mislukking als voor een gedeelde bibliotheek geen
+afhankelijkheidsinformatie gevonden kan worden (sinds dpkg 1.14.8). Het
+wordt afgeraden om deze optie te gebruiken. Alle bibliotheken zouden
+afhankelijkheidsinformatie moeten verschaffen (ofwel via shlibs-bestanden of
+via symbolenbestanden), zelfs als die nog niet door andere pakketten
+gebruikt wordt.
+<DT id="23"><B>--warnings=</B><I>waarde</I><DD>
+<I>waarde</I> is een bit-veld dat aangeeft welke set waarschuwingen
+<B>dpkg-shlibdeps</B> kan geven (sinds dpkg 1.14.17). Bit 0 (waarde=1) activeert
+de waarschuwing "symbool <I>sym</I> dat door <I>binair-bestand</I> gebruikt wordt,
+werd in geen enkele bibliotheek aangetroffen", bit 1 (waarde=2) activeert de
+waarschuwing "pakket zou een nutteloze afhankelijkheid kunnen vermijden" en
+bit 2 (waarde=4) activeert de waarschuwing "<I>binair-bestand</I> zou niet
+gelinkt moeten worden met <I>bibliotheek</I>". De standaard-<I>waarde</I> is 3:
+standaard zijn de eerste twee waarschuwingen geactiveerd, de laatste
+niet. Stel de <I>waarde</I> in op 7 indien u wilt dat alle waarschuwingen
+geactiveerd worden.
+<DT id="24"><B>--admindir=</B><I>map</I><DD>
+Geef een andere locatie op voor de database van <B>dpkg</B> (sinds dpkg
+1.14.0). De standaardlocatie is <I>/var/lib/dpkg</I>.
+<DT id="25"><B>-?</B>, <B>--help</B><DD>
+Toon info over het gebruik en sluit af.
+<DT id="26"><B>--version</B><DD>
+Toon de versie en sluit af.
+</DL>
+<A NAME="lbAH">&nbsp;</A>
+<H2>OMGEVING</H2>
+
+<DL COMPACT>
+<DT id="27"><B>DPKG_COLORS</B><DD>
+Stelt de kleurmodus in (sinds dpkg 1.18.5). Waarden die momenteel gebruikt
+mogen worden zijn: <B>auto</B> (standaard), <B>always</B> en <B>never</B>.
+<DT id="28"><B>DPKG_NLS</B><DD>
+Indien dit ingesteld is, zal het gebruikt worden om te beslissen over het
+activeren van moedertaalondersteuning, ook gekend als
+internationaliseringsondersteuning (of i18n) (sinds dpkg 1.19.0). Geldige
+waarden zijn: <B>0</B> and <B>1</B> (standaard).
+</DL>
+<A NAME="lbAI">&nbsp;</A>
+<H2>DIAGNOSTIEK</H2>
+
+<A NAME="lbAJ">&nbsp;</A>
+<H3>Waarschuwingen</H3>
+
+Aangezien <B>dpkg-shlibdeps</B> de set symbolen analyseert die gebruikt wordt
+door elk binair bestand uit het gegeneerde pakket, is het in staat om in
+verschillende gevallen waarschuwingen te geven. Zij geven u informatie over
+zaken die in het pakket verbeterd kunnen worden. In de meeste gevallen
+hebben die verbeteringen rechtstreeks betrekking op de broncode van de
+toeleveraar (upstream). In aflopende volgorde van belangrijkheid volgen
+hierna de waarschuwingen die u kunt krijgen:
+<DL COMPACT>
+<DT id="29"><B>symbool</B><I> sym</I><B> gebruikt door </B><I>binair-bestand</I><B> in geen enkele bibliotheek gevonden.</B><DD>
+Het aangegeven symbool werd niet aangetroffen in de bibliotheken die met het
+binair bestand gelinkt werden. Hoogstwaarschijnlijk is <I>binair-bestand</I> een
+bibliotheek die gelinkt moet worden met een andere bibliotheek tijdens het
+bouwproces (optie <B>-l</B><I>bibliotheek</I> van de linker).
+<DT id="30"><I>Binair bestand</I><B> bevat een onoplosbare verwijzing naar symbool </B><I>sym</I><B>: wellicht is het een uitbreiding</B><DD>
+Het aangegeven symbool werd niet aangetroffen in de bibliotheken die gelinkt
+zijn met het binair bestand. Hoogstwaarschijnlijk is het <I>binair-bestand</I>
+een uitbreiding (plug-in) en wordt het symbool ter beschikking gesteld door
+het programma dat deze uitbreiding laadt. In theorie heeft een uitbreiding
+geen SONAME, maar dit binair bestand heeft er wel een en in die hoedanigheid
+kon het niet met zekerheid ge&iuml;dentificeerd worden als een uitbreiding. Het
+feit evenwel dat het binaire bestand opgeslagen wordt in een niet-publieke
+map is een sterke aanwijzing dat het niet om een gewone gedeelde bibliotheek
+gaat. Indien het binaire bestand effectief een uitbreiding is, mag u deze
+waarschuwing negeren. Maar er bestaat altijd een kans dat het om een echte
+bibliotheek gaat en dat programma's die ermee linken gebruik manken van een
+RPATH waardoor de dynamische lader ze kan vinden. In dat geval gaat het om
+een defecte bibliotheek en moet het defect gerepareerd worden.
+<DT id="31"><B>Het pakket zou een nutteloze afhankelijkheid kunnen vermijden indien </B><I>binair-bestand</I><B> niet gelinkt was met </B><I>bibliotheek</I><B> (het gebruikt geen enkel symbool van de bibliotheek)</B><DD>
+Geen enkel van de <I>binaire-bestanden</I> die gelinkt werden met <I>bibliotheek</I>
+gebruikt een symbool dat door de bibliotheek aangeleverd wordt. Door al de
+binaire bestanden te repareren zou u de afhankelijkheidsrelatie die verband
+houdt met deze bibliotheek, kunnen vermijden (tenzij dezelfde
+afhankelijkheid ook gegenereerd wordt door een andere bibliotheek die echt
+gebruikt wordt).
+<DT id="32"><B>Het pakket zou een nutteloze vereiste kunnen vermijden indien </B><I>programma's</I><B> niet gelinkt waren met </B><I>bibliotheek</I><B> (ze gebruiken geen enkel symbool van de bibliotheek)</B><DD>
+Identiek dezelfde waarschuwing als hierboven, maar dan voor meerdere
+programma's.
+<DT id="33"><I>Binair-bestand</I><B> zou niet gelinkt moeten worden met </B><I>bibliotheek</I><B> (het gebruikt geen enkel symbool van de bibliotheek)</B><DD>
+Het <I>binair-bestand</I> is gelinkt met een bibliotheek die het niet nodig
+heeft. Dit is geen probleem, maar er kan een kleine prestatiewinst bekomen
+worden wat de laadtijd van het binair bestand betreft, door deze bibliotheek
+niet met dit binair bestand te koppelen. Deze waarschuwing controleert
+dezelfde informatie als de voorgaande, maar doet dit voor elk binair bestand
+in plaats van de toets globaal uit te voeren voor alle geanalyseerde binaire
+bestanden.
+</DL>
+<A NAME="lbAK">&nbsp;</A>
+<H3>Fouten</H3>
+
+<B>dpkg-shlibdeps</B> zal mislukken als het een publieke bibliotheek die door
+een binair bestand gebruikt wordt, niet kan vinden of indien er geen
+afhankelijkheidsinformatie (ofwel een shlibs-bestand of een symbolenbestand)
+aan die bibliotheek gekoppeld is. Een publieke bibliotheek heeft een SONAME
+en heeft een versienummer (lib-iets.so.<I>X</I>). Een private bibliotheek (zoals
+een uitbreiding - plug-in) zou geen SONAME mogen hebben en heeft geen
+versienummer nodig.
+<DL COMPACT>
+<DT id="34"><B>Kon bibliotheek </B><I>SONAME-van-bibliotheek</I><B> die </B><I>binair-bestand</I><B> nodig heeft, niet vinden (het RPATH ervan is '</B><I>rpath</I><B>')</B><DD>
+Het <I>binair-bestand</I> gebruikt een bibliotheek met de naam
+<I>soname-van-bibliotheek</I>, maar <B>dpkg-shlibdeps</B> heeft de bibliotheek niet
+kunnen vinden. <B>dpkg-shlibdeps</B> legt als volgt een lijst van te controleren
+mappen aan: mappen die vermeld worden in het RPATH van het binair bestand,
+mappen die toegevoegd werden via de optie <B>-l</B>, mappen die vermeld worden
+in de omgevingsvariabele <B>LD_LIBRARY_PATH</B>, kruismultiarch-mappen
+(bijv. /lib/arm64-linux-gnu, /usr/lib/arm64-linux-gnu), standaard publieke
+mappen (/lib, /usr/lib), mappen vermeld in /etc/ld.so.conf en verouderde
+multibibliotheekmappen (/lib32, /usr/lib32, /lib64, /usr/lib64). Daarna
+controleert het die mappen binnenin de bouwboom van het binaire pakket dat
+geanalyseerd wordt, binnenin de pakketbouwbomen die met de
+commandoregeloptie <B>-S</B> opgegeven werden, binnenin de bouwbomen van andere
+pakketten die een bestand DEBIAN/shlibs of DEBIAN/symbols hebben en
+tenslotte in de basismap. Als de bibliotheek in geen enkele van die mappen
+aangetroffen wordt, krijgt u deze foutmelding.
+<P>
+Indien de niet-gevonden bibliotheek zich in een private map van hetzelfde
+pakket bevindt, dan moet u die map toevoegen met de optie <B>-l</B>. Als ze zich
+bevindt in een ander binair pakket dat gebouwd wordt, moet u erop letten dat
+het bestand shlibs/symbols van dat pakket reeds gemaakt is en dat <B>-l</B> de
+gepaste map bevat als ze zich ook in een private map bevindt.
+<DT id="35"><B>Geen afhankelijkheidsinformatie gevonden voor </B><I>bibliotheekbestand</I><B> (dat gebruikt wordt door </B><I>binair-bestand</I><B>).</B><DD>
+De bibliotheek die <I>binair-bestand</I> nodig heeft, werd door
+<B>dpkg-shlibdeps</B> in <I>bibliotheekbestand</I> gevonden, maar <B>dpkg-shlibdeps</B>
+was niet in staat vereisteninformatie voor die bibliotheek te vinden. Om
+vereistengegevens te vinden heeft het geprobeerd de bibliotheek op te zoeken
+in een Debian pakket met behulp van <B>dpkg -S </B><I>bibliotheekbestand</I>. Daarna
+heeft het de overeenkomstige shlibs- en symbols-bestanden nagekeken in
+/var/lib/dpkg/info/ en in de verschillende bouwbomen van het pakket
+(debian/*/DEBIAN/).
+<P>
+Deze mislukking kan veroorzaakt worden door een slecht of ontbrekend shlibs-
+of symbols-bestand in het pakket van de bibliotheek. Ze kan zich ook
+voordoen als de bibliotheek gebouwd wordt binnen hetzelfde broncodepakket en
+de shlibs-bestanden nog niet aangemaakt zijn (in dat geval moet u
+debian/rules repareren zodat de shlibs gemaakt worden voordat
+<B>dpkg-shlibdeps</B> ingeroepen wordt). Een slecht RPATH kan er ook toe leiden
+dat de bibliotheek te vinden is onder een ongebruikelijke naam (bijvoorbeeld
+/usr/lib/openoffice.org/../lib/libssl.so.0.9.8 in plaats van
+/usr/lib/libssl.so.0.9.8), die aan geen enkel pakket gekoppeld
+is. <B>dpkg-shlibdeps</B> tracht dit te omzeilen door terug te vallen op een
+gebruikelijke naam (met behulp van <B><A HREF="/cgi-bin/man/man2html?3+realpath">realpath</A></B>(3)), maar dit lukt niet
+altijd. Het is altijd het beste om het RPATH van het binair bestand uit te
+zuiveren om problemen te voorkomen.
+<P>
+Het inroepen van <B>dpkg-shlibdeps</B> in de breedsprakige modus (<B>-v</B>) zal
+veel meer informatie geven over waar het programma de
+afhankelijkheidsinformatie tracht te vinden. Dit kan nuttig zijn indien u
+niet begrijpt waarom u deze foutmelding krijgt.
+</DL>
+<A NAME="lbAL">&nbsp;</A>
+<H2>ZIE OOK</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?5+deb-shlibs">deb-shlibs</A></B>(5), <B><A HREF="/cgi-bin/man/man2html?5+deb-symbols">deb-symbols</A></B>(5), <B><A HREF="/cgi-bin/man/man2html?1+dpkg-gensymbols">dpkg-gensymbols</A></B>(1).
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="36"><A HREF="#lbAB">NAAM</A><DD>
+<DT id="37"><A HREF="#lbAC">OVERZICHT</A><DD>
+<DT id="38"><A HREF="#lbAD">BESCHRIJVING</A><DD>
+<DL>
+<DT id="39"><A HREF="#lbAE">Symbolenbestanden</A><DD>
+<DT id="40"><A HREF="#lbAF">Shlibs-bestanden</A><DD>
+</DL>
+<DT id="41"><A HREF="#lbAG">OPTIES</A><DD>
+<DT id="42"><A HREF="#lbAH">OMGEVING</A><DD>
+<DT id="43"><A HREF="#lbAI">DIAGNOSTIEK</A><DD>
+<DL>
+<DT id="44"><A HREF="#lbAJ">Waarschuwingen</A><DD>
+<DT id="45"><A HREF="#lbAK">Fouten</A><DD>
+</DL>
+<DT id="46"><A HREF="#lbAL">ZIE OOK</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:19 GMT, March 31, 2021
+</BODY>
+</HTML>

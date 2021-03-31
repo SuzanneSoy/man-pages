@@ -1,0 +1,271 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of PAM_XAUTH</TITLE>
+</HEAD><BODY>
+<H1>PAM_XAUTH</H1>
+Section: Linux-PAM Manual (8)<BR>Updated: 05/18/2017<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+pam_xauth - PAM module to forward xauth keys between users
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<DL COMPACT>
+<DT id="1">
+<B>pam_xauth.so</B> [debug] [xauthpath=<I>/path/to/xauth</I>] [systemuser=<I>UID</I>] [targetuser=<I>UID</I>]
+</DL>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+<DD>The pam_xauth PAM module is designed to forward xauth keys (sometimes referred to as &quot;cookies&quot;) between users.
+<P>
+
+Without pam_xauth, when xauth is enabled and a user uses the
+<B><A HREF="/cgi-bin/man/man2html?1+su">su</A></B>(1)
+command to assume another user's privileges, that user is no longer able to access the original user's X display because the new user does not have the key needed to access the display. pam_xauth solves the problem by forwarding the key from the user running su (the source user) to the user whose identity the source user is assuming (the target user) when the session is created, and destroying the key when the session is torn down.
+<P>
+
+This means, for example, that when you run
+<B><A HREF="/cgi-bin/man/man2html?1+su">su</A></B>(1)
+from an xterm session, you will be able to run X programs without explicitly dealing with the
+<B><A HREF="/cgi-bin/man/man2html?1+xauth">xauth</A></B>(1)
+xauth command or ~/.Xauthority files.
+<P>
+
+pam_xauth will only forward keys if xauth can list a key connected to the $DISPLAY environment variable.
+<P>
+
+Primitive access control is provided by
+~/.xauth/export
+in the invoking user's home directory and
+~/.xauth/import
+in the target user's home directory.
+<P>
+
+If a user has a
+~/.xauth/import
+file, the user will only receive cookies from users listed in the file. If there is no
+~/.xauth/import
+file, the user will accept cookies from any other user.
+<P>
+
+If a user has a
+.xauth/export
+file, the user will only forward cookies to users listed in the file. If there is no
+~/.xauth/export
+file, and the invoking user is not
+<B>root</B>, the user will forward cookies to any other user. If there is no
+~/.xauth/export
+file, and the invoking user is
+<B>root</B>, the user will
+<I>not</I>
+forward cookies to other users.
+<P>
+
+Both the import and export files support wildcards (such as
+<I>*</I>). Both the import and export files can be empty, signifying that no users are allowed.
+<A NAME="lbAE">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<P>
+
+<B>debug</B>
+<DL COMPACT><DT id="2"><DD>
+Print debug information.
+</DL>
+
+<P>
+
+<B>xauthpath=</B><B></B><I>/path/to/xauth</I>
+<DL COMPACT><DT id="3"><DD>
+Specify the path the xauth program (it is expected in
+/usr/X11R6/bin/xauth,
+/usr/bin/xauth, or
+/usr/bin/X11/xauth
+by default).
+</DL>
+
+<P>
+
+<B>systemuser=</B><B></B><I>UID</I>
+<DL COMPACT><DT id="4"><DD>
+Specify the highest UID which will be assumed to belong to a &quot;system&quot; user. pam_xauth will refuse to forward credentials to users with UID less than or equal to this number, except for root and the &quot;targetuser&quot;, if specified.
+</DL>
+
+<P>
+
+<B>targetuser=</B><B></B><I>UID</I>
+<DL COMPACT><DT id="5"><DD>
+Specify a single target UID which is exempt from the systemuser check.
+</DL>
+
+<A NAME="lbAF">&nbsp;</A>
+<H2>MODULE TYPES PROVIDED</H2>
+
+<P>
+
+Only the
+<B>session</B>
+type is provided.
+<A NAME="lbAG">&nbsp;</A>
+<H2>RETURN VALUES</H2>
+
+<P>
+
+PAM_BUF_ERR
+<DL COMPACT><DT id="6"><DD>
+Memory buffer error.
+</DL>
+
+<P>
+
+PAM_PERM_DENIED
+<DL COMPACT><DT id="7"><DD>
+Permission denied by import/export file.
+</DL>
+
+<P>
+
+PAM_SESSION_ERR
+<DL COMPACT><DT id="8"><DD>
+Cannot determine user name, UID or access users home directory.
+</DL>
+
+<P>
+
+PAM_SUCCESS
+<DL COMPACT><DT id="9"><DD>
+Success.
+</DL>
+
+<P>
+
+PAM_USER_UNKNOWN
+<DL COMPACT><DT id="10"><DD>
+User not known.
+</DL>
+
+<A NAME="lbAH">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+<P>
+
+Add the following line to
+/etc/pam.d/su
+to forward xauth keys between users when calling su:
+<P>
+<DL COMPACT><DT id="11"><DD>
+
+
+
+<PRE>
+session  optional  pam_xauth.so
+      
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<A NAME="lbAI">&nbsp;</A>
+<H2>IMPLEMENTATION DETAILS</H2>
+
+<P>
+
+pam_xauth will work
+<I>only</I>
+if it is used from a setuid application in which the
+<B>getuid</B>() call returns the id of the user running the application, and for which PAM can supply the name of the account that the user is attempting to assume. The typical application of this type is
+<B><A HREF="/cgi-bin/man/man2html?1+su">su</A></B>(1). The application must call both
+<B>pam_open_session</B>() and
+<B>pam_close_session</B>() with the ruid set to the uid of the calling user and the euid set to root, and must have provided as the PAM_USER item the name of the target user.
+<P>
+
+pam_xauth calls
+<B><A HREF="/cgi-bin/man/man2html?1+xauth">xauth</A></B>(1)
+as the source user to extract the key for $DISPLAY, then calls xauth as the target user to merge the key into the a temporary database and later remove the database.
+<P>
+
+pam_xauth cannot be told to not remove the keys when the session is closed.
+<A NAME="lbAJ">&nbsp;</A>
+<H2>FILES</H2>
+
+<P>
+
+~/.xauth/import
+<DL COMPACT><DT id="12"><DD>
+XXX
+</DL>
+
+<P>
+
+~/.xauth/export
+<DL COMPACT><DT id="13"><DD>
+XXX
+</DL>
+
+<A NAME="lbAK">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?5+pam.conf">pam.conf</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?5+pam.d">pam.d</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?7+pam">pam</A></B>(7)
+<A NAME="lbAL">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+<P>
+
+pam_xauth was written by Nalin Dahyabhai &lt;<A HREF="mailto:nalin@redhat.com">nalin@redhat.com</A>&gt;, based on original version by Michael K. Johnson &lt;<A HREF="mailto:johnsonm@redhat.com">johnsonm@redhat.com</A>&gt;.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="14"><A HREF="#lbAB">NAME</A><DD>
+<DT id="15"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="16"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="17"><A HREF="#lbAE">OPTIONS</A><DD>
+<DT id="18"><A HREF="#lbAF">MODULE TYPES PROVIDED</A><DD>
+<DT id="19"><A HREF="#lbAG">RETURN VALUES</A><DD>
+<DT id="20"><A HREF="#lbAH">EXAMPLES</A><DD>
+<DT id="21"><A HREF="#lbAI">IMPLEMENTATION DETAILS</A><DD>
+<DT id="22"><A HREF="#lbAJ">FILES</A><DD>
+<DT id="23"><A HREF="#lbAK">SEE ALSO</A><DD>
+<DT id="24"><A HREF="#lbAL">AUTHOR</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:15 GMT, March 31, 2021
+</BODY>
+</HTML>

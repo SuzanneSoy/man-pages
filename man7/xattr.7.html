@@ -1,0 +1,284 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of XATTR</TITLE>
+</HEAD><BODY>
+<H1>XATTR</H1>
+Section: Linux Programmer's Manual (7)<BR>Updated: 2019-08-02<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+xattr - Extended attributes
+<A NAME="lbAC">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+Extended attributes are name:value pairs associated permanently with
+files and directories, similar to the environment strings associated
+with a process.
+An attribute may be defined or undefined.
+If it is defined, its value may be empty or non-empty.
+<P>
+
+Extended attributes are extensions to the normal attributes which are
+associated with all inodes in the system (i.e., the
+<B><A HREF="/cgi-bin/man/man2html?2+stat">stat</A></B>(2)
+
+data).
+They are often used to provide additional functionality
+to a filesystem---for example, additional security features such as
+Access Control Lists (ACLs) may be implemented using extended attributes.
+<P>
+
+Users with search access to a file or directory may use
+<B><A HREF="/cgi-bin/man/man2html?2+listxattr">listxattr</A></B>(2)
+
+to retrieve a list of attribute names defined for that file or directory.
+<P>
+
+Extended attributes are accessed as atomic objects.
+Reading
+(<B><A HREF="/cgi-bin/man/man2html?2+getxattr">getxattr</A></B>(2))
+
+retrieves the whole value of an attribute and stores it in a buffer.
+Writing
+(<B><A HREF="/cgi-bin/man/man2html?2+setxattr">setxattr</A></B>(2))
+
+replaces any previous value with the new value.
+<P>
+
+Space consumed for extended attributes may be counted towards the disk quotas
+of the file owner and file group.
+<A NAME="lbAD">&nbsp;</A>
+<H3>Extended attribute namespaces</H3>
+
+Attribute names are null-terminated strings.
+The attribute name is always specified in the fully qualified
+<I>namespace.attribute</I>
+
+form, for example,
+<I>user.mime_type</I>,
+
+<I>trusted.md5sum</I>,
+
+<I>system.posix_acl_access</I>,
+
+or
+<I>security.selinux</I>.
+
+<P>
+
+The namespace mechanism is used to define different classes of extended
+attributes.
+These different classes exist for several reasons;
+for example, the permissions
+and capabilities required for manipulating extended attributes of one
+namespace may differ to another.
+<P>
+
+Currently, the
+<I>security</I>,
+
+<I>system</I>,
+
+<I>trusted</I>,
+
+and
+<I>user</I>
+
+extended attribute classes are defined as described below.
+Additional classes may be added in the future.
+<A NAME="lbAE">&nbsp;</A>
+<H3>Extended security attributes</H3>
+
+The security attribute namespace is used by kernel security modules,
+such as Security Enhanced Linux, and also to implement file capabilities (see
+<B><A HREF="/cgi-bin/man/man2html?7+capabilities">capabilities</A></B>(7)).
+
+Read and write access permissions to security attributes depend on the
+policy implemented for each security attribute by the security module.
+When no security module is loaded, all processes have read access to
+extended security attributes, and write access is limited to processes
+that have the
+<B>CAP_SYS_ADMIN</B>
+
+capability.
+<A NAME="lbAF">&nbsp;</A>
+<H3>System extended attributes</H3>
+
+System extended attributes are used by the kernel to store system
+objects such as Access Control Lists.
+Read and write
+access permissions to system attributes depend on the policy implemented
+for each system attribute implemented by filesystems in the kernel.
+<A NAME="lbAG">&nbsp;</A>
+<H3>Trusted extended attributes</H3>
+
+Trusted extended attributes are visible and accessible only to processes that
+have the
+<B>CAP_SYS_ADMIN</B>
+
+capability.
+Attributes in this class are used to implement mechanisms in user
+space (i.e., outside the kernel) which keep information in extended attributes
+to which ordinary processes should not have access.
+<A NAME="lbAH">&nbsp;</A>
+<H3>User extended attributes</H3>
+
+User extended attributes may be assigned to files and directories for
+storing arbitrary additional information such as the mime type,
+character set or encoding of a file.
+The access permissions for user
+attributes are defined by the file permission bits:
+read permission is required to retrieve the attribute value,
+and writer permission is required to change it.
+<P>
+
+The file permission bits of regular files and directories are
+interpreted differently from the file permission bits of special files
+and symbolic links.
+For regular files and directories the file
+permission bits define access to the file's contents, while for device special
+files they define access to the device described by the special file.
+The file permissions of symbolic links are not used in access checks.
+These differences would allow users to consume filesystem resources in
+a way not controllable by disk quotas for group or world writable
+special files and directories.
+<P>
+
+For this reason,
+user extended attributes are allowed only for regular files and directories,
+and access to user extended attributes is restricted to the
+owner and to users with appropriate capabilities for directories with the
+sticky bit set (see the
+<B><A HREF="/cgi-bin/man/man2html?1+chmod">chmod</A></B>(1)
+
+manual page for an explanation of the sticky bit).
+<A NAME="lbAI">&nbsp;</A>
+<H3>Filesystem differences</H3>
+
+The kernel and the filesystem may place limits on the maximum number
+and size of extended attributes that can be associated with a file.
+The VFS imposes limitations that an attribute names is limited to 255 bytes
+and an attribute value is limited to 64&nbsp;kB.
+The list of attribute names that
+can be returned is also limited to 64&nbsp;kB
+(see BUGS in
+<B><A HREF="/cgi-bin/man/man2html?2+listxattr">listxattr</A></B>(2)).
+
+<P>
+
+Some filesystems, such as Reiserfs (and, historically, ext2 and ext3),
+require the filesystem to be mounted with the
+<B>user_xattr</B>
+
+mount option in order for user extended attributes to be used.
+<P>
+
+In the current ext2, ext3, and ext4 filesystem implementations,
+the total bytes used by the names and values of all of a file's
+extended attributes must fit in a single filesystem block (1024, 2048
+or 4096 bytes, depending on the block size specified when the
+filesystem was created).
+<P>
+
+In the Btrfs, XFS, and Reiserfs filesystem implementations, there is no
+practical limit on the number of extended attributes
+associated with a file, and the algorithms used to store extended
+attribute information on disk are scalable.
+<P>
+
+In the JFS, XFS, and Reiserfs filesystem implementations,
+the limit on bytes used in an EA value is the ceiling imposed by the VFS.
+<P>
+
+In the Btrfs filesystem implementation,
+the total bytes used for the name, value, and implementation overhead bytes
+is limited to the filesystem
+<I>nodesize</I>
+
+value (16&nbsp;kB by default).
+<A NAME="lbAJ">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+Extended attributes are not specified in POSIX.1, but some other systems
+(e.g., the BSDs and Solaris) provide a similar feature.
+<A NAME="lbAK">&nbsp;</A>
+<H2>NOTES</H2>
+
+Since the filesystems on which extended attributes are stored might also
+be used on architectures with a different byte order and machine word
+size, care should be taken to store attribute values in an
+architecture-independent format.
+<P>
+
+This page was formerly named
+<B><A HREF="/cgi-bin/man/man2html?5+attr">attr</A></B>(5).
+
+
+
+
+
+
+<A NAME="lbAL">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?1+getfattr">getfattr</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?1+setfattr">setfattr</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?2+getxattr">getxattr</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl_iflags">ioctl_iflags</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+listxattr">listxattr</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+removexattr">removexattr</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+setxattr">setxattr</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?5+acl">acl</A></B>(5),
+
+<B><A HREF="/cgi-bin/man/man2html?7+capabilities">capabilities</A></B>(7)
+
+<B><A HREF="/cgi-bin/man/man2html?8+selinux">selinux</A></B>(8)
+
+<A NAME="lbAM">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="1"><A HREF="#lbAB">NAME</A><DD>
+<DT id="2"><A HREF="#lbAC">DESCRIPTION</A><DD>
+<DL>
+<DT id="3"><A HREF="#lbAD">Extended attribute namespaces</A><DD>
+<DT id="4"><A HREF="#lbAE">Extended security attributes</A><DD>
+<DT id="5"><A HREF="#lbAF">System extended attributes</A><DD>
+<DT id="6"><A HREF="#lbAG">Trusted extended attributes</A><DD>
+<DT id="7"><A HREF="#lbAH">User extended attributes</A><DD>
+<DT id="8"><A HREF="#lbAI">Filesystem differences</A><DD>
+</DL>
+<DT id="9"><A HREF="#lbAJ">CONFORMING TO</A><DD>
+<DT id="10"><A HREF="#lbAK">NOTES</A><DD>
+<DT id="11"><A HREF="#lbAL">SEE ALSO</A><DD>
+<DT id="12"><A HREF="#lbAM">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:10 GMT, March 31, 2021
+</BODY>
+</HTML>

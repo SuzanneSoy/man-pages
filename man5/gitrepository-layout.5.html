@@ -1,0 +1,628 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of GITREPOSITORY-LAYOU</TITLE>
+</HEAD><BODY>
+<H1>GITREPOSITORY-LAYOU</H1>
+Section: Git Manual (5)<BR>Updated: 03/04/2021<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+gitrepository-layout - Git Repository Layout
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+$GIT_DIR/*
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+A Git repository comes in two different flavours:
+<P>
+<DL COMPACT><DT id="1"><DD>
+&bull;
+
+
+a
+<B>.git</B>
+directory at the root of the working tree;
+</DL>
+
+<P>
+<DL COMPACT><DT id="2"><DD>
+&bull;
+
+
+a
+<B>&lt;project&gt;.git</B>
+directory that is a
+<I>bare</I>
+repository (i.e. without its own working tree), that is typically used for exchanging histories with others by pushing into it and fetching from it.
+</DL>
+
+<P>
+<B>Note</B>: Also you can have a plain text file <B>.git</B> at the root of your working tree, containing <B>gitdir: &lt;path&gt;</B> to point at the real directory that has the repository. This mechanism is often used for a working tree of a submodule checkout, to allow you in the containing superproject to <B>git checkout</B> a branch that does not have the submodule. The <B>checkout</B> has to remove the entire submodule working tree, without losing the submodule repository.
+<P>
+These things may exist in a Git repository.
+<P>
+
+objects
+<DL COMPACT><DT id="3"><DD>
+Object store associated with this repository. Usually an object store is self sufficient (i.e. all the objects that are referred to by an object found in it are also found in it), but there are a few ways to violate it.
+<P>
+<DL COMPACT><DT id="4"><DD>
+ 1.
+
+
+You could have an incomplete but locally usable repository by creating a shallow clone. See
+<B><A HREF="/cgi-bin/man/man2html?1+git-clone">git-clone</A></B>(1).
+</DL>
+
+<P>
+<DL COMPACT><DT id="5"><DD>
+ 2.
+
+
+You could be using the
+<B>objects/info/alternates</B>
+or
+<B>$GIT_ALTERNATE_OBJECT_DIRECTORIES</B>
+mechanisms to
+<I>borrow</I>
+objects from other object stores. A repository with this kind of incomplete object store is not suitable to be published for use with dumb transports but otherwise is OK as long as
+<B>objects/info/alternates</B>
+points at the object stores it borrows from.
+<P>
+This directory is ignored if $GIT_COMMON_DIR is set and &quot;$GIT_COMMON_DIR/objects&quot; will be used instead.
+</DL>
+
+</DL>
+
+<P>
+
+objects/[0-9a-f][0-9a-f]
+<DL COMPACT><DT id="6"><DD>
+A newly created object is stored in its own file. The objects are splayed over 256 subdirectories using the first two characters of the sha1 object name to keep the number of directory entries in
+<B>objects</B>
+itself to a manageable number. Objects found here are often called
+<I>unpacked</I>
+(or
+<I>loose</I>) objects.
+</DL>
+
+<P>
+
+objects/pack
+<DL COMPACT><DT id="7"><DD>
+Packs (files that store many objects in compressed form, along with index files to allow them to be randomly accessed) are found in this directory.
+</DL>
+
+<P>
+
+objects/info
+<DL COMPACT><DT id="8"><DD>
+Additional information about the object store is recorded in this directory.
+</DL>
+
+<P>
+
+objects/info/packs
+<DL COMPACT><DT id="9"><DD>
+This file is to help dumb transports discover what packs are available in this object store. Whenever a pack is added or removed,
+<B>git update-server-info</B>
+should be run to keep this file up to date if the repository is published for dumb transports.
+<I>git repack</I>
+does this by default.
+</DL>
+
+<P>
+
+objects/info/alternates
+<DL COMPACT><DT id="10"><DD>
+This file records paths to alternate object stores that this object store borrows objects from, one pathname per line. Note that not only native Git tools use it locally, but the HTTP fetcher also tries to use it remotely; this will usually work if you have relative paths (relative to the object database, not to the repository!) in your alternates file, but it will not work if you use absolute paths unless the absolute path in filesystem and web URL is the same. See also
+<B>objects/info/http-alternates</B>.
+</DL>
+
+<P>
+
+objects/info/http-alternates
+<DL COMPACT><DT id="11"><DD>
+This file records URLs to alternate object stores that this object store borrows objects from, to be used when the repository is fetched over HTTP.
+</DL>
+
+<P>
+
+refs
+<DL COMPACT><DT id="12"><DD>
+References are stored in subdirectories of this directory. The
+<I>git prune</I>
+command knows to preserve objects reachable from refs found in this directory and its subdirectories. This directory is ignored (except refs/bisect, refs/rewritten and refs/worktree) if $GIT_COMMON_DIR is set and &quot;$GIT_COMMON_DIR/refs&quot; will be used instead.
+</DL>
+
+<P>
+
+refs/heads/<B>name</B>
+<DL COMPACT><DT id="13"><DD>
+records tip-of-the-tree commit objects of branch
+<B>name</B>
+</DL>
+
+<P>
+
+refs/tags/<B>name</B>
+<DL COMPACT><DT id="14"><DD>
+records any object name (not necessarily a commit object, or a tag object that points at a commit object).
+</DL>
+
+<P>
+
+refs/remotes/<B>name</B>
+<DL COMPACT><DT id="15"><DD>
+records tip-of-the-tree commit objects of branches copied from a remote repository.
+</DL>
+
+<P>
+
+refs/replace/<B>&lt;obj-sha1&gt;</B>
+<DL COMPACT><DT id="16"><DD>
+records the SHA-1 of the object that replaces
+<B>&lt;obj-sha1&gt;</B>. This is similar to info/grafts and is internally used and maintained by
+<B><A HREF="/cgi-bin/man/man2html?1+git-replace">git-replace</A></B>(1). Such refs can be exchanged between repositories while grafts are not.
+</DL>
+
+<P>
+
+packed-refs
+<DL COMPACT><DT id="17"><DD>
+records the same information as refs/heads/, refs/tags/, and friends record in a more efficient way. See
+<B><A HREF="/cgi-bin/man/man2html?1+git-pack-refs">git-pack-refs</A></B>(1). This file is ignored if $GIT_COMMON_DIR is set and &quot;$GIT_COMMON_DIR/packed-refs&quot; will be used instead.
+</DL>
+
+<P>
+
+HEAD
+<DL COMPACT><DT id="18"><DD>
+A symref (see glossary) to the
+<B>refs/heads/</B>
+namespace describing the currently active branch. It does not mean much if the repository is not associated with any working tree (i.e. a
+<I>bare</I>
+repository), but a valid Git repository
+<B>must</B>
+have the HEAD file; some porcelains may use it to guess the designated &quot;default&quot; branch of the repository (usually
+<I>master</I>). It is legal if the named branch
+<I>name</I>
+does not (yet) exist. In some legacy setups, it is a symbolic link instead of a symref that points at the current branch.
+<P>
+HEAD can also record a specific commit directly, instead of being a symref to point at the current branch. Such a state is often called
+<I>detached HEAD.</I>
+See
+<B><A HREF="/cgi-bin/man/man2html?1+git-checkout">git-checkout</A></B>(1)
+for details.
+</DL>
+
+<P>
+
+config
+<DL COMPACT><DT id="19"><DD>
+Repository specific configuration file. This file is ignored if $GIT_COMMON_DIR is set and &quot;$GIT_COMMON_DIR/config&quot; will be used instead.
+</DL>
+
+<P>
+
+config.worktree
+<DL COMPACT><DT id="20"><DD>
+Working directory specific configuration file for the main working directory in multiple working directory setup (see
+<B><A HREF="/cgi-bin/man/man2html?1+git-worktree">git-worktree</A></B>(1)).
+</DL>
+
+<P>
+
+branches
+<DL COMPACT><DT id="21"><DD>
+A slightly deprecated way to store shorthands to be used to specify a URL to
+<I>git fetch</I>,
+<I>git pull</I>
+and
+<I>git push</I>. A file can be stored as
+<B>branches/&lt;name&gt;</B>
+and then
+<I>name</I>
+can be given to these commands in place of
+<I>repository</I>
+argument. See the REMOTES section in
+<B><A HREF="/cgi-bin/man/man2html?1+git-fetch">git-fetch</A></B>(1)
+for details. This mechanism is legacy and not likely to be found in modern repositories. This directory is ignored if $GIT_COMMON_DIR is set and &quot;$GIT_COMMON_DIR/branches&quot; will be used instead.
+</DL>
+
+<P>
+
+hooks
+<DL COMPACT><DT id="22"><DD>
+Hooks are customization scripts used by various Git commands. A handful of sample hooks are installed when
+<I>git init</I>
+is run, but all of them are disabled by default. To enable, the
+<B>.sample</B>
+suffix has to be removed from the filename by renaming. Read
+<B><A HREF="/cgi-bin/man/man2html?5+githooks">githooks</A></B>(5)
+for more details about each hook. This directory is ignored if $GIT_COMMON_DIR is set and &quot;$GIT_COMMON_DIR/hooks&quot; will be used instead.
+</DL>
+
+<P>
+
+common
+<DL COMPACT><DT id="23"><DD>
+When multiple working trees are used, most of files in $GIT_DIR are per-worktree with a few known exceptions. All files under
+<I>common</I>
+however will be shared between all working trees.
+</DL>
+
+<P>
+
+index
+<DL COMPACT><DT id="24"><DD>
+The current index file for the repository. It is usually not found in a bare repository.
+</DL>
+
+<P>
+
+sharedindex.&lt;SHA-1&gt;
+<DL COMPACT><DT id="25"><DD>
+The shared index part, to be referenced by $GIT_DIR/index and other temporary index files. Only valid in split index mode.
+</DL>
+
+<P>
+
+info
+<DL COMPACT><DT id="26"><DD>
+Additional information about the repository is recorded in this directory. This directory is ignored if $GIT_COMMON_DIR is set and &quot;$GIT_COMMON_DIR/info&quot; will be used instead.
+</DL>
+
+<P>
+
+info/refs
+<DL COMPACT><DT id="27"><DD>
+This file helps dumb transports discover what refs are available in this repository. If the repository is published for dumb transports, this file should be regenerated by
+<I>git update-server-info</I>
+every time a tag or branch is created or modified. This is normally done from the
+<B>hooks/update</B>
+hook, which is run by the
+<I>git-receive-pack</I>
+command when you
+<I>git push</I>
+into the repository.
+</DL>
+
+<P>
+
+info/grafts
+<DL COMPACT><DT id="28"><DD>
+This file records fake commit ancestry information, to pretend the set of parents a commit has is different from how the commit was actually created. One record per line describes a commit and its fake parents by listing their 40-byte hexadecimal object names separated by a space and terminated by a newline.
+<P>
+Note that the grafts mechanism is outdated and can lead to problems transferring objects between repositories; see
+<B><A HREF="/cgi-bin/man/man2html?1+git-replace">git-replace</A></B>(1)
+for a more flexible and robust system to do the same thing.
+</DL>
+
+<P>
+
+info/exclude
+<DL COMPACT><DT id="29"><DD>
+This file, by convention among Porcelains, stores the exclude pattern list.
+<B>.gitignore</B>
+is the per-directory ignore file.
+<I>git status</I>,
+<I>git add</I>,
+<I>git rm</I>
+and
+<I>git clean</I>
+look at it but the core Git commands do not look at it. See also:
+<B><A HREF="/cgi-bin/man/man2html?5+gitignore">gitignore</A></B>(5).
+</DL>
+
+<P>
+
+info/attributes
+<DL COMPACT><DT id="30"><DD>
+Defines which attributes to assign to a path, similar to per-directory
+<B>.gitattributes</B>
+files. See also:
+<B><A HREF="/cgi-bin/man/man2html?5+gitattributes">gitattributes</A></B>(5).
+</DL>
+
+<P>
+
+info/sparse-checkout
+<DL COMPACT><DT id="31"><DD>
+This file stores sparse checkout patterns. See also:
+<B><A HREF="/cgi-bin/man/man2html?1+git-read-tree">git-read-tree</A></B>(1).
+</DL>
+
+<P>
+
+remotes
+<DL COMPACT><DT id="32"><DD>
+Stores shorthands for URL and default refnames for use when interacting with remote repositories via
+<I>git fetch</I>,
+<I>git pull</I>
+and
+<I>git push</I>
+commands. See the REMOTES section in
+<B><A HREF="/cgi-bin/man/man2html?1+git-fetch">git-fetch</A></B>(1)
+for details. This mechanism is legacy and not likely to be found in modern repositories. This directory is ignored if $GIT_COMMON_DIR is set and &quot;$GIT_COMMON_DIR/remotes&quot; will be used instead.
+</DL>
+
+<P>
+
+logs
+<DL COMPACT><DT id="33"><DD>
+Records of changes made to refs are stored in this directory. See
+<B><A HREF="/cgi-bin/man/man2html?1+git-update-ref">git-update-ref</A></B>(1)
+for more information. This directory is ignored (except logs/HEAD) if $GIT_COMMON_DIR is set and &quot;$GIT_COMMON_DIR/logs&quot; will be used instead.
+</DL>
+
+<P>
+
+logs/refs/heads/<B>name</B>
+<DL COMPACT><DT id="34"><DD>
+Records all changes made to the branch tip named
+<B>name</B>.
+</DL>
+
+<P>
+
+logs/refs/tags/<B>name</B>
+<DL COMPACT><DT id="35"><DD>
+Records all changes made to the tag named
+<B>name</B>.
+</DL>
+
+<P>
+
+shallow
+<DL COMPACT><DT id="36"><DD>
+This is similar to
+<B>info/grafts</B>
+but is internally used and maintained by shallow clone mechanism. See
+<B>--depth</B>
+option to
+<B><A HREF="/cgi-bin/man/man2html?1+git-clone">git-clone</A></B>(1)
+and
+<B><A HREF="/cgi-bin/man/man2html?1+git-fetch">git-fetch</A></B>(1). This file is ignored if $GIT_COMMON_DIR is set and &quot;$GIT_COMMON_DIR/shallow&quot; will be used instead.
+</DL>
+
+<P>
+
+commondir
+<DL COMPACT><DT id="37"><DD>
+If this file exists, $GIT_COMMON_DIR (see
+<B><A HREF="/cgi-bin/man/man2html?1+git">git</A></B>(1)) will be set to the path specified in this file if it is not explicitly set. If the specified path is relative, it is relative to $GIT_DIR. The repository with commondir is incomplete without the repository pointed by &quot;commondir&quot;.
+</DL>
+
+<P>
+
+modules
+<DL COMPACT><DT id="38"><DD>
+Contains the git-repositories of the submodules.
+</DL>
+
+<P>
+
+worktrees
+<DL COMPACT><DT id="39"><DD>
+Contains administrative data for linked working trees. Each subdirectory contains the working tree-related part of a linked working tree. This directory is ignored if $GIT_COMMON_DIR is set, in which case &quot;$GIT_COMMON_DIR/worktrees&quot; will be used instead.
+</DL>
+
+<P>
+
+worktrees/&lt;id&gt;/gitdir
+<DL COMPACT><DT id="40"><DD>
+A text file containing the absolute path back to the .git file that points to here. This is used to check if the linked repository has been manually removed and there is no need to keep this directory any more. The mtime of this file should be updated every time the linked repository is accessed.
+</DL>
+
+<P>
+
+worktrees/&lt;id&gt;/locked
+<DL COMPACT><DT id="41"><DD>
+If this file exists, the linked working tree may be on a portable device and not available. The presence of this file prevents
+<B>worktrees/&lt;id&gt;</B>
+from being pruned either automatically or manually by
+<B>git worktree prune</B>. The file may contain a string explaining why the repository is locked.
+</DL>
+
+<P>
+
+worktrees/&lt;id&gt;/config.worktree
+<DL COMPACT><DT id="42"><DD>
+Working directory specific configuration file.
+</DL>
+
+<A NAME="lbAE">&nbsp;</A>
+<H2>GIT REPOSITORY FORMAT VERSIONS</H2>
+
+<P>
+Every git repository is marked with a numeric version in the <B>core.repositoryformatversion</B> key of its <B>config</B> file. This version specifies the rules for operating on the on-disk repository data. An implementation of git which does not understand a particular version advertised by an on-disk repository MUST NOT operate on that repository; doing so risks not only producing wrong results, but actually losing data.
+<P>
+Because of this rule, version bumps should be kept to an absolute minimum. Instead, we generally prefer these strategies:
+<P>
+<DL COMPACT><DT id="43"><DD>
+&bull;
+
+
+bumping format version numbers of individual data files (e.g., index, packfiles, etc). This restricts the incompatibilities only to those files.
+</DL>
+
+<P>
+<DL COMPACT><DT id="44"><DD>
+&bull;
+
+
+introducing new data that gracefully degrades when used by older clients (e.g., pack bitmap files are ignored by older clients, which simply do not take advantage of the optimization they provide).
+</DL>
+
+<P>
+A whole-repository format version bump should only be part of a change that cannot be independently versioned. For instance, if one were to change the reachability rules for objects, or the rules for locking refs, that would require a bump of the repository format version.
+<P>
+Note that this applies only to accessing the repository's disk contents directly. An older client which understands only format <B>0</B> may still connect via <B>git://</B> to a repository using format <B>1</B>, as long as the server process understands format <B>1</B>.
+<P>
+The preferred strategy for rolling out a version bump (whether whole repository or for a single file) is to teach git to read the new format, and allow writing the new format with a config switch or command line option (for experimentation or for those who do not care about backwards compatibility with older gits). Then after a long period to allow the reading capability to become common, we may switch to writing the new format by default.
+<P>
+The currently defined format versions are:
+<A NAME="lbAF">&nbsp;</A>
+<H3>Version <B>0</B></H3>
+
+<P>
+This is the format defined by the initial version of git, including but not limited to the format of the repository directory, the repository configuration file, and the object and ref storage. Specifying the complete behavior of git is beyond the scope of this document.
+<A NAME="lbAG">&nbsp;</A>
+<H3>Version <B>1</B></H3>
+
+<P>
+This format is identical to version <B>0</B>, with the following exceptions:
+<P>
+<DL COMPACT><DT id="45"><DD>
+ 1.
+
+
+When reading the
+<B>core.repositoryformatversion</B>
+variable, a git implementation which supports version 1 MUST also read any configuration keys found in the
+<B>extensions</B>
+section of the configuration file.
+</DL>
+
+<P>
+<DL COMPACT><DT id="46"><DD>
+ 2.
+
+
+If a version-1 repository specifies any
+<B>extensions.*</B>
+keys that the running git has not implemented, the operation MUST NOT proceed. Similarly, if the value of any known key is not understood by the implementation, the operation MUST NOT proceed.
+</DL>
+
+<P>
+Note that if no extensions are specified in the config file, then <B>core.repositoryformatversion</B> SHOULD be set to <B>0</B> (setting it to <B>1</B> provides no benefit, and makes the repository incompatible with older implementations of git).
+<P>
+This document will serve as the master list for extensions. Any implementation wishing to define a new extension should make a note of it here, in order to claim the name.
+<P>
+The defined extensions are:
+<P>
+
+
+
+<BR>
+
+<FONT SIZE="+1">
+<B>noop</B>
+<DL COMPACT><DT id="47"><DD>
+<P>
+This extension does not change git's behavior at all. It is useful only for testing format-1 compatibility.
+</DL>
+
+<P>
+
+
+
+<BR>
+
+</FONT><FONT SIZE="+2">
+<B>preciousObjects</B>
+<DL COMPACT><DT id="48"><DD>
+<P>
+When the config key <B>extensions.preciousObjects</B> is set to <B>true</B>, objects in the repository MUST NOT be deleted (e.g., by <B>git-prune</B> or <B>git repack -d</B>).
+</DL>
+
+<P>
+
+
+
+<BR>
+
+</FONT><FONT SIZE="+3">
+<B>partialclone</B>
+<DL COMPACT><DT id="49"><DD>
+<P>
+When the config key <B>extensions.partialclone</B> is set, it indicates that the repo was created with a partial clone (or later performed a partial fetch) and that the remote may have omitted sending certain unwanted objects. Such a remote is called a &quot;promisor remote&quot; and it promises that all such omitted objects can be fetched from it in the future.
+<P>
+The value of this key is the name of the promisor remote.
+</DL>
+
+<P>
+
+
+
+<BR>
+
+</FONT><FONT SIZE="+4">
+<B>worktreeConfig</B>
+<DL COMPACT><DT id="50"><DD>
+<P>
+If set, by default &quot;git config&quot; reads from both &quot;config&quot; and &quot;config.worktree&quot; file from GIT_DIR in that order. In multiple working directory mode, &quot;config&quot; file is shared while &quot;config.worktree&quot; is per-working directory (i.e., it's in GIT_COMMON_DIR/worktrees/&lt;id&gt;/config.worktree)
+</DL>
+
+</FONT><A NAME="lbAH">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+<B><A HREF="/cgi-bin/man/man2html?1+git-init">git-init</A></B>(1), <B><A HREF="/cgi-bin/man/man2html?1+git-clone">git-clone</A></B>(1), <B><A HREF="/cgi-bin/man/man2html?1+git-fetch">git-fetch</A></B>(1), <B><A HREF="/cgi-bin/man/man2html?1+git-pack-refs">git-pack-refs</A></B>(1), <B><A HREF="/cgi-bin/man/man2html?1+git-gc">git-gc</A></B>(1), <B><A HREF="/cgi-bin/man/man2html?1+git-checkout">git-checkout</A></B>(1), <B><A HREF="/cgi-bin/man/man2html?7+gitglossary">gitglossary</A></B>(7), m[blue]<B>The Git User's Manual</B>m[]<FONT SIZE="-2">[1]</FONT>
+<A NAME="lbAI">&nbsp;</A>
+<H2>GIT</H2>
+
+<P>
+Part of the <B><A HREF="/cgi-bin/man/man2html?1+git">git</A></B>(1) suite
+<A NAME="lbAJ">&nbsp;</A>
+<H2>NOTES</H2>
+
+<DL COMPACT>
+<DT id="51"> 1.<DD>
+The Git User's Manual
+<DL COMPACT><DT id="52"><DD>
+<A HREF="file:///usr/share/doc/git/html/user-manual.html">file:///usr/share/doc/git/html/user-manual.html</A>
+</DL>
+
+<P>
+</DL>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="53"><A HREF="#lbAB">NAME</A><DD>
+<DT id="54"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="55"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="56"><A HREF="#lbAE">GIT REPOSITORY FORMAT VERSIONS</A><DD>
+<DL>
+<DT id="57"><A HREF="#lbAF">Version <B>0</B></A><DD>
+<DT id="58"><A HREF="#lbAG">Version <B>1</B></A><DD>
+</DL>
+<DT id="59"><A HREF="#lbAH">SEE ALSO</A><DD>
+<DT id="60"><A HREF="#lbAI">GIT</A><DD>
+<DT id="61"><A HREF="#lbAJ">NOTES</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:03 GMT, March 31, 2021
+</BODY>
+</HTML>

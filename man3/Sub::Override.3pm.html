@@ -1,0 +1,430 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of Sub::Override</TITLE>
+</HEAD><BODY>
+<H1>Sub::Override</H1>
+Section: User Contributed Perl Documentation (3pm)<BR>Updated: 2018-01-18<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+Sub::Override - Perl extension for easily overriding subroutines
+<A NAME="lbAC">&nbsp;</A>
+<H2>VERSION</H2>
+
+
+
+0.09
+<A NAME="lbAD">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+
+
+
+
+<PRE>
+  use Sub::Override;
+
+  sub foo { 'original sub' };
+  print foo(); # prints 'original sub'
+
+  my $override = Sub::Override-&gt;new( foo =&gt; sub { 'overridden sub' } );
+  print foo(); # prints 'overridden sub'
+  $override-&gt;restore;
+  print foo(); # prints 'original sub'
+
+</PRE>
+
+
+<A NAME="lbAE">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+
+<A NAME="lbAF">&nbsp;</A>
+<H3>The Problem</H3>
+
+
+
+Sometimes subroutines need to be overridden.  In fact, your author does this
+constantly for tests.  Particularly when testing, using a Mock Object can be
+overkill when all you want to do is override one tiny, little function.
+<P>
+
+Overriding a subroutine is often done with syntax similar to the following.
+<P>
+
+
+
+<PRE>
+ {
+   local *Some::sub = sub {'some behavior'};
+   # do something
+ }
+ # original subroutine behavior restored
+
+</PRE>
+
+
+<P>
+
+This has a few problems.
+<P>
+
+
+
+<PRE>
+ {
+   local *Get::some_feild = { 'some behavior' };
+   # do something
+ }
+
+</PRE>
+
+
+<P>
+
+In the above example, not only have we probably misspelled the subroutine name,
+but even if their had been a subroutine with that name, we haven't overridden
+it.  These two bugs can be subtle to detect.
+<P>
+
+Further, if we're attempting to localize the effect by placing this code in a
+block, the entire construct is cumbersome.
+<P>
+
+Hook::LexWrap also allows us to override sub behavior, but I can never remember
+the exact syntax.
+<A NAME="lbAG">&nbsp;</A>
+<H3>An easier way to replace subroutines</H3>
+
+
+
+Instead, <TT>&quot;Sub::Override&quot;</TT> allows the programmer to simply name the sub to
+replace and to supply a sub to replace it with.
+<P>
+
+
+
+<PRE>
+  my $override = Sub::Override-&gt;new('Some::sub', sub {'new data'});
+
+  # which is equivalent to:
+  my $override = Sub::Override-&gt;new;
+  $override-&gt;replace('Some::sub', sub { 'new data' });
+
+</PRE>
+
+
+<P>
+
+You can replace multiple subroutines, if needed:
+<P>
+
+
+
+<PRE>
+  $override-&gt;replace('Some::sub1', sub { 'new data1' });
+  $override-&gt;replace('Some::sub2', sub { 'new data2' });
+  $override-&gt;replace('Some::sub3', sub { 'new data3' });
+
+</PRE>
+
+
+<P>
+
+If replacing the subroutine succeeds, the object is returned.  This allows the
+programmer to chain the calls, if this style of programming is preferred:
+<P>
+
+
+
+<PRE>
+  $override-&gt;replace('Some::sub1', sub { 'new data1' })
+           -&gt;replace('Some::sub2', sub { 'new data2' })
+           -&gt;replace('Some::sub3', sub { 'new data3' });
+
+</PRE>
+
+
+<P>
+
+If the subroutine has a prototype, the new subroutine should be declared with
+same prototype as original one:
+<P>
+
+
+
+<PRE>
+  $override-&gt;replace('Some::sub_with_proto', sub ($$) { ($_[0], $_ [1]) });
+
+</PRE>
+
+
+<P>
+
+A subroutine may be replaced as many times as desired.  This is most useful
+when testing how code behaves with multiple conditions.
+<P>
+
+
+
+<PRE>
+  $override-&gt;replace('Some::thing', sub { 0 });
+  is($object-&gt;foo, 'wibble', 'wibble is returned if Some::thing is false');
+
+  $override-&gt;replace('Some::thing', sub { 1 });
+  is($object-&gt;foo, 'puppies', 'puppies are returned if Some::thing is true');
+
+</PRE>
+
+
+<A NAME="lbAH">&nbsp;</A>
+<H3>Restoring subroutines</H3>
+
+
+
+If the object falls out of scope, the original subs are restored.  However, if
+you need to restore a subroutine early, just use the restore method:
+<P>
+
+
+
+<PRE>
+  my $override = Sub::Override-&gt;new('Some::sub', sub {'new data'});
+  # do stuff
+  $override-&gt;restore;
+
+</PRE>
+
+
+<P>
+
+Which is somewhat equivalent to:
+<P>
+
+
+
+<PRE>
+  {
+    my $override = Sub::Override-&gt;new('Some::sub', sub {'new data'});
+    # do stuff
+  }
+
+</PRE>
+
+
+<P>
+
+If you have override more than one subroutine with an override object, you
+will have to explicitly name the subroutine you wish to restore:
+<P>
+
+
+
+<PRE>
+  $override-&gt;restore('This::sub');
+
+</PRE>
+
+
+<P>
+
+Note <TT>&quot;restore()&quot;</TT> will always restore the original behavior of the subroutine
+no matter how many times you have overridden it.
+<A NAME="lbAI">&nbsp;</A>
+<H3>Which package is the subroutine in?</H3>
+
+
+
+Ordinarily, you want to fully qualify the subroutine by including the package
+name.  However, failure to fully qualify the subroutine name will assume the
+current package.
+<P>
+
+
+
+<PRE>
+  package Foo;
+  use Sub::Override;
+  sub foo { 23 };
+  my $override = Sub::Override-&gt;new( foo =&gt; sub { 42 } ); # assumes Foo::foo
+  print foo(); # prints 42
+  $override-&gt;restore;
+  print foo(); # prints 23
+
+</PRE>
+
+
+<A NAME="lbAJ">&nbsp;</A>
+<H2>METHODS</H2>
+
+
+
+<A NAME="lbAK">&nbsp;</A>
+<H3>new</H3>
+
+
+
+
+
+<PRE>
+  my $sub = Sub::Override-&gt;new;
+  my $sub = Sub::Override-&gt;new($sub_name, $sub_ref);
+
+</PRE>
+
+
+<P>
+
+Creates a new <TT>&quot;Sub::Override&quot;</TT> instance.  Optionally, you may override a 
+subroutine while creating a new object.
+<A NAME="lbAL">&nbsp;</A>
+<H3>replace</H3>
+
+
+
+
+
+<PRE>
+ $sub-&gt;replace($sub_name, $sub_body);
+
+</PRE>
+
+
+<P>
+
+Temporarily replaces a subroutine with another subroutine.  Returns the
+instance, so chaining the method is allowed:
+<P>
+
+
+
+<PRE>
+ $sub-&gt;replace($sub_name, $sub_body)
+     -&gt;replace($another_sub, $another_body);
+
+</PRE>
+
+
+<P>
+
+This method will <TT>&quot;croak&quot;</TT> is the subroutine to be replaced does not exist.
+<A NAME="lbAM">&nbsp;</A>
+<H3>override</H3>
+
+
+
+
+
+<PRE>
+ my $sub = Sub::Override-&gt;new;
+ $sub-&gt;override($sub_name, $sub_body);
+
+</PRE>
+
+
+<P>
+
+<TT>&quot;override&quot;</TT> is an alternate name for <TT>&quot;replace&quot;</TT>.  They are the same method.
+<A NAME="lbAN">&nbsp;</A>
+<H3>restore</H3>
+
+
+
+
+
+<PRE>
+ $sub-&gt;restore($sub_name);
+
+</PRE>
+
+
+<P>
+
+Restores the previous behavior of the subroutine.  This will happen
+automatically if the <TT>&quot;Sub::Override&quot;</TT> object falls out of scope.
+<A NAME="lbAO">&nbsp;</A>
+<H2>EXPORT</H2>
+
+
+
+None by default.
+<A NAME="lbAP">&nbsp;</A>
+<H2>BUGS</H2>
+
+
+
+Probably.  Tell me about 'em.
+<A NAME="lbAQ">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+
+<DL COMPACT>
+<DT id="1">&bull;<DD>
+Hook::LexWrap --- can also override subs, but with different capabilities
+<DT id="2">&bull;<DD>
+Test::MockObject --- use this if you need to alter an entire class
+</DL>
+<A NAME="lbAR">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+
+
+Curtis ``Ovid'' Poe, <TT>&quot;&lt;ovid [at] cpan [dot] org&gt;&quot;</TT>
+<P>
+
+Reverse the name to email me.
+<A NAME="lbAS">&nbsp;</A>
+<H2>COPYRIGHT AND LICENSE</H2>
+
+
+
+Copyright (C) 2004-2005 by Curtis ``Ovid'' Poe
+<P>
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself, either Perl version 5.8.2 or,
+at your option, any later version of Perl 5 you may have available.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="3"><A HREF="#lbAB">NAME</A><DD>
+<DT id="4"><A HREF="#lbAC">VERSION</A><DD>
+<DT id="5"><A HREF="#lbAD">SYNOPSIS</A><DD>
+<DT id="6"><A HREF="#lbAE">DESCRIPTION</A><DD>
+<DL>
+<DT id="7"><A HREF="#lbAF">The Problem</A><DD>
+<DT id="8"><A HREF="#lbAG">An easier way to replace subroutines</A><DD>
+<DT id="9"><A HREF="#lbAH">Restoring subroutines</A><DD>
+<DT id="10"><A HREF="#lbAI">Which package is the subroutine in?</A><DD>
+</DL>
+<DT id="11"><A HREF="#lbAJ">METHODS</A><DD>
+<DL>
+<DT id="12"><A HREF="#lbAK">new</A><DD>
+<DT id="13"><A HREF="#lbAL">replace</A><DD>
+<DT id="14"><A HREF="#lbAM">override</A><DD>
+<DT id="15"><A HREF="#lbAN">restore</A><DD>
+</DL>
+<DT id="16"><A HREF="#lbAO">EXPORT</A><DD>
+<DT id="17"><A HREF="#lbAP">BUGS</A><DD>
+<DT id="18"><A HREF="#lbAQ">SEE ALSO</A><DD>
+<DT id="19"><A HREF="#lbAR">AUTHOR</A><DD>
+<DT id="20"><A HREF="#lbAS">COPYRIGHT AND LICENSE</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:58 GMT, March 31, 2021
+</BODY>
+</HTML>

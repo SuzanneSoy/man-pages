@@ -1,0 +1,414 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of Mail::Header</TITLE>
+</HEAD><BODY>
+<H1>Mail::Header</H1>
+Section: User Contributed Perl Documentation (3pm)<BR>Updated: 2019-07-25<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+Mail::Header - manipulate MIME headers
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+
+
+
+
+<PRE>
+ use Mail::Header;
+    
+ my $head = Mail::Header-&gt;new;
+ my $head = Mail::Header-&gt;new( \*STDIN );
+ my $head = Mail::Header-&gt;new( [&lt;&gt;], Modify =&gt; 0);
+
+</PRE>
+
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+
+Read, write, create, and manipulate <FONT SIZE="-1">MIME</FONT> headers, the leading part
+of each modern e-mail message, but also used in other protocols
+like <FONT SIZE="-1">HTTP.</FONT>  The fields are kept in Mail::Field objects.
+<P>
+
+Be aware that the header fields each have a name part, which shall
+be treated case-insensitive, and a content part, which may be folded
+over multiple lines.
+<P>
+
+Mail::Header does not always follow the RFCs strict enough, does not
+help you with character encodings.  It does not use weak references
+where it could (because those did not exist when the module was written)
+which costs some performance and make the implementation a little more
+complicated.  The Mail::Message::Head implementation is much newer
+and therefore better.
+<A NAME="lbAE">&nbsp;</A>
+<H2>METHODS</H2>
+
+
+
+<A NAME="lbAF">&nbsp;</A>
+<H3>Constructors</H3>
+
+
+
+<DL COMPACT>
+<DT id="1">$obj-&gt;<B>dup</B>()<DD>
+
+
+
+
+Create a duplicate of the current object.
+<DT id="2">$obj-&gt;<B>new</B>( [$source], [%options] )<DD>
+
+
+
+
+
+<DT id="3">Mail::Header-&gt;<B>new</B>( [$source], [%options] )<DD>
+
+
+
+The <TT>$source</TT> may be either a file descriptor (reference to a <FONT SIZE="-1">GLOB</FONT>)
+or a reference to an array. If given the new object will be
+initialized with headers either from the array of read from 
+the file descriptor.
+
+
+<P>
+
+
+<TT>%options</TT> is a list of options given in the form of key-value
+pairs, just like a hash table. Valid options are
+
+
+<P>
+
+
+
+
+<PRE>
+ -Option    --Default
+  FoldLength  79
+  MailFrom    'KEEP'
+  Modify      false
+
+</PRE>
+
+
+<DL COMPACT><DT id="4"><DD>
+<DL COMPACT>
+<DT id="5">FoldLength =&gt; <FONT SIZE="-1">INTEGER</FONT><DD>
+
+
+The default length of line to be used when folding header lines.
+See <B>fold_length()</B>.
+<DT id="6">MailFrom =&gt; '<FONT SIZE="-1">IGNORE</FONT>'|'<FONT SIZE="-1">COERCE</FONT>'|'<FONT SIZE="-1">KEEP</FONT>'|'<FONT SIZE="-1">ERROR</FONT>'<DD>
+
+
+See method <B>mail_from()</B>.
+<DT id="7">Modify =&gt; <FONT SIZE="-1">BOOLEAN</FONT><DD>
+
+
+If this value is <I>true</I> then the headers will be re-formatted,
+otherwise the format of the header lines will remain unchanged.
+</DL>
+</DL>
+
+<DL COMPACT><DT id="8"><DD>
+</DL>
+
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H3>Fake constructors</H3>
+
+
+
+
+
+Be warned that the next constructors all require an already created
+header object, of which the original content will be destroyed.
+<DL COMPACT>
+<DT id="9">$obj-&gt;<B>empty</B>()<DD>
+
+
+
+
+Empty an existing <TT>&quot;Mail::Header&quot;</TT> object of all lines.
+<DT id="10">$obj-&gt;<B>extract</B>(<FONT SIZE="-1">ARRAY</FONT>)<DD>
+
+
+
+
+Extract a header from the given array into an existing Mail::Header
+object. <TT>&quot;extract&quot;</TT> <B>will modify</B> this array.
+Returns the object that the method was called on.
+<DT id="11">$obj-&gt;<B>header</B>( [<FONT SIZE="-1">ARRAY</FONT>] )<DD>
+
+
+
+
+<TT>&quot;header&quot;</TT> does multiple operations. First it will extract a header from
+the <FONT SIZE="-1">ARRAY,</FONT> if given. It will then reformat the header (if reformatting
+is permitted), and finally return a reference to an array which
+contains the header in a printable form.
+<DT id="12">$obj-&gt;<B>header_hashref</B>( [<FONT SIZE="-1">HASH</FONT>] )<DD>
+
+
+
+
+As <B>header()</B>, but it will eventually set headers from a hash
+reference, and it will return the headers as a hash reference.
+
+
+<P>
+
+
+example:
+
+
+<P>
+
+
+
+
+<PRE>
+ $fields-&gt;{From} = 'Tobias Brox &lt;<A HREF="mailto:tobix@cpan.org">tobix@cpan.org</A>&gt;';
+ $fields-&gt;{To}   = ['<A HREF="mailto:you@somewhere">you@somewhere</A>', '<A HREF="mailto:me@localhost">me@localhost</A>'];
+ $head-&gt;header_hashref($fields);
+
+</PRE>
+
+
+<DT id="13">$obj-&gt;<B>read</B>($fh)<DD>
+
+
+
+
+Read a header from the given file descriptor into an existing Mail::Header
+object.
+</DL>
+<A NAME="lbAH">&nbsp;</A>
+<H3>Accessors</H3>
+
+
+
+<DL COMPACT>
+<DT id="14">$obj-&gt;<B>fold_length</B>( [$tag], [$length] )<DD>
+
+
+
+
+Set the default fold length for all tags or just one. With no arguments
+the default fold length is returned. With two arguments it sets the fold
+length for the given tag and returns the previous value. If only <TT>$length</TT>
+is given it sets the default fold length for the current object.
+
+
+<P>
+
+
+In the two argument form <TT>&quot;fold_length&quot;</TT> may be called as a static method,
+setting default fold lengths for tags that will be used by <B>all</B>
+<TT>&quot;Mail::Header&quot;</TT> objects. See the <TT>&quot;fold&quot;</TT> method for
+a description on how <TT>&quot;Mail::Header&quot;</TT> uses these values.
+<DT id="15">$obj-&gt;<B>mail_from</B>('<FONT SIZE="-1">IGNORE</FONT>'|'<FONT SIZE="-1">COERCE</FONT>'|'<FONT SIZE="-1">KEEP</FONT>'|'<FONT SIZE="-1">ERROR</FONT>')<DD>
+
+
+
+
+This specifies what to do when a <TT>`From '</TT> line is encountered.
+Valid values are <TT>&quot;IGNORE&quot;</TT> - ignore and discard the header,
+<TT>&quot;ERROR&quot;</TT> - invoke an error (call die), <TT>&quot;COERCE&quot;</TT> - rename them as Mail-From
+and <TT>&quot;KEEP&quot;</TT> - keep them.
+<DT id="16">$obj-&gt;<B>modify</B>( [$value] )<DD>
+
+
+
+
+If <TT>$value</TT> is <I>false</I> then <TT>&quot;Mail::Header&quot;</TT> will not do any automatic
+reformatting of the headers, other than to ensure that the line
+starts with the tags given.
+</DL>
+<A NAME="lbAI">&nbsp;</A>
+<H3>Processing</H3>
+
+
+
+<DL COMPACT>
+<DT id="17">$obj-&gt;<B>add</B>( $tag, $line [, $index] )<DD>
+
+
+
+
+Add a new line to the header. If <TT>$tag</TT> is <TT>&quot;undef&quot;</TT> the tag will be
+extracted from the beginning of the given line. If <TT>$index</TT> is given,
+the new line will be inserted into the header at the given point, otherwise
+the new line will be appended to the end of the header.
+<DT id="18">$obj-&gt;<B>as_string</B>()<DD>
+
+
+
+
+Returns the header as a single string.
+<DT id="19">$obj-&gt;<B>cleanup</B>()<DD>
+
+
+
+
+Remove any header line that, other than the tag, only contains whitespace
+<DT id="20">$obj-&gt;<B>combine</B>( $tag [, $with] )<DD>
+
+
+
+
+Combine all instances of <TT>$tag</TT> into one. The lines will be
+joined together <TT>$with</TT>, or a single space if not given. The new
+item will be positioned in the header where the first instance was, all
+other instances of <TT>$tag</TT> will be removed.
+<DT id="21">$obj-&gt;<B>count</B>($tag)<DD>
+
+
+
+
+Returns the number of times the given atg appears in the header
+<DT id="22">$obj-&gt;<B>delete</B>( $tag [, $index ] )<DD>
+
+
+
+
+Delete a tag from the header. If an <TT>$index</TT> id is given, then the Nth instance
+of the tag will be removed. If no <TT>$index</TT> is given, then all instances
+of tag will be removed.
+<DT id="23">$obj-&gt;<B>fold</B>( [$length] )<DD>
+
+
+
+
+Fold the header. If <TT>$length</TT> is not given, then <TT>&quot;Mail::Header&quot;</TT> uses the
+following rules to determine what length to fold a line.
+<DT id="24">$obj-&gt;<B>get</B>( $tag [, $index] )<DD>
+
+
+
+
+Get the text from a line. If an <TT>$index</TT> is given, then the text of the Nth
+instance will be returned. If it is not given the return value depends on the
+context in which <TT>&quot;get&quot;</TT> was called. In an array context a list of all the
+text from all the instances of the <TT>$tag</TT> will be returned. In a scalar context
+the text for the first instance will be returned.
+
+
+<P>
+
+
+The lines are unfolded, but still terminated with a new-line (see <TT>&quot;chomp&quot;</TT>)
+<DT id="25">$obj-&gt;<B>print</B>( [$fh] )<DD>
+
+
+
+
+Print the header to the given file descriptor, or <TT>&quot;STDOUT&quot;</TT> if no
+file descriptor is given.
+<DT id="26">$obj-&gt;<B>replace</B>( $tag, $line [, $index ] )<DD>
+
+
+
+
+Replace a line in the header.  If <TT>$tag</TT> is <TT>&quot;undef&quot;</TT> the tag will be
+extracted from the beginning of the given line. If <TT>$index</TT> is given
+the new line will replace the Nth instance of that tag, otherwise the
+first instance of the tag is replaced. If the tag does not appear in the
+header then a new line will be appended to the header.
+<DT id="27">$obj-&gt;<B>tags</B>()<DD>
+
+
+
+
+Returns an array of all the tags that exist in the header. Each tag will
+only appear in the list once. The order of the tags is not specified.
+<DT id="28">$obj-&gt;<B>unfold</B>( [$tag] )<DD>
+
+
+
+
+Unfold all instances of the given tag so that they do not spread across
+multiple lines. If <TT>$tag</TT> is not given then all lines are unfolded.
+
+
+<P>
+
+
+The unfolding process is wrong but (for compatibility reasons) will
+not be repaired: only one blank at the start of the line should be
+removed, not all of them.
+</DL>
+<A NAME="lbAJ">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+
+This module is part of the MailTools distribution,
+<I><A HREF="http://perl.overmeer.net/mailtools/">http://perl.overmeer.net/mailtools/</A></I>.
+<A NAME="lbAK">&nbsp;</A>
+<H2>AUTHORS</H2>
+
+
+
+The MailTools bundle was developed by Graham Barr.  Later, Mark
+Overmeer took over maintenance without commitment to further development.
+<P>
+
+Mail::Cap by Gisle Aas &lt;<A HREF="mailto:aas@oslonett.no">aas@oslonett.no</A>&gt;.
+Mail::Field::AddrList by Peter Orbaek &lt;<A HREF="mailto:poe@cit.dk">poe@cit.dk</A>&gt;.
+Mail::Mailer and Mail::Send by Tim Bunce &lt;<A HREF="mailto:Tim.Bunce@ig.co.uk">Tim.Bunce@ig.co.uk</A>&gt;.
+For other contributors see ChangeLog.
+<A NAME="lbAL">&nbsp;</A>
+<H2>LICENSE</H2>
+
+
+
+Copyrights 1995-2000 Graham Barr &lt;<A HREF="mailto:gbarr@pobox.com">gbarr@pobox.com</A>&gt; and
+2001-2017 Mark Overmeer &lt;<A HREF="mailto:perl@overmeer.net">perl@overmeer.net</A>&gt;.
+<P>
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+See <I><A HREF="http://www.perl.com/perl/misc/Artistic.html">http://www.perl.com/perl/misc/Artistic.html</A></I>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="29"><A HREF="#lbAB">NAME</A><DD>
+<DT id="30"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="31"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="32"><A HREF="#lbAE">METHODS</A><DD>
+<DL>
+<DT id="33"><A HREF="#lbAF">Constructors</A><DD>
+<DT id="34"><A HREF="#lbAG">Fake constructors</A><DD>
+<DT id="35"><A HREF="#lbAH">Accessors</A><DD>
+<DT id="36"><A HREF="#lbAI">Processing</A><DD>
+</DL>
+<DT id="37"><A HREF="#lbAJ">SEE ALSO</A><DD>
+<DT id="38"><A HREF="#lbAK">AUTHORS</A><DD>
+<DT id="39"><A HREF="#lbAL">LICENSE</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:47 GMT, March 31, 2021
+</BODY>
+</HTML>

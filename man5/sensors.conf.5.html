@@ -1,0 +1,719 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of sensors.conf</TITLE>
+</HEAD><BODY>
+<H1>sensors.conf</H1>
+Section: Linux User's Manual (5)<BR>Updated: November 2012<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+sensors.conf - libsensors configuration file
+<P>
+<A NAME="lbAC">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+sensors.conf describes how libsensors, and so all programs using it, should
+translate the raw readings from the kernel modules to real-world values.
+<P>
+<A NAME="lbAD">&nbsp;</A>
+<H2>SEMANTICS</H2>
+
+<P>
+On a given system, there may be one or more hardware monitoring chips.
+Each chip may have several features. For example, the LM78 monitors 7
+voltage inputs, 3 fans and one temperature. Feature names are
+standardized. Typical feature names are in0, in1, in2... for voltage
+inputs, fan1, fan2, fan3... for fans and temp1, temp2, temp3... for
+temperature inputs.
+<P>
+Each feature may in turn have one or more sub-features, each
+representing an attribute of the feature: input value, low limit, high
+limit, alarm, etc. Sub-feature names are standardized as well. For
+example, the first voltage input (in0) would typically have
+sub-features in0_input (measured value), in0_min (low limit), in0_max
+(high limit) and in0_alarm (alarm flag). Which sub-features are
+actually present depend on the exact chip type.
+<P>
+The
+<I>sensors.conf</I>
+
+configuration file will let you configure each chip, feature and
+sub-feature in a way that makes sense for your system.
+<P>
+The rest of this section describes the meaning of each configuration
+statement.
+<P>
+<A NAME="lbAE">&nbsp;</A>
+<H3>CHIP STATEMENT</H3>
+
+<P>
+A
+<I>chip</I>
+
+statement selects for which chips all following
+<I>compute</I>,
+
+<I>label</I>,
+
+<I>ignore</I>
+
+and
+<I>set</I>
+
+statements are meant. A chip
+selection remains valid until the next
+<I>chip</I>
+
+statement. Example:
+<P>
+<DL COMPACT><DT id="1"><DD>
+chip &quot;lm78-*&quot; &quot;lm79-*&quot;
+</DL>
+
+<P>
+If a chip matches at least one of the chip descriptions, the following
+configuration lines are examined for it, otherwise they are ignored.
+<P>
+A chip description is built from several elements, separated by
+dashes. The first element is the chip type, the second element is
+the name of the bus, and the third element is the hexadecimal address
+of the chip. Such chip descriptions are printed by <A HREF="/cgi-bin/man/man2html?1+sensors">sensors</A>(1) as the
+first line for every chip.
+<P>
+The name of the bus is either
+<I>isa</I>,
+
+<I>pci</I>,
+
+<I>virtual</I>,
+
+<I>spi-*,</I>
+
+<I>i2c-N</I>
+
+or
+<I>mdio</I>
+
+with
+<I>N</I>
+
+being a bus number as bound with a
+<I>bus</I>
+
+statement. This list isn't necessarily exhaustive as support for other
+bus types may be added in the future.
+<P>
+You may substitute the wildcard operator
+<I>*</I>
+
+for every element. Note however that it wouldn't make any sense to specify
+the address without the bus type, so the address part is plain omitted
+when the bus type isn't specified.
+Here is how you would express the following matches:
+<P>
+<TABLE>
+<TR VALIGN=top><TD>LM78 chip at address 0x2d on I2C bus 1</TD><TD>lm78-i2c-1-2d<BR></TD></TR>
+<TR VALIGN=top><TD>LM78 chip at address 0x2d on any I2C bus</TD><TD>lm78-i2c-*-2d<BR></TD></TR>
+<TR VALIGN=top><TD>LM78 chip at address 0x290 on the ISA bus</TD><TD>lm78-isa-0290<BR></TD></TR>
+<TR VALIGN=top><TD>Any LM78 chip on I2C bus 1</TD><TD>lm78-i2c-1-*<BR></TD></TR>
+<TR VALIGN=top><TD>Any LM78 on any I2C bus</TD><TD>lm78-i2c-*-*<BR></TD></TR>
+<TR VALIGN=top><TD>Any LM78 chip on the ISA bus</TD><TD>lm78-isa-*<BR></TD></TR>
+<TR VALIGN=top><TD>Any LM78 chip</TD><TD>lm78-*<BR></TD></TR>
+<TR VALIGN=top><TD>Any chip at address 0x2d on I2C bus 1</TD><TD>*-i2c-1-2d<BR></TD></TR>
+<TR VALIGN=top><TD>Any chip at address 0x290 on the ISA bus</TD><TD>*-isa-0290<BR></TD></TR>
+</TABLE>
+
+<P>
+If several chip statements match a specific chip, they are all considered.
+<P>
+<A NAME="lbAF">&nbsp;</A>
+<H3>LABEL STATEMENT</H3>
+
+<P>
+A
+<I>label</I>
+
+statement describes how a feature should be called. Features without a
+<I>label</I>
+
+statement are just called by their feature name. Applications can use this
+to label the readings they present. Example:
+<P>
+<DL COMPACT><DT id="2"><DD>
+label in3 &quot;+5V&quot;
+</DL>
+
+<P>
+The first argument is the feature name. The second argument is the feature
+description.
+<P>
+Note that you must use the raw feature name, which is not necessarily the
+one displayed by &quot;sensors&quot; by default. Use &quot;sensors -u&quot; to see the raw
+feature names. Same applies to all other statement types below.
+<P>
+<A NAME="lbAG">&nbsp;</A>
+<H3>IGNORE STATEMENT</H3>
+
+<P>
+An
+<I>ignore</I>
+
+statement is a hint that a specific feature should be ignored - probably
+because it returns bogus values (for example, because a fan or temperature
+sensor is not connected). Example:
+<P>
+<DL COMPACT><DT id="3"><DD>
+ignore fan1
+</DL>
+
+<P>
+The only argument is the feature name. Please note that this does not disable
+anything in the actual sensor chip; it simply hides the feature in question
+from libsensors users.
+<P>
+<A NAME="lbAH">&nbsp;</A>
+<H3>COMPUTE STATEMENT</H3>
+
+<P>
+A
+<I>compute</I>
+
+statement describes how a feature's raw value should be translated to a
+real-world value, and how a real-world value should be translated back
+to a raw value again. This is most useful for voltage sensors, because
+in general sensor chips have a limited range and voltages outside this
+range must be divided (using resistors) before they can be monitored.
+Example:
+<P>
+<DL COMPACT><DT id="4"><DD>
+compute in3 ((6.8/10)+1)*@, @/((6.8/10)+1)
+</DL>
+
+<P>
+The example above expresses the fact that the voltage input is divided
+using two resistors of values 6.8 Ohm and 10 Ohm, respectively. See the
+<B>VOLTAGE COMPUTATION DETAILS</B>
+
+section below for details.
+<P>
+The first argument is the feature name. The second argument is an expression
+which specifies how a raw value must be translated to a real-world value;
+`@' stands here for the raw value. This is the formula which will be applied
+when reading values from the chip. The third argument is an expression that
+specifies how a real-world value should be translated back to a raw value;
+`@' stands here for the real-world value. This is the formula which will be
+applied when writing values to the chip. The two formulas are obviously
+related, and are separated by a comma.
+<P>
+A
+<I>compute</I>
+
+statement applies to all sub-features of the target feature for which
+it makes sense. For example, the above example would affect sub-features
+in3_min and in3_max (which are voltage values) but not in3_alarm
+(which is a boolean flag.)
+<P>
+The following operators are supported in
+<I>compute</I>
+
+statements:
+<DL COMPACT><DT id="5"><DD>
++ - * / ( ) ^ `
+</DL>
+
+^x means exp(x) and `x means ln(x).
+<P>
+You may use the name of sub-features in these expressions; current readings
+are substituted. You should be careful though to avoid circular references.
+<P>
+If at any moment a translation between a raw and a real-world value is
+called for, but no
+<I>compute</I>
+
+statement applies, a one-on-one translation is used instead.
+<P>
+<A NAME="lbAI">&nbsp;</A>
+<H3>SET STATEMENT</H3>
+
+<P>
+A
+<I>set</I>
+
+statement is used to write a sub-feature value to the chip. Of course not
+all sub-feature values can be set that way, in particular input values
+and alarm flags can not. Valid sub-features are usually min/max limits.
+Example:
+<P>
+<DL COMPACT><DT id="6"><DD>
+set in3_min  5 * 0.95
+</DL>
+
+<DL COMPACT><DT id="7"><DD>
+set in3_max  5 * 1.05
+</DL>
+
+<P>
+The example above basically configures the chip to allow a 5% deviance
+for the +5V power input.
+<P>
+The first argument is the feature name. The second argument is an expression
+which determines the written value. If there is an applying
+<I>compute</I>
+
+statement, this value is fed to its third argument to translate it to a
+raw value.
+<P>
+You may use the name of sub-features in these expressions; current readings
+are substituted. You should be careful though to avoid circular references.
+<P>
+Please note that
+<I>set</I>
+
+statements are only executed by <A HREF="/cgi-bin/man/man2html?1+sensors">sensors</A>(1) when you use the
+<B>-s</B>
+
+option. Typical graphical sensors applications do not care about these
+statements at all.
+<P>
+<A NAME="lbAJ">&nbsp;</A>
+<H3>BUS STATEMENT</H3>
+
+<P>
+A
+<I>bus</I>
+
+statement binds the description of an I2C or SMBus adapter to a bus number.
+This makes it possible to refer to an adapter in the configuration file,
+independent of the actual correspondence of bus numbers and actual
+adapters (which may change from moment to moment). Example:
+<P>
+<DL COMPACT><DT id="8"><DD>
+bus &quot;i2c-0&quot; &quot;SMBus PIIX4 adapter at e800&quot;
+</DL>
+
+<P>
+The first argument is the bus number. It is the literal text
+<I>i2c-</I>,
+
+followed by a number. As there is a dash in this argument, it must
+always be quoted.
+<P>
+The second argument is the adapter name, it must match exactly the
+adapter name as it appears in
+<I>/sys/class/i2c-adapter/i2c-*/name</I>.
+
+It should always be quoted as well as it will most certainly contain
+spaces or dashes.
+<P>
+The
+<I>bus</I>
+
+statements may be scattered randomly throughout the configuration file;
+there is no need to place the bus line before the place where its binding
+is referred to. Still, as a matter of good style, we suggest you place
+all
+<I>bus</I>
+
+statements together at the top of your configuration file.
+<P>
+Running
+<B>sensors --bus-list</B>
+
+will generate these lines for you.
+<P>
+In the case where multiple configuration files are used, the scope
+of each
+<I>bus</I>
+
+statement is the configuration file it was defined in. This makes it
+possible to have bus statements in all configuration files which will
+not unexpectedly interfere with each other.
+<P>
+<A NAME="lbAK">&nbsp;</A>
+<H3>STATEMENT ORDER</H3>
+
+<P>
+Statements can go in any order, however it is recommended to put
+`set fanX_div' statements before `set fanX_min' statements, in case
+a driver doesn't preserve the fanX_min setting when the fanX_div
+value is changed. Even if the driver does, it's still better to put
+the statements in this order to avoid accuracy loss.
+<P>
+<A NAME="lbAL">&nbsp;</A>
+<H2>VOLTAGE COMPUTATION DETAILS</H2>
+
+<P>
+Most voltage sensors in sensor chips have a range of 0 to 4.08 V.
+This is generally sufficient for the +3.3V and CPU supply voltages, so
+the sensor chip reading is the actual voltage.
+<P>
+Other supply voltages must be scaled with an external resistor network.
+The driver reports the value at the chip's pin (0 - 4.08 V), and the
+userspace application must convert this raw value to an actual voltage.
+The
+<I>compute</I>
+
+statements provide this facility.
+<P>
+Unfortunately the resistor values vary among motherboard types.
+Therefore you have to figure out the correct resistor values for your
+own motherboard.
+<P>
+For positive voltages (typically +5V and +12V), two resistors are used,
+with the following formula:
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;R1&nbsp;=&nbsp;R2&nbsp;*&nbsp;(Vs/Vin&nbsp;-&nbsp;1)
+<P>
+where:
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;R1&nbsp;and&nbsp;R2&nbsp;are&nbsp;the&nbsp;resistor&nbsp;values
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Vs&nbsp;is&nbsp;the&nbsp;actual&nbsp;voltage&nbsp;being&nbsp;monitored
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Vin&nbsp;is&nbsp;the&nbsp;voltage&nbsp;at&nbsp;the&nbsp;pin
+<P>
+This leads to the following compute formula:
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;compute&nbsp;inX&nbsp;@*((R1/R2)+1),&nbsp;&nbsp;@/(((R1/R2)+1)
+<P>
+Real-world formula for +5V and +12V would look like:
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;compute&nbsp;in3&nbsp;@*((6.8/10)+1),&nbsp;@/((6.8/10)+1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;compute&nbsp;in4&nbsp;@*((28/10)+1),&nbsp;&nbsp;@/((28/10)+1)
+<P>
+For negative voltages (typically -5V and -12V), two resistors are used
+as well, but different boards use different strategies to bring the
+voltage value into the 0 - 4.08 V range. Some use an inverting
+amplifier, others use a positive reference voltage. This leads to
+different computation formulas. Note that most users won't have to care
+because most modern motherboards make little use of -12V and no use of
+-5V so they do not bother monitoring these voltage inputs.
+<P>
+Real-world examples for the inverting amplifier case:
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;compute&nbsp;in5&nbsp;-@*(240/60),&nbsp;-@/(240/60)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;compute&nbsp;in6&nbsp;-@*(100/60),&nbsp;-@/(100/60)
+<P>
+Real-world examples for the positive voltage reference case:
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;compute&nbsp;in5&nbsp;@*(1+232/56)&nbsp;-&nbsp;4.096*232/56,&nbsp;(@&nbsp;+&nbsp;4.096*232/56)/(1+232/56)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;compute&nbsp;in6&nbsp;@*(1+120/56)&nbsp;-&nbsp;4.096*120/56,&nbsp;(@&nbsp;+&nbsp;4.096*120/56)/(1+120/56)
+<P>
+Many recent monitoring chips have a 0 - 2.04 V range, so scaling resistors
+are even more needed, and resistor values are different.
+<P>
+There are also a few chips out there which have internal scaling
+resistors, meaning that their value is known and doesn't change from
+one motherboard to the next. For these chips, the driver usually
+handles the scaling so it is transparent to the user and no
+<I>compute</I>
+
+statements are needed.
+<P>
+<A NAME="lbAM">&nbsp;</A>
+<H2>TEMPERATURE CONFIGURATION</H2>
+
+<P>
+On top of the usual features, temperatures can have two specific
+sub-features: temperature sensor type (tempX_type) and hysteresis
+values (tempX_max_hyst, tempX_crit_hyst etc.).
+<P>
+<A NAME="lbAN">&nbsp;</A>
+<H3>THERMAL SENSOR TYPES</H3>
+
+<P>
+Available thermal sensor types:
+<TABLE>
+<TR VALIGN=top><TD ALIGN=right>1</TD><TD>PII/Celeron Diode<BR></TD></TR>
+<TR VALIGN=top><TD ALIGN=right>2</TD><TD>3904 transistor<BR></TD></TR>
+<TR VALIGN=top><TD ALIGN=right>3</TD><TD>thermal diode<BR></TD></TR>
+<TR VALIGN=top><TD ALIGN=right>4</TD><TD>thermistor<BR></TD></TR>
+<TR VALIGN=top><TD ALIGN=right>5</TD><TD>AMD AMDSI<BR></TD></TR>
+<TR VALIGN=top><TD ALIGN=right>6</TD><TD>Intel PECI<BR></TD></TR>
+</TABLE>
+
+<P>
+For example, to set temp1 to thermistor type, use:
+<P>
+<DL COMPACT><DT id="9"><DD>
+set temp1_type 4
+</DL>
+
+<P>
+Only certain chips support thermal sensor type change, and even these
+usually only support some of the types above. Please refer to the
+specific driver documentation to find out which types are supported
+by your chip.
+<P>
+In theory, the BIOS should have configured the sensor types correctly,
+so you shouldn't have to touch them, but sometimes it isn't the case.
+<P>
+<A NAME="lbAO">&nbsp;</A>
+<H3>THERMAL HYSTERESIS MECHANISM</H3>
+
+<P>
+Many monitoring chips do not handle the high and critical temperature
+limits as simple limits. Instead, they have two values for each
+limit, one which triggers an alarm when the temperature rises and another
+one which clears the alarm when the temperature falls. The latter is
+typically a few degrees below the former. This mechanism is known as
+hysteresis.
+<P>
+The reason for implementing things that way is that high temperature
+alarms typically trigger an action to attempt to cool the system down,
+either by scaling down the CPU frequency, or by kicking in an extra
+fan. This should normally let the temperature fall in a timely manner.
+If this was clearing the alarm immediately, then the system would be
+back to its original state where the temperature rises and the alarm
+would immediately trigger again, causing an undesirable tight fan on,
+fan off loop. The hysteresis mechanism ensures that the system is
+really cool before the fan stops, so that it will not have to kick in
+again immediately.
+<P>
+So, in addition to tempX_max, many chips have a tempX_max_hyst
+sub-feature. Likewise, tempX_crit often comes with tempX_crit_hyst.
+tempX_emerg_hyst, tempX_min_hyst and tempX_lcrit_hyst exist too but
+aren't as common.
+Example:
+<P>
+<DL COMPACT><DT id="10"><DD>
+set temp1_max      60
+</DL>
+
+<DL COMPACT><DT id="11"><DD>
+set temp1_max_hyst 56
+</DL>
+
+<P>
+The hysteresis mechanism can be disabled by giving both limits the same
+value.
+<P>
+Note that it is strongly recommended to set the hysteresis value after
+the limit value it relates to in the configuration file. Implementation
+details on the hardware or driver side may cause unexpected results if
+the hysteresis value is set first.
+<P>
+<A NAME="lbAP">&nbsp;</A>
+<H2>BEEPS</H2>
+
+<P>
+Some chips support alarms with beep warnings. When an alarm is triggered
+you can be warned by a beeping signal through your computer speaker. On
+top of per-feature beep flags, there is usually a master beep control
+switch to enable or disable beeping globally. Enable beeping using:
+<P>
+<DL COMPACT><DT id="12"><DD>
+set beep_enable 1
+</DL>
+
+<P>
+or disable it using:
+<P>
+<DL COMPACT><DT id="13"><DD>
+set beep_enable 0
+</DL>
+
+<P>
+<A NAME="lbAQ">&nbsp;</A>
+<H2>WHICH STATEMENT APPLIES</H2>
+
+<P>
+If more than one statement of the same kind applies at a certain moment,
+the last one in the configuration file is used. So usually, you should
+put more general
+<I>chip</I>
+
+statements at the top, so you can overrule them below.
+<P>
+<A NAME="lbAR">&nbsp;</A>
+<H2>SYNTAX</H2>
+
+Comments are introduced by hash marks. A comment continues to the end of the
+line. Empty lines, and lines containing only whitespace or comments are
+ignored.  Other lines have one of the below forms. There must be whitespace
+between each element, but the amount of whitespace is unimportant. A line
+may be continued on the next line by ending it with a backslash; this does
+not work within a comment,
+<B>NAME</B>
+
+or
+<B>NUMBER</B>.
+
+<P>
+<DL COMPACT><DT id="14"><DD>
+bus
+<B>NAME NAME NAME</B>
+
+<P>
+chip
+<B>NAME-LIST</B>
+
+<P>
+label
+<B>NAME NAME</B>
+
+<P>
+compute
+<B>NAME EXPR</B>
+
+,
+<B>EXPR</B>
+
+<P>
+ignore
+<B>NAME</B>
+
+<P>
+set
+<B>NAME EXPR</B>
+
+</DL>
+
+<P>
+A
+<B>NAME</B>
+
+is a string. If it only contains letters, digits and underscores, it does not
+have to be quoted; in all other cases, you must use double quotes around it.
+Within quotes, you can use the normal escape-codes from C.
+<P>
+A
+<B>NAME-LIST</B>
+
+is one or more
+<B>NAME</B>
+
+items behind each other, separated by whitespace.
+<P>
+A
+<B>EXPR</B>
+
+is of one of the below forms:
+<P>
+<DL COMPACT><DT id="15"><DD>
+<B>NUMBER</B>
+
+<P>
+<B>NAME</B>
+
+<P>
+@
+<P>
+<B>EXPR</B>
+
++
+<B>EXPR</B>
+
+<P>
+<B>EXPR</B>
+
+-
+<B>EXPR</B>
+
+<P>
+<B>EXPR</B>
+
+*
+<B>EXPR</B>
+
+<P>
+<B>EXPR</B>
+
+/
+<B>EXPR</B>
+
+<P>
+-
+<B>EXPR</B>
+
+<P>
+^
+<B>EXPR</B>
+
+<P>
+`
+<B>EXPR</B>
+
+<P>
+(
+<B>EXPR</B>
+
+)
+</DL>
+
+<P>
+A
+<B>NUMBER</B>
+
+is a floating-point number. `10', `10.4' and `.4' are examples of valid
+floating-point numbers; `10.' or `10E4' are not valid.
+<P>
+<A NAME="lbAS">&nbsp;</A>
+<H2>FILES</H2>
+
+<I>/etc/sensors3.conf</I>
+
+<BR>
+
+<I>/etc/sensors.conf</I>
+
+<DL COMPACT><DT id="16"><DD>
+The system-wide
+<B><A HREF="/cgi-bin/man/man2html?3+libsensors">libsensors</A></B>(3)
+
+configuration file. /etc/sensors3.conf is tried first, and if it doesn't exist,
+/etc/sensors.conf is used instead.
+</DL>
+
+<P>
+<I>/etc/sensors.d</I>
+
+<DL COMPACT><DT id="17"><DD>
+A directory where you can put additional libsensors configuration files.
+Files found in this directory will be processed in alphabetical order after
+the default configuration file. Files with names that start with a dot are
+ignored.
+</DL>
+
+<P>
+<A NAME="lbAT">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<A HREF="/cgi-bin/man/man2html?3+libsensors">libsensors</A>(3)
+<P>
+<A NAME="lbAU">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+Frodo Looijaard and the lm_sensors group
+<A HREF="https://hwmon.wiki.kernel.org/lm_sensors">https://hwmon.wiki.kernel.org/lm_sensors</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="18"><A HREF="#lbAB">NAME</A><DD>
+<DT id="19"><A HREF="#lbAC">DESCRIPTION</A><DD>
+<DT id="20"><A HREF="#lbAD">SEMANTICS</A><DD>
+<DL>
+<DT id="21"><A HREF="#lbAE">CHIP STATEMENT</A><DD>
+<DT id="22"><A HREF="#lbAF">LABEL STATEMENT</A><DD>
+<DT id="23"><A HREF="#lbAG">IGNORE STATEMENT</A><DD>
+<DT id="24"><A HREF="#lbAH">COMPUTE STATEMENT</A><DD>
+<DT id="25"><A HREF="#lbAI">SET STATEMENT</A><DD>
+<DT id="26"><A HREF="#lbAJ">BUS STATEMENT</A><DD>
+<DT id="27"><A HREF="#lbAK">STATEMENT ORDER</A><DD>
+</DL>
+<DT id="28"><A HREF="#lbAL">VOLTAGE COMPUTATION DETAILS</A><DD>
+<DT id="29"><A HREF="#lbAM">TEMPERATURE CONFIGURATION</A><DD>
+<DL>
+<DT id="30"><A HREF="#lbAN">THERMAL SENSOR TYPES</A><DD>
+<DT id="31"><A HREF="#lbAO">THERMAL HYSTERESIS MECHANISM</A><DD>
+</DL>
+<DT id="32"><A HREF="#lbAP">BEEPS</A><DD>
+<DT id="33"><A HREF="#lbAQ">WHICH STATEMENT APPLIES</A><DD>
+<DT id="34"><A HREF="#lbAR">SYNTAX</A><DD>
+<DT id="35"><A HREF="#lbAS">FILES</A><DD>
+<DT id="36"><A HREF="#lbAT">SEE ALSO</A><DD>
+<DT id="37"><A HREF="#lbAU">AUTHOR</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:05 GMT, March 31, 2021
+</BODY>
+</HTML>

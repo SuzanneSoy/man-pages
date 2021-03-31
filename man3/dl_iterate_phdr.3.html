@@ -1,0 +1,469 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of DL_ITERATE_PHDR</TITLE>
+</HEAD><BODY>
+<H1>DL_ITERATE_PHDR</H1>
+Section: Linux Programmer's Manual (3)<BR>Updated: 2019-03-06<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+dl_iterate_phdr - walk through list of shared objects
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<PRE>
+<B>#define _GNU_SOURCE</B>         /* See <A HREF="/cgi-bin/man/man2html?7+feature_test_macros">feature_test_macros</A>(7) */
+<B>#include &lt;<A HREF="file:///usr/include/link.h">link.h</A>&gt;</B>
+
+<B>int dl_iterate_phdr(</B>
+<B>          int (*</B><I>callback</I><B>) (struct dl_phdr_info *</B><I>info</I><B>,</B>
+<B>                           size_t </B><I>size</I><B>, void *</B><I>data</I><B>),</B>
+<B>          void *</B><I>data</I><B>);</B>
+</PRE>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+The
+<B>dl_iterate_phdr</B>()
+
+function allows an application to inquire at run time to find
+out which shared objects it has loaded,
+and the order in which they were loaded.
+<P>
+
+The
+<B>dl_iterate_phdr</B>()
+
+function walks through the list of an
+application's shared objects and calls the function
+<I>callback</I>
+
+once for each object,
+until either all shared objects have been processed or
+<I>callback</I>
+
+returns a nonzero value.
+<P>
+
+Each call to
+<I>callback</I>
+
+receives three arguments:
+<I>info</I>,
+
+which is a pointer to a structure containing information
+about the shared object;
+<I>size</I>,
+
+which is the size of the structure pointed to by
+<I>info</I>;
+
+and
+<I>data</I>,
+
+which is a copy of whatever value was passed by the calling
+program as the second argument (also named
+<I>data</I>)
+
+in the call to
+<B>dl_iterate_phdr</B>().
+
+<P>
+
+The
+<I>info</I>
+
+argument is a structure of the following type:
+<P>
+
+
+
+struct dl_phdr_info {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;ElfW(Addr)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dlpi_addr;&nbsp;&nbsp;/*&nbsp;Base&nbsp;address&nbsp;of&nbsp;object&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;const&nbsp;char&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*dlpi_name;&nbsp;&nbsp;/*&nbsp;(Null-terminated)&nbsp;name&nbsp;of
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;object&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;const&nbsp;ElfW(Phdr)&nbsp;*dlpi_phdr;&nbsp;&nbsp;/*&nbsp;Pointer&nbsp;to&nbsp;array&nbsp;of
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ELF&nbsp;program&nbsp;headers
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;this&nbsp;object&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;ElfW(Half)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dlpi_phnum;&nbsp;/*&nbsp;#&nbsp;of&nbsp;items&nbsp;in&nbsp;<I>dlpi_phdr</I>&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;The&nbsp;following&nbsp;fields&nbsp;were&nbsp;added&nbsp;in&nbsp;glibc&nbsp;2.4,&nbsp;after&nbsp;the&nbsp;first
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;version&nbsp;of&nbsp;this&nbsp;structure&nbsp;was&nbsp;available.&nbsp;&nbsp;Check&nbsp;the&nbsp;<I>size</I>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;argument&nbsp;passed&nbsp;to&nbsp;the&nbsp;dl_iterate_phdr&nbsp;callback&nbsp;to&nbsp;determine
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;whether&nbsp;or&nbsp;not&nbsp;each&nbsp;later&nbsp;member&nbsp;is&nbsp;available.&nbsp;&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;unsigned&nbsp;long&nbsp;long&nbsp;int&nbsp;dlpi_adds;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Incremented&nbsp;when&nbsp;a&nbsp;new&nbsp;object&nbsp;may
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;have&nbsp;been&nbsp;added&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;unsigned&nbsp;long&nbsp;long&nbsp;int&nbsp;dlpi_subs;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Incremented&nbsp;when&nbsp;an&nbsp;object&nbsp;may
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;have&nbsp;been&nbsp;removed&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;size_t&nbsp;dlpi_tls_modid;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;If&nbsp;there&nbsp;is&nbsp;a&nbsp;PT_TLS&nbsp;segment,&nbsp;its&nbsp;module
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ID&nbsp;as&nbsp;used&nbsp;in&nbsp;TLS&nbsp;relocations,&nbsp;else&nbsp;zero&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;void&nbsp;&nbsp;*dlpi_tls_data;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;The&nbsp;address&nbsp;of&nbsp;the&nbsp;calling&nbsp;thread's&nbsp;instance
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;of&nbsp;this&nbsp;module's&nbsp;PT_TLS&nbsp;segment,&nbsp;if&nbsp;it&nbsp;has
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;one&nbsp;and&nbsp;it&nbsp;has&nbsp;been&nbsp;allocated&nbsp;in&nbsp;the&nbsp;calling
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;thread,&nbsp;otherwise&nbsp;a&nbsp;null&nbsp;pointer&nbsp;*/
+};
+
+
+<P>
+
+(The
+<I>ElfW</I>()
+
+macro definition turns its argument into the name of an ELF data
+type suitable for the hardware architecture.
+For example, on a 32-bit platform,
+<I>ElfW(Addr)</I>
+
+yields the data type name
+<I>Elf32_Addr</I>.
+
+Further information on these types can be found in the
+<I>&lt;<A HREF="file:///usr/include/elf.h">elf.h</A>&gt;</I> and <I>&lt;<A HREF="file:///usr/include/link.h">link.h</A>&gt;</I>
+
+header files.)
+<P>
+
+The
+<I>dlpi_addr</I>
+
+field indicates the base address of the shared object
+(i.e., the difference between the virtual memory address of
+the shared object and the offset of that object in the file
+from which it was loaded).
+The
+<I>dlpi_name</I>
+
+field is a null-terminated string giving the pathname
+from which the shared object was loaded.
+<P>
+
+To understand the meaning of the
+<I>dlpi_phdr</I>
+
+and
+<I>dlpi_phnum</I>
+
+fields, we need to be aware that an ELF shared object consists
+of a number of segments, each of which has a corresponding
+program header describing the segment.
+The
+<I>dlpi_phdr</I>
+
+field is a pointer to an array of the program headers for this
+shared object.
+The
+<I>dlpi_phnum</I>
+
+field indicates the size of this array.
+<P>
+
+These program headers are structures of the following form:
+<P>
+
+
+
+typedef struct {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;Elf32_Word&nbsp;&nbsp;p_type;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Segment&nbsp;type&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;Elf32_Off&nbsp;&nbsp;&nbsp;p_offset;&nbsp;&nbsp;/*&nbsp;Segment&nbsp;file&nbsp;offset&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;Elf32_Addr&nbsp;&nbsp;p_vaddr;&nbsp;&nbsp;&nbsp;/*&nbsp;Segment&nbsp;virtual&nbsp;address&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;Elf32_Addr&nbsp;&nbsp;p_paddr;&nbsp;&nbsp;&nbsp;/*&nbsp;Segment&nbsp;physical&nbsp;address&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;Elf32_Word&nbsp;&nbsp;p_filesz;&nbsp;&nbsp;/*&nbsp;Segment&nbsp;size&nbsp;in&nbsp;file&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;Elf32_Word&nbsp;&nbsp;p_memsz;&nbsp;&nbsp;&nbsp;/*&nbsp;Segment&nbsp;size&nbsp;in&nbsp;memory&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;Elf32_Word&nbsp;&nbsp;p_flags;&nbsp;&nbsp;&nbsp;/*&nbsp;Segment&nbsp;flags&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;Elf32_Word&nbsp;&nbsp;p_align;&nbsp;&nbsp;&nbsp;/*&nbsp;Segment&nbsp;alignment&nbsp;*/
+} Elf32_Phdr;
+
+
+<P>
+
+Note that we can calculate the location of a particular program header,
+<I>x</I>,
+
+in virtual memory using the formula:
+<P>
+
+
+
+addr == info-&gt;dlpi_addr + info-&gt;dlpi_phdr[x].p_vaddr;
+
+
+<P>
+
+Possible values for
+<I>p_type</I>
+
+include the following (see
+<I>&lt;<A HREF="file:///usr/include/elf.h">elf.h</A>&gt;</I>
+
+for further details):
+<P>
+
+
+
+#define PT_LOAD         1    /* Loadable program segment */
+#define PT_DYNAMIC      2    /* Dynamic linking information */
+#define PT_INTERP       3    /* Program interpreter */
+#define PT_NOTE         4    /* Auxiliary information */
+#define PT_SHLIB        5    /* Reserved */
+#define PT_PHDR         6    /* Entry for header table itself */
+#define PT_TLS          7    /* Thread-local storage segment */
+#define PT_GNU_EH_FRAME 0x6474e550 /* GCC .eh_frame_hdr segment */
+#define PT_GNU_STACK  0x6474e551 /* Indicates stack executability */
+
+#define PT_GNU_RELRO  0x6474e552 /* Read-only after relocation */
+
+
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+The
+<B>dl_iterate_phdr</B>()
+
+function returns whatever value was returned by the last call to
+<I>callback</I>.
+
+<A NAME="lbAF">&nbsp;</A>
+<H2>VERSIONS</H2>
+
+<B>dl_iterate_phdr</B>()
+
+has been supported in glibc since version 2.2.4.
+<A NAME="lbAG">&nbsp;</A>
+<H2>ATTRIBUTES</H2>
+
+For an explanation of the terms used in this section, see
+<B><A HREF="/cgi-bin/man/man2html?7+attributes">attributes</A></B>(7).
+
+<TABLE BORDER>
+<TR VALIGN=top><TD><B>Interface</B></TD><TD><B>Attribute</B></TD><TD><B>Value</B><BR></TD></TR>
+<TR VALIGN=top><TD>
+<B>dl_iterate_phdr</B>()
+
+</TD><TD>Thread safety</TD><TD>MT-Safe<BR></TD></TR>
+</TABLE>
+
+<P>
+<A NAME="lbAH">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+The
+<B>dl_iterate_phdr</B>()
+
+function is not specified in any standard.
+Various other systems provide a version of this function,
+although details of the returned
+<I>dl_phdr_info</I>
+
+structure differ.
+On the BSDs and Solaris, the structure includes the fields
+<I>dlpi_addr</I>,
+
+<I>dlpi_name</I>,
+
+<I>dlpi_phdr</I>,
+
+and
+<I>dlpi_phnum</I>
+
+in addition to other implementation-specific fields.
+<A NAME="lbAI">&nbsp;</A>
+<H2>NOTES</H2>
+
+Future versions of the C library may add further fields to the
+<I>dl_phdr_info</I>
+
+structure; in that event, the
+<I>size</I>
+
+argument provides a mechanism for the callback function to discover
+whether it is running on a system with added fields.
+<P>
+
+The first object visited by
+<I>callback</I>
+
+is the main program.
+For the main program, the
+<I>dlpi_name</I>
+
+field will be an empty string.
+<A NAME="lbAJ">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+The following program displays a list of pathnames of the
+shared objects it has loaded.
+For each shared object, the program lists some information
+(virtual address, size, flags, and type)
+for each of the objects ELF segments.
+<P>
+
+The following shell session demonstrates the output
+produced by the program on an x86-64 system.
+The first shared object for which output is displayed
+(where the name is an empty string)
+is the main program.
+<P>
+
+
+
+$ <B>./a.out</B>
+Name: &quot;&quot; (9 segments)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0:&nbsp;[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0x400040;&nbsp;memsz:&nbsp;&nbsp;&nbsp;&nbsp;1f8]&nbsp;flags:&nbsp;0x5;&nbsp;PT_PHDR
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1:&nbsp;[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0x400238;&nbsp;memsz:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1c]&nbsp;flags:&nbsp;0x4;&nbsp;PT_INTERP
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2:&nbsp;[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0x400000;&nbsp;memsz:&nbsp;&nbsp;&nbsp;&nbsp;ac4]&nbsp;flags:&nbsp;0x5;&nbsp;PT_LOAD
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3:&nbsp;[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0x600e10;&nbsp;memsz:&nbsp;&nbsp;&nbsp;&nbsp;240]&nbsp;flags:&nbsp;0x6;&nbsp;PT_LOAD
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4:&nbsp;[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0x600e28;&nbsp;memsz:&nbsp;&nbsp;&nbsp;&nbsp;1d0]&nbsp;flags:&nbsp;0x6;&nbsp;PT_DYNAMIC
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;5:&nbsp;[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0x400254;&nbsp;memsz:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;44]&nbsp;flags:&nbsp;0x4;&nbsp;PT_NOTE
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;6:&nbsp;[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0x400970;&nbsp;memsz:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3c]&nbsp;flags:&nbsp;0x4;&nbsp;PT_GNU_EH_FRAME
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;7:&nbsp;[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(nil);&nbsp;memsz:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0]&nbsp;flags:&nbsp;0x6;&nbsp;PT_GNU_STACK
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8:&nbsp;[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0x600e10;&nbsp;memsz:&nbsp;&nbsp;&nbsp;&nbsp;1f0]&nbsp;flags:&nbsp;0x4;&nbsp;PT_GNU_RELRO
+Name: &quot;linux-vdso.so.1&quot; (4 segments)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0:&nbsp;[0x7ffc6edd1000;&nbsp;memsz:&nbsp;&nbsp;&nbsp;&nbsp;e89]&nbsp;flags:&nbsp;0x5;&nbsp;PT_LOAD
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1:&nbsp;[0x7ffc6edd1360;&nbsp;memsz:&nbsp;&nbsp;&nbsp;&nbsp;110]&nbsp;flags:&nbsp;0x4;&nbsp;PT_DYNAMIC
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2:&nbsp;[0x7ffc6edd17b0;&nbsp;memsz:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3c]&nbsp;flags:&nbsp;0x4;&nbsp;PT_NOTE
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3:&nbsp;[0x7ffc6edd17ec;&nbsp;memsz:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3c]&nbsp;flags:&nbsp;0x4;&nbsp;PT_GNU_EH_FRAME
+Name: &quot;/lib64/libc.so.6&quot; (10 segments)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0:&nbsp;[0x7f55712ce040;&nbsp;memsz:&nbsp;&nbsp;&nbsp;&nbsp;230]&nbsp;flags:&nbsp;0x5;&nbsp;PT_PHDR
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1:&nbsp;[0x7f557145b980;&nbsp;memsz:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1c]&nbsp;flags:&nbsp;0x4;&nbsp;PT_INTERP
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2:&nbsp;[0x7f55712ce000;&nbsp;memsz:&nbsp;1b6a5c]&nbsp;flags:&nbsp;0x5;&nbsp;PT_LOAD
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3:&nbsp;[0x7f55716857a0;&nbsp;memsz:&nbsp;&nbsp;&nbsp;9240]&nbsp;flags:&nbsp;0x6;&nbsp;PT_LOAD
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4:&nbsp;[0x7f5571688b80;&nbsp;memsz:&nbsp;&nbsp;&nbsp;&nbsp;1f0]&nbsp;flags:&nbsp;0x6;&nbsp;PT_DYNAMIC
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;5:&nbsp;[0x7f55712ce270;&nbsp;memsz:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;44]&nbsp;flags:&nbsp;0x4;&nbsp;PT_NOTE
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;6:&nbsp;[0x7f55716857a0;&nbsp;memsz:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;78]&nbsp;flags:&nbsp;0x4;&nbsp;PT_TLS
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;7:&nbsp;[0x7f557145b99c;&nbsp;memsz:&nbsp;&nbsp;&nbsp;544c]&nbsp;flags:&nbsp;0x4;&nbsp;PT_GNU_EH_FRAME
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8:&nbsp;[0x7f55712ce000;&nbsp;memsz:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0]&nbsp;flags:&nbsp;0x6;&nbsp;PT_GNU_STACK
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;9:&nbsp;[0x7f55716857a0;&nbsp;memsz:&nbsp;&nbsp;&nbsp;3860]&nbsp;flags:&nbsp;0x4;&nbsp;PT_GNU_RELRO
+Name: &quot;/lib64/ld-linux-x86-64.so.2&quot; (7 segments)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0:&nbsp;[0x7f557168f000;&nbsp;memsz:&nbsp;&nbsp;20828]&nbsp;flags:&nbsp;0x5;&nbsp;PT_LOAD
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1:&nbsp;[0x7f55718afba0;&nbsp;memsz:&nbsp;&nbsp;&nbsp;15a8]&nbsp;flags:&nbsp;0x6;&nbsp;PT_LOAD
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2:&nbsp;[0x7f55718afe10;&nbsp;memsz:&nbsp;&nbsp;&nbsp;&nbsp;190]&nbsp;flags:&nbsp;0x6;&nbsp;PT_DYNAMIC
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3:&nbsp;[0x7f557168f1c8;&nbsp;memsz:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;24]&nbsp;flags:&nbsp;0x4;&nbsp;PT_NOTE
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4:&nbsp;[0x7f55716acec4;&nbsp;memsz:&nbsp;&nbsp;&nbsp;&nbsp;604]&nbsp;flags:&nbsp;0x4;&nbsp;PT_GNU_EH_FRAME
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;5:&nbsp;[0x7f557168f000;&nbsp;memsz:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0]&nbsp;flags:&nbsp;0x6;&nbsp;PT_GNU_STACK
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;6:&nbsp;[0x7f55718afba0;&nbsp;memsz:&nbsp;&nbsp;&nbsp;&nbsp;460]&nbsp;flags:&nbsp;0x4;&nbsp;PT_GNU_RELRO
+
+
+<P>
+
+<A NAME="lbAK">&nbsp;</A>
+<H3>Program source</H3>
+
+
+
+#define _GNU_SOURCE
+#include &lt;<A HREF="file:///usr/include/link.h">link.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdlib.h">stdlib.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+<P>
+static int
+callback(struct dl_phdr_info *info, size_t size, void *data)
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;*type;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;p_type,&nbsp;j;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;Name:&nbsp;\&quot;%s\&quot;&nbsp;(%d&nbsp;segments)\n&quot;,&nbsp;info-&gt;dlpi_name,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;info-&gt;dlpi_phnum);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;(j&nbsp;=&nbsp;0;&nbsp;j&nbsp;&lt;&nbsp;info-&gt;dlpi_phnum;&nbsp;j++)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;p_type&nbsp;=&nbsp;info-&gt;dlpi_phdr[j].p_type;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;type&nbsp;=&nbsp;&nbsp;(p_type&nbsp;==&nbsp;PT_LOAD)&nbsp;?&nbsp;&quot;PT_LOAD&quot;&nbsp;:
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(p_type&nbsp;==&nbsp;PT_DYNAMIC)&nbsp;?&nbsp;&quot;PT_DYNAMIC&quot;&nbsp;:
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(p_type&nbsp;==&nbsp;PT_INTERP)&nbsp;?&nbsp;&quot;PT_INTERP&quot;&nbsp;:
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(p_type&nbsp;==&nbsp;PT_NOTE)&nbsp;?&nbsp;&quot;PT_NOTE&quot;&nbsp;:
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(p_type&nbsp;==&nbsp;PT_INTERP)&nbsp;?&nbsp;&quot;PT_INTERP&quot;&nbsp;:
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(p_type&nbsp;==&nbsp;PT_PHDR)&nbsp;?&nbsp;&quot;PT_PHDR&quot;&nbsp;:
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(p_type&nbsp;==&nbsp;PT_TLS)&nbsp;?&nbsp;&quot;PT_TLS&quot;&nbsp;:
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(p_type&nbsp;==&nbsp;PT_GNU_EH_FRAME)&nbsp;?&nbsp;&quot;PT_GNU_EH_FRAME&quot;&nbsp;:
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(p_type&nbsp;==&nbsp;PT_GNU_STACK)&nbsp;?&nbsp;&quot;PT_GNU_STACK&quot;&nbsp;:
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(p_type&nbsp;==&nbsp;PT_GNU_RELRO)&nbsp;?&nbsp;&quot;PT_GNU_RELRO&quot;&nbsp;:&nbsp;NULL;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;&nbsp;&nbsp;&nbsp;&nbsp;%2d:&nbsp;[%14p;&nbsp;memsz:%7lx]&nbsp;flags:&nbsp;0x%x;&nbsp;&quot;,&nbsp;j,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(void&nbsp;*)&nbsp;(info-&gt;dlpi_addr&nbsp;+&nbsp;info-&gt;dlpi_phdr[j].p_vaddr),
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;info-&gt;dlpi_phdr[j].p_memsz,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;info-&gt;dlpi_phdr[j].p_flags);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(type&nbsp;!=&nbsp;NULL)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;%s\n&quot;,&nbsp;type);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;else
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;[other&nbsp;(0x%x)]\n&quot;,&nbsp;p_type);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;0;
+}
+<P>
+int
+main(int argc, char *argv[])
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;dl_iterate_phdr(callback,&nbsp;NULL);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_SUCCESS);
+}
+
+<A NAME="lbAL">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?1+ldd">ldd</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?1+objdump">objdump</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?1+readelf">readelf</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?3+dladdr">dladdr</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+dlopen">dlopen</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?5+elf">elf</A></B>(5),
+
+<B><A HREF="/cgi-bin/man/man2html?8+ld.so">ld.so</A></B>(8)
+
+<P>
+
+<I>Executable and Linking Format Specification</I>,
+
+available at various locations online.
+<A NAME="lbAM">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="1"><A HREF="#lbAB">NAME</A><DD>
+<DT id="2"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="3"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="4"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DT id="5"><A HREF="#lbAF">VERSIONS</A><DD>
+<DT id="6"><A HREF="#lbAG">ATTRIBUTES</A><DD>
+<DT id="7"><A HREF="#lbAH">CONFORMING TO</A><DD>
+<DT id="8"><A HREF="#lbAI">NOTES</A><DD>
+<DT id="9"><A HREF="#lbAJ">EXAMPLE</A><DD>
+<DL>
+<DT id="10"><A HREF="#lbAK">Program source</A><DD>
+</DL>
+<DT id="11"><A HREF="#lbAL">SEE ALSO</A><DD>
+<DT id="12"><A HREF="#lbAM">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:38 GMT, March 31, 2021
+</BODY>
+</HTML>

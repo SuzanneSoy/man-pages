@@ -1,0 +1,269 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of Dpkg::Deps</TITLE>
+</HEAD><BODY>
+<H1>Dpkg::Deps</H1>
+Section: libdpkg-perl (3perl)<BR>Updated: 2020-03-23<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+Dpkg::Deps - parse and manipulate dependencies of Debian packages
+<A NAME="lbAC">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+
+The Dpkg::Deps module provides objects implementing various types of
+dependencies.
+<P>
+
+The most important function is <B>deps_parse()</B>, it turns a dependency line in
+a set of Dpkg::Deps::{Simple,AND,OR,Union} objects depending on the case.
+<A NAME="lbAD">&nbsp;</A>
+<H2>FUNCTIONS</H2>
+
+
+
+All the deps_* functions are exported by default.
+<DL COMPACT>
+<DT id="1">deps_eval_implication($rel_p, $v_p, $rel_q, $v_q)<DD>
+
+
+
+
+($rel_p, <TT>$v_p</TT>) and ($rel_q, <TT>$v_q</TT>) express two dependencies as (relation,
+version). The relation variable can have the following values that are
+exported by Dpkg::Version: <FONT SIZE="-1">REL_EQ, REL_LT, REL_LE, REL_GT, REL_GT.</FONT>
+
+
+<P>
+
+
+This functions returns 1 if the ``p'' dependency implies the ``q''
+dependency. It returns 0 if the ``p'' dependency implies that ``q'' is
+not satisfied. It returns undef when there's no implication.
+
+
+<P>
+
+
+The <TT>$v_p</TT> and <TT>$v_q</TT> parameter should be Dpkg::Version objects.
+<DT id="2">$dep = deps_concat(@dep_list)<DD>
+
+
+
+
+This function concatenates multiple dependency lines into a single line,
+joining them with ``, '' if appropriate, and always returning a valid string.
+<DT id="3">$dep = deps_parse($line, %options)<DD>
+
+
+
+
+This function parses the dependency line and returns an object, either a
+Dpkg::Deps::AND or a Dpkg::Deps::Union. Various options can alter the
+behaviour of that function.
+<DL COMPACT><DT id="4"><DD>
+<DL COMPACT>
+<DT id="5">use_arch (defaults to 1)<DD>
+
+
+Take into account the architecture restriction part of the dependencies.
+Set to 0 to completely ignore that information.
+<DT id="6">host_arch (defaults to the current architecture)<DD>
+
+
+Define the host architecture. By default it uses
+<B>Dpkg::Arch::get_host_arch()</B> to identify the proper architecture.
+<DT id="7">build_arch (defaults to the current architecture)<DD>
+
+
+Define the build architecture. By default it uses
+<B>Dpkg::Arch::get_build_arch()</B> to identify the proper architecture.
+<DT id="8">reduce_arch (defaults to 0)<DD>
+
+
+If set to 1, ignore dependencies that do not concern the current host
+architecture. This implicitly strips off the architecture restriction
+list so that the resulting dependencies are directly applicable to the
+current architecture.
+<DT id="9">use_profiles (defaults to 1)<DD>
+
+
+Take into account the profile restriction part of the dependencies. Set
+to 0 to completely ignore that information.
+<DT id="10">build_profiles (defaults to no profile)<DD>
+
+
+Define the active build profiles. By default no profile is defined.
+<DT id="11">reduce_profiles (defaults to 0)<DD>
+
+
+If set to 1, ignore dependencies that do not concern the current build
+profile. This implicitly strips off the profile restriction formula so
+that the resulting dependencies are directly applicable to the current
+profiles.
+<DT id="12">reduce_restrictions (defaults to 0)<DD>
+
+
+If set to 1, ignore dependencies that do not concern the current set of
+restrictions. This implicitly strips off any architecture restriction list
+or restriction formula so that the resulting dependencies are directly
+applicable to the current restriction.
+This currently implies <TT>&quot;reduce_arch&quot;</TT> and <TT>&quot;reduce_profiles&quot;</TT>, and overrides
+them if set.
+<DT id="13">union (defaults to 0)<DD>
+
+
+If set to 1, returns a Dpkg::Deps::Union instead of a Dpkg::Deps::AND. Use
+this when parsing non-dependency fields like Conflicts.
+<DT id="14">build_dep (defaults to 0)<DD>
+
+
+If set to 1, allow build-dep only arch qualifiers, that is “:native”.
+This should be set whenever working with build-deps.
+<DT id="15">tests_dep (defaults to 0)<DD>
+
+
+If set to 1, allow tests-specific package names in dependencies, that is
+``@'' and ``@builddeps@'' (since dpkg 1.18.7). This should be set whenever
+working with dependency fields from <I>debian/tests/control</I>.
+</DL>
+</DL>
+
+<DL COMPACT><DT id="16"><DD>
+</DL>
+
+<DT id="17">$bool = deps_iterate($deps, $callback_func)<DD>
+
+
+
+
+This function visits all elements of the dependency object, calling the
+callback function for each element.
+
+
+<P>
+
+
+The callback function is expected to return true when everything is fine,
+or false if something went wrong, in which case the iteration will stop.
+
+
+<P>
+
+
+Return the same value as the callback function.
+<DT id="18">deps_compare($a, $b)<DD>
+
+
+
+
+Implements a comparison operator between two dependency objects.
+This function is mainly used to implement the <B>sort()</B> method.
+</DL>
+<A NAME="lbAE">&nbsp;</A>
+<H2>OBJECTS - Dpkg::Deps::*</H2>
+
+
+
+There are several kind of dependencies. A Dpkg::Deps::Simple dependency
+represents a single dependency statement (it relates to one package only).
+Dpkg::Deps::Multiple dependencies are built on top of this object
+and combine several dependencies in different manners. Dpkg::Deps::AND
+represents the logical ``<FONT SIZE="-1">AND''</FONT> between dependencies while Dpkg::Deps::OR
+represents the logical ``<FONT SIZE="-1">OR''.</FONT> Dpkg::Deps::Multiple objects can contain
+Dpkg::Deps::Simple object as well as other Dpkg::Deps::Multiple objects.
+<P>
+
+In practice, the code is only meant to handle the realistic cases which,
+given Debian's dependencies structure, imply those restrictions: <FONT SIZE="-1">AND</FONT> can
+contain Simple or <FONT SIZE="-1">OR</FONT> objects, <FONT SIZE="-1">OR</FONT> can only contain Simple objects.
+<P>
+
+Dpkg::Deps::KnownFacts is a special object that is used while evaluating
+dependencies and while trying to simplify them. It represents a set of
+installed packages along with the virtual packages that they might
+provide.
+<A NAME="lbAF">&nbsp;</A>
+<H2>CHANGES</H2>
+
+
+
+<A NAME="lbAG">&nbsp;</A>
+<H3>Version 1.06 (dpkg 1.18.7; module version bumped on dpkg 1.18.24)</H3>
+
+
+
+New option: Add tests_dep option to <B>Dpkg::Deps::deps_parse()</B>.
+<A NAME="lbAH">&nbsp;</A>
+<H3>Version 1.05 (dpkg 1.17.14)</H3>
+
+
+
+New function: <B>Dpkg::Deps::deps_iterate()</B>.
+<A NAME="lbAI">&nbsp;</A>
+<H3>Version 1.04 (dpkg 1.17.10)</H3>
+
+
+
+New options: Add use_profiles, build_profiles, reduce_profiles and
+reduce_restrictions to <B>Dpkg::Deps::deps_parse()</B>.
+<A NAME="lbAJ">&nbsp;</A>
+<H3>Version 1.03 (dpkg 1.17.0)</H3>
+
+
+
+New option: Add build_arch option to <B>Dpkg::Deps::deps_parse()</B>.
+<A NAME="lbAK">&nbsp;</A>
+<H3>Version 1.02 (dpkg 1.17.0)</H3>
+
+
+
+New function: <B>Dpkg::Deps::deps_concat()</B>
+<A NAME="lbAL">&nbsp;</A>
+<H3>Version 1.01 (dpkg 1.16.1)</H3>
+
+
+
+&lt;Used to document changes to Dpkg::Deps::* modules before they were split.&gt;
+<A NAME="lbAM">&nbsp;</A>
+<H3>Version 1.00 (dpkg 1.15.6)</H3>
+
+
+
+Mark the module as public.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="19"><A HREF="#lbAB">NAME</A><DD>
+<DT id="20"><A HREF="#lbAC">DESCRIPTION</A><DD>
+<DT id="21"><A HREF="#lbAD">FUNCTIONS</A><DD>
+<DT id="22"><A HREF="#lbAE">OBJECTS - Dpkg::Deps::*</A><DD>
+<DT id="23"><A HREF="#lbAF">CHANGES</A><DD>
+<DL>
+<DT id="24"><A HREF="#lbAG">Version 1.06 (dpkg 1.18.7; module version bumped on dpkg 1.18.24)</A><DD>
+<DT id="25"><A HREF="#lbAH">Version 1.05 (dpkg 1.17.14)</A><DD>
+<DT id="26"><A HREF="#lbAI">Version 1.04 (dpkg 1.17.10)</A><DD>
+<DT id="27"><A HREF="#lbAJ">Version 1.03 (dpkg 1.17.0)</A><DD>
+<DT id="28"><A HREF="#lbAK">Version 1.02 (dpkg 1.17.0)</A><DD>
+<DT id="29"><A HREF="#lbAL">Version 1.01 (dpkg 1.16.1)</A><DD>
+<DT id="30"><A HREF="#lbAM">Version 1.00 (dpkg 1.15.6)</A><DD>
+</DL>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:39 GMT, March 31, 2021
+</BODY>
+</HTML>

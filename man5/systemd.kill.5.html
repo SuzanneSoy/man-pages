@@ -1,0 +1,227 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SYSTEMD.KILL</TITLE>
+</HEAD><BODY>
+<H1>SYSTEMD.KILL</H1>
+Section: systemd.kill (5)<BR>Updated: <BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+systemd.kill - Process killing procedure configuration
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+
+<I>service</I>.service,
+<I>socket</I>.socket,
+<I>mount</I>.mount,
+<I>swap</I>.swap,
+<I>scope</I>.scope
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+Unit configuration files for services, sockets, mount points, swap devices and scopes share a subset of configuration options which define the killing procedure of processes belonging to the unit.
+<P>
+
+This man page lists the configuration options shared by these five unit types. See
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.unit">systemd.unit</A></B>(5)
+for the common options shared by all unit configuration files, and
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.service">systemd.service</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.socket">systemd.socket</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.swap">systemd.swap</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.mount">systemd.mount</A></B>(5)
+and
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.scope">systemd.scope</A></B>(5)
+for more information on the configuration file options specific to each unit type.
+<P>
+
+The kill procedure configuration options are configured in the [Service], [Socket], [Mount] or [Swap] section, depending on the unit type.
+<A NAME="lbAE">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<P>
+
+<I>KillMode=</I>
+<DL COMPACT><DT id="1"><DD>
+Specifies how processes of this unit shall be killed. One of
+<B>control-group</B>,
+<B>process</B>,
+<B>mixed</B>,
+<B>none</B>.
+<P>
+If set to
+<B>control-group</B>, all remaining processes in the control group of this unit will be killed on unit stop (for services: after the stop command is executed, as configured with
+<I>ExecStop=</I>). If set to
+<B>process</B>, only the main process itself is killed. If set to
+<B>mixed</B>, the
+<B>SIGTERM</B>
+signal (see below) is sent to the main process while the subsequent
+<B>SIGKILL</B>
+signal (see below) is sent to all remaining processes of the unit's control group. If set to
+<B>none</B>, no process is killed. In this case, only the stop command will be executed on unit stop, but no process will be killed otherwise. Processes remaining alive after stop are left in their control group and the control group continues to exist after stop unless it is empty.
+<P>
+Processes will first be terminated via
+<B>SIGTERM</B>
+(unless the signal to send is changed via
+<I>KillSignal=</I>
+or
+<I>RestartKillSignal=</I>). Optionally, this is immediately followed by a
+<B>SIGHUP</B>
+(if enabled with
+<I>SendSIGHUP=</I>). If processes still remain after the main process of a unit has exited or the delay configured via the
+<I>TimeoutStopSec=</I>
+has passed, the termination request is repeated with the
+<B>SIGKILL</B>
+signal or the signal specified via
+<I>FinalKillSignal=</I>
+(unless this is disabled via the
+<I>SendSIGKILL=</I>
+option). See
+<B><A HREF="/cgi-bin/man/man2html?2+kill">kill</A></B>(2)
+for more information.
+<P>
+Defaults to
+<B>control-group</B>.
+</DL>
+
+<P>
+
+<I>KillSignal=</I>
+<DL COMPACT><DT id="2"><DD>
+Specifies which signal to use when stopping a service. This controls the signal that is sent as first step of shutting down a unit (see above), and is usually followed by
+<B>SIGKILL</B>
+(see above and below). For a list of valid signals, see
+<B><A HREF="/cgi-bin/man/man2html?7+signal">signal</A></B>(7). Defaults to
+<B>SIGTERM</B>.
+<P>
+Note that, right after sending the signal specified in this setting, systemd will always send
+<B>SIGCONT</B>, to ensure that even suspended tasks can be terminated cleanly.
+</DL>
+
+<P>
+
+<I>RestartKillSignal=</I>
+<DL COMPACT><DT id="3"><DD>
+Specifies which signal to use when restarting a service. The same as
+<I>KillSignal=</I>
+described above, with the exception that this setting is used in a restart job. Not set by default, and the value of
+<I>KillSignal=</I>
+is used.
+</DL>
+
+<P>
+
+<I>SendSIGHUP=</I>
+<DL COMPACT><DT id="4"><DD>
+Specifies whether to send
+<B>SIGHUP</B>
+to remaining processes immediately after sending the signal configured with
+<I>KillSignal=</I>. This is useful to indicate to shells and shell-like programs that their connection has been severed. Takes a boolean value. Defaults to &quot;no&quot;.
+</DL>
+
+<P>
+
+<I>SendSIGKILL=</I>
+<DL COMPACT><DT id="5"><DD>
+Specifies whether to send
+<B>SIGKILL</B>
+(or the signal specified by
+<I>FinalKillSignal=</I>) to remaining processes after a timeout, if the normal shutdown procedure left processes of the service around. When disabled, a
+<I>KillMode=</I>
+of
+<B>control-group</B>
+or
+<B>mixed</B>
+service will not restart if processes from prior services exist within the control group. Takes a boolean value. Defaults to &quot;yes&quot;.
+</DL>
+
+<P>
+
+<I>FinalKillSignal=</I>
+<DL COMPACT><DT id="6"><DD>
+Specifies which signal to send to remaining processes after a timeout if
+<I>SendSIGKILL=</I>
+is enabled. The signal configured here should be one that is not typically caught and processed by services (<B>SIGTERM</B>
+is not suitable). Developers can find it useful to use this to generate a coredump to troubleshoot why a service did not terminate upon receiving the initial
+<B>SIGTERM</B>
+signal. This can be achieved by configuring
+<I>LimitCORE=</I>
+and setting
+<I>FinalKillSignal=</I>
+to either
+<B>SIGQUIT</B>
+or
+<B>SIGABRT</B>
+Defaults to
+<B>SIGKILL</B>.
+</DL>
+
+<P>
+
+<I>WatchdogSignal=</I>
+<DL COMPACT><DT id="7"><DD>
+Specifies which signal to use to terminate the service when the watchdog timeout expires (enabled through
+<I>WatchdogSec=</I>). Defaults to
+<B>SIGABRT</B>.
+</DL>
+
+<A NAME="lbAF">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?1+systemctl">systemctl</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?1+journalctl">journalctl</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.unit">systemd.unit</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.service">systemd.service</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.socket">systemd.socket</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.swap">systemd.swap</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.mount">systemd.mount</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.exec">systemd.exec</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?7+systemd.directives">systemd.directives</A></B>(7),
+<B><A HREF="/cgi-bin/man/man2html?2+kill">kill</A></B>(2),
+<B><A HREF="/cgi-bin/man/man2html?7+signal">signal</A></B>(7)
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="8"><A HREF="#lbAB">NAME</A><DD>
+<DT id="9"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="10"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="11"><A HREF="#lbAE">OPTIONS</A><DD>
+<DT id="12"><A HREF="#lbAF">SEE ALSO</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:06 GMT, March 31, 2021
+</BODY>
+</HTML>

@@ -1,0 +1,342 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of CLOSE</TITLE>
+</HEAD><BODY>
+<H1>CLOSE</H1>
+Section: Linux Programmer's Manual (2)<BR>Updated: 2019-10-10<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+close - close a file descriptor
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<PRE>
+<B>#include &lt;<A HREF="file:///usr/include/unistd.h">unistd.h</A>&gt;</B>
+
+<B>int close(int </B><I>fd</I><B>);</B>
+</PRE>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<B>close</B>()
+
+closes a file descriptor, so that it no longer refers to any file and
+may be reused.
+Any record locks (see
+<B><A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A></B>(2))
+
+held on the file it was associated with,
+and owned by the process, are removed (regardless of the file
+descriptor that was used to obtain the lock).
+<P>
+
+If
+<I>fd</I>
+
+is the last file descriptor referring to the underlying
+open file description (see
+<B><A HREF="/cgi-bin/man/man2html?2+open">open</A></B>(2)),
+
+the resources associated with the open file description are freed;
+if the file descriptor was the last reference to a file which has been
+removed using
+<B><A HREF="/cgi-bin/man/man2html?2+unlink">unlink</A></B>(2),
+
+the file is deleted.
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+<B>close</B>()
+
+returns zero on success.
+On error, -1 is returned, and
+<I>errno</I>
+
+is set appropriately.
+<A NAME="lbAF">&nbsp;</A>
+<H2>ERRORS</H2>
+
+<DL COMPACT>
+<DT id="1"><B>EBADF</B>
+
+<DD>
+<I>fd</I>
+
+isn't a valid open file descriptor.
+<DT id="2"><B>EINTR</B>
+
+<DD>
+
+
+The
+<B>close</B>()
+
+call was interrupted by a signal; see
+<B><A HREF="/cgi-bin/man/man2html?7+signal">signal</A></B>(7).
+
+<DT id="3"><B>EIO</B>
+
+<DD>
+An I/O error occurred.
+<DT id="4"><B>ENOSPC</B>, <B>EDQUOT</B>
+
+<DD>
+On NFS, these errors are not normally reported against the first write
+which exceeds the available storage space, but instead against a
+subsequent
+<B><A HREF="/cgi-bin/man/man2html?2+write">write</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+fsync">fsync</A></B>(2),
+
+or
+<B>close</B>().
+
+</DL>
+<P>
+
+See NOTES for a discussion of why
+<B>close</B>()
+
+should not be retried after an error.
+<A NAME="lbAG">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+POSIX.1-2001, POSIX.1-2008, SVr4, 4.3BSD.
+
+<A NAME="lbAH">&nbsp;</A>
+<H2>NOTES</H2>
+
+A successful close does not guarantee that the data has been successfully
+saved to disk, as the kernel uses the buffer cache to defer writes.
+Typically, filesystems do not flush buffers when a file is closed.
+If you need to be sure that
+the data is physically stored on the underlying disk, use
+<B><A HREF="/cgi-bin/man/man2html?2+fsync">fsync</A></B>(2).
+
+(It will depend on the disk hardware at this point.)
+<P>
+
+The close-on-exec file descriptor flag can be used to ensure
+that a file descriptor is automatically closed upon a successful
+<B><A HREF="/cgi-bin/man/man2html?2+execve">execve</A></B>(2);
+
+see
+<B><A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A></B>(2)
+
+for details.
+<P>
+
+It is probably unwise to close file descriptors while
+they may be in use by system calls in
+other threads in the same process.
+Since a file descriptor may be reused,
+there are some obscure race conditions
+that may cause unintended side effects.
+
+
+
+
+
+
+
+
+
+<A NAME="lbAI">&nbsp;</A>
+<H3>Dealing with error returns from close()</H3>
+
+A careful programmer will check the return value of
+<B>close</B>(),
+
+since it is quite possible that errors on a previous
+<B><A HREF="/cgi-bin/man/man2html?2+write">write</A></B>(2)
+
+operation are reported only on the final
+<B>close</B>()
+
+that releases the open file description.
+Failing to check the return value when closing a file may lead to
+<I>silent</I>
+
+loss of data.
+This can especially be observed with NFS and with disk quota.
+<P>
+
+Note, however, that a failure return should be used only for
+diagnostic purposes (i.e., a warning to the application that there
+may still be I/O pending or there may have been failed I/O)
+or remedial purposes
+(e.g., writing the file once more or creating a backup).
+<P>
+
+Retrying the
+<B>close</B>()
+
+after a failure return is the wrong thing to do,
+
+
+
+
+
+
+
+since this may cause a reused file descriptor
+from another thread to be closed.
+This can occur because the Linux kernel
+<I>always</I>
+
+releases the file descriptor early in the close
+operation, freeing it for reuse;
+the steps that may return an error,
+
+such as flushing data to the filesystem or device,
+occur only later in the close operation.
+<P>
+
+Many other implementations similarly always close the file descriptor
+
+
+(except in the case of
+<B>EBADF</B>,
+
+meaning that the file descriptor was invalid)
+even if they subsequently report an error on return from
+<B>close</B>().
+
+POSIX.1 is currently silent on this point,
+but there are plans to mandate this behavior in the next major release
+
+of the standard.
+<P>
+
+A careful programmer who wants to know about I/O errors may precede
+<B>close</B>()
+
+with a call to
+<B><A HREF="/cgi-bin/man/man2html?2+fsync">fsync</A></B>(2).
+
+<P>
+
+The
+<B>EINTR</B>
+
+error is a somewhat special case.
+Regarding the
+<B>EINTR</B>
+
+error, POSIX.1-2013 says:
+<P>
+
+<DL COMPACT><DT id="5"><DD>
+If
+<B>close</B>()
+
+is interrupted by a signal that is to be caught, it shall return -1 with
+<I>errno</I>
+
+set to
+<B>EINTR</B>
+
+and the state of
+<I>fildes</I>
+
+is unspecified.
+</DL>
+
+<P>
+
+This permits the behavior that occurs on Linux and
+many other implementations, where,
+as with other errors that may be reported by
+<B>close</B>(),
+
+the file descriptor is guaranteed to be closed.
+However, it also permits another possibility:
+that the implementation returns an
+<B>EINTR</B>
+
+error and keeps the file descriptor open.
+(According to its documentation, HP-UX's
+<B>close</B>()
+
+does this.)
+The caller must then once more use
+<B>close</B>()
+
+to close the file descriptor, to avoid file descriptor leaks.
+This divergence in implementation behaviors provides
+a difficult hurdle for portable applications, since on many implementations,
+<B>close</B>()
+
+must not be called again after an
+<B>EINTR</B>
+
+error, and on at least one,
+<B>close</B>()
+
+must be called again.
+There are plans to address this conundrum for
+the next major release of the POSIX.1 standard.
+
+
+
+
+
+
+
+
+<A NAME="lbAJ">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+fsync">fsync</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+open">open</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+shutdown">shutdown</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+unlink">unlink</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?3+fclose">fclose</A></B>(3)
+
+<A NAME="lbAK">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="6"><A HREF="#lbAB">NAME</A><DD>
+<DT id="7"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="8"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="9"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DT id="10"><A HREF="#lbAF">ERRORS</A><DD>
+<DT id="11"><A HREF="#lbAG">CONFORMING TO</A><DD>
+<DT id="12"><A HREF="#lbAH">NOTES</A><DD>
+<DL>
+<DT id="13"><A HREF="#lbAI">Dealing with error returns from close()</A><DD>
+</DL>
+<DT id="14"><A HREF="#lbAJ">SEE ALSO</A><DD>
+<DT id="15"><A HREF="#lbAK">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:32 GMT, March 31, 2021
+</BODY>
+</HTML>

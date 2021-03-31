@@ -1,0 +1,648 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of DH</TITLE>
+</HEAD><BODY>
+<H1>DH</H1>
+Section: Debhelper (1)<BR>Updated: 2020-03-27<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+dh - Debhelper-Befehls-Sequenzer
+<A NAME="lbAC">&nbsp;</A>
+<H2>ÜBERSICHT</H2>
+
+
+
+<B>dh</B> <I>Sequenz</I> [<B>--with</B> <I>Add-on</I>[<B>,</B><I>Add-on</I> …]] [<B>--list</B>]
+[<I>Debhelper-Optionen</I>]
+<A NAME="lbAD">&nbsp;</A>
+<H2>BESCHREIBUNG</H2>
+
+
+
+<B>dh</B> führt eine Sequenz von Debhelper-Befehlen aus. Die unterstützten
+<I>Sequenz</I>en entsprechen den Zielen einer <I>debian/rules</I>-Datei:
+<B>build-arch</B>, <B>build-indep</B>, <B>build</B>, <B>clean</B>, <B>install-indep</B>,
+<B>install-arch</B>, <B>install</B>, <B>binary-arch</B>, <B>binary-indep</B> und <B>binary</B>.
+<A NAME="lbAE">&nbsp;</A>
+<H2>AUßER KRAFT SETZENDE UND HOOK-ZIELE</H2>
+
+
+
+Eine <I>debian/rules</I>-Datei, die <B>dh</B> benutzt, kann einen Befehl aus jedem
+Schritt einer Sequenz, der ausgeführt wird, außer Kraft setzen, indem ein
+außer Kraft setzendes Ziel definiert wird. Es ist auch möglich, Befehle vor
+oder nach jedem Schritt einzuspeisen, ohne den Schritt selbst zu
+beeinflussen.
+<A NAME="lbAF">&nbsp;</A>
+<H3>Befehle vor oder nach einem Schritt einspeisen</H3>
+
+
+
+<I>Hinweis</I>: Diese Funktionalität erfordert Debhelper 12.8 oder neuer, zudem
+muss das Paket Kompatibilitätsmodus 10 oder neuer nutzen.
+<P>
+
+Um Befehle vor <I>dh_Befehl</I> einzuspeisen, fügen Sie den Rules-Dateien ein
+Ziel namens <B>execute_before_</B><I>dh_Befehl</I> hinzu. Analog fügen Sie, wenn Sie
+nach <I>dh_Befehl</I> Befehle einspeisen wollen, <B>execute_after_</B><I>dh_Befehl</I>
+hinzu. Beide Ziele können für denselben <I>dh_Befehl</I> benutzt werden und das
+sogar, wenn der Befehl außer Kraft gesetzt wurde (wie nachfolgend in
+``Einen Befehl außer Kraft setzen'' beschrieben).
+<P>
+
+Wenn diese Ziele definiert sind, wird <B>dh</B> die Ziele vor beziehungsweise
+nach dem Aufruf von <I>dh_Befehl</I> (oder dessen außer Kraft setzendem Ziel)
+aufrufen.
+<A NAME="lbAG">&nbsp;</A>
+<H3>Einen Befehl außer Kraft setzen</H3>
+
+
+
+Um <I>dh_Befehl</I> außer Kraft zu setzen, fügen Sie der Datei »rules« ein Ziel
+mit Namen <B>override_</B><I>dh_Befehl</I> hinzu. Wenn es normalerweise <I>dh_Befehl</I>
+ausführen würde, wird <B>dh</B> stattdessen dieses Ziel aufrufen. Das außer
+Kraft setzende Ziel kann dann den Befehl mit zusätzlichen Optionen oder
+stattdessen ganz andere Befehle ausführen. Lesen Sie die folgenden
+Beispiele.
+<A NAME="lbAH">&nbsp;</A>
+<H3>Architekturabhängige/-unabhängige außer Kraft setzende und Hook-Ziele</H3>
+
+
+
+Außer Kraft setzende und Hook-Ziele können außerdem definiert werden, um nur
+ausgeführt zu werden, wenn architekturab- oder -unabhängige Pakete gebaut
+werden. Benutzen Sie Ziele mit Namen wie <B>override_</B><I>dh_Befehl</I><B>-arch</B>
+und <B>override_</B><I>dh_Befehl</I><B>-indep</B>.
+<P>
+
+Diese Funktionalität ist seit Debhelper 8.9.7 (für außer Kraft setzende
+Ziele) und 12.8 (für Hook-Ziele) verfügbar.
+<A NAME="lbAI">&nbsp;</A>
+<H3>Komplett leere Ziele</H3>
+
+
+
+Als besondere Optimierung wird <B>dh</B> ein Ziel überspringen, falls es
+komplett leer ist. Dies ist für außer Kraft setzende Ziele am nützlichsten,
+wobei der Befehl einfach nur übersprungen wird, ohne den Mehraufwand, ein
+Scheinziel aufzurufen.
+<P>
+
+Beachten Sie, das das Ziel komplett leer sein muss, damit dies funktioniert.
+<P>
+
+
+
+<PRE>
+     # überspringt dh_bar auf die gute und optimierte Art
+     # hier wird eine Begründung zum Überspringen von dh_bar eingefügt
+     override_dh_bar:
+
+
+
+     # überspringt dh_foo auf die langsame Art
+     override_dh_foo:
+        # hier wird eine Begründung des Überspringens von dh_foo eingefügt
+        # (diese Kommentare verursachen die Ausführung eines Scheinziels)
+
+</PRE>
+
+
+<A NAME="lbAJ">&nbsp;</A>
+<H3>Überprüfung, dass Ziele von dh aufgenommen werde</H3>
+
+
+
+Um zu bestätigen, dass <B>dh</B> ein außer Kraft setzendes oder Hook-Ziel
+gefunden hat, können Sie beispielsweise folgenden Befehl verwenden:
+<P>
+
+
+
+<PRE>
+    $ dh binary --no-act | grep dh_install | head -n5
+         dh_installdirs
+         dh_install
+         debian/rules execute_after_dh_install
+         dh_installdocs
+         dh_installchangelogs
+
+</PRE>
+
+
+<P>
+
+Das <B>debian/rules execute_after_dh_install</B> in der Ausgabe zeigt an, dass
+<B>dh</B> ein <B>execute_after_dh_install</B>-Ziel registrierte und es direkt nach
+<B><A HREF="/cgi-bin/man/man2html?1+dh_install">dh_install</A></B>(1) ausführen würde.
+<P>
+
+Beachten Sie, dass ``Komplett leere Ziele'' im oberen Listing weggelassen
+wurde. Damit wird es etwas schwieriger zu finden, wenn Sie nach dem
+Weglassen eines Befehlsnamens suchen. Aber andererseits bleibt das Prinzip
+dasselbe.
+<A NAME="lbAK">&nbsp;</A>
+<H2>OPTIONEN</H2>
+
+
+
+<DL COMPACT>
+<DT id="1"><B>--with</B> <I>Add-on</I>[<B>,</B><I>Add-on</I> …]<DD>
+
+
+fügt die Debhelper-Befehle, die durch das gegebene Add-on angegeben wurden,
+an geeigneten Stellen der Befehlssequenz, die ausgeführt wird, hinzu. Diese
+Option kann mehr als einmal wiederholt werden oder es können mehrere Add-ons
+durch Kommas getrennt aufgeführt werden. Dies wird benutzt, wenn es ein
+Fremdpaket gibt, das Debhelper-Befehle bereitstellt. Dokumentation über die
+Sequenz-Add-on-Schnittstelle finden Sie in der Datei <I></I><FONT SIZE="-1"><I>PROGRAMMING</I></FONT><I></I>.
+
+
+<P>
+
+
+Eine <B>Build-Depends</B>-Beziehung zum Paket <B>dh-sequence-</B><I>Erweiterung</I>
+setzt ein <B>--with</B> <I>Erweiterung</I> voraus. Dies vermeidet, dass ein
+explizites <B>--with</B> in <I>debian/rules</I> benötigt wird, das nur
+vervielfältigt, was bereits über die Bauabhängigkeiten in <I>debian/control</I>
+erklärt wurde. Die Beziehung kann (seit 12.5) optional gemacht werden,
+z.B. über Bauprofile. Dies versetzt Sie in die Lage, einfach eine
+Erweiterung zu deaktivieren, die nur mit einem bestimmten Profil nützlich
+ist (z.B. um Bootstrapping zu erleichtern).
+
+
+<P>
+
+
+Ab Debhelper 12.5 können Erweiterungen auch im reinen <B>indep</B>-Modus (über
+<B>Build-Depends-Indep</B>) oder reinen <B>arch</B>-Modus (über
+<B>Build-Depends-Arch</B>) aktiviert werden. Derartige Erweiterungen sind nur in
+der bestimmten Sequenz aktiv (z.B. <B>binary-indep</B>), die
+Abhängigkeitsverwaltung für Cross-Bauen vereinfachen.
+
+
+<P>
+
+
+Bitte beachten Sie, dass Erweiterungen, die über <B>Build-Depends-Indep</B> oder
+<B>Build-Depends-Arch</B> aktiviert wurden, Gegenstand zusätzlicher
+Beschränkungen sind, um sicherzustellen, dass das Ergebnis sogar dann
+deterministisch ist, wenn die Erweiterung nicht verfügbar ist (z.B. während
+einer Reinigung). Dies impliziert, dass einige Erweiterungen mit diesen
+Beschränkungen inkompatibel sind und nur über <B>Build-Depends</B> (oder manuell
+über <I>debian/rules</I>) benutzt werden können. Derzeit können derartige
+Erweiterungen nur Befehle zu Sequenzen hinzufügen.
+<DT id="2"><B>--without</B> <I>Add-on</I><DD>
+
+
+das Gegenteil von <B>--with</B>, deaktiviert die Benutzung des angegebenen
+Add-ons. Diese Option kann mehrfach wiederholt werden oder es können mehrere
+Add-ons zum Deaktivieren durch Kommas getrennt aufgelistet werden.
+<DT id="3"><B>--list</B>, <B>-l</B><DD>
+
+
+listet alle verfügbaren Add-ons auf.
+
+
+<P>
+
+
+Wenn es nur mit dieser Option aufgerufen wird, kann <B>dh</B> aus jedem
+Verzeichnis aufgerufen werden (d.h. es benötigt keinen Zugriff auf Dateien
+aus einem Quellpaket).
+<DT id="4"><B>--no-act</B><DD>
+
+
+gibt Befehle aus, die für eine angegebene Sequenz ausgeführt würden, führt
+sie aber nicht aus
+
+
+<P>
+
+
+Beachten Sie, dass dh normalerweise die Ausführung von Befehlen, von denen
+es weiß, dass sie nichts tun, überspringt. Mit »--no-act« wird die
+vollständige Liste der Befehle der Reihe nach ausgegeben.
+</DL>
+<P>
+
+Andere an <B>dh</B> übergebene Optionen werden an jeden Befehl, den es ausführt,
+weitergereicht. Dies kann benutzt werden, um eine Option wie <B>-v</B>, <B>-X</B>
+oder <B>-N</B> sowie spezialisiertere Optionen zu setzen.
+<A NAME="lbAL">&nbsp;</A>
+<H2>BEISPIELE</H2>
+
+
+
+Um zu sehen, welche Befehle in einer Sequenz enthalten sind, ohne
+tatsächlich etwas zu tun, geben Sie Folgendes ein:
+<P>
+
+
+
+<PRE>
+        dh binary-arch --no-act
+
+</PRE>
+
+
+<P>
+
+Dies ist eine einfach »rules«-Datei für Pakete, bei denen die vorgegebenen
+Befehlssequenzen ohne zusätzliche Optionen arbeiten.
+<P>
+
+
+
+<PRE>
+        #!/usr/bin/make -f
+        %:
+                dh $@
+
+</PRE>
+
+
+<P>
+
+Oft möchten Sie eine Option an einen speziellen Debhelper-Befehl
+übergeben. Der einfachste Weg, dies zu tun, besteht darin, ein außer Kraft
+setzendes Ziel für diesen Befehl hinzuzufügen.
+<P>
+
+
+
+<PRE>
+        #!/usr/bin/make -f
+        %:
+                dh $@
+
+        override_dh_strip:
+                dh_strip -Xfoo
+
+        override_dh_auto_configure:
+                dh_auto_configure -- --with-foo --disable-bar
+
+</PRE>
+
+
+<P>
+
+Manchmal können die automatisierten <B><A HREF="/cgi-bin/man/man2html?1+dh_auto_configure">dh_auto_configure</A></B>(1) und
+<B><A HREF="/cgi-bin/man/man2html?1+dh_auto_build">dh_auto_build</A></B>(1) nicht abschätzen, was für ein merkwürdiges Paket zu tun
+ist. Hier nun, wie das Ausführen vermieden und stattdessen Ihre eigenen
+Befehle ausgeführt werden.
+<P>
+
+
+
+<PRE>
+        #!/usr/bin/make -f
+        %:
+                dh $@
+
+        override_dh_auto_configure:
+                ./mondoconfig
+
+        override_dh_auto_build:
+                make universe-explode-in-delight
+
+</PRE>
+
+
+<P>
+
+Ein weiterer häufiger Fall ist, dass Sie vor oder nach der Ausführung eines
+besonderen Debhelper-Befehls manuell etwas tun möchten.
+<P>
+
+
+
+<PRE>
+        #!/usr/bin/make -f
+        %:
+                dh $@
+
+        # Beispiel geht von Debhelper/12.8 und Kompatibilitätsstufe 10+ aus
+        execute_after_dh_fixperms:
+                chmod 4755 debian/foo/usr/bin/foo
+
+</PRE>
+
+
+<P>
+
+Falls Sie auf einer älteren Debhelper-Kompatibilitätsstufe sind, würde das
+Beispiel wie folgt aussehen:
+<P>
+
+
+
+<PRE>
+        #!/usr/bin/make -f
+        %:
+                dh $@
+
+        # ältere Debhelper-Versionen oder Verwendung von Kompatibilitätsstufe 9
+        #und niedriger
+        override_dh_fixperms:
+                dh_fixperms
+                chmod 4755 debian/foo/usr/bin/foo
+
+</PRE>
+
+
+<P>
+
+Python-Werkzeuge werden aufgrund ständiger Änderungen in diesem Bereich
+nicht standardmäßig von dh ausgeführt. Hier wird gezeigt, wie <B>dh_python2</B>
+benutzt wird.
+<P>
+
+
+
+<PRE>
+        #!/usr/bin/make -f
+        %:
+                dh $@ --with python2
+
+</PRE>
+
+
+<P>
+
+Hier wird gezeigt, wie die Benutzung von Perls Bausystem <B>Module::Build</B>
+erzwungen wird, was nötig sein kann, falls Debhelper fälschlicherweise
+entdeckt, dass das Programm MakeMaker verwendet.
+<P>
+
+
+
+<PRE>
+        #!/usr/bin/make -f
+        %:
+                dh $@ --buildsystem=perl_build
+
+</PRE>
+
+
+<P>
+
+Hier ein Beispiel für das außer Kraft setzen, wobei die
+<B>dh_auto_</B><I>*</I>-Befehle den Paketquelltext für ein Paket finden, bei dem der
+Quelltext in einem Unterverzeichnis liegt.
+<P>
+
+
+
+<PRE>
+        #!/usr/bin/make -f
+        %:
+                dh $@ --sourcedirectory=src
+
+</PRE>
+
+
+<P>
+
+Und hier ist ein Beispiel, wie <B>dh_auto_</B><I>*</I>-Befehlen mitgeteilt wird,
+dass in einem Unterverzeichnis gebaut wird, das mit <B>clean</B> entfernt wird.
+<P>
+
+
+
+<PRE>
+        #!/usr/bin/make -f
+        %:
+                dh $@ --builddirectory=build
+
+</PRE>
+
+
+<P>
+
+Falls Ihr Paket parallel gebaut werden kann, benutzen Sie bitte entweder
+Kompatibilitätsmodus 10 oder übergeben Sie <B>--parallel</B> an Dh. Dann wird
+<B>dpkg-buildpackage -j</B> funktionieren.
+<P>
+
+
+
+<PRE>
+        #!/usr/bin/make -f
+        %:
+                dh $@ --parallel
+
+</PRE>
+
+
+<P>
+
+Falls Ihr Paket nicht verlässlich unter Verwendung mehrerer Threads gebaut
+werden kann, übergeben Sie bitte <B>--no-parallel</B> an Dh (oder den
+zuständigen <B>dh_auto_</B><I>*</I>-Befehl):
+<P>
+
+
+
+<PRE>
+        #!/usr/bin/make -f
+        %:
+                dh $@ --no-parallel
+
+</PRE>
+
+
+<P>
+
+Es folgt eine Möglichkeit, die Ausführung mehrerer Befehle, die Sie nicht
+ausführen möchten, durch <B>dh</B> zu verhindern, indem Sie leere, außer Kraft
+setzende Ziele für jeden Befehl definieren.
+<P>
+
+
+
+<PRE>
+        #!/usr/bin/make -f
+        %:
+                dh $@
+
+        # nicht auszuführende Befehle:
+        override_dh_auto_test override_dh_compress override_dh_fixperms:
+
+</PRE>
+
+
+<P>
+
+Ein langer Bauprozess für ein separates Dokumentationspaket kann durch
+Benutzung von architekturabhängigem außer Kraft setzen abgetrennt
+werden. Dies wird übersprungen, wenn »build-arch«- und
+»binary-arch«-Sequenzen ausgeführt werden.
+<P>
+
+
+
+<PRE>
+        #!/usr/bin/make -f
+        %:
+                dh $@
+
+        override_dh_auto_build-indep:
+                $(MAKE) -C docs
+
+        # Keine Tests für Dokumente nötig
+        override_dh_auto_test-indep:
+
+        override_dh_auto_install-indep:
+                $(MAKE) -C docs install
+
+</PRE>
+
+
+<P>
+
+Angenommen, Sie möchten zusätzlich zum vorhergehenden Beispiel
+Dateimodusbits einer Datei ändern, aber nur, wenn Sie ein
+architekturabhängiges Paket bauen, da es beim Bauen der Dokumentation nicht
+vorhanden ist.
+<P>
+
+
+
+<PRE>
+        # Beispiel geht von Debhelper/12.8 und Kompatibilitätsstufe 10+ aus
+        execute_after_dh_fixperms-arch:
+                chmod 4755 debian/foo/usr/bin/foo
+
+</PRE>
+
+
+<A NAME="lbAM">&nbsp;</A>
+<H2>INTERNA</H2>
+
+
+
+Falls Sie neugierig auf die Interna von <B>dh</B> sind, ist hier beschrieben,
+wie es unter der Haube arbeitet.
+<P>
+
+Im Kompatibilitätsmodus 10 (oder höher) erzeugt <B>dh</B> eine Stempeldatei
+<I>debian/debhelper-build-stamp</I>, nachdem die Bauschritte abgeschlossen sind,
+um ein erneutes Ausführen zu vermeiden. Es ist möglich, die Stempeldatei zu
+vermeiden, indem <B>--without=build-stamp</B> an <B>dh</B> übergeben wird. Dies
+sorgt dafür, dass »unsauber« gebaute Pakete sich eher so verhalten, wie es
+manche Leute erwarten. Allerdings wird der Bau und das Testen möglicherweise
+zweimal ausgeführt (das zweite Mal als Root oder unter <B><A HREF="/cgi-bin/man/man2html?1+fakeroot">fakeroot</A></B>(1)).
+<P>
+
+Innerhalb eines außer Kraft setzenden Ziels werden <B>dh_*</B>-Befehle eine
+<I>debian/package.debhelper.log</I>-Protokolldatei erzeugen, um den Überblick zu
+behalten, für welche Pakete die Befehle ausgeführt wurden. Diese
+Protokolldateien werden entfernt, sobald die außer Kraft setzenden Ziele
+erledigt sind.
+<P>
+
+Im Kompatibilitätsmodus 9 oder älter wird jeder Debhelper-Befehl in
+<I>debian/package.debhelper.log</I> aufgezeichnet, wenn er erfolgreich
+ausgeführt wurde. (Was durch <B>dh_clean</B> gelöscht wird.) Daher kann <B>dh</B>
+sagen, welche Befehle bereits für welche Pakete ausgeführt wurden und die
+erneute Ausführung dieser Befehle überspringen.
+<P>
+
+Jedesmal, wenn <B>dh</B> (im Kompatibilitätsmodus 9 oder älter) ausgeführt wird,
+untersucht es das Protokoll und findet den zuletzt protokollierten Befehl in
+der angegebenen Sequenz.
+<P>
+
+Eine Sequenz kann außerdem abhänge Ziele in debian/rules ausführen. Die
+Sequenz »binary« führt zum Beispiel das Ziel »install« aus.
+<P>
+
+<B>dh</B> benutzt die Umgebungsvariable <B></B><FONT SIZE="-1"><B>DH_INTERNAL_OPTIONS</B></FONT><B></B>, um Informationen
+an die Debhelper-Befehle durchzureichen, die innerhalb der Ziele ausgeführt
+werden. Der Inhalt (und die tatsächliche Existenz) dieser Umgebungsvariable
+ist, wie der Name schon andeutet, Gegenstand dauernder Änderungen.
+<P>
+
+Befehle in den Sequenzen <B>build-indep</B>, <B>install-indep</B> und
+<B>binary-indep</B> werden an die Option <B>-i</B> übergeben, um sicherzustellen,
+dass sie nur auf architekturunabhängigen Paketen funktionieren. Befehle in
+den Sequenzen <B>build-arch</B>, <B>install-arch</B> und <B>binary-arch</B> werden an
+die Option <B>-a</B> übergeben, um sicherzustellen, dass sie nur auf
+architekturabhängigen Paketen funktionieren.
+<A NAME="lbAN">&nbsp;</A>
+<H2>SIEHE AUCH</H2>
+
+
+
+<B><A HREF="/cgi-bin/man/man2html?7+debhelper">debhelper</A></B>(7)
+<P>
+
+Dieses Programm ist Teil von Debhelper.
+<A NAME="lbAO">&nbsp;</A>
+<H2>ÜBERSETZUNG</H2>
+
+
+
+Diese Übersetzung wurde mit dem Werkzeug
+<B>po4a</B>
+&lt;<A HREF="http://po4a.alioth.debian.org/">http://po4a.alioth.debian.org/</A>&gt;
+durch Chris Leick
+<I><A HREF="mailto:c.leick@vollbio.de">c.leick@vollbio.de</A></I>
+und das deutsche Debian-Übersetzer-Team im 
+Dezember 2011 erstellt.
+<P>
+
+Bitte melden Sie alle Fehler in der Übersetzung an
+<I><A HREF="mailto:debian-l10n-german@lists.debian.org">debian-l10n-german@lists.debian.org</A></I>
+oder als Fehlerbericht an das Paket
+<I>debhelper</I>.
+<P>
+
+Sie können mit dem folgenden Befehl das englische 
+Original anzeigen
+man -L en Abschnitt Handbuchseite
+<A NAME="lbAP">&nbsp;</A>
+<H2>AUTOR</H2>
+
+
+
+Joey Hess &lt;<A HREF="mailto:joeyh@debian.org">joeyh@debian.org</A>&gt;
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="5"><A HREF="#lbAB">NAME</A><DD>
+<DT id="6"><A HREF="#lbAC">ÜBERSICHT</A><DD>
+<DT id="7"><A HREF="#lbAD">BESCHREIBUNG</A><DD>
+<DT id="8"><A HREF="#lbAE">AUßER KRAFT SETZENDE UND HOOK-ZIELE</A><DD>
+<DL>
+<DT id="9"><A HREF="#lbAF">Befehle vor oder nach einem Schritt einspeisen</A><DD>
+<DT id="10"><A HREF="#lbAG">Einen Befehl außer Kraft setzen</A><DD>
+<DT id="11"><A HREF="#lbAH">Architekturabhängige/-unabhängige außer Kraft setzende und Hook-Ziele</A><DD>
+<DT id="12"><A HREF="#lbAI">Komplett leere Ziele</A><DD>
+<DT id="13"><A HREF="#lbAJ">Überprüfung, dass Ziele von dh aufgenommen werde</A><DD>
+</DL>
+<DT id="14"><A HREF="#lbAK">OPTIONEN</A><DD>
+<DT id="15"><A HREF="#lbAL">BEISPIELE</A><DD>
+<DT id="16"><A HREF="#lbAM">INTERNA</A><DD>
+<DT id="17"><A HREF="#lbAN">SIEHE AUCH</A><DD>
+<DT id="18"><A HREF="#lbAO">ÜBERSETZUNG</A><DD>
+<DT id="19"><A HREF="#lbAP">AUTOR</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:04:55 GMT, March 31, 2021
+</BODY>
+</HTML>

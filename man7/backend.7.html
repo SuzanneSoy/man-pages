@@ -1,0 +1,348 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of backend</TITLE>
+</HEAD><BODY>
+<H1>backend</H1>
+Section: Apple Inc. (7)<BR>Updated: CUPS<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+backend - cups backend transmission interfaces
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<B>backend</B>
+
+<BR>
+
+<B>backend</B>
+
+<I>job</I>
+
+<I>user</I>
+
+<I>title</I>
+
+<I>num-copies</I>
+
+<I>options</I>
+
+[
+<I>filename</I>
+
+]
+<PRE>
+
+<B>#include &lt;<A HREF="file:///usr/include/cups/cups.h">cups/cups.h</A>&gt;</B>
+
+<B>const char *cupsBackendDeviceURI</B>(<B>char **</B><I>argv</I>);
+
+<B>void cupsBackendReport</B>(<B>const char *</B><I>device_scheme</I>,
+                       <B>const char *</B><I>device_uri</I>,
+                       <B>const char *</B><I>device_make_and_model</I>,
+                       <B>const char *</B><I>device_info</I>,
+                       <B>const char *</B><I>device_id</I>,
+                       <B>const char *</B><I>device_location</I>);
+
+<B>ssize_t cupsBackChannelWrite</B>(<B>const char *</B><I>buffer</I>,
+                             <B>size_t </B><I>bytes</I>, <B>double </B><I>timeout</I>);
+
+<B>int cupsSideChannelRead</B>(<B>cups_sc_command_t *</B><I>command</I>,
+                        <B>cups_sc_status_t *</B><I>status</I>, <B>char *</B><I>data</I>,
+                        <B>int *</B><I>datalen</I>, <B>double </B><I>timeout</I>);
+
+<B>int cupsSideChannelWrite</B>(<B>cups_sc_command_t </B><I>command</I>,
+                         <B>cups_sc_status_t </B><I>status</I>, <B>const char *</B><I>data</I>,
+                         <B>int </B><I>datalen</I>, <B>double </B><I>timeout</I>);
+</PRE>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+Backends are a special type of
+<B><A HREF="/cgi-bin/man/man2html?7+filter">filter</A></B>(7)
+
+which is used to send print data to and discover different devices on the system.
+<P>
+
+Like filters, backends must be capable of reading from a filename on the command-line or from the standard input, copying the standard input to a temporary file as required by the physical interface.
+<P>
+
+The command name (<I>argv[0]</I>) is set to the device URI of the destination printer.
+Authentication information in
+<I>argv[0]</I>
+
+is removed, so backend developers are urged to use the
+<B>DEVICE_URI</B>
+
+environment variable whenever authentication information is required. The
+<B>cupsBackendDeviceURI</B>()
+
+function may be used to retrieve the correct device URI.
+<P>
+
+Back-channel data from the device should be relayed to the job filters using the <I>cupsBackChannelWrite</I> function.
+<P>
+
+Backends are responsible for reading side-channel requests using the
+<B>cupsSideChannelRead</B>()
+
+function and responding with the
+<B>cupsSideChannelWrite</B>()
+
+function. The
+<B>CUPS_SC_FD</B>
+
+constant defines the file descriptor that should be monitored for incoming requests.
+<A NAME="lbAE">&nbsp;</A>
+<H3>DEVICE DISCOVERY</H3>
+
+When run with no arguments, the backend should list the devices and schemes it supports or is advertising to the standard output.
+The output consists of zero or more lines consisting of any of the following forms:
+<PRE>
+
+    device-class scheme &quot;Unknown&quot; &quot;device-info&quot;
+    device-class device-uri &quot;device-make-and-model&quot; &quot;device-info&quot;
+    device-class device-uri &quot;device-make-and-model&quot; &quot;device-info&quot; &quot;device-id&quot;
+    device-class device-uri &quot;device-make-and-model&quot; &quot;device-info&quot; &quot;device-id&quot; &quot;device-location&quot;
+</PRE>
+
+<P>
+
+The
+<B>cupsBackendReport</B>()
+
+function can be used to generate these lines and handle any necessary escaping of characters in the various strings.
+<P>
+
+The
+<I>device-class</I>
+
+field is one of the following values:
+<DL COMPACT>
+<DT id="1"><B>direct</B>
+
+<DD>
+The device-uri refers to a specific direct-access device with no options, such as a parallel, USB, or SCSI device.
+<DT id="2"><B>file</B>
+
+<DD>
+The device-uri refers to a file on disk.
+<DT id="3"><B>network</B>
+
+<DD>
+The device-uri refers to a networked device and conforms to the general form for
+network URIs.
+<DT id="4"><B>serial</B>
+
+<DD>
+The device-uri refers to a serial device with configurable baud rate and other options.
+If the device-uri contains a baud value, it represents the maximum baud rate supported by the device.
+</DL>
+<P>
+
+The
+<I>scheme</I>
+
+field provides the URI scheme that is supported by the backend.
+Backends should use this form only when the backend supports any URI using that scheme.
+The
+<I>device-uri</I>
+
+field specifies the full URI to use when communicating with the device.
+<P>
+
+The
+<I>device-make-and-model</I>
+
+field specifies the make and model of the device, e.g. &quot;Example Foojet 2000&quot;.
+If the make and model is not known, you must report &quot;Unknown&quot;.
+<P>
+
+The
+<I>device-info</I>
+
+field specifies additional information about the device.
+Typically this includes the make and model along with the port number or network address, e.g. &quot;Example Foojet 2000 USB #1&quot;.
+<P>
+
+The optional
+<I>device-id</I>
+
+field specifies the IEEE-1284 device ID string for the device, which is used to select a matching driver.
+<P>
+
+The optional
+<I>device-location</I>
+
+field specifies the physical location of the device, which is often used to pre-populate the printer-location attribute when adding a printer.
+<A NAME="lbAF">&nbsp;</A>
+<H3>PERMISSIONS</H3>
+
+Backends without world read and execute permissions are run as the root user.
+Otherwise, the backend is run using an unprivileged user account, typically &quot;lp&quot;.
+<A NAME="lbAG">&nbsp;</A>
+<H2>EXIT STATUS</H2>
+
+The following exit codes are defined for backends:
+<DL COMPACT>
+<DT id="5"><B>CUPS_BACKEND_OK</B>
+
+<DD>
+The print file was successfully transmitted to the device or remote server.
+<DT id="6"><B>CUPS_BACKEND_FAILED</B>
+
+<DD>
+<BR>
+
+The print file was not successfully transmitted to the device or remote server.
+The scheduler will respond to this by canceling the job, retrying the job, or stopping the queue depending on the state of the
+<I>printer-error-policy</I>
+
+attribute.
+<DT id="7"><B>CUPS_BACKEND_AUTH_REQUIRED</B>
+
+<DD>
+The print file was not successfully transmitted because valid authentication information is required.
+The scheduler will respond to this by holding the job and adding the 'cups-held-for-authentication' keyword to the &quot;job-reasons&quot; Job Description attribute.
+<DT id="8"><B>CUPS_BACKEND_HOLD</B>
+
+<DD>
+The print file was not successfully transmitted because it cannot be printed at this time.
+The scheduler will respond to this by holding the job.
+<DT id="9"><B>CUPS_BACKEND_STOP</B>
+
+<DD>
+The print file was not successfully transmitted because it cannot be printed at this time.
+The scheduler will respond to this by stopping the queue.
+<DT id="10"><B>CUPS_BACKEND_CANCEL</B>
+
+<DD>
+The print file was not successfully transmitted because one or more attributes are not supported or the job was canceled at the printer.
+The scheduler will respond to this by canceling the job.
+<DT id="11"><B>CUPS_BACKEND_RETRY</B>
+
+<DD>
+The print file was not successfully transmitted because of a temporary issue.
+The scheduler will retry the job at a future time - other jobs may print before this one.
+<DT id="12"><B>CUPS_BACKEND_RETRY_CURRENT</B>
+
+<DD>
+The print file was not successfully transmitted because of a temporary issue.
+The scheduler will retry the job immediately without allowing intervening jobs.
+</DL>
+<P>
+
+All other exit code values are reserved.
+<A NAME="lbAH">&nbsp;</A>
+<H2>ENVIRONMENT</H2>
+
+In addition to the environment variables listed in
+<B><A HREF="/cgi-bin/man/man2html?1+cups">cups</A></B>(1)
+
+and
+<B><A HREF="/cgi-bin/man/man2html?7+filter">filter</A></B>(7),
+
+CUPS backends can expect the following environment variable:
+<DL COMPACT>
+<DT id="13"><B>DEVICE_URI</B>
+
+<DD>
+The device URI associated with the printer.
+</DL>
+<A NAME="lbAI">&nbsp;</A>
+<H2>FILES</H2>
+
+<I>/etc/cups/cups-files.conf</I>
+
+<A NAME="lbAJ">&nbsp;</A>
+<H2>NOTES</H2>
+
+CUPS backends are not generally designed to be run directly by the user.
+Aside from the device URI issue (
+<I>argv[0]</I>
+
+and
+<B>DEVICE_URI</B>
+
+environment variable contain the device URI), CUPS backends also expect specific environment variables and file descriptors, and typically run in a user session that (on macOS) has additional restrictions that affect how it runs.
+Backends can also be installed with restricted permissions (0500 or 0700) that tell the scheduler to run them as the &quot;root&quot; user instead of an unprivileged user (typically &quot;lp&quot;) on the system.
+<P>
+
+Unless you are a developer and know what you are doing, please do not run backends directly.
+Instead, use the
+<B><A HREF="/cgi-bin/man/man2html?1+lp">lp</A></B>(1)
+
+or
+<B><A HREF="/cgi-bin/man/man2html?1+lpr">lpr</A></B>(1)
+
+programs to send print jobs or
+<B><A HREF="/cgi-bin/man/man2html?8+lpinfo">lpinfo</A></B>(8)
+
+to query for available printers using the backend.
+The one exception is the SNMP backend - see
+<B><A HREF="/cgi-bin/man/man2html?8+cups-snmp">cups-snmp</A></B>(8)
+
+for more information.
+<A NAME="lbAK">&nbsp;</A>
+<H2>NOTES</H2>
+
+CUPS printer drivers and backends are deprecated and will no longer be supported in a future feature release of CUPS.
+Printers that do not support IPP can be supported using applications such as
+<B><A HREF="/cgi-bin/man/man2html?1+ippeveprinter">ippeveprinter</A></B>(1).
+
+<A NAME="lbAL">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<I><A HREF="/cgi-bin/man/man2html?1+cups">cups</A></I>(1),
+
+<I><A HREF="/cgi-bin/man/man2html?5+cups-files.conf">cups-files.conf</A></I>(5),
+
+<I><A HREF="/cgi-bin/man/man2html?8+cups-snmp">cups-snmp</A></I>(8),
+
+<I><A HREF="/cgi-bin/man/man2html?8+cupsd">cupsd</A></I>(8),
+
+<I><A HREF="/cgi-bin/man/man2html?7+filter">filter</A></I>(7),
+
+<I><A HREF="/cgi-bin/man/man2html?1+lp">lp</A></I>(1),
+
+<I><A HREF="/cgi-bin/man/man2html?8+lpinfo">lpinfo</A></I>(8),
+
+<I><A HREF="/cgi-bin/man/man2html?1+lpr">lpr</A></I>(1),
+
+<BR>
+
+CUPS Online Help (<A HREF="http://localhost:631/help)">http://localhost:631/help)</A>
+<A NAME="lbAM">&nbsp;</A>
+<H2>COPYRIGHT</H2>
+
+Copyright &#169; 2007-2019 by Apple Inc.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="14"><A HREF="#lbAB">NAME</A><DD>
+<DT id="15"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="16"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DL>
+<DT id="17"><A HREF="#lbAE">DEVICE DISCOVERY</A><DD>
+<DT id="18"><A HREF="#lbAF">PERMISSIONS</A><DD>
+</DL>
+<DT id="19"><A HREF="#lbAG">EXIT STATUS</A><DD>
+<DT id="20"><A HREF="#lbAH">ENVIRONMENT</A><DD>
+<DT id="21"><A HREF="#lbAI">FILES</A><DD>
+<DT id="22"><A HREF="#lbAJ">NOTES</A><DD>
+<DT id="23"><A HREF="#lbAK">NOTES</A><DD>
+<DT id="24"><A HREF="#lbAL">SEE ALSO</A><DD>
+<DT id="25"><A HREF="#lbAM">COPYRIGHT</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:07 GMT, March 31, 2021
+</BODY>
+</HTML>

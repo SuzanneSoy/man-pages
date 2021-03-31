@@ -1,0 +1,595 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SHMGET</TITLE>
+</HEAD><BODY>
+<H1>SHMGET</H1>
+Section: Linux Programmer's Manual (2)<BR>Updated: 2019-08-02<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+shmget - allocates a System V shared memory segment
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+
+<B>#include &lt;<A HREF="file:///usr/include/sys/ipc.h">sys/ipc.h</A>&gt;</B>
+
+<BR>
+
+<B>#include &lt;<A HREF="file:///usr/include/sys/shm.h">sys/shm.h</A>&gt;</B>
+
+<P>
+
+<B>int shmget(key_t </B><I>key</I><B>, size_t </B><I>size</I><B>, int </B><I>shmflg</I><B>);</B>
+
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<B>shmget</B>()
+
+returns the identifier of the System&nbsp;V shared memory segment
+associated with the value of the argument
+<I>key</I>.
+
+It may be used either to obtain the identifier of a previously created
+shared memory segment (when
+<I>shmflg</I>
+
+is zero and
+<I>key</I>
+
+does not have the value
+<B>IPC_PRIVATE</B>),
+
+or to create a new set.
+<P>
+
+A new shared memory segment, with size equal to the value of
+<I>size</I>
+
+rounded up to a multiple of
+<B>PAGE_SIZE</B>,
+
+is created if
+<I>key</I>
+
+has the value
+<B>IPC_PRIVATE</B>
+
+or
+<I>key</I>
+
+isn't
+<B>IPC_PRIVATE</B>,
+
+no shared memory segment corresponding to
+<I>key</I>
+
+exists, and
+<B>IPC_CREAT</B>
+
+is specified in
+<I>shmflg</I>.
+
+<P>
+
+If
+<I>shmflg</I>
+
+specifies both
+<B>IPC_CREAT</B>
+
+and
+<B>IPC_EXCL</B>
+
+and a shared memory segment already exists for
+<I>key</I>,
+
+then
+<B>shmget</B>()
+
+fails with
+<I>errno</I>
+
+set to
+<B>EEXIST</B>.
+
+(This is analogous to the effect of the combination
+<B>O_CREAT | O_EXCL</B>
+
+for
+<B><A HREF="/cgi-bin/man/man2html?2+open">open</A></B>(2).)
+
+<P>
+
+The value
+<I>shmflg</I>
+
+is composed of:
+<DL COMPACT>
+<DT id="1"><B>IPC_CREAT</B>
+
+<DD>
+Create a new segment.
+If this flag is not used, then
+<B>shmget</B>()
+
+will find the segment associated with <I>key</I> and check to see if
+the user has permission to access the segment.
+<DT id="2"><B>IPC_EXCL</B>
+
+<DD>
+This flag is used with
+<B>IPC_CREAT</B>
+
+to ensure that this call creates the segment.
+If the segment already exists, the call fails.
+<DT id="3"><B>SHM_HUGETLB</B> (since Linux 2.6)
+
+<DD>
+Allocate the segment using &quot;huge pages.&quot;
+See the Linux kernel source file
+<I>Documentation/admin-guide/mm/hugetlbpage.rst</I>
+
+for further information.
+<DT id="4"><B>SHM_HUGE_2MB</B>, <B>SHM_HUGE_1GB</B> (since Linux 3.8)
+
+<DD>
+
+Used in conjunction with
+<B>SHM_HUGETLB</B>
+
+to select alternative hugetlb page sizes (respectively, 2&nbsp;MB and 1&nbsp;GB)
+on systems that support multiple hugetlb page sizes.
+<DT id="5"><DD>
+More generally, the desired huge page size can be configured by encoding
+the base-2 logarithm of the desired page size in the six bits at the offset
+<B>SHM_HUGE_SHIFT</B>.
+
+Thus, the above two constants are defined as:
+<DT id="6"><DD>
+
+
+#define SHM_HUGE_2MB    (21 &lt;&lt; SHM_HUGE_SHIFT)
+#define SHM_HUGE_1GB    (30 &lt;&lt; SHM_HUGE_SHIFT)
+
+
+<DT id="7"><DD>
+For some additional details,
+see the discussion of the similarly named constants in
+<B><A HREF="/cgi-bin/man/man2html?2+mmap">mmap</A></B>(2).
+
+<DT id="8"><B>SHM_NORESERVE</B> (since Linux 2.6.15)
+
+<DD>
+This flag serves the same purpose as the
+<B><A HREF="/cgi-bin/man/man2html?2+mmap">mmap</A></B>(2)
+
+<B>MAP_NORESERVE</B>
+
+flag.
+Do not reserve swap space for this segment.
+When swap space is reserved, one has the guarantee
+that it is possible to modify the segment.
+When swap space is not reserved one might get
+<B>SIGSEGV</B>
+
+upon a write
+if no physical memory is available.
+See also the discussion of the file
+<I>/proc/sys/vm/overcommit_memory</I>
+
+in
+<B><A HREF="/cgi-bin/man/man2html?5+proc">proc</A></B>(5).
+
+
+
+</DL>
+<P>
+
+In addition to the above flags, the least significant 9 bits of
+<I>shmflg</I>
+
+specify the permissions granted to the owner, group, and others.
+These bits have the same format, and the same
+meaning, as the
+<I>mode</I>
+
+argument of
+<B><A HREF="/cgi-bin/man/man2html?2+open">open</A></B>(2).
+
+Presently, execute permissions are not used by the system.
+<P>
+
+When a new shared memory segment is created,
+its contents are initialized to zero values, and
+its associated data structure,
+<I>shmid_ds</I>
+
+(see
+<B><A HREF="/cgi-bin/man/man2html?2+shmctl">shmctl</A></B>(2)),
+
+is initialized as follows:
+<DL COMPACT>
+<DT id="9"><DD>
+<I>shm_perm.cuid</I>
+
+and
+<I>shm_perm.uid</I>
+
+are set to the effective user ID of the calling process.
+<DT id="10"><DD>
+<I>shm_perm.cgid</I>
+
+and
+<I>shm_perm.gid</I>
+
+are set to the effective group ID of the calling process.
+<DT id="11"><DD>
+The least significant 9 bits of
+<I>shm_perm.mode</I>
+
+are set to the least significant 9 bit of
+<I>shmflg</I>.
+
+<DT id="12"><DD>
+<I>shm_segsz</I>
+
+is set to the value of
+<I>size</I>.
+
+<DT id="13"><DD>
+<I>shm_lpid</I>,
+
+<I>shm_nattch</I>,
+
+<I>shm_atime</I>,
+
+and
+<I>shm_dtime</I>
+
+are set to 0.
+<DT id="14"><DD>
+<I>shm_ctime</I>
+
+is set to the current time.
+</DL>
+<P>
+
+If the shared memory segment already exists, the permissions are
+verified, and a check is made to see if it is marked for destruction.
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+On success, a valid shared memory identifier is returned.
+On error, -1 is returned, and
+<I>errno</I>
+
+is set to indicate the error.
+<A NAME="lbAF">&nbsp;</A>
+<H2>ERRORS</H2>
+
+On failure,
+<I>errno</I>
+
+is set to one of the following:
+<DL COMPACT>
+<DT id="15"><B>EACCES</B>
+
+<DD>
+The user does not have permission to access the
+shared memory segment, and does not have the
+<B>CAP_IPC_OWNER</B>
+
+capability in the user namespace that governs its IPC namespace.
+<DT id="16"><B>EEXIST</B>
+
+<DD>
+<B>IPC_CREAT</B>
+
+and
+<B>IPC_EXCL</B>
+
+were specified in
+<I>shmflg</I>,
+
+but a shared memory segment already exists for
+<I>key</I>.
+
+<DT id="17"><B>EINVAL</B>
+
+<DD>
+A new segment was to be created and
+<I>size</I>
+
+is less than
+<B>SHMMIN</B>
+
+or greater than
+<B>SHMMAX</B>.
+
+<DT id="18"><B>EINVAL</B>
+
+<DD>
+A segment for the given
+<I>key</I>
+
+exists, but <I>size</I> is greater than the size
+of that segment.
+<DT id="19"><B>ENFILE</B>
+
+<DD>
+
+The system-wide limit on the total number of open files has been reached.
+<DT id="20"><B>ENOENT</B>
+
+<DD>
+No segment exists for the given <I>key</I>, and
+<B>IPC_CREAT</B>
+
+was not specified.
+<DT id="21"><B>ENOMEM</B>
+
+<DD>
+No memory could be allocated for segment overhead.
+<DT id="22"><B>ENOSPC</B>
+
+<DD>
+All possible shared memory IDs have been taken
+(<B>SHMMNI</B>),
+
+or allocating a segment of the requested
+<I>size</I>
+
+would cause the system to exceed the system-wide limit on shared memory
+(<B>SHMALL</B>).
+
+<DT id="23"><B>EPERM</B>
+
+<DD>
+The
+<B>SHM_HUGETLB</B>
+
+flag was specified, but the caller was not privileged (did not have the
+<B>CAP_IPC_LOCK</B>
+
+capability).
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+POSIX.1-2001, POSIX.1-2008, SVr4.
+
+<P>
+
+<B>SHM_HUGETLB</B>
+
+and
+<B>SHM_NORESERVE</B>
+
+are Linux extensions.
+<A NAME="lbAH">&nbsp;</A>
+<H2>NOTES</H2>
+
+The inclusion of
+<I>&lt;<A HREF="file:///usr/include/sys/types.h">sys/types.h</A>&gt;</I>
+
+and
+<I>&lt;<A HREF="file:///usr/include/sys/ipc.h">sys/ipc.h</A>&gt;</I>
+
+isn't required on Linux or by any version of POSIX.
+However,
+some old implementations required the inclusion of these header files,
+and the SVID also documented their inclusion.
+Applications intended to be portable to such old systems may need
+to include these header files.
+
+
+<P>
+
+<B>IPC_PRIVATE</B>
+
+isn't a flag field but a
+<I>key_t</I>
+
+type.
+If this special value is used for
+<I>key</I>,
+
+the system call ignores all but the least significant 9 bits of
+<I>shmflg</I>
+
+and creates a new shared memory segment.
+
+<A NAME="lbAI">&nbsp;</A>
+<H3>Shared memory limits</H3>
+
+The following limits on shared memory segment resources affect the
+<B>shmget</B>()
+
+call:
+<DL COMPACT>
+<DT id="24"><B>SHMALL</B>
+
+<DD>
+System-wide limit on the total amount of shared memory,
+measured in units of the system page size.
+<DT id="25"><DD>
+On Linux, this limit can be read and modified via
+<I>/proc/sys/kernel/shmall</I>.
+
+Since Linux 3.16,
+
+the default value for this limit is:
+<DT id="26"><DD>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;ULONG_MAX&nbsp;-&nbsp;2^24
+<DT id="27"><DD>
+The effect of this value
+(which is suitable for both 32-bit and 64-bit systems)
+is to impose no limitation on allocations.
+This value, rather than
+<B>ULONG_MAX</B>,
+
+was chosen as the default to prevent some cases where historical
+applications simply raised the existing limit without first checking
+its current value.
+Such applications would cause the value to overflow if the limit was set at
+<B>ULONG_MAX</B>.
+
+<DT id="28"><DD>
+From Linux 2.4 up to Linux 3.15,
+the default value for this limit was:
+<DT id="29"><DD>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;SHMMAX&nbsp;/&nbsp;PAGE_SIZE&nbsp;*&nbsp;(SHMMNI&nbsp;/&nbsp;16)
+<DT id="30"><DD>
+If
+<B>SHMMAX</B>
+
+and
+<B>SHMMNI</B>
+
+were not modified, then multiplying the result of this formula
+by the page size (to get a value in bytes) yielded a value of 8&nbsp;GB
+as the limit on the total memory used by all shared memory segments.
+<DT id="31"><B>SHMMAX</B>
+
+<DD>
+Maximum size in bytes for a shared memory segment.
+<DT id="32"><DD>
+On Linux, this limit can be read and modified via
+<I>/proc/sys/kernel/shmmax</I>.
+
+Since Linux 3.16,
+
+the default value for this limit is:
+<DT id="33"><DD>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;ULONG_MAX&nbsp;-&nbsp;2^24
+<DT id="34"><DD>
+The effect of this value
+(which is suitable for both 32-bit and 64-bit systems)
+is to impose no limitation on allocations.
+See the description of
+<B>SHMALL</B>
+
+for a discussion of why this default value (rather than
+<B>ULONG_MAX</B>)
+
+is used.
+<DT id="35"><DD>
+From Linux 2.2 up to Linux 3.15, the default value of
+this limit was 0x2000000 (32&nbsp;MB).
+<DT id="36"><DD>
+Because it is not possible to map just part of a shared memory segment,
+the amount of virtual memory places another limit on the maximum size of a
+usable segment:
+for example, on i386 the largest segments that can be mapped have a
+size of around 2.8&nbsp;GB, and on x86-64 the limit is around 127 TB.
+<DT id="37"><B>SHMMIN</B>
+
+<DD>
+Minimum size in bytes for a shared memory segment: implementation
+dependent (currently 1 byte, though
+<B>PAGE_SIZE</B>
+
+is the effective minimum size).
+<DT id="38"><B>SHMMNI</B>
+
+<DD>
+System-wide limit on the number of shared memory segments.
+In Linux 2.2, the default value for this limit was 128;
+since Linux 2.4, the default value is 4096.
+<DT id="39"><DD>
+On Linux, this limit can be read and modified via
+<I>/proc/sys/kernel/shmmni</I>.
+
+
+
+
+</DL>
+<P>
+
+The implementation has no specific limits for the per-process maximum
+number of shared memory segments
+(<B>SHMSEG</B>).
+
+<A NAME="lbAJ">&nbsp;</A>
+<H3>Linux notes</H3>
+
+Until version 2.3.30, Linux would return
+<B>EIDRM</B>
+
+for a
+<B>shmget</B>()
+
+on a shared memory segment scheduled for deletion.
+<A NAME="lbAK">&nbsp;</A>
+<H2>BUGS</H2>
+
+The name choice
+<B>IPC_PRIVATE</B>
+
+was perhaps unfortunate,
+<B>IPC_NEW</B>
+
+would more clearly show its function.
+<A NAME="lbAL">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?2+memfd_create">memfd_create</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+shmat">shmat</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+shmctl">shmctl</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+shmdt">shmdt</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?3+ftok">ftok</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?7+capabilities">capabilities</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+shm_overview">shm_overview</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+sysvipc">sysvipc</A></B>(7)
+
+<A NAME="lbAM">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="40"><A HREF="#lbAB">NAME</A><DD>
+<DT id="41"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="42"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="43"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DT id="44"><A HREF="#lbAF">ERRORS</A><DD>
+<DT id="45"><A HREF="#lbAG">CONFORMING TO</A><DD>
+<DT id="46"><A HREF="#lbAH">NOTES</A><DD>
+<DL>
+<DT id="47"><A HREF="#lbAI">Shared memory limits</A><DD>
+<DT id="48"><A HREF="#lbAJ">Linux notes</A><DD>
+</DL>
+<DT id="49"><A HREF="#lbAK">BUGS</A><DD>
+<DT id="50"><A HREF="#lbAL">SEE ALSO</A><DD>
+<DT id="51"><A HREF="#lbAM">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:34 GMT, March 31, 2021
+</BODY>
+</HTML>

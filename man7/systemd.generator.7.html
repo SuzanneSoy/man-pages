@@ -1,0 +1,397 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SYSTEMD.GENERATOR</TITLE>
+</HEAD><BODY>
+<H1>SYSTEMD.GENERATOR</H1>
+Section: systemd.generator (7)<BR>Updated: <BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+systemd.generator - systemd unit generators
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<DL COMPACT>
+<DT id="1">
+<B>/path/to/generator</B> <I>normal-dir</I> <I>early-dir</I> <I>late-dir</I>
+</DL>
+<P>
+
+<PRE>
+/run/systemd/system-generators/*
+/etc/systemd/system-generators/*
+/usr/local/lib/systemd/system-generators/*
+/lib/systemd/system-generators/*
+</PRE>
+
+<P>
+
+<PRE>
+/run/systemd/user-generators/*
+/etc/systemd/user-generators/*
+/usr/local/lib/systemd/user-generators/*
+/usr/lib/systemd/user-generators/*
+</PRE>
+
+<P>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+<DD>Generators are small executables that live in
+/lib/systemd/system-generators/
+and other directories listed above.
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1)
+will execute those binaries very early at bootup and at configuration reload time --- before unit files are loaded. Their main purpose is to convert configuration that is not native into dynamically generated unit files.
+<P>
+
+Each generator is called with three directory paths that are to be used for generator output. In these three directories, generators may dynamically generate unit files (regular ones, instances, as well as templates), unit file
+.d/
+drop-ins, and create symbolic links to unit files to add additional dependencies, create aliases, or instantiate existing templates. Those directories are included in the unit load path of
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1), allowing generated configuration to extend or override existing definitions.
+<P>
+
+Directory paths for generator output differ by priority:
+.../generator.early
+has priority higher than the admin configuration in
+/etc, while
+.../generator
+has lower priority than
+/etc
+but higher than vendor configuration in
+/usr, and
+.../generator.late
+has priority lower than all other configuration. See the next section and the discussion of unit load paths and unit overriding in
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.unit">systemd.unit</A></B>(5).
+<P>
+
+Generators are loaded from a set of paths determined during compilation, as listed above. System and user generators are loaded from directories with names ending in
+system-generators/
+and
+user-generators/, respectively. Generators found in directories listed earlier override the ones with the same name in directories lower in the list. A symlink to
+/dev/null
+or an empty file can be used to mask a generator, thereby preventing it from running. Please note that the order of the two directories with the highest priority is reversed with respect to the unit load path, and generators in
+/run
+overwrite those in
+/etc.
+<P>
+
+After installing new generators or updating the configuration,
+<B>systemctl daemon-reload</B>
+may be executed. This will delete the previous configuration created by generators, re-run all generators, and cause
+<B>systemd</B>
+to reload units from disk. See
+<B><A HREF="/cgi-bin/man/man2html?1+systemctl">systemctl</A></B>(1)
+for more information.
+<A NAME="lbAE">&nbsp;</A>
+<H2>OUTPUT DIRECTORIES</H2>
+
+<P>
+
+Generators are invoked with three arguments: paths to directories where generators can place their generated unit files or symlinks. By default those paths are runtime directories that are included in the search path of
+<B>systemd</B>, but a generator may be called with different paths for debugging purposes.
+<P>
+<DL COMPACT><DT id="2"><DD>
+ 1.
+
+
+<I>normal-dir</I>
+<P>
+In normal use this is
+/run/systemd/generator
+in case of the system generators and
+$XDG_RUNTIME_DIR/generator
+in case of the user generators. Unit files placed in this directory take precedence over vendor unit configuration but not over native user/administrator unit configuration.
+</DL>
+
+<P>
+<DL COMPACT><DT id="3"><DD>
+ 2.
+
+
+<I>early-dir</I>
+<P>
+In normal use this is
+/run/systemd/generator.early
+in case of the system generators and
+$XDG_RUNTIME_DIR/generator.early
+in case of the user generators. Unit files placed in this directory override unit files in
+/usr,
+/run
+and
+/etc. This means that unit files placed in this directory take precedence over all normal configuration, both vendor and user/administrator.
+</DL>
+
+<P>
+<DL COMPACT><DT id="4"><DD>
+ 3.
+
+
+<I>late-dir</I>
+<P>
+In normal use this is
+/run/systemd/generator.late
+in case of the system generators and
+$XDG_RUNTIME_DIR/generator.late
+in case of the user generators. This directory may be used to extend the unit file tree without overriding any other unit files. Any native configuration files supplied by the vendor or user/administrator take precedence.
+</DL>
+
+<A NAME="lbAF">&nbsp;</A>
+<H2>NOTES ABOUT WRITING GENERATORS</H2>
+
+<P>
+<DL COMPACT><DT id="5"><DD>
+&bull;
+
+
+All generators are executed in parallel. That means all executables are started at the very same time and need to be able to cope with this parallelism.
+</DL>
+
+<P>
+<DL COMPACT><DT id="6"><DD>
+&bull;
+
+
+Generators are run very early at boot and cannot rely on any external services. They may not talk to any other process. That includes simple things such as logging to
+<B><A HREF="/cgi-bin/man/man2html?3+syslog">syslog</A></B>(3), or
+<B>systemd</B>
+itself (this means: no
+<B><A HREF="/cgi-bin/man/man2html?1+systemctl">systemctl</A></B>(1))! Non-essential file systems like
+/var
+and
+/home
+are mounted after generators have run. Generators can however rely on the most basic kernel functionality to be available, including a mounted
+/sys,
+/proc,
+/dev,
+/usr.
+</DL>
+
+<P>
+<DL COMPACT><DT id="7"><DD>
+&bull;
+
+
+Units written by generators are removed when the configuration is reloaded. That means the lifetime of the generated units is closely bound to the reload cycles of
+<B>systemd</B>
+itself.
+</DL>
+
+<P>
+<DL COMPACT><DT id="8"><DD>
+&bull;
+
+
+Generators should only be used to generate unit files and symlinks to them, not any other kind of configuration. Due to the lifecycle logic mentioned above, generators are not a good fit to generate dynamic configuration for other services. If you need to generate dynamic configuration for other services, do so in normal services you order before the service in question.
+</DL>
+
+<P>
+<DL COMPACT><DT id="9"><DD>
+&bull;
+
+
+Since
+<B><A HREF="/cgi-bin/man/man2html?3+syslog">syslog</A></B>(3)
+is not available (see above), log messages have to be written to
+/dev/kmsg
+instead.
+</DL>
+
+<P>
+<DL COMPACT><DT id="10"><DD>
+&bull;
+
+
+The generator should always include its own name in a comment at the top of the generated file, so that the user can easily figure out which component created or amended a particular unit.
+<P>
+The
+<I>SourcePath=</I>
+directive should be used in generated files to specify the source configuration file they are generated from. This makes things more easily understood by the user and also has the benefit that systemd can warn the user about configuration files that changed on disk but have not been read yet by systemd. The
+<I>SourcePath=</I>
+value does not have to be a file in a physical filesystem. For example, in the common case of the generator looking at the kernel command line,
+<B>SourcePath=/proc/cmdline</B>
+should be used.
+</DL>
+
+<P>
+<DL COMPACT><DT id="11"><DD>
+&bull;
+
+
+Generators may write out dynamic unit files or just hook unit files into other units with the usual
+.wants/
+or
+.requires/
+symlinks. Often, it is nicer to simply instantiate a template unit file from
+/usr
+with a generator instead of writing out entirely dynamic unit files. Of course, this works only if a single parameter is to be used.
+</DL>
+
+<P>
+<DL COMPACT><DT id="12"><DD>
+&bull;
+
+
+If you are careful, you can implement generators in shell scripts. We do recommend C code however, since generators are executed synchronously and hence delay the entire boot if they are slow.
+</DL>
+
+<P>
+<DL COMPACT><DT id="13"><DD>
+&bull;
+
+
+Regarding overriding semantics: there are two rules we try to follow when thinking about the overriding semantics:
+<P>
+<DL COMPACT><DT id="14"><DD>
+ 1.
+
+
+User configuration should override vendor configuration. This (mostly) means that stuff from
+/etc
+should override stuff from
+/usr.
+</DL>
+
+<P>
+<DL COMPACT><DT id="15"><DD>
+ 2.
+
+
+Native configuration should override non-native configuration. This (mostly) means that stuff you generate should never override native unit files for the same purpose.
+</DL>
+
+<P>
+Of these two rules the first rule is probably the more important one and breaks the second one sometimes. Hence, when deciding whether to use argv[1], argv[2], or argv[3], your default choice should probably be argv[1].
+</DL>
+
+<P>
+<DL COMPACT><DT id="16"><DD>
+&bull;
+
+
+Instead of heading off now and writing all kind of generators for legacy configuration file formats, please think twice! It is often a better idea to just deprecate old stuff instead of keeping it artificially alive.
+</DL>
+
+<A NAME="lbAG">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+<P>
+
+<B>Example&nbsp;1.&nbsp;systemd-fstab-generator</B>
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-fstab-generator">systemd-fstab-generator</A></B>(8)
+converts
+/etc/fstab
+into native mount units. It uses argv[1] as location to place the generated unit files in order to allow the user to override
+/etc/fstab
+with their own native unit files, but also to ensure that
+/etc/fstab
+overrides any vendor default from
+/usr.
+<P>
+
+After editing
+/etc/fstab, the user should invoke
+<B>systemctl daemon-reload</B>. This will re-run all generators and cause
+<B>systemd</B>
+to reload units from disk. To actually mount new directories added to
+fstab,
+<B>systemctl start </B><B></B><I>/path/to/mountpoint</I>
+or
+<B>systemctl start local-fs.target</B>
+may be used.
+<P>
+
+<B>Example&nbsp;2.&nbsp;systemd-system-update-generator</B>
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-system-update-generator">systemd-system-update-generator</A></B>(8)
+temporarily redirects
+default.target
+to
+system-update.target, if a system update is scheduled. Since this needs to override the default user configuration for
+default.target, it uses argv[2]. For details about this logic, see
+<B><A HREF="/cgi-bin/man/man2html?7+systemd.offline-updates">systemd.offline-updates</A></B>(7).
+<P>
+
+<B>Example&nbsp;3.&nbsp;Debugging a generator</B>
+<P>
+<DL COMPACT><DT id="17"><DD>
+
+
+
+<PRE>
+dir=$(mktemp -d)
+SYSTEMD_LOG_LEVEL=debug /lib/systemd/system-generators/systemd-fstab-generator \
+        &quot;$dir&quot; &quot;$dir&quot; &quot;$dir&quot;
+find $dir
+</PRE>
+
+</DL>
+
+
+
+
+<A NAME="lbAH">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-cryptsetup-generator">systemd-cryptsetup-generator</A></B>(8),
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-debug-generator">systemd-debug-generator</A></B>(8),
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-fstab-generator">systemd-fstab-generator</A></B>(8),
+<B><A HREF="/cgi-bin/man/man2html?5+fstab">fstab</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-getty-generator">systemd-getty-generator</A></B>(8),
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-gpt-auto-generator">systemd-gpt-auto-generator</A></B>(8),
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-hibernate-resume-generator">systemd-hibernate-resume-generator</A></B>(8),
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-rc-local-generator">systemd-rc-local-generator</A></B>(8),
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-system-update-generator">systemd-system-update-generator</A></B>(8),
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-sysv-generator">systemd-sysv-generator</A></B>(8),
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.unit">systemd.unit</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?1+systemctl">systemctl</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?7+systemd.environment-generator">systemd.environment-generator</A></B>(7)
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="18"><A HREF="#lbAB">NAME</A><DD>
+<DT id="19"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="20"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="21"><A HREF="#lbAE">OUTPUT DIRECTORIES</A><DD>
+<DT id="22"><A HREF="#lbAF">NOTES ABOUT WRITING GENERATORS</A><DD>
+<DT id="23"><A HREF="#lbAG">EXAMPLES</A><DD>
+<DT id="24"><A HREF="#lbAH">SEE ALSO</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:10 GMT, March 31, 2021
+</BODY>
+</HTML>

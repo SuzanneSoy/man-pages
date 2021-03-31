@@ -1,0 +1,299 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SD_EVENT_ADD_IO</TITLE>
+</HEAD><BODY>
+<H1>SD_EVENT_ADD_IO</H1>
+Section: sd_event_add_io (3)<BR>Updated: <BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+sd_event_add_io, sd_event_source_get_io_events, sd_event_source_set_io_events, sd_event_source_get_io_revents, sd_event_source_get_io_fd, sd_event_source_set_io_fd, sd_event_source_get_io_fd_own, sd_event_source_set_io_fd_own, sd_event_source, sd_event_io_handler_t - Add an I/O event source to an event loop
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+<B>
+</B><PRE>
+#include &lt;<A HREF="file:///usr/include/systemd/sd-event.h">systemd/sd-event.h</A>&gt;
+</PRE>
+
+
+<P>
+<B>
+</B><PRE>
+typedef struct sd_event_source sd_event_source;
+</PRE>
+
+
+<DL COMPACT>
+<DT id="1">
+<B>typedef int (*sd_event_io_handler_t)(sd_event_source&nbsp;*</B><I>s</I><B>, int&nbsp;</B><I>fd</I><B>, uint32_t&nbsp;</B><I>revents</I><B>, void&nbsp;*</B><I>userdata</I><B>);</B>
+
+<DT id="2">
+<B>int sd_event_add_io(sd_event&nbsp;*</B><I>event</I><B>, sd_event_source&nbsp;**</B><I>source</I><B>, int&nbsp;</B><I>fd</I><B>, uint32_t&nbsp;</B><I>events</I><B>, sd_event_io_handler_t&nbsp;</B><I>handler</I><B>, void&nbsp;*</B><I>userdata</I><B>);</B>
+
+<DT id="3">
+<B>int sd_event_source_get_io_events(sd_event_source&nbsp;*</B><I>source</I><B>, uint32_t&nbsp;*</B><I>events</I><B>);</B>
+
+<DT id="4">
+<B>int sd_event_source_set_io_events(sd_event_source&nbsp;*</B><I>source</I><B>, uint32_t&nbsp;</B><I>events</I><B>);</B>
+
+<DT id="5">
+<B>int sd_event_source_get_io_revents(sd_event_source&nbsp;*</B><I>source</I><B>, uint32_t&nbsp;*</B><I>revents</I><B>);</B>
+
+<DT id="6">
+<B>int sd_event_source_get_io_fd(sd_event_source&nbsp;*</B><I>source</I><B>);</B>
+
+<DT id="7">
+<B>int sd_event_source_set_io_fd(sd_event_source&nbsp;*</B><I>source</I><B>, int&nbsp;</B><I>fd</I><B>);</B>
+
+<DT id="8">
+<B>int sd_event_source_get_io_fd_own(sd_event_source&nbsp;*</B><I>source</I><B>);</B>
+
+<DT id="9">
+<B>int sd_event_source_set_io_fd_own(sd_event_source&nbsp;*</B><I>source</I><B>, int&nbsp;</B><I>b</I><B>);</B>
+
+</DL>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+<B>sd_event_add_io()</B>
+<DD>adds a new I/O event source to an event loop. The event loop object is specified in the
+<I>event</I>
+parameter, the event source object is returned in the
+<I>source</I>
+parameter. The
+<I>fd</I>
+parameter takes the UNIX file descriptor to watch, which may refer to a socket, a FIFO, a message queue, a serial connection, a character device, or any other file descriptor compatible with Linux
+<B><A HREF="/cgi-bin/man/man2html?7+epoll">epoll</A></B>(7). The
+<I>events</I>
+parameter takes a bit mask of events to watch for, a combination of the following event flags:
+<B>EPOLLIN</B>,
+<B>EPOLLOUT</B>,
+<B>EPOLLRDHUP</B>,
+<B>EPOLLPRI</B>, and
+<B>EPOLLET</B>, see
+<B><A HREF="/cgi-bin/man/man2html?2+epoll_ctl">epoll_ctl</A></B>(2)
+for details. The
+<I>handler</I>
+shall reference a function to call when the event source is triggered. The
+<I>userdata</I>
+pointer will be passed to the handler function, and may be chosen freely by the caller. The handler will also be passed the file descriptor the event was seen on, as well as the actual event flags. It's generally a subset of the events watched, however may additionally include
+<B>EPOLLERR</B>
+and
+<B>EPOLLHUP</B>.
+<P>
+
+By default, an event source will stay enabled continuously (<B>SD_EVENT_ON</B>), but this may be changed with
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_source_set_enabled">sd_event_source_set_enabled</A></B>(3). If the handler function returns a negative error code, it will be disabled after the invocation, even if the
+<B>SD_EVENT_ON</B>
+mode was requested before. Note that an event source set to
+<B>SD_EVENT_ON</B>
+will fire continuously unless data is read from or written to the file descriptor to reset the mask of events seen.
+<P>
+
+Setting the I/O event mask to watch for to 0 does not mean that the event source won't be triggered anymore, as
+<B>EPOLLHUP</B>
+and
+<B>EPOLLERR</B>
+may be triggered even with a zero event mask. To temporarily disable an I/O event source use
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_source_set_enabled">sd_event_source_set_enabled</A></B>(3)
+with
+<B>SD_EVENT_OFF</B>
+instead.
+<P>
+
+To destroy an event source object use
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_source_unref">sd_event_source_unref</A></B>(3), but note that the event source is only removed from the event loop when all references to the event source are dropped. To make sure an event source does not fire anymore, even if it is still referenced, disable the event source using
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_source_set_enabled">sd_event_source_set_enabled</A></B>(3)
+with
+<B>SD_EVENT_OFF</B>.
+<P>
+
+If the second parameter of
+<B>sd_event_add_io()</B>
+is
+<B>NULL</B>
+no reference to the event source object is returned. In this case the event source is considered &quot;floating&quot;, and will be destroyed implicitly when the event loop itself is destroyed.
+<P>
+
+Note that this call does not take possession of the file descriptor passed in, ownership (and thus the duty to close it when it is no longer needed) remains with the caller. However, with the
+<B>sd_event_source_set_io_fd_own()</B>
+call (see below) the event source may optionally take ownership of the file descriptor after the event source has been created. In that case the file descriptor is closed automatically as soon as the event source is released.
+<P>
+
+It is recommended to use
+<B>sd_event_add_io()</B>
+only in conjunction with file descriptors that have
+<B>O_NONBLOCK</B>
+set, to ensure that all I/O operations from invoked handlers are properly asynchronous and non-blocking. Using file descriptors without
+<B>O_NONBLOCK</B>
+might result in unexpected starvation of other event sources. See
+<B><A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A></B>(2)
+for details on enabling
+<B>O_NONBLOCK</B>
+mode.
+<P>
+
+<B>sd_event_source_get_io_events()</B>
+retrieves the configured mask of watched I/O events of an event source created previously with
+<B>sd_event_add_io()</B>. It takes the event source object and a pointer to a variable to store the mask in.
+<P>
+
+<B>sd_event_source_set_io_events()</B>
+configures the mask of watched I/O events of an event source created previously with
+<B>sd_event_add_io()</B>. It takes the event source object and the new event mask.
+<P>
+
+<B>sd_event_source_get_io_revents()</B>
+retrieves the I/O event mask of currently seen but undispatched events from an event source created previously with
+<B>sd_event_add_io()</B>. It takes the event source object and a pointer to a variable to store the event mask in. When called from a handler function on the handler's event source object this will return the same mask as passed to the handler's
+<I>revents</I>
+parameter. This call is primarily useful to check for undispatched events of an event source from the handler of an unrelated (possibly higher priority) event source. Note the relation between
+<B>sd_event_source_get_pending()</B>
+and
+<B>sd_event_source_get_io_revents()</B>: both functions will report non-zero results when there's an event pending for the event source, but the former applies to all event source types, the latter only to I/O event sources.
+<P>
+
+<B>sd_event_source_get_io_fd()</B>
+retrieves the UNIX file descriptor of an event source created previously with
+<B>sd_event_add_io()</B>. It takes the event source object and returns the non-negative file descriptor or a negative error number on error (see below).
+<P>
+
+<B>sd_event_source_set_io_fd()</B>
+changes the UNIX file descriptor of an I/O event source created previously with
+<B>sd_event_add_io()</B>. It takes the event source object and the new file descriptor.
+<P>
+
+<B>sd_event_source_set_io_fd_own()</B>
+controls whether the file descriptor of the event source shall be closed automatically when the event source is freed, i.e. whether it shall be considered 'owned' by the event source object. By default it is not closed automatically, and the application has to do this on its own. The
+<I>b</I>
+parameter is a boolean parameter: if zero, the file descriptor is not closed automatically when the event source is freed, otherwise it is closed.
+<P>
+
+<B>sd_event_source_get_io_fd_own()</B>
+may be used to query the current setting of the file descriptor ownership boolean flag as set with
+<B>sd_event_source_set_io_fd_own()</B>. It returns positive if the file descriptor is closed automatically when the event source is destroyed, zero if not, and negative on error.
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+<P>
+
+On success, these functions return 0 or a positive integer. On failure, they return a negative errno-style error code.
+<A NAME="lbAF">&nbsp;</A>
+<H3>Errors</H3>
+
+<P>
+
+Returned values may indicate the following problems:
+<P>
+
+<B>-ENOMEM</B>
+<DL COMPACT><DT id="10"><DD>
+Not enough memory to allocate an object.
+</DL>
+
+<P>
+
+<B>-EINVAL</B>
+<DL COMPACT><DT id="11"><DD>
+An invalid argument has been passed.
+</DL>
+
+<P>
+
+<B>-ESTALE</B>
+<DL COMPACT><DT id="12"><DD>
+The event loop is already terminated.
+</DL>
+
+<P>
+
+<B>-ECHILD</B>
+<DL COMPACT><DT id="13"><DD>
+The event loop has been created in a different process.
+</DL>
+
+<P>
+
+<B>-EDOM</B>
+<DL COMPACT><DT id="14"><DD>
+The passed event source is not an I/O event source.
+</DL>
+
+<A NAME="lbAG">&nbsp;</A>
+<H2>NOTES</H2>
+
+<P>
+
+These APIs are implemented as a shared library, which can be compiled and linked to with the
+<B>libsystemd</B>&nbsp;<B><A HREF="/cgi-bin/man/man2html?1+pkg-config">pkg-config</A></B>(1)
+file.
+<A NAME="lbAH">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?3+sd-event">sd-event</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_new">sd_event_new</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_now">sd_event_now</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_add_time">sd_event_add_time</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_add_signal">sd_event_add_signal</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_add_child">sd_event_add_child</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_add_inotify">sd_event_add_inotify</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_add_defer">sd_event_add_defer</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_source_set_enabled">sd_event_source_set_enabled</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_source_set_priority">sd_event_source_set_priority</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_source_set_userdata">sd_event_source_set_userdata</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_source_set_description">sd_event_source_set_description</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_source_get_pending">sd_event_source_get_pending</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_source_set_floating">sd_event_source_set_floating</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?2+epoll_ctl">epoll_ctl</A></B>(2),
+<B><A HREF="/cgi-bin/man/man2html?7+epoll">epoll</A></B>(7)
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="15"><A HREF="#lbAB">NAME</A><DD>
+<DT id="16"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="17"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="18"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DL>
+<DT id="19"><A HREF="#lbAF">Errors</A><DD>
+</DL>
+<DT id="20"><A HREF="#lbAG">NOTES</A><DD>
+<DT id="21"><A HREF="#lbAH">SEE ALSO</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:55 GMT, March 31, 2021
+</BODY>
+</HTML>

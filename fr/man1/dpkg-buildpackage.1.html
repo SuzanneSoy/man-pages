@@ -1,0 +1,556 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of dpkg-buildpackage</TITLE>
+</HEAD><BODY>
+<H1>dpkg-buildpackage</H1>
+Section: suite dpkg (1)<BR>Updated: 2020-03-23<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NOM</H2>
+
+dpkg-buildpackage - Construire depuis les sources des paquets binaires ou
+sources
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<B>dpkg-buildpackage</B> [<I>option</I>...]
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<B>dpkg-buildpackage</B> est un programme qui permet d'automatiser la
+construction d'un paquet Debian. Il comporte les &eacute;tapes suivantes&nbsp;:
+<DL COMPACT>
+<DT id="1"><B>1.</B><DD>
+Pr&eacute;paration de l'environnement de compilation par positionnement de diverses
+variables d'environnement (voir <B>VARIABLES D'ENVIRONNEMENT</B>), ex&eacute;cution du
+point d'entr&eacute;e <B>init</B> et appel de <B>dpkg-source --before-build</B> (sauf si
+<B>-T</B> ou <B>--target</B> ont &eacute;t&eacute; utilis&eacute;s).
+<DT id="2"><B>2.</B><DD>
+Contr&ocirc;le des d&eacute;pendances de construction et des conflits de construction
+(non effectu&eacute; si <B>-d</B> ou <B>--no-check-builddeps</B> sont utilis&eacute;s).
+<DT id="3"><B>3.</B><DD>
+Si une ou plusieurs cibles particuli&egrave;res ont &eacute;t&eacute; indiqu&eacute;es avec les options
+<B>-T</B> ou <B>--target</B>, appel de ces cibles et arr&ecirc;t. Dans le cas contraire,
+ex&eacute;cution du point d'entr&eacute;e <B>preclean</B> et appel de <B>fakeroot debian/rules
+clean</B> pour nettoyage de l'arborescence source (sauf si <B>-nc</B> ou
+<B>--no-pre-clean</B> ont &eacute;t&eacute; utilis&eacute;s).
+<DT id="4"><B>4.</B><DD>
+Ex&eacute;cution du point d'entr&eacute;e <B>source</B> et appel de <B>dpkg-source -b</B> pour
+cr&eacute;er le paquet source (si une construction <B>source</B> a &eacute;t&eacute; demand&eacute;e avec
+<B>--build</B> ou des options &eacute;quivalentes).
+<DT id="5"><B>5.</B><DD>
+Ex&eacute;cution du point d'entr&eacute;e <B>build</B> et appel de <B>debian/rules</B>
+<I>build-target</I>, puis ex&eacute;cution du point d'entr&eacute;e <B>binary</B> suivie de
+<B>fakeroot debian/rules</B> <I>binary-target</I> (sauf si une construction source
+seule a &eacute;t&eacute; demand&eacute;e avec <B>--build=source</B> ou des options
+&eacute;quivalentes). Noter que <I>build-target</I> et <I>binary-target</I> sont soit
+<B>build</B> et <B>binary</B> (cas par d&eacute;faut, ou si une construction <B>any</B> et
+<B>all</B> a &eacute;t&eacute; demand&eacute;e avec <B>--build</B> ou des options &eacute;quivalentes), soit
+<B>build-arch</B> et <B>binary-arch</B> (si une construction <B>any</B> et pas <B>all</B> a
+&eacute;t&eacute; demand&eacute;e avec <B>--build</B> ou des options &eacute;quivalentes), soit
+<B>build-indep</B> et <B>binary-indep</B> (si une construction <B>all</B> et pas <B>any</B>
+a &eacute;t&eacute; demand&eacute;e avec <B>--build</B> ou des options &eacute;quivalentes).
+<DT id="6"><B>6.</B><DD>
+Ex&eacute;cution du point d'entr&eacute;e <B>buildinfo</B> et appel de <B>dpkg-genbuildinfo</B>
+pour cr&eacute;er un fichier <B>.buildinfo</B>. De nombreuses options de
+<B>dpkg-buildpackage</B> sont pass&eacute;es &agrave; <B>dpkg-genbuildinfo</B>.
+<DT id="7"><B>7.</B><DD>
+Ex&eacute;cution du point d'entr&eacute;e <B>changes</B> et appel de <B>dpkg-genchanges</B> pour
+cr&eacute;er un fichier <B>.changes</B>. Le nom du fichier <B>.changes</B> d&eacute;pendra du type
+de construction et sera aussi sp&eacute;cifique que n&eacute;cessaire mais pas plus&nbsp;; pour
+une construction qui inclut <B>any</B>, le nom sera
+<I>nom-de-source</I><B>_</B><I>version-binaire</I><B>_</B><I>architecture</I><B>.changes</B>, ou
+pour une construction qui inclut <B>all</B>, le nom sera
+<I>nom-de-source</I><B>_</B><I>version-binaire</I><B>_</B><B>all.changes</B>, ou pour une
+construction qui inclut <B>source</B>, le nom sera
+<I>nom-de-source</I><B>_</B><I>version-source</I><B>_</B><B>sources.changes</B>. De nombreuses
+options de <B>dpkg-buildpackage</B> sont pass&eacute;es &agrave; <B>dpkg-genchanges</B>.
+<DT id="8"><B>8.</B><DD>
+Ex&eacute;cution du point d'entr&eacute;e <B>postclean</B> et si <B>-tc</B> ou <B>--post-clean</B>
+sont utilis&eacute;s, appel de <B>fakeroot debian/rules clean</B> &agrave; nouveau.
+<DT id="9"><B>9.</B><DD>
+Appel de <B>dpkg-source --after-build</B>.
+<DT id="10"><B>10.</B><DD>
+Ex&eacute;cution du point d'entr&eacute;e <B>check</B> et appel d'un contr&ocirc;leur de paquet pour
+le fichier <B>.changes</B> (dans le cas o&ugrave; une commande est sp&eacute;cifi&eacute;e dans
+<B>DEB_CHECK_COMMAND</B> ou avec <B>--check-command</B>).
+<DT id="11"><B>11.</B><DD>
+Ex&eacute;cution du point d'entr&eacute;e <B>sign</B> et appel de <B>gpg2</B> ou de <B>gpg</B> (&agrave;
+condition que ce ne soit pas une construction pour UNRELEASED, ou si
+<B>--no-sign</B> est sp&eacute;cifi&eacute;), pour signature des fichiers <B>.dsc</B> (sauf si
+<B>-us</B> ou si <B>--unsigned-source</B> sont sp&eacute;cifi&eacute;s), <B>.buildinfo</B> (sauf si
+<B>-ui</B>, <B>--unsigned-buildinfo</B>, <B>-uc</B> ou <B>--unsigned-changes</B> sont
+sp&eacute;cifi&eacute;s) et <B>.changes</B> (sauf si <B>-uc</B> ou <B>--unsigned-changes</B> sont
+sp&eacute;cifi&eacute;s).
+<DT id="12"><B>12.</B><DD>
+Ex&eacute;cution du point d'entr&eacute;e <B>done</B>.
+</DL>
+<A NAME="lbAE">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+Toutes les options longues peuvent &ecirc;tre sp&eacute;cifi&eacute;es  &agrave; la fois sur la ligne
+de commande et dans les fichiers de configuration utilisateur et de syst&egrave;me
+<B>dpkg-buildpackage</B>. Chaque ligne du fichier de configuration est soit une
+option (identique &agrave; une option en ligne de commande mais sans tiret), soit
+un commentaire (si elle commence par &laquo;&nbsp;<B>#</B>&nbsp;&raquo;).
+<P>
+<DL COMPACT>
+<DT id="13"><B>--build=</B><I>type</I><DD>
+Indique le <I>type</I> de construction &agrave; partir d'une liste de composants
+s&eacute;par&eacute;s par des virgules (depuis dpkg&nbsp;1.18.5). Pass&eacute; &agrave; <B>dpkg-genchanges</B>.
+<P>
+Les valeurs autoris&eacute;es sont&nbsp;:
+<DL COMPACT><DT id="14"><DD>
+<DL COMPACT>
+<DT id="15"><B>source</B><DD>
+Construit le paquet source. Note&nbsp;: quand cette valeur est utilis&eacute;e toute
+seule et si ce que vous voulez est seulement (re)construire le paquet source
+&agrave; partir d'une arborescence des sources propre, l'utilisation directe de
+<B>dpkg-source</B> est toujours une meilleure option dans la mesure o&ugrave; cela ne
+demande pas l'installation de d&eacute;pendances de construction qui sont sinon
+n&eacute;cessaires pour pouvoir appeler la cible <B>clean</B>.
+<DT id="16"><B>any</B><DD>
+Construit les paquets binaires sp&eacute;cifiques &agrave; l'architecture.
+<DT id="17"><B>all</B><DD>
+Construit les paquets binaires ind&eacute;pendants de l'architecture.
+<DT id="18"><B>binary</B><DD>
+Construit les paquets binaires particuliers et ind&eacute;pendants de
+l'architecture. C'est un alias de <B>any,all</B>.
+<DT id="19"><B>full</B><DD>
+Construction compl&egrave;te. C'est un alias de <B>source,any,all</B>, et il est
+identique au cas par d&eacute;faut o&ugrave; aucune option de construction n'est indiqu&eacute;e.
+</DL>
+</DL>
+
+<DT id="20"><B>-g</B><DD>
+&Eacute;quivalent de <B>--build=source,all</B> (depuis dpkg&nbsp;1.17.11).
+<DT id="21"><B>-G</B><DD>
+&Eacute;quivalent de <B>--build=source,any</B> (depuis dpkg&nbsp;1.17.11).
+<DT id="22"><B>-b</B><DD>
+&Eacute;quivalent de <B>--build=binary</B> ou <B>--build=any,all</B>.
+<DT id="23"><B>-B</B><DD>
+&Eacute;quivalent de <B>--build=any</B>
+<DT id="24"><B>-A</B><DD>
+&Eacute;quivalent de <B>--build=all</B>.
+<DT id="25"><B>-S</B><DD>
+&Eacute;quivalent &agrave; <B>--build=source</B>.
+<DT id="26"><B>-F</B><DD>
+&Eacute;quivalent de <B>--build=full</B>, <B>--build=source,binary</B> ou
+<B>--build=source,any,all</B> (depuis dpkg&nbsp;1.15.8).
+<DT id="27"><B>--target=</B><I>cible</I>[,...]<DD>
+
+<B>--target </B><I>cible</I>[,...]
+
+<B>-T</B>, <B>--rules-target=</B><I>cible</I>
+Appelle <B>debian/rules</B> <I>cible</I> une fois par cible sp&eacute;cifi&eacute;e, apr&egrave;s avoir
+mis en place l'environnement de construction (sauf pour appeler
+<B>dpkg-source --before-build</B>), puis interrompt le processus de construction
+(depuis dpkg&nbsp;1.15.0, option longue depuis dpkg&nbsp;1.18.8, pris en charge de
+multiples cibles depuis dpkg&nbsp;1.18.16). Si <B>--as-root</B> est &eacute;galement
+utilis&eacute;, la commande sera ex&eacute;cut&eacute;e avec les privil&egrave;ges du superutilisateur
+(voir <B>--root-command</B>). Noter que les cibles connues dont l'ex&eacute;cution par
+root est impos&eacute;e n'ont pas besoin de cette option (c'est-&agrave;-dire les cibles
+<B>clean</B>, <B>binary</B>, <B>binary-arch</B> et <B>binary-indep</B>).
+<DT id="28"><B>--as-root</B><DD>
+N'est utile qu'avec <B>--target</B> (depuis dpkg&nbsp;1.15.0). Impose d'ex&eacute;cuter la
+cible avec les privil&egrave;ges du superutilisateur.
+<DT id="29"><B>-si</B><DD>
+
+<B>-sa</B>
+
+<B>-sd</B>
+
+<B>-v</B><I>version</I>
+
+<B>-C</B><I>description-des-changements</I>
+
+<B>-m</B>, <B>--release-by=</B><I>adresse-du-responsable</I>
+
+<B>-e</B>, <B>--build-by=</B><I>adresse-du-responsable</I>
+Pass&eacute; tel quel &agrave; <B>dpkg-genchanges</B>. Voir sa page de manuel.
+<DT id="30"><B>-a</B>, <B>--host-arch</B> <I>architecture</I><DD>
+Pr&eacute;cise l'architecture Debian pour laquelle on construit (option longue
+depuis dpkg&nbsp;1.17.17). L'architecture de la machine sur laquelle on construit
+est automatiquement d&eacute;termin&eacute;e&nbsp;; c'est aussi l'architecture par d&eacute;faut de la
+machine h&ocirc;te.
+<DT id="31"><B>-t</B>, <B>--host-type</B> <I>type-de-syst&egrave;me-gnu</I><DD>
+Pr&eacute;cise le type de syst&egrave;me GNU pour lequel construire (option longue depuis
+dpkg&nbsp;1.17.17). Il peut &ecirc;tre utilis&eacute; &agrave; la place de <B>--host-arch</B> ou en tant
+que compl&eacute;ment afin de remplacer le type de syst&egrave;me GNU par d&eacute;faut de
+l'architecture Debian h&ocirc;te.
+<DT id="32"><B>--target-arch</B> <I>architecture</I><DD>
+Pr&eacute;cise l'architecture Debian pour laquelle les binaires compil&eacute;s vont
+construire (depuis dpkg&nbsp;1.17.17). La valeur par d&eacute;faut est l'architecture de
+la machine h&ocirc;te.
+<DT id="33"><B>--target-type</B> <I>type-de-syst&egrave;me-gnu</I><DD>
+Pr&eacute;cise le type de syst&egrave;me GNU pour lequel les binaires compil&eacute;s vont
+construire (depuis dpkg&nbsp;1.17.17). Il peut &ecirc;tre utilis&eacute; &agrave; la place de
+<B>--target-arch</B> ou en tant que compl&eacute;ment afin de remplacer le type de
+syst&egrave;me GNU par d&eacute;faut de l'architecture Debian cible.
+<DT id="34"><B>-P</B>, <B>--build-profiles=</B><I>profil</I>[<B>,</B>...]<DD>
+Pr&eacute;cise le ou les profils que l'on construit, sous forme d'une liste s&eacute;par&eacute;e
+par des virgules (depuis dpkg&nbsp;1.17.2, option longue depuis dpkg&nbsp;1.18.8). Le
+comportement par d&eacute;faut est de construire pour un profil non
+sp&eacute;cifique. Cela les d&eacute;finit &eacute;galement (sous la forme d'une liste s&eacute;par&eacute;e
+par des espaces) en tant que variable d'environnement <B>DEB_BUILD_PROFILES</B>,
+ce qui permet, par exemple, au fichiers <B>debian/rules</B> d'utiliser cette
+information pour des constructions conditionnelles.
+<DT id="35"><B>-j</B>, <B>--jobs</B>[<I>jobs</I>|<B>auto</B>]<DD>
+Nombre de processus simultan&eacute;s qui peuvent &ecirc;tre ex&eacute;cut&eacute;s, nombre de
+processus correspondant au nombre de processeurs en ligne si <B>auto</B> est
+indiqu&eacute;e (depuis dpkg&nbsp;1.17.10), ou un nombre illimit&eacute; si <I>jobs</I> n'est pas
+indiqu&eacute;, &eacute;quivalent &agrave; l'option <B><A HREF="/cgi-bin/man/man2html?1+make">make</A></B>(1) du m&ecirc;me nom (depuis dpkg&nbsp;1.14.7,
+option longue depuis dpkg&nbsp;1.18.8). S'ajoutera tout seul &agrave; la variable
+d'environnement MAKEFLAGS, afin que les appels suivants de make en h&eacute;ritent,
+for&ccedil;ant donc le param&egrave;tre parall&egrave;le sur l'empaquetage (et &eacute;ventuellement le
+syst&egrave;me de construction amont s'il utilise make) ind&eacute;pendamment de leur
+prise en charge des constructions parall&egrave;le, ce qui pourrait provoquer des
+&eacute;checs de construction. Ajoute aussi <B>parallel=</B><I>jobs</I> ou <B>parallel</B> &agrave; la
+variable d'environnement <B>DEB_BUILD_OPTIONS</B> ce qui permet aux fichiers
+debian/rules d'utiliser cette information pour leurs propres besoins. La
+valeur de <B>j</B> remplacera les options <B>parallel=</B><I>jobs</I> ou <B>parallel</B>
+dans la variable d'environnement <B>DEB_BUILD_OPTIONS</B>. Notez que la valeur
+<B>auto</B> sera remplac&eacute;e par le nombre r&eacute;el de processeurs actuellement
+actifs, et par cons&eacute;quent ne sera pas transmise &agrave; aucun processus fils. Si
+le nombre de processeurs en ligne ne peut pas &ecirc;tre d&eacute;duit, alors le code
+utilisera par d&eacute;faut une ex&eacute;cution s&eacute;rielle (depuis dpkg&nbsp;1.18.15), m&ecirc;me si
+cela ne devrait arriver que sur des syst&egrave;mes exotiques et non pris en
+charge.
+<DT id="36"><B>-J</B>, <B>--jobs-try</B>[=<I>t&acirc;ches</I>|<B>auto</B>]<DD>
+Cette option (depuis dpkg&nbsp;1.18.2, option longue depuis dpkg&nbsp;1.18.8) est
+&eacute;quivalente &agrave; l'option <B>-j</B> sauf qu'elle ne configure pas la variable
+d'environnement <B>MAKEFLAGS</B> et, &agrave; ce titre, il est plus s&ucirc;r de l'utiliser
+avec tous les paquets y compris ceux qui ne sont pas s&eacute;curis&eacute;s pour une
+construction parall&egrave;le.
+<P>
+Le comportement par d&eacute;faut est <B>auto</B> (depuis dpkg&nbsp;1.18.11). Fixer le
+nombre de t&acirc;ches &agrave;&nbsp;1 r&eacute;tablira un comportement s&eacute;riel.
+<DT id="37"><B>-D</B>, <B>--check-builddeps</B><DD>
+V&eacute;rification des d&eacute;pendances de constructions et des conflits&nbsp;; se termine
+en cas de probl&egrave;mes (option longue depuis dpkg&nbsp;1.18.8). C'est le
+comportement par d&eacute;faut.
+<DT id="38"><B>-d</B>, <B>--no-check-builddeps</B><DD>
+Pas de v&eacute;rification des d&eacute;pendances de constructions et des conflits (option
+longue depuis dpkg&nbsp;1.18.8).
+<DT id="39"><B>--ignore-builtin-builddeps</B><DD>
+Pas de v&eacute;rification des d&eacute;pendances de constructions internes et des
+conflits (depuis dpkg&nbsp;1.18.2). Il s'agit des d&eacute;pendances de construction
+implicites sp&eacute;cifiques &agrave; la distribution habituellement requises dans un
+environnement de construction, c'est l'ensemble de paquets appel&eacute;
+Build-Essentiel.
+<DT id="40"><B>--rules-requires-root</B><DD>
+Pas de prise en compte du champ <B>Rules-Requires-Root</B>, retour &agrave; l'ancienne
+valeur par d&eacute;faut (depuis dpkg&nbsp;1.19.1).
+<DT id="41"><B>-nc</B>, <B>--no-pre-clean</B><DD>
+Pas de nettoyage de l'arborescence des sources avant la construction (option
+longue depuis dpkg&nbsp;1.18.8). Implique <B>-b</B> si aucune des options <B>-F</B>,
+<B>-g</B>, <B>-G</B>, <B>-B</B>, <B>-A</B> ou <B>-S</B> n'est utilis&eacute;e). Implique <B>-d</B> avec
+<B>-S</B> (depuis dpkg&nbsp;1.18.0).
+<DT id="42"><B>--pre-clean</B><DD>
+Nettoyage de l'arborescence des sources avant la construction (depuis
+dpkg&nbsp;1.18.8). C'est le comportement par d&eacute;faut.
+<DT id="43"><B>-tc</B>, <B>--post-clean</B><DD>
+Nettoyage de l'arborescence des sources (en utilisant
+<I>commande-pour-obtenir-privil&egrave;ges-de-root</I> <B>debian/rules clean</B>) apr&egrave;s la
+construction du paquet (option longue depuis dpkg&nbsp;1.18.8).
+<DT id="44"><B>--no-post-clean</B><DD>
+Pas de nettoyage de l'arborescence des sources apr&egrave;s la construction du
+paquet (depuis dpkg&nbsp;1.19.1). C'est le comportement par d&eacute;faut.
+<DT id="45"><B>-r</B>, <B>--root-command=</B><I>commande-pour-obtenir-privil&egrave;ges-de-root</I><DD>
+Quand <B>dpkg-buildpackage</B> doit ex&eacute;cuter une partie du processus de
+construction en tant que root, il pr&eacute;fixe la commande ex&eacute;cut&eacute;e par
+<I>commande-pour-obtenir-privil&egrave;ges-de-root</I>, si une a &eacute;t&eacute; sp&eacute;cifi&eacute;e (option
+longue depuis dpkg&nbsp;1.18.8). Si ce n'est pas le cas alors <B>fakeroot</B> est
+utilis&eacute; par d&eacute;faut. <I>commande-pour-obtenir-privil&egrave;ges-de-root</I> doit d&eacute;buter
+par le nom d'un programme accessible depuis <B>PATH</B> et avoir comme arguments
+le nom de la commande r&eacute;elle avec les arguments qu'elle doit
+prendre. <I>commande-pour-obtenir-privil&egrave;ges-de-root</I> peut recevoir des
+param&egrave;tres (ils doivent &ecirc;tre s&eacute;par&eacute;s par des espaces) mais aucun
+m&eacute;tacaract&egrave;re de l'interpr&eacute;teur de commandes. Classiquement
+<I>commande-pour-obtenir-privil&egrave;ges-de-root</I> devrait &ecirc;tre <B>fakeroot</B>,
+<B>sudo</B>, <B>super</B> ou <B>really</B>. <B>su</B> ne va pas, puisque ce programme peut
+uniquement utiliser l'interpr&eacute;teur de commandes de l'utilisateur avec
+l'option <B>-c</B> au lieu de passer directement les arguments &agrave; la commande qui
+doit &ecirc;tre ex&eacute;cut&eacute;e.
+<DT id="46"><B>-R</B>, <B>--rules-file=</B><I>fichier-rules</I><DD>
+Construire un paquet Debian implique g&eacute;n&eacute;ralement l'invocation de
+<B>debian/rules</B> comme une commande avec de nombreux param&egrave;tres standard
+(depuis dpkg&nbsp;1.14.17, option longue depuis dpkg&nbsp;1.18.8). Avec cette option,
+il est possible d'utiliser un autre programme &agrave; utiliser pour la
+construction de paquet (ainsi que ses param&egrave;tres s&eacute;par&eacute;s par des
+espaces). Une autre utilisation possible est d'ex&eacute;cuter le fichier rules
+standard avec un autre programme make (par exemple en utilisant
+<B>/usr/local/bin/make -f debian/rules</B> comme <I>fichier-rules</I>).
+<DT id="47"><B>--check-command=</B><I>commande-contr&ocirc;leur</I><DD>
+Commande utilis&eacute;e pour v&eacute;rifier le fichier <B>.changes</B> lui-m&ecirc;me et tout
+objet construit r&eacute;f&eacute;renc&eacute; dans le fichier (depuis dpkg&nbsp;1.17.6). La commande
+peut recevoir comme argument le nom de chemin de <B>.changes</B>. Cette commande
+est en g&eacute;n&eacute;ral <B>lintian</B>.
+<DT id="48"><B>--check-option=</B><I>opt</I><DD>
+Passer l'option <I>opt</I> &agrave; <I>commande-contr&ocirc;leur</I> indiqu&eacute;e par
+<B>DEB_CHECK_COMMAND</B> ou <B>--check-command</B> (depuis dpkg&nbsp;1.17.6). Peut &ecirc;tre
+utilis&eacute; plusieurs fois.
+<DT id="49"><B>--hook-</B><I>nom-de-point-d'entr&eacute;e</I><B>=</B><I>commande-de-point-d'entr&eacute;e</I><DD>
+D&eacute;finir le code sp&eacute;cifi&eacute; de l'interpr&eacute;teur de commandes
+<I>commande-de-point-d'entr&eacute;e</I> comme point d'entr&eacute;e <I>nom-de-point-d'entr&eacute;</I>
+qui sera ex&eacute;cut&eacute; aux moments sp&eacute;cifi&eacute;s par les &eacute;tapes d'ex&eacute;cution (depuis
+dpkg&nbsp;1.17.6). Les points d'entr&eacute;e seront toujours ex&eacute;cut&eacute;s m&ecirc;me si l'action
+suivante n'est pas effectu&eacute;e (sauf pour le point d'entr&eacute;e <B>binary</B>). Tous
+les points d'entr&eacute;e seront ex&eacute;cut&eacute;s dans le r&eacute;pertoire source d&eacute;paquet&eacute;.
+<P>
+Note&nbsp;: Les points d'entr&eacute;e sont susceptibles d'affecter le processus de
+construction et provoquer des &eacute;checs de construction si leurs commandes
+&eacute;chouent, donc attention aux cons&eacute;quences inattendues.
+<P>
+Les <I>nom-de-point-d'entr&eacute;e</I> actuellement pris en charge sont&nbsp;:
+<P>
+<B>init preclean source build binary buildinfo changes postclean check sign
+done</B>
+<P>
+La <I>commande-point-d'entr&eacute;e</I> g&egrave;re les cha&icirc;nes de formatage de substitution
+suivantes, qui lui sont appliqu&eacute;es avant ex&eacute;cution&nbsp;:
+<P>
+<DL COMPACT><DT id="50"><DD>
+<DL COMPACT>
+<DT id="51"><B>%%</B><DD>
+Un caract&egrave;re % seul.
+<DT id="52"><B>%a</B><DD>
+Une valeur bool&eacute;enne (0&nbsp;ou&nbsp;1) qui indique si l'action suivante est
+effectu&eacute;e.
+<DT id="53"><B>%p</B><DD>
+Nom du paquet source.
+<DT id="54"><B>%v</B><DD>
+La version du paquet source.
+<DT id="55"><B>%s</B><DD>
+La version du paquet source (sans l'&laquo;&nbsp;epoch&nbsp;&raquo;).
+<DT id="56"><B>%u</B><DD>
+La version amont.
+</DL>
+</DL>
+
+<DT id="57"><B>--buildinfo-option=</B><I>opt</I><DD>
+Passer l'option <I>opt</I> &agrave; <B>dpkg-genbuildinfo</B> (depuis dpkg&nbsp;1.18.11). Peut
+&ecirc;tre utilis&eacute; plusieurs fois.
+<DT id="58"><B>-p</B>, <B>--sign-command=</B><I>commande-de-signature</I><DD>
+Quand <B>dpkg-buildpackage</B> doit ex&eacute;cuter GPG pour signer un fichier source
+de contr&ocirc;le (<B>.dsc</B>) ou un fichier <B>.changes</B>, il ex&eacute;cute
+<I>commande-de-signature</I> (recherch&eacute;e dans <B>PATH</B> si n&eacute;cessaire) au lieu de
+<B>gpg2</B> ou <B>gpg</B> (option longue depuis
+dpkg&nbsp;1.18.1). <I>commande-de-signature</I> re&ccedil;oit tous les param&egrave;tres
+qu'auraient re&ccedil;u <B>gpg2</B> ou <B>gpg</B>. <I>commande-de-signature</I> ne devra pas
+contenir d'espace ni aucun m&eacute;tacaract&egrave;re de l'interpr&eacute;teur de commandes.
+<DT id="59"><B>-k</B>, <B>--sign-key=</B><I>identifiant-cl&eacute;</I><DD>
+Pr&eacute;ciser une cl&eacute; pour la signature des paquets (option longue depuis
+dpkg&nbsp;1.18.8).
+<DT id="60"><B>-us</B>, <B>--unsigned-source</B><DD>
+Ne pas signer le paquet source (option longue depuis dpkg&nbsp;1.18.8).
+<DT id="61"><B>-ui</B>, <B>--unsigned-buildinfo</B><DD>
+Ne pas signer le fichier <B>.buildinfo</B> (depuis dpkg&nbsp;1.18.19).
+<DT id="62"><B>-uc</B>, <B>--unsigned-changes</B><DD>
+Ne signer ni le fichier <B>.buildinfo</B>, ni le fichier <B>.changes</B> (option
+longue depuis dpkg&nbsp;1.18.8).
+<DT id="63"><B>--no-sign</B><DD>
+Aucune signature de fichier, y compris du paquet source, du fichier
+<B>.buildinfo</B> et du fichier <B>.changes</B> (depuis dpkg&nbsp;1.18.20).
+<DT id="64"><B>--force-sign</B><DD>
+Forcer la signature des fichiers produits (depuis dpkg&nbsp;1.17.0)
+ind&eacute;pendamment de <B>-us</B>, <B>--unsigned-source</B>, <B>-ui</B>,
+<B>--unsigned-buildinfo</B>, <B>-uc</B>, <B>--unsigned-changes</B> ou d'autres
+heuristiques internes.
+<DT id="65"><B>-sn</B><DD>
+
+<B>-ss</B>
+
+<B>-sA</B>
+
+<B>-sk</B>
+
+<B>-su</B>
+
+<B>-sr</B>
+
+<B>-sK</B>
+
+<B>-sU</B>
+
+<B>-sR</B>
+
+<B>-i</B>, <B>--diff-ignore</B>[=<I>expression-rationnelle</I>]
+
+<B>-I</B>, <B>--tar-ignore</B>[=<I>motif</I>]
+
+<B>-z</B>, <B>--compression-level</B>=<I>niveau</I>
+
+<B>-Z</B>, <B>--compression</B>=<I>compression</I>
+Cha&icirc;ne pass&eacute;e telle quelle &agrave; <B>dpkg-source</B>. Voir la page de manuel
+correspondante.
+<DT id="66"><B>--source-option=</B><I>opt</I><DD>
+Passer l'option <I>opt</I> &agrave; <B>dpkg-source</B> (depuis dpkg&nbsp;1.15.6). Peut &ecirc;tre
+utilis&eacute; plusieurs fois.
+<DT id="67"><B>--changes-option=</B><I>opt</I><DD>
+Passer l'option <I>opt</I> &agrave; <B>dpkg-genchanges</B> (depuis dpkg&nbsp;1.15.6). Peut &ecirc;tre
+utilis&eacute; plusieurs fois.
+<DT id="68"><B>--admindir</B>=<I>r&eacute;pertoire</I><DD>
+
+<B>--admindir </B><I>r&eacute;p</I>
+Changer l'endroit o&ugrave; se trouve la base de donn&eacute;es de <B>dpkg</B> (depuis
+dpkg&nbsp;1.14.0). Par d&eacute;faut, c'est <I>/var/lib/dpkg</I>.
+<DT id="69"><B>-?</B>, <B>--help</B><DD>
+Affiche un message d'aide puis quitte.
+<DT id="70"><B>--version</B><DD>
+Affiche le num&eacute;ro de version puis quitte.
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>ENVIRONNEMENT</H2>
+
+<A NAME="lbAG">&nbsp;</A>
+<H3>Environnement externe</H3>
+
+<DL COMPACT>
+<DT id="71"><B>DEB_CHECK_COMMAND</B><DD>
+Si cette option est utilis&eacute;e, elle le sera comme commande pour contr&ocirc;ler le
+fichier <B>.changes</B> (depuis dpkg&nbsp;1.17.6). Remplac&eacute;e par l'option
+<B>--check-command</B>.
+<DT id="72"><B>DEB_SIGN_KEYID</B><DD>
+Si cette option est utilis&eacute;e, elle le sera pour la signature des fichiers
+<B>.changes</B> et <B>.dsc</B> (depuis dpkg&nbsp;1.17.2). Remplac&eacute;e par l'option
+<B>--sign-key</B>.
+<DT id="73"><B>DEB_BUILD_OPTIONS</B><DD>
+Si cette option est utilis&eacute;e, elle contiendra une liste s&eacute;par&eacute;e par des
+espaces d'options qui pourraient affecter le processus de construction dans
+<I>debian/rules</I> et le comportement de certaines commandes de dpkg.
+<P>
+La variable <B>DEB_CHECK_COMMAND</B> sera ignor&eacute;e avec <B>nocheck</B>. Avec
+<B>parallel=</B><I>N</I> les t&acirc;ches parall&egrave;les seront fix&eacute;es &agrave; <I>N</I>, remplac&eacute;e par
+l'option <B>--jobs-try</B>.
+<DT id="74"><B>DEB_BUILD_PROFILES</B><DD>
+Si cette option est utilis&eacute;e, elle sera utilis&eacute;e comme profil(s) de
+construction actif(s) pour le paquet &agrave; construire (depuis
+dpkg&nbsp;1.17.2). C'est une liste s&eacute;par&eacute;e par des espaces de noms de
+profil. Cette option est outrepass&eacute;e par l'option <B>-P</B>.
+<DT id="75"><B>DPKG_COLORS</B><DD>
+D&eacute;finit le mode de couleur (depuis dpkg&nbsp;1.18.5). Les valeurs actuellement
+accept&eacute;es sont <B>auto</B> (par d&eacute;faut), <B>always</B> et <B>never</B>.
+<DT id="76"><B>DPKG_NLS</B><DD>
+Si cette variable est d&eacute;finie, elle sera utilis&eacute;e pour d&eacute;cider l'activation
+de la prise en charge des langues (NLS -&nbsp;Native Language Support), connu
+aussi comme la gestion de l'internationalisation (ou i18n) (depuis
+dpkg&nbsp;1.19.0). Les valeurs permises sont&nbsp;: <B>0</B> et <B>1</B> (par d&eacute;faut).
+<P>
+</DL>
+<A NAME="lbAH">&nbsp;</A>
+<H3>Environnement interne</H3>
+
+M&ecirc;me si <B>dpkg-buildpackage</B> exporte certaines variables, <B>debian/rules</B> ne
+doit pas d&eacute;pendre de leur pr&eacute;sence, mais doit pr&eacute;f&eacute;rablement utiliser
+l'interface correspondante pour retrouver les valeurs n&eacute;cessaires, parce que
+ce fichier est le point d'entr&eacute;e principal pour la construction des paquets
+et son ex&eacute;cution autonome devrait &ecirc;tre prise en charge.
+<P>
+<DL COMPACT>
+<DT id="77"><B>DEB_BUILD_*</B><DD>
+
+<B>DEB_HOST_*</B>
+
+<B>DEB_TARGET_*</B>
+<B>dpkg-architecture</B> est lanc&eacute; avec les param&egrave;tres de <B>-a</B> et <B>-t</B>. Toute
+variable retourn&eacute;e par l'option <B>-s</B> est int&eacute;gr&eacute;e dans l'environnement de
+construction.
+<DT id="78"><B>DEB_RULES_REQUIRES_ROOT</B><DD>
+Cette variable est fix&eacute;e &agrave; la valeur obtenue du champ <B>Rules-Requires-Root</B>
+ou de la ligne de commande. Lorsqu'elle est configur&eacute;e, ce sera une valeur
+valable pour le champ <B>Rules-Requires-Root</B>. Elle est utilis&eacute;e pour
+indiquer &agrave; <B>debian/rules</B> si la sp&eacute;cification <B>rootless-builds.txt</B> est
+prise en charge.
+<DT id="79"><B>DEB_GAIN_ROOT_CMD</B><DD>
+Cette valeur est fix&eacute;e &agrave; <I>commande-pour-obtenir-privil&egrave;ges-de-root</I> si le
+champ <B>Rules-Requires-Root</B> est fix&eacute; &agrave; une valeur diff&eacute;rente de <B>no</B> ou
+<B>binary-targets</B>.
+<DT id="80"><B>SOURCE_DATE_EPOCH</B><DD>
+Cette valeur est fix&eacute;e &agrave; l'horodatage d'Unix depuis &laquo;&nbsp;l'epoch&nbsp;&raquo; de la
+derni&egrave;re entr&eacute;e de <I>debian/changelog</I>, si elle n'a pas d&eacute;j&agrave; &eacute;t&eacute; d&eacute;finie.
+</DL>
+<A NAME="lbAI">&nbsp;</A>
+<H2>FICHIERS</H2>
+
+<DL COMPACT>
+<DT id="81"><I>/etc/dpkg/buildpackage.conf</I><DD>
+Fichier de configuration pour l'ensemble du syst&egrave;me
+<DT id="82"><I>$XDG_CONFIG_HOME/dpkg/buildpackage.conf</I> ou<DD>
+
+<I>$HOME/.config/dpkg/buildpackage.conf</I>
+Fichier de configuration propre &agrave; l'utilisateur
+</DL>
+<A NAME="lbAJ">&nbsp;</A>
+<H2>NOTES</H2>
+
+<A NAME="lbAK">&nbsp;</A>
+<H3>Les drapeaux de compilation ne sont plus export&eacute;s.</H3>
+
+Entre les versions&nbsp;1.14.17 et&nbsp;1.16.1, <B>dpkg-buildpackage</B> exportait les
+drapeaux de compilation (<B>CFLAGS</B>, <B>CXXFLAGS</B>, <B>FFLAGS</B>, <B>CPPFLAGS</B> et
+<B>LDFLAGS</B>) avec les valeurs que renvoyait <B>dpkg-buildflags</B>. Cela n'est
+plus le cas.
+<A NAME="lbAL">&nbsp;</A>
+<H3>Cibles construites par d&eacute;faut</H3>
+
+<B>dpkg-buildpackage</B> utilise les cibles <B>build-arch</B> et <B>build-indep</B>
+depuis dpkg&nbsp;1.16.2. Ces cibles sont donc obligatoires. Cependant, pour
+&eacute;viter de casser les paquets existants et faciliter la transition, si le
+paquet source ne construit pas &agrave; la fois les paquets binaires ind&eacute;pendants
+et d&eacute;pendants de l'architecture (depuis dpkg&nbsp;1.18.8), la cible <B>build</B> sera
+utilis&eacute;e par d&eacute;faut si <B>make -f debian/rules -qn</B> <I>build-target</I> renvoie
+<B>2</B> comme code de retour.
+<A NAME="lbAM">&nbsp;</A>
+<H2>BOGUES</H2>
+
+On devrait pouvoir mettre des espaces et des m&eacute;tacaract&egrave;res du shell et les
+arguments initiaux de <I>commande-pour-obtenir-privil&egrave;ges-de-root</I> et
+<I>commande-de-signature</I>.
+<A NAME="lbAN">&nbsp;</A>
+<H2>VOIR AUSSI</H2>
+
+
+<B><A HREF="/cgi-bin/man/man2html?1+dpkg-source">dpkg-source</A></B>(1), <B><A HREF="/cgi-bin/man/man2html?1+dpkg-architecture">dpkg-architecture</A></B>(1), <B><A HREF="/cgi-bin/man/man2html?1+dpkg-buildflags">dpkg-buildflags</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?1+dpkg-genbuildinfo">dpkg-genbuildinfo</A></B>(1), <B><A HREF="/cgi-bin/man/man2html?1+dpkg-genchanges">dpkg-genchanges</A></B>(1), <B><A HREF="/cgi-bin/man/man2html?1+fakeroot">fakeroot</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?1+lintian">lintian</A></B>(1), <B><A HREF="/cgi-bin/man/man2html?1+gpg2">gpg2</A></B>(1), <B><A HREF="/cgi-bin/man/man2html?1+gpg">gpg</A></B>(1).
+<A NAME="lbAO">&nbsp;</A>
+<H2>TRADUCTION</H2>
+
+Ariel VARDI &lt;<A HREF="mailto:ariel.vardi@freesbee.fr">ariel.vardi@freesbee.fr</A>&gt;, 2002.
+Philippe Batailler, 2006.
+Nicolas Fran&ccedil;ois, 2006.
+Veuillez signaler toute erreur &agrave; &lt;<A HREF="mailto:debian-l10n-french@lists.debian.org">debian-l10n-french@lists.debian.org</A>&gt;.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="83"><A HREF="#lbAB">NOM</A><DD>
+<DT id="84"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="85"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="86"><A HREF="#lbAE">OPTIONS</A><DD>
+<DT id="87"><A HREF="#lbAF">ENVIRONNEMENT</A><DD>
+<DL>
+<DT id="88"><A HREF="#lbAG">Environnement externe</A><DD>
+<DT id="89"><A HREF="#lbAH">Environnement interne</A><DD>
+</DL>
+<DT id="90"><A HREF="#lbAI">FICHIERS</A><DD>
+<DT id="91"><A HREF="#lbAJ">NOTES</A><DD>
+<DL>
+<DT id="92"><A HREF="#lbAK">Les drapeaux de compilation ne sont plus export&eacute;s.</A><DD>
+<DT id="93"><A HREF="#lbAL">Cibles construites par d&eacute;faut</A><DD>
+</DL>
+<DT id="94"><A HREF="#lbAM">BOGUES</A><DD>
+<DT id="95"><A HREF="#lbAN">VOIR AUSSI</A><DD>
+<DT id="96"><A HREF="#lbAO">TRADUCTION</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:01 GMT, March 31, 2021
+</BODY>
+</HTML>

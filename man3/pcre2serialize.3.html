@@ -1,0 +1,238 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of PCRE2SERIALIZE</TITLE>
+</HEAD><BODY>
+<H1>PCRE2SERIALIZE</H1>
+Section: C Library Functions (3)<BR>Updated: 27 June 2018<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+PCRE2 - Perl-compatible regular expressions (revised API)
+<A NAME="lbAC">&nbsp;</A>
+<H2>SAVING AND RE-USING PRECOMPILED PCRE2 PATTERNS</H2>
+
+
+<P>
+<PRE>
+<B>int32_t pcre2_serialize_decode(pcre2_code **</B><I>codes</I>,
+<B>  int32_t </B><I>number_of_codes</I>, const uint32_t *<I>bytes</I>,
+<B>  pcre2_general_context *</B><I>gcontext</I>);
+
+<B>int32_t pcre2_serialize_encode(pcre2_code **</B><I>codes</I>,
+<B>  int32_t </B><I>number_of_codes</I>, uint32_t **<I>serialized_bytes</I>,
+<B>  PCRE2_SIZE *</B><I>serialized_size</I>, pcre2_general_context *<I>gcontext</I>);
+
+<B>void pcre2_serialize_free(uint8_t *</B><I>bytes</I>);
+
+<B>int32_t pcre2_serialize_get_number_of_codes(const uint8_t *</B><I>bytes</I>);
+</PRE>
+
+<P>
+If you are running an application that uses a large number of regular
+expression patterns, it may be useful to store them in a precompiled form
+instead of having to compile them every time the application is run. However,
+if you are using the just-in-time optimization feature, it is not possible to
+save and reload the JIT data, because it is position-dependent. The host on
+which the patterns are reloaded must be running the same version of PCRE2, with
+the same code unit width, and must also have the same endianness, pointer width
+and PCRE2_SIZE type. For example, patterns compiled on a 32-bit system using
+PCRE2's 16-bit library cannot be reloaded on a 64-bit system, nor can they be
+reloaded using the 8-bit library.
+<P>
+
+Note that &quot;serialization&quot; in PCRE2 does not convert compiled patterns to an
+abstract format like Java or .NET serialization. The serialized output is
+really just a bytecode dump, which is why it can only be reloaded in the same
+environment as the one that created it. Hence the restrictions mentioned above.
+Applications that are not statically linked with a fixed version of PCRE2 must
+be prepared to recompile patterns from their sources, in order to be immune to
+PCRE2 upgrades.
+<A NAME="lbAD">&nbsp;</A>
+<H2>SECURITY CONCERNS</H2>
+
+
+<P>
+The facility for saving and restoring compiled patterns is intended for use
+within individual applications. As such, the data supplied to
+<B>pcre2_serialize_decode()</B> is expected to be trusted data, not data from
+arbitrary external sources. There is only some simple consistency checking, not
+complete validation of what is being re-loaded. Corrupted data may cause
+undefined results. For example, if the length field of a pattern in the
+serialized data is corrupted, the deserializing code may read beyond the end of
+the byte stream that is passed to it.
+<A NAME="lbAE">&nbsp;</A>
+<H2>SAVING COMPILED PATTERNS</H2>
+
+
+<P>
+Before compiled patterns can be saved they must be serialized, which in PCRE2
+means converting the pattern to a stream of bytes. A single byte stream may
+contain any number of compiled patterns, but they must all use the same
+character tables. A single copy of the tables is included in the byte stream
+(its size is 1088 bytes). For more details of character tables, see the
+
+
+section on locale support
+
+in the
+
+<B>pcre2api</B>
+
+documentation.
+<P>
+
+The function <B>pcre2_serialize_encode()</B> creates a serialized byte stream
+from a list of compiled patterns. Its first two arguments specify the list,
+being a pointer to a vector of pointers to compiled patterns, and the length of
+the vector. The third and fourth arguments point to variables which are set to
+point to the created byte stream and its length, respectively. The final
+argument is a pointer to a general context, which can be used to specify custom
+memory mangagement functions. If this argument is NULL, <B>malloc()</B> is used
+to obtain memory for the byte stream. The yield of the function is the number
+of serialized patterns, or one of the following negative error codes:
+<P>
+<BR>&nbsp;&nbsp;PCRE2_ERROR_BADDATA&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;the&nbsp;number&nbsp;of&nbsp;patterns&nbsp;is&nbsp;zero&nbsp;or&nbsp;less
+<BR>&nbsp;&nbsp;PCRE2_ERROR_BADMAGIC&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mismatch&nbsp;of&nbsp;id&nbsp;bytes&nbsp;in&nbsp;one&nbsp;of&nbsp;the&nbsp;patterns
+<BR>&nbsp;&nbsp;PCRE2_ERROR_MEMORY&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;memory&nbsp;allocation&nbsp;failed
+<BR>&nbsp;&nbsp;PCRE2_ERROR_MIXEDTABLES&nbsp;&nbsp;the&nbsp;patterns&nbsp;do&nbsp;not&nbsp;all&nbsp;use&nbsp;the&nbsp;same&nbsp;tables
+<BR>&nbsp;&nbsp;PCRE2_ERROR_NULL&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;the&nbsp;1st,&nbsp;3rd,&nbsp;or&nbsp;4th&nbsp;argument&nbsp;is&nbsp;NULL
+<P>
+PCRE2_ERROR_BADMAGIC means either that a pattern's code has been corrupted, or
+that a slot in the vector does not point to a compiled pattern.
+<P>
+
+Once a set of patterns has been serialized you can save the data in any
+appropriate manner. Here is sample code that compiles two patterns and writes
+them to a file. It assumes that the variable <I>fd</I> refers to a file that is
+open for output. The error checking that should be present in a real
+application has been omitted for simplicity.
+<P>
+<BR>&nbsp;&nbsp;int&nbsp;errorcode;
+<BR>&nbsp;&nbsp;uint8_t&nbsp;*bytes;
+<BR>&nbsp;&nbsp;PCRE2_SIZE&nbsp;erroroffset;
+<BR>&nbsp;&nbsp;PCRE2_SIZE&nbsp;bytescount;
+<BR>&nbsp;&nbsp;pcre2_code&nbsp;*list_of_codes[2];
+<BR>&nbsp;&nbsp;list_of_codes[0]&nbsp;=&nbsp;pcre2_compile(&quot;first&nbsp;pattern&quot;,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;PCRE2_ZERO_TERMINATED,&nbsp;0,&nbsp;&amp;errorcode,&nbsp;&amp;erroroffset,&nbsp;NULL);
+<BR>&nbsp;&nbsp;list_of_codes[1]&nbsp;=&nbsp;pcre2_compile(&quot;second&nbsp;pattern&quot;,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;PCRE2_ZERO_TERMINATED,&nbsp;0,&nbsp;&amp;errorcode,&nbsp;&amp;erroroffset,&nbsp;NULL);
+<BR>&nbsp;&nbsp;errorcode&nbsp;=&nbsp;pcre2_serialize_encode(list_of_codes,&nbsp;2,&nbsp;&amp;bytes,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&amp;bytescount,&nbsp;NULL);
+<BR>&nbsp;&nbsp;errorcode&nbsp;=&nbsp;fwrite(bytes,&nbsp;1,&nbsp;bytescount,&nbsp;fd);
+<P>
+Note that the serialized data is binary data that may contain any of the 256
+possible byte values. On systems that make a distinction between binary and
+non-binary data, be sure that the file is opened for binary output.
+<P>
+
+Serializing a set of patterns leaves the original data untouched, so they can
+still be used for matching. Their memory must eventually be freed in the usual
+way by calling <B>pcre2_code_free()</B>. When you have finished with the byte
+stream, it too must be freed by calling <B>pcre2_serialize_free()</B>. If this
+function is called with a NULL argument, it returns immediately without doing
+anything.
+<A NAME="lbAF">&nbsp;</A>
+<H2>RE-USING PRECOMPILED PATTERNS</H2>
+
+
+<P>
+In order to re-use a set of saved patterns you must first make the serialized
+byte stream available in main memory (for example, by reading from a file). The
+management of this memory block is up to the application. You can use the
+<B>pcre2_serialize_get_number_of_codes()</B> function to find out how many
+compiled patterns are in the serialized data without actually decoding the
+patterns:
+<P>
+<BR>&nbsp;&nbsp;uint8_t&nbsp;*bytes&nbsp;=&nbsp;&lt;serialized&nbsp;data&gt;;
+<BR>&nbsp;&nbsp;int32_t&nbsp;number_of_codes&nbsp;=&nbsp;pcre2_serialize_get_number_of_codes(bytes);
+<P>
+The <B>pcre2_serialize_decode()</B> function reads a byte stream and recreates
+the compiled patterns in new memory blocks, setting pointers to them in a
+vector. The first two arguments are a pointer to a suitable vector and its
+length, and the third argument points to a byte stream. The final argument is a
+pointer to a general context, which can be used to specify custom memory
+mangagement functions for the decoded patterns. If this argument is NULL,
+<B>malloc()</B> and <B>free()</B> are used. After deserialization, the byte
+stream is no longer needed and can be discarded.
+<P>
+<BR>&nbsp;&nbsp;int32_t&nbsp;number_of_codes;
+<BR>&nbsp;&nbsp;pcre2_code&nbsp;*list_of_codes[2];
+<BR>&nbsp;&nbsp;uint8_t&nbsp;*bytes&nbsp;=&nbsp;&lt;serialized&nbsp;data&gt;;
+<BR>&nbsp;&nbsp;int32_t&nbsp;number_of_codes&nbsp;=
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;pcre2_serialize_decode(list_of_codes,&nbsp;2,&nbsp;bytes,&nbsp;NULL);
+<P>
+If the vector is not large enough for all the patterns in the byte stream, it
+is filled with those that fit, and the remainder are ignored. The yield of the
+function is the number of decoded patterns, or one of the following negative
+error codes:
+<P>
+<BR>&nbsp;&nbsp;PCRE2_ERROR_BADDATA&nbsp;&nbsp;&nbsp;&nbsp;second&nbsp;argument&nbsp;is&nbsp;zero&nbsp;or&nbsp;less
+<BR>&nbsp;&nbsp;PCRE2_ERROR_BADMAGIC&nbsp;&nbsp;&nbsp;mismatch&nbsp;of&nbsp;id&nbsp;bytes&nbsp;in&nbsp;the&nbsp;data
+<BR>&nbsp;&nbsp;PCRE2_ERROR_BADMODE&nbsp;&nbsp;&nbsp;&nbsp;mismatch&nbsp;of&nbsp;code&nbsp;unit&nbsp;size&nbsp;or&nbsp;PCRE2&nbsp;version
+<BR>&nbsp;&nbsp;PCRE2_ERROR_BADSERIALIZEDDATA&nbsp;&nbsp;other&nbsp;sanity&nbsp;check&nbsp;failure
+<BR>&nbsp;&nbsp;PCRE2_ERROR_MEMORY&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;memory&nbsp;allocation&nbsp;failed
+<BR>&nbsp;&nbsp;PCRE2_ERROR_NULL&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;first&nbsp;or&nbsp;third&nbsp;argument&nbsp;is&nbsp;NULL
+<P>
+PCRE2_ERROR_BADMAGIC may mean that the data is corrupt, or that it was compiled
+on a system with different endianness.
+<P>
+
+Decoded patterns can be used for matching in the usual way, and must be freed
+by calling <B>pcre2_code_free()</B>. However, be aware that there is a potential
+race issue if you are using multiple patterns that were decoded from a single
+byte stream in a multithreaded application. A single copy of the character
+tables is used by all the decoded patterns and a reference count is used to
+arrange for its memory to be automatically freed when the last pattern is
+freed, but there is no locking on this reference count. Therefore, if you want
+to call <B>pcre2_code_free()</B> for these patterns in different threads, you
+must arrange your own locking, and ensure that <B>pcre2_code_free()</B> cannot
+be called by two threads at the same time.
+<P>
+
+If a pattern was processed by <B>pcre2_jit_compile()</B> before being
+serialized, the JIT data is discarded and so is no longer available after a
+save/restore cycle. You can, however, process a restored pattern with
+<B>pcre2_jit_compile()</B> if you wish.
+<A NAME="lbAG">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+
+<P>
+<PRE>
+Philip Hazel
+University Computing Service
+Cambridge, England.
+</PRE>
+
+<A NAME="lbAH">&nbsp;</A>
+<H2>REVISION</H2>
+
+
+<P>
+<PRE>
+Last updated: 27 June 2018
+Copyright (c) 1997-2018 University of Cambridge.
+</PRE>
+
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="1"><A HREF="#lbAB">NAME</A><DD>
+<DT id="2"><A HREF="#lbAC">SAVING AND RE-USING PRECOMPILED PCRE2 PATTERNS</A><DD>
+<DT id="3"><A HREF="#lbAD">SECURITY CONCERNS</A><DD>
+<DT id="4"><A HREF="#lbAE">SAVING COMPILED PATTERNS</A><DD>
+<DT id="5"><A HREF="#lbAF">RE-USING PRECOMPILED PATTERNS</A><DD>
+<DT id="6"><A HREF="#lbAG">AUTHOR</A><DD>
+<DT id="7"><A HREF="#lbAH">REVISION</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:50 GMT, March 31, 2021
+</BODY>
+</HTML>

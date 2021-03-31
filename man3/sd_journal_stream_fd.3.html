@@ -1,0 +1,188 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SD_JOURNAL_STREAM_FD</TITLE>
+</HEAD><BODY>
+<H1>SD_JOURNAL_STREAM_FD</H1>
+Section: sd_journal_stream_fd (3)<BR>Updated: <BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+sd_journal_stream_fd - Create log stream file descriptor to the journal
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+<B>
+</B><PRE>
+#include &lt;<A HREF="file:///usr/include/systemd/sd-journal.h">systemd/sd-journal.h</A>&gt;
+</PRE>
+
+
+<DL COMPACT>
+<DT id="1">
+<B>int sd_journal_stream_fd(const&nbsp;char&nbsp;*</B><I>identifier</I><B>, int&nbsp;</B><I>priority</I><B>, int&nbsp;</B><I>level_prefix</I><B>);</B>
+
+</DL>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+<B>sd_journal_stream_fd()</B>
+<DD>may be used to create a log stream file descriptor. Log messages written to this file descriptor as simple newline-separated text strings are written to the journal. This file descriptor can be used internally by applications or be made standard output or standard error of other processes executed.
+<P>
+
+<B>sd_journal_stream_fd()</B>
+takes a short program identifier string as first argument, which will be written to the journal as SYSLOG_IDENTIFIER= field for each log entry (see
+<B><A HREF="/cgi-bin/man/man2html?7+systemd.journal-fields">systemd.journal-fields</A></B>(7)
+for more information). The second argument shall be the default priority level for all messages. The priority level is one of
+<B>LOG_EMERG</B>,
+<B>LOG_ALERT</B>,
+<B>LOG_CRIT</B>,
+<B>LOG_ERR</B>,
+<B>LOG_WARNING</B>,
+<B>LOG_NOTICE</B>,
+<B>LOG_INFO</B>,
+<B>LOG_DEBUG</B>, as defined in
+syslog.h, see
+<B><A HREF="/cgi-bin/man/man2html?3+syslog">syslog</A></B>(3)
+for details. The third argument is a boolean: if true kernel-style log level prefixes (such as
+<B>SD_WARNING</B>) are interpreted, see
+<B><A HREF="/cgi-bin/man/man2html?3+sd-daemon">sd-daemon</A></B>(3)
+for more information.
+<P>
+
+It is recommended that applications log UTF-8 messages only with this API, but this is not enforced.
+<P>
+
+Each invocation of
+<B>sd_journal_stream_fd()</B>
+allocates a new log stream file descriptor, that is not shared with prior or later invocations. The file descriptor is write-only (its reading direction is shut down), and
+<B>O_NONBLOCK</B>
+is turned off initially.
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+<P>
+
+The call returns a valid write-only file descriptor on success or a negative errno-style error code.
+<A NAME="lbAF">&nbsp;</A>
+<H2>SIGNAL SAFETY</H2>
+
+<P>
+
+<B>sd_journal_stream_fd()</B>
+is &quot;async signal safe&quot; in the meaning of
+<B><A HREF="/cgi-bin/man/man2html?7+signal-safety">signal-safety</A></B>(7).
+<A NAME="lbAG">&nbsp;</A>
+<H2>NOTES</H2>
+
+<P>
+
+All functions listed here are thread-safe and may be called in parallel from multiple threads.
+<P>
+
+These APIs are implemented as a shared library, which can be compiled and linked to with the
+<B>libsystemd</B>&nbsp;<B><A HREF="/cgi-bin/man/man2html?1+pkg-config">pkg-config</A></B>(1)
+file.
+<A NAME="lbAH">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+<P>
+
+Creating a log stream suitable for
+<B><A HREF="/cgi-bin/man/man2html?3+fprintf">fprintf</A></B>(3):
+<P>
+<DL COMPACT><DT id="2"><DD>
+
+
+
+<PRE>
+#include &lt;<A HREF="file:///usr/include/syslog.h">syslog.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/string.h">string.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/unistd.h">unistd.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/systemd/sd-journal.h">systemd/sd-journal.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/systemd/sd-daemon.h">systemd/sd-daemon.h</A>&gt;
+
+int main(int argc, char *argv[]) {
+  int fd;
+  FILE *log;
+  fd = sd_journal_stream_fd(&quot;test&quot;, LOG_INFO, 1);
+  if (fd &lt; 0) {
+    fprintf(stderr, &quot;Failed to create stream fd: %s\n&quot;, strerror(-fd));
+    return 1;
+  }
+  log = fdopen(fd, &quot;w&quot;);
+  if (!log) {
+    fprintf(stderr, &quot;Failed to create file object: %m\n&quot;);
+    close(fd);
+    return 1;
+  }
+  fprintf(log, &quot;Hello World!\n&quot;);
+  fprintf(log, SD_WARNING &quot;This is a warning!\n&quot;);
+  fclose(log);
+  return 0;
+}
+</PRE>
+
+</DL>
+
+
+
+
+<A NAME="lbAI">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?3+sd-journal">sd-journal</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd-daemon">sd-daemon</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_journal_print">sd_journal_print</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+syslog">syslog</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+fprintf">fprintf</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?7+systemd.journal-fields">systemd.journal-fields</A></B>(7)
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="3"><A HREF="#lbAB">NAME</A><DD>
+<DT id="4"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="5"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="6"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DT id="7"><A HREF="#lbAF">SIGNAL SAFETY</A><DD>
+<DT id="8"><A HREF="#lbAG">NOTES</A><DD>
+<DT id="9"><A HREF="#lbAH">EXAMPLES</A><DD>
+<DT id="10"><A HREF="#lbAI">SEE ALSO</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:55 GMT, March 31, 2021
+</BODY>
+</HTML>

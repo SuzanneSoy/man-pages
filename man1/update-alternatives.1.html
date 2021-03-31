@@ -1,0 +1,653 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of update-alternatives</TITLE>
+</HEAD><BODY>
+<H1>update-alternatives</H1>
+Section: dpkg suite (1)<BR>Updated: 2020-03-23<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+update-alternatives - maintain symbolic links determining default commands
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<B>update-alternatives</B>
+
+[<I>option</I>...] <I>command</I>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<B>update-alternatives</B>
+
+creates, removes, maintains and displays information about the symbolic
+links comprising the Debian alternatives system.
+<P>
+
+It is possible for several programs fulfilling the same or similar
+functions to be installed on a single system at the same time.
+For example, many systems have several text editors installed at once.
+This gives choice to the users of a system, allowing each to use a
+different editor, if desired, but makes it difficult for a program
+to make a good choice for an editor to invoke if the
+user has not specified a particular preference.
+<P>
+
+Debian's alternatives system aims to solve this problem.
+A generic name in the filesystem is
+shared by all files providing interchangeable functionality.
+The alternatives system and the system administrator
+together determine which actual file is referenced by this generic name.
+For example, if the text editors
+<B><A HREF="/cgi-bin/man/man2html?1+ed">ed</A></B>(1)
+
+and
+<B><A HREF="/cgi-bin/man/man2html?1+nvi">nvi</A></B>(1)
+
+are both installed on the system, the alternatives system will cause
+the generic name
+<I>/usr/bin/editor</I>
+
+to refer to
+<I>/usr/bin/nvi</I>
+
+by default. The system administrator can override this and cause
+it
+to refer to
+<I>/usr/bin/ed</I>
+
+instead,
+and the alternatives system will not alter this setting until explicitly
+requested to do so.
+<P>
+
+The generic name is not a direct symbolic link to the selected alternative.
+Instead, it is a symbolic link to a name in the
+<I>alternatives</I>
+
+<I>directory</I>,
+
+which in turn is a symbolic link to the actual file referenced.
+This is done so that the system administrator's changes can be confined
+within the
+<I>/etc</I>
+
+directory: the FHS (q.v.) gives reasons why this is a Good Thing.
+<P>
+
+When each package
+providing a file with a particular functionality is
+installed, changed or removed,
+<B>update-alternatives</B>
+
+is called to update information about that file in the alternatives system.
+<B>update-alternatives</B>
+
+is usually called from the
+<B>postinst</B>
+
+(configure) or
+<B>prerm</B>
+
+(remove and deconfigure) scripts in Debian packages.
+<P>
+
+It is often useful for a number of alternatives to be synchronized,
+so that they are changed as a group; for example, when several versions
+of the
+<B><A HREF="/cgi-bin/man/man2html?1+vi">vi</A></B>(1)
+
+editor are installed, the man page referenced by
+<I>/usr/share/man/man1/vi.1</I>
+
+should correspond to the executable referenced by
+<I>/usr/bin/vi</I>.
+
+<B>update-alternatives</B>
+
+handles this by means of
+<I>master</I>
+
+and
+<I>slave</I>
+
+links; when the master is changed, any associated slaves are changed
+too.
+A master link and its associated slaves make up a
+<I>link</I>
+
+<I>group</I>.
+
+<P>
+
+Each link group is, at any given time,
+in one of two modes: automatic or manual.
+When a group is in automatic mode, the alternatives system will
+automatically decide, as packages are installed and removed,
+whether and how to update the links.
+In manual mode, the alternatives system will retain the choice of
+the administrator and avoid changing the links (except when something is
+broken).
+<P>
+
+Link groups are in automatic mode when they are first introduced to
+the system.
+If the system administrator makes changes to the system's
+automatic settings,
+this will be noticed the next time
+<B>update-alternatives</B>
+
+is run on the changed link's group,
+and the group will automatically be switched to manual mode.
+<P>
+
+Each alternative has a
+<I>priority</I>
+
+associated with it.
+When a link group is in automatic mode,
+the alternatives pointed to by members of the group
+will be those which have the highest priority.
+<P>
+
+When using the
+<B>--config</B>
+
+option,
+<B>update-alternatives</B>
+
+will list all of the choices for the link group
+of which given
+<I>name</I>
+
+is the master alternative name.
+The current choice is marked with a '*'.
+You will then be prompted for your choice regarding this link group.
+Depending on the choice made, the link group might no longer be in
+<I>auto</I>
+
+mode. You will need to use the
+<B>--auto</B>
+
+option in order to return to the automatic mode (or you can rerun
+<B>--config</B>
+
+and select the entry marked as automatic).
+<P>
+
+If you want to configure non-interactively you can use the
+<B>--set</B>
+
+option instead (see below).
+<P>
+
+Different packages providing the same file need to do so
+<B>cooperatively</B>.
+
+In other words, the usage of
+<B>update-alternatives</B>
+
+is
+<B>mandatory</B>
+
+for all involved packages in such case. It is not possible to
+override some file in a package that does not employ the
+<B>update-alternatives</B>
+
+mechanism.
+<A NAME="lbAE">&nbsp;</A>
+<H2>TERMINOLOGY</H2>
+
+Since the activities of
+<B>update-alternatives</B>
+
+are quite involved, some specific terms will help to explain its
+operation.
+<DL COMPACT>
+<DT id="1">generic name (or alternative link)<DD>
+A name, like
+<I>/usr/bin/editor</I>,
+
+which refers, via the alternatives system, to one of a number of
+files of similar function.
+<DT id="2">alternative name<DD>
+The name of a symbolic link in the alternatives directory.
+<DT id="3">alternative (or alternative path)<DD>
+The name of a specific file in the filesystem, which may be made
+accessible via a generic name using the alternatives system.
+<DT id="4">alternatives directory<DD>
+A directory, by default
+<I>/etc/alternatives</I>,
+
+containing the symlinks.
+<DT id="5">administrative directory<DD>
+A directory, by default
+<I>/var/lib/dpkg/alternatives</I>,
+
+containing
+<B>update-alternatives</B>'
+
+state information.
+<DT id="6">link group<DD>
+A set of related symlinks, intended to be updated as a group.
+<DT id="7">master link<DD>
+The alternative link in a link group which determines how the other links in the
+group are configured.
+<DT id="8">slave link<DD>
+An alternative link in a link group which is controlled by the setting of
+the master link.
+<DT id="9">automatic mode<DD>
+When a link group is in automatic mode,
+the alternatives system ensures that the links in the group
+point to the highest priority alternative
+appropriate for the group.
+<DT id="10">manual mode<DD>
+When a link group is in manual mode,
+the alternatives system will not make any changes
+to the system administrator's settings.
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>COMMANDS</H2>
+
+<DL COMPACT>
+<DT id="11"><B>--install</B> <I>link name path priority</I> [<B>--slave</B> <I>link name path</I>]...<DD>
+Add a group of alternatives to the system.
+<I>link</I>
+
+is the generic name for the master link,
+<I>name</I>
+
+is the name of its symlink in the alternatives directory, and
+<I>path</I>
+
+is the alternative being introduced for the master link.
+The arguments after <B>--slave</B> are the generic name, symlink name in the
+alternatives directory and the alternative path for a slave link.
+Zero or more
+<B>--slave</B>
+
+options, each followed by three arguments,
+may be specified. Note that the master alternative must exist or the call
+will fail. However if a slave alternative doesn't exist, the corresponding
+slave alternative link will simply not be installed (a warning will still
+be displayed). If some real file is installed where an alternative link
+has to be installed, it is kept unless <B>--force</B> is used.
+<DT id="12"><DD>
+If the alternative name specified exists already
+in the alternatives system's records,
+the information supplied will be added as a new
+set of alternatives for the group.
+Otherwise, a new group, set to automatic mode,
+will be added with this information.
+If the group is in automatic mode,
+and the newly added alternatives' priority is higher than
+any other installed alternatives for this group,
+the symlinks will be updated to point to the newly added alternatives.
+<DT id="13"><B>--set</B> <I>name path</I><DD>
+Set the program
+<I>path</I>
+
+as alternative for
+<I>name.</I>
+
+This is equivalent to
+<B>--config</B>
+
+but is non-interactive and thus scriptable.
+<DT id="14"><B>--remove</B> <I>name path</I><DD>
+Remove an alternative and all of its associated slave links.
+<I>name</I>
+
+is a name in the alternatives directory, and
+<I>path</I>
+
+is an absolute filename to which
+<I>name</I>
+
+could be linked. If
+<I>name</I>
+
+is indeed linked to
+<I>path</I>,
+
+<I>name</I>
+
+will be updated to point to another appropriate alternative
+(and the group is put back in automatic mode), or
+removed if there is no such alternative left.
+Associated slave links will be updated or removed, correspondingly.
+If the link is not currently pointing to
+<I>path</I>,
+
+no links are changed;
+only the information about the alternative is removed.
+<DT id="15"><B>--remove-all</B> <I>name</I><DD>
+Remove all alternatives and all of their associated slave links.
+<I>name</I>
+
+is a name in the alternatives directory.
+<DT id="16"><B>--all</B>
+
+<DD>
+Call <B>--config</B> on all alternatives. It can be usefully combined with
+<B>--skip-auto</B> to review and configure all alternatives which are
+not configured in automatic mode. Broken alternatives are also displayed.
+Thus a simple way to fix all broken alternatives is to call
+<B>yes '' | update-alternatives --force --all</B>.
+<DT id="17"><B>--auto</B> <I>name</I><DD>
+Switch the link group behind the alternative for
+<I>name</I>
+
+to automatic mode.
+In the process, the master symlink and its slaves are updated
+to point to the highest priority installed alternatives.
+<DT id="18"><B>--display</B> <I>name</I><DD>
+Display information about the link group.
+Information displayed includes the group's mode
+(auto or manual),
+the master and slave links,
+which alternative the master link currently points to,
+what other alternatives are available
+(and their corresponding slave alternatives),
+and the highest priority alternative currently installed.
+<DT id="19"><B>--get-selections</B><DD>
+List all master alternative names (those controlling a link group)
+and their status (since version 1.15.0).
+Each line contains up to 3 fields (separated by
+one or more spaces). The first field is the alternative name, the second
+one is the status (either <B>auto</B> or <B>manual</B>), and the last one contains
+the current choice in the alternative (beware: it's a filename and thus
+might contain spaces).
+<DT id="20"><B>--set-selections</B><DD>
+Read configuration of alternatives on standard input in the format
+generated by <B>--get-selections</B> and reconfigure
+them accordingly (since version 1.15.0).
+<DT id="21"><B>--query</B> <I>name</I><DD>
+Display information about the link group
+like <B>--display</B> does, but in a machine parseable way
+(since version 1.15.0, see section <B>QUERY FORMAT</B> below).
+<DT id="22"><B>--list</B> <I>name</I><DD>
+Display all targets of the link group.
+<DT id="23"><B>--config</B> <I>name</I><DD>
+Show available alternatives for a link group and allow the user to
+interactively select which one to use. The link group is updated.
+<DT id="24"><B>--help</B>
+
+<DD>
+Show the usage message and exit.
+<DT id="25"><B>--version</B>
+
+<DD>
+Show the version and exit.
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<DL COMPACT>
+<DT id="26"><B>--altdir</B><I> directory</I>
+
+<DD>
+Specifies the alternatives directory, when this is to be
+different from the default.
+<DT id="27"><B>--admindir</B><I> directory</I>
+
+<DD>
+Specifies the administrative directory, when this is to be
+different from the default.
+<DT id="28"><B>--log</B><I> file</I>
+
+<DD>
+Specifies the log file (since version 1.15.0), when this is to be different
+from the default (/var/log/alternatives.log).
+<DT id="29"><B>--force</B>
+
+<DD>
+Allow replacing or dropping any real file that is installed
+where an alternative link has to be installed or removed.
+<DT id="30"><B>--skip-auto</B>
+
+<DD>
+Skip configuration prompt for alternatives which are properly configured
+in automatic mode. This option is only relevant with <B>--config</B> or
+<B>--all</B>.
+<DT id="31"><B>--quiet</B>
+
+<DD>
+Do not generate any comments unless errors occur.
+<DT id="32"><B>--verbose</B>
+
+<DD>
+Generate more comments about what is being done.
+<DT id="33"><B>--debug</B>
+
+<DD>
+Generate even more comments, helpful for debugging, about what is being done
+(since version 1.19.3).
+</DL>
+<A NAME="lbAH">&nbsp;</A>
+<H2>EXIT STATUS</H2>
+
+<DL COMPACT>
+<DT id="34"><B>0</B>
+
+<DD>
+The requested action was successfully performed.
+<DT id="35"><B>2</B>
+
+<DD>
+Problems were encountered whilst parsing the command line
+or performing the action.
+</DL>
+<A NAME="lbAI">&nbsp;</A>
+<H2>ENVIRONMENT</H2>
+
+<DL COMPACT>
+<DT id="36"><B>DPKG_ADMINDIR</B>
+
+<DD>
+If set and the <B>--admindir</B> option has not been specified, it will
+be used as the base administrative directory.
+</DL>
+<A NAME="lbAJ">&nbsp;</A>
+<H2>FILES</H2>
+
+<DL COMPACT>
+<DT id="37"><I>/etc/alternatives/</I>
+
+<DD>
+The default alternatives directory.
+Can be overridden by the
+<B>--altdir</B>
+
+option.
+<DT id="38"><I>/var/lib/dpkg/alternatives/</I>
+
+<DD>
+The default administration directory.
+Can be overridden by the
+<B>--admindir</B>
+
+option.
+</DL>
+<A NAME="lbAK">&nbsp;</A>
+<H2>QUERY FORMAT</H2>
+
+The <B>--query</B> format is using an
+RFC822-like flat format. It's made of <I>n</I> + 1 blocks where <I>n</I> is
+the number of alternatives available in the queried link group. The first
+block contains the following fields:
+<DL COMPACT>
+<DT id="39"><B>Name:</B><I> name</I>
+
+<DD>
+The alternative name in the alternative directory.
+<DT id="40"><B>Link:</B><I> link</I>
+
+<DD>
+The generic name of the alternative.
+<DT id="41"><B>Slaves:</B><I> list-of-slaves</I>
+
+<DD>
+When this field is present, the <B>next</B> lines hold all slave links
+associated to the master link of the alternative. There is one slave per
+line. Each line contains one space, the generic name of the slave
+alternative, another space, and the path to the slave link.
+<DT id="42"><B>Status:</B><I> status</I>
+
+<DD>
+The status of the alternative (<B>auto</B> or <B>manual</B>).
+<DT id="43"><B>Best:</B><I> best-choice</I>
+
+<DD>
+The path of the best alternative for this link group. Not present if
+there is no alternatives available.
+<DT id="44"><B>Value:</B><I> currently-selected-alternative</I>
+
+<DD>
+The path of the currently selected alternative. It can also take the magic
+value <B>none</B>. It is used if the link doesn't exist.
+</DL>
+<P>
+
+The other blocks describe the available alternatives in the queried link group:
+<DL COMPACT>
+<DT id="45"><B>Alternative:</B><I> path-of-this-alternative</I>
+
+<DD>
+Path to this block's alternative.
+<DT id="46"><B>Priority:</B><I> priority-value</I>
+
+<DD>
+Value of the priority of this alternative.
+<DT id="47"><B>Slaves:</B><I> list-of-slaves</I>
+
+<DD>
+When this field is present, the <B>next</B> lines hold all slave alternatives
+associated to the master link of the alternative. There is one slave per
+line. Each line contains one space, the generic name of the slave
+alternative, another space, and the path to the slave alternative.
+</DL>
+<A NAME="lbAL">&nbsp;</A>
+<H3>Example</H3>
+
+<PRE>
+$ update-alternatives --query editor
+Name: editor
+Link: /usr/bin/editor
+Slaves:
+ editor.1.gz /usr/share/man/man1/editor.1.gz
+ editor.fr.1.gz /usr/share/man/fr/man1/editor.1.gz
+ editor.it.1.gz /usr/share/man/it/man1/editor.1.gz
+ editor.pl.1.gz /usr/share/man/pl/man1/editor.1.gz
+ editor.ru.1.gz /usr/share/man/ru/man1/editor.1.gz
+Status: auto
+Best: /usr/bin/vim.basic
+Value: /usr/bin/vim.basic
+
+Alternative: /bin/ed
+Priority: -100
+Slaves:
+ editor.1.gz /usr/share/man/man1/ed.1.gz
+
+Alternative: /usr/bin/vim.basic
+Priority: 50
+Slaves:
+ editor.1.gz /usr/share/man/man1/vim.1.gz
+ editor.fr.1.gz /usr/share/man/fr/man1/vim.1.gz
+ editor.it.1.gz /usr/share/man/it/man1/vim.1.gz
+ editor.pl.1.gz /usr/share/man/pl/man1/vim.1.gz
+ editor.ru.1.gz /usr/share/man/ru/man1/vim.1.gz
+</PRE>
+
+<A NAME="lbAM">&nbsp;</A>
+<H2>DIAGNOSTICS</H2>
+
+With <B>--verbose</B>
+<B>update-alternatives</B>
+
+chatters incessantly about its activities on its standard output channel.
+If problems occur,
+<B>update-alternatives</B>
+
+outputs error messages on its standard error channel and
+returns an exit status of 2.
+These diagnostics should be self-explanatory;
+if you do not find them so, please report this as a bug.
+<A NAME="lbAN">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+There are several packages which provide a text editor compatible
+with <B>vi</B>, for example <B>nvi</B> and <B>vim</B>. Which one is used
+is controlled by the link group <B>vi</B>, which includes links for the
+program itself and the associated manpage.
+<P>
+
+To display the available packages which provide <B>vi</B> and the current
+setting for it, use the <B>--display</B> action:
+<P>
+
+<DL COMPACT><DT id="48"><DD>
+<B>update-alternatives --display vi</B>
+
+</DL>
+
+<P>
+
+To choose a particular <B>vi</B> implementation, use this command as root
+and then select a number from the list:
+<P>
+
+<DL COMPACT><DT id="49"><DD>
+<B>update-alternatives --config vi</B>
+
+</DL>
+
+<P>
+
+To go back to having the <B>vi</B> implementation chosen automatically, do
+this as root:
+<P>
+
+<DL COMPACT><DT id="50"><DD>
+<B>update-alternatives --auto vi</B>
+
+</DL>
+
+<A NAME="lbAO">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?1+ln">ln</A></B>(1),
+
+FHS, the Filesystem Hierarchy Standard.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="51"><A HREF="#lbAB">NAME</A><DD>
+<DT id="52"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="53"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="54"><A HREF="#lbAE">TERMINOLOGY</A><DD>
+<DT id="55"><A HREF="#lbAF">COMMANDS</A><DD>
+<DT id="56"><A HREF="#lbAG">OPTIONS</A><DD>
+<DT id="57"><A HREF="#lbAH">EXIT STATUS</A><DD>
+<DT id="58"><A HREF="#lbAI">ENVIRONMENT</A><DD>
+<DT id="59"><A HREF="#lbAJ">FILES</A><DD>
+<DT id="60"><A HREF="#lbAK">QUERY FORMAT</A><DD>
+<DL>
+<DT id="61"><A HREF="#lbAL">Example</A><DD>
+</DL>
+<DT id="62"><A HREF="#lbAM">DIAGNOSTICS</A><DD>
+<DT id="63"><A HREF="#lbAN">EXAMPLES</A><DD>
+<DT id="64"><A HREF="#lbAO">SEE ALSO</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:29 GMT, March 31, 2021
+</BODY>
+</HTML>

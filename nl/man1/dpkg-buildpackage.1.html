@@ -1,0 +1,553 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of dpkg-buildpackage</TITLE>
+</HEAD><BODY>
+<H1>dpkg-buildpackage</H1>
+Section: dpkg-suite (1)<BR>Updated: 2020-03-23<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAAM</H2>
+
+dpkg-buildpackage - binaire of broncodepakketten bouwen uit de broncode
+<A NAME="lbAC">&nbsp;</A>
+<H2>OVERZICHT</H2>
+
+<B>dpkg-buildpackage</B> [<I>optie</I>...]
+<A NAME="lbAD">&nbsp;</A>
+<H2>BESCHRIJVING</H2>
+
+<B>dpkg-buildpackage</B> is een programma dat het proces van het bouwen van een
+Debian pakket automatiseert. Het bestaat uit de volgende stappen:
+<DL COMPACT>
+<DT id="1"><B>1.</B><DD>
+Het bereidt de bouwomgeving voor door verschillende omgevingsvariabelen in
+te stellen(zie <B>OMGEVING</B>), voert de uitbreiding (hook) <B>init</B> uit en
+roept <B>dpkg-source --before-build</B> aan (tenzij <B>-T</B> of <B>--target</B>
+gebruikt werd).
+<DT id="2"><B>2.</B><DD>
+Het controleert of voldaan is aan de bouw-vereisten en de
+bouw-tegenstrijdigheden (tenzij <B>-d</B> of <B>--no-check-builddeps</B> opgegeven
+werd).
+<DT id="3"><B>3.</B><DD>
+Indien met de optie <B>-T</B> of <B>--target</B> een of meer specifieke doelen
+geselecteerd werden, roept het deze doelen aan en stopt dan. Anders voert
+het de uitbreiding (hook) <B>preclean</B> uit en roept het <B>fakeroot
+debian/rules clean</B> aan om de bouwboom zuiver te maken (tenzij <B>-nc</B> of
+<B>--no-pre-clean</B> opgegeven werd).
+<DT id="4"><B>4.</B><DD>
+Het voert de uitbreiding (hook) <B>source</B> uit en roept <B>dpkg-source -b</B> aan
+om het broncodepakket te genereren (indien het bouwen van <B>source</B>
+aangevraagd werd met <B>--build</B> of gelijkwaardige opties).
+<DT id="5"><B>5.</B><DD>
+Het voert de uitbreiding (hook) <B>build</B> uit en roept <B>debian/rules</B>
+<I>build-target</I> aan. Het voert vervolgens de uitbreiding (hook) <B>binary</B>
+uit, gevolgd door <B>fakeroot debian/rules</B> <I>binary-target</I> (tenzij enkel de
+bouw van het broncodepakket gevraagd werd met <B>--build=source</B> of
+gelijkwaardige opties). Merk op dat <I>build-target</I> en <I>binary-target</I>
+ofwel <B>build</B> en <B>binary</B> zijn (de standaardsituatie, of indien een bouw
+van het type <B>any</B> en <B>all</B> aangevraagd werd met <B>--build</B> of
+gelijkwaardige opties), ofwel <B>build-arch</B> en <B>binary-arch</B> (indien een
+bouw van het type <B>any</B> maar niet <B>all</B> aangevraagd werd met <B>--build</B> of
+gelijkwaardige opties), ofwel <B>build-indep</B> en <B>binary-indep</B> (indien een
+bouw van het type <B>all</B> maar niet <B>any</B> aangevraagd werd met <B>--build</B> of
+gelijkwaardige opties).
+<DT id="6"><B>6.</B><DD>
+Het voert de uitbreiding (hook) <B>buildinfo</B> uit en roept
+<B>dpkg-genbuildinfo</B> aan om een bestand <B>.buildinfo</B> aan te
+maken. Verschillende opties van <B>dpkg-buildpackage</B> worden aan
+<B>dpkg-genbuildinfo</B> overgemaakt.
+<DT id="7"><B>7.</B><DD>
+Het voert de uitbreiding (hook) <B>changes</B> uit en roept <B>dpkg-genchanges</B>
+aan om een bestand <B>.changes</B> aan te maken. De naam van het
+<B>.changes</B>-bestand is afhankelijk van het bouwtype en zal zo specifiek als
+nodig zijn, maar niet meer dan dat. Voor een bouw die <B>any</B> bevat, zal de
+naam <I>broncode-naam</I><B>_</B><I>binaire-versie</I><B>_</B><I>arch</I><B>.changes</B> zijn. Voor
+een bouw die <B>all</B> bevat, zal de naam
+<I>broncode-naam</I><B>_</B><I>binaire-versie</I><B>_</B><B>all.changes</B> zijn. En voor een
+bouw die <B>source</B> bevat, zal de naam
+<I>broncode-naam</I><B>_</B><I>broncode-versie</I><B>_</B><B>source.changes</B> zijn. Veel
+opties van <B>dpkg-buildpackage</B> worden aan <B>dpkg-genchanges</B> overgemaakt.
+<DT id="8"><B>8.</B><DD>
+Het voert de uitbreiding (hook) <B>postclean</B> uit en als <B>-tc</B> of
+<B>--post-clean</B> werd opgegeven zal het nogmaals <B>fakeroot debian/rules
+clean</B> aanroepen.
+<DT id="9"><B>9.</B><DD>
+Het roept <B>dpkg-source --after-build</B> aan.
+<DT id="10"><B>10.</B><DD>
+Het voert de uitbreiding (hook) <B>check</B> uit en roept een
+pakketcontroleprogramma aan voor nazicht van het bestand <B>.changes</B> (indien
+er in <B>DEB_CHECK_COMMAND</B> of met <B>--check-command</B> een commando opgegeven
+werd).
+<DT id="11"><B>11.</B><DD>
+Het voert de uitbreiding (hook) <B>sign</B> uit en roept <B>gpg2</B> of <B>gpg</B> aan
+(voor zover het geen bouw van het type UNRELEASED is) voor het ondertekenen
+van het bestand <B>.dsc</B> (als dat bestaat, tenzij <B>-us</B> of
+<B>--unsigned-source</B> opgegeven werden), van het bestand <B>.buildinfo</B>
+(tenzij <B>-ui</B>, <B>--unsigned-buildinfo</B>, <B>-uc</B> of <B>--unsigned-changes</B>
+opgegeven werden) en van het bestand <B>.changes</B> (tenzij <B>-uc</B> of
+<B>--unsigned-changes</B> opgegeven werden).
+<DT id="12"><B>12.</B><DD>
+Het voert de uitbreiding (hook) <B>done</B> uit.
+</DL>
+<A NAME="lbAE">&nbsp;</A>
+<H2>OPTIES</H2>
+
+Alle opties kunnen zowel opgegeven worden aan de commandoregel als in de
+systeem- en gebruikersconfiguratiebestanden voor <B>dpkg-buildpackage</B>. Elke
+regel in het configuratiebestand is ofwel een optie (exact hetzelfde als de
+commandoregeloptie, maar zonder de verbindingsstreepjes aan het begin) of
+commentaar (als hij begint met een '<B>#</B>').
+<P>
+<DL COMPACT>
+<DT id="13"><B>--build=</B><I>type</I><DD>
+Geeft het bouw-<I>type</I> op vanuit een lijst van door komma's gescheiden
+componenten (sinds dpkg 1.18.5). Wordt doorgegeven aan <B>dpkg-genchanges</B>.
+<P>
+De waarden die gebruikt mogen worden zijn:
+<DL COMPACT><DT id="14"><DD>
+<DL COMPACT>
+<DT id="15"><B>source</B><DD>
+Bouwt het broncodepakket. Opmerking: Indien u deze waarde op zichzelf staand
+gebruikt en indien uw enige bedoeling is om het bronpakket gewoon (opnieuw)
+te bouwen vanuit een zuivere broncodeboom, dan is het altijd beter om
+rechtstreeks <B>dpkg-source</B> te gebruiken, aangezien dat niet vereist dat
+eventuele bouwvereisten ge&iuml;nstalleerd worden, welke anders nodig zijn om in
+staat te zijn het doelwit <B>clean</B> te aanroepen.
+<DT id="16"><B>any</B><DD>
+Bouwt de architectuurspecifieke binaire pakketten.
+<DT id="17"><B>all</B><DD>
+Bouwt de architectuuronafhankelijke binaire pakketten.
+<DT id="18"><B>binary</B><DD>
+Bouwt de architectuurspecifieke en de architectuuronafhankelijke binaire
+pakketten. Dit is een alias voor <B>any,all</B>.
+<DT id="19"><B>full</B><DD>
+Bouwt alles. Dit is een alias voor <B>source,any,all</B> en identiek aan de
+standaardsituatie wanneer geen bouwoptie opgegeven werd..
+</DL>
+</DL>
+
+<DT id="20"><B>-g</B><DD>
+Het equivalent van <B>--build=source,all</B> (sinds dpkg 1.17.11).
+<DT id="21"><B>-G</B><DD>
+Het equivalent van <B>--build=source,any</B> (sinds dpkg 1.17.11).
+<DT id="22"><B>-b</B><DD>
+Het equivalent van <B>--build=binary</B> of <B>--build=any,all</B>.
+<DT id="23"><B>-B</B><DD>
+Het equivalent van <B>--build=any</B>.
+<DT id="24"><B>-A</B><DD>
+Het equivalent van <B>--build=all</B>.
+<DT id="25"><B>-S</B><DD>
+Het equivalent van <B>--build=source</B>.
+<DT id="26"><B>-F</B><DD>
+Het equivalent van <B>--build=full</B>, <B>--build=source,binary</B> of
+<B>--build=source,any,all</B> (sinds dpkg 1.15.8).
+<DT id="27"><B>--target=</B><I>target</I>[,...]<DD>
+
+<B>--target </B><I>doel</I>[,...]
+
+<B>-T</B>, <B>--rules-target=</B><I>target</I>[,...]
+Roept na het opzetten van de bouwomgeving per opgegeven target eenmaal
+<B>debian/rules</B> <I>doel</I> aan en stopt het proces van het bouwen van het
+pakket hier (sinds dpkg 1.15.0, de lange optie sinds dpkg 1.18.8, de
+ondersteuning voor meerdere targets sinds dpkg 1.18.16). Indien ook
+<B>--as-root</B> opgegeven werd, dan wordt het commando als systeembeheerder
+uitgevoerd (zie <B>--root-command</B>). Merk op dat gekende targets die
+verplicht als systeembeheerder moeten uitgevoerd worden, deze optie niet
+nodig hebben (d.w.z. de targets <B>clean</B>, <B>binary</B>, <B>binary-arch</B> en
+<B>binary-indep</B>).
+<DT id="28"><B>--as-root</B><DD>
+Enkel zinvol in samenhang met <B>--target</B> (sinds dpkg 1.15.0). Vereist dat
+het doel met systeembeheerdersrechten uitgevoerd wordt.
+<DT id="29"><B>-si</B><DD>
+
+<B>-sa</B>
+
+<B>-sd</B>
+
+<B>-v</B><I>versie</I>
+
+<B>-C</B><I>beschrijving-van-de-wijzigingen</I>
+
+<B>-m</B>, <B>--release-by=</B><I>adres-van-de-pakketonderhouder</I>
+
+<B>-e</B>, <B>--build-by=</B><I>adres-van-de-pakketonderhouder</I>
+Wordt ongewijzigd doorgegeven aan <B>dpkg-genchanges</B>. Zie de man-pagina
+ervan.
+<DT id="30"><B>-a</B>, <B>--host-arch</B> <I>architectuur</I><DD>
+Geef de Debian-architectuur op waarvoor we bouwen (lange optie sinds dpkg
+1.17.17). De architectuur van de machine waarop we bouwen, wordt automatisch
+vastgesteld en ze wordt ook als standaard genomen voor de hostmachine.
+<DT id="31"><B>-t</B>, <B>--host-type</B> <I>gnu-systeemtype</I><DD>
+Geef het GNU-systeemtype op waarvoor we bouwen (lange optie sinds dpkg
+1.17.17). Het kan gebruikt worden in de plaats van <B>--host-arch</B> of als een
+aanvulling om het standaard GNU-systeemtype voor de Debian-architectuur van
+de host aan te passen.
+<DT id="32"><B>--target-arch</B> <I>architectuur</I><DD>
+Geef de Debian-architectuur op waarvoor de gebouwde programma's zullen
+bouwen (sinds dpkg 1.17.17). De standaardwaarde is de hostmachine.
+<DT id="33"><B>--target-type</B> <I>gnu-systeemtype</I><DD>
+Geef het GNU-systeemtype op waarvoor de gebouwde programma's zullen bouwen
+(sinds dpkg 1.17.17). Het kan gebruikt worden in de plaats van
+<B>--target-arch</B> of als een aanvulling om het standaard GNU-systeemtype voor
+de Debian doelarchitectuur aan te passen.
+<DT id="34"><B>-P</B>, <B>--build-profiles=</B><I>profiel</I>[<B>,</B>...]<DD>
+Geef het/de profiel(en) die we bouwen op in een lijst met een komma als
+scheidingsteken (sinds dpkg 1.17.2, de lange optie sinds dpkg 1.18.8). Het
+standaardgedrag is om niet voor een specifiek profiel te bouwen. Stelt ze
+ook in (als een lijst met een spatie als scheidingsteken) als de
+omgevingsvariabele <B>DEB_BUILD_PROFILES</B>, hetgeen bijvoorbeeld toelaat aan
+<B>debian/rules</B>-bestanden om gebruik te maken van deze informatie bij
+voorwaardelijke bouwoperaties.
+<DT id="35"><B>-j</B>, <B>--jobs</B>[=<I>taken</I>|<B>auto</B>]<DD>
+Aantal taken dat gelijktijdig mag uitgevoerd worden, waarbij het aantal
+taken overeenkomt met het aantal beschikbare processoren als <B>auto</B>
+opgegeven werd (sinds dpkg 1.17.10), of onbeperkt is als <I>taken</I> niet
+opgegeven werd. Dit is het equivalent van de gelijknamige optie voor
+<B><A HREF="/cgi-bin/man/man2html?1+make">make</A></B>(1) (sinds dpkg 1.14.7, lange optie sinds dpkg 1.18.8). Het voegt
+zichzelf toe aan de omgevingsvariabele <B>MAKEFLAGS</B>, waardoor elke erop
+volgende aanroep van make de optie overerft en parallelle taakuitvoering dus
+opgelegd wordt bij het maken van pakketten (en mogelijks ook oplegt aan het
+bouwsysteem van de toeleveraar indien dat gebruik maakt van make), ongeacht
+het feit of er ondersteuning is voor het in parallel bouwen, hetgeen tot
+mislukkingen bij het bouwen kan leiden. Het voegt ook <B>parallel=</B><I>taken</I>
+of <B>parallel</B> toe aan de omgevingsvariabele <B>DEB_BUILD_OPTIONS</B>, hetgeen
+debian/rules-bestanden in staat stelt van deze informatie gebruik te maken
+voor eigen doeleinden. De waarde <B>-j</B> heeft voorrang op de optie
+<B>parallel=</B><I>taken</I> of <B>parallel</B> in de omgevingsvariabele
+<B>DEB_BUILD_OPTIONS</B>. Merk op dat de waarde <B>auto</B> zal vervangen worden
+door het effectieve aantal momenteel actieve processoren en ze dus als
+zodanig naar geen enkel onderliggend proces doorgegeven zal worden. Indien
+het aantal beschikbare processoren niet afgeleid kan worden, dan zal de code
+terugvallen op het gebruiken van seri&euml;le uitvoering (sinds dpkg 1.18.15),
+hoewel dit enkel zou mogen gebeuren op exotische en niet-ondersteunde
+systemen.
+<DT id="36"><B>-J</B>, <B>--jobs-try</B>[=<I>taken</I>|<B>auto</B>]<DD>
+Deze optie (sinds dpkg 1.18.2, de lange optie sinds dpkg 1.18.8) is het
+equivalent van de optie <B>-j</B>, behalve dat ze de omgevingsvariabele
+<B>MAKEFLAGS</B> niet instelt. Als zodanig is het veiliger om ze te gebruiken
+met elk pakket, ook met die waarvoor het niet zeker is dat in parallel
+bouwen mogelijk is.
+<P>
+<B>auto</B> is het standaardgedrag (sinds dpkg 1.18.11). Het aantal jobs
+instellen op 1 zal het seri&euml;le gedrag opnieuw instellen.
+<DT id="37"><B>-D</B>, <B>--check-builddeps</B><DD>
+Controleer bouwvereisten en tegenstrijdigheden en breek af als er niet aan
+voldaan is (de lange optie sinds dpkg 1.18.8). Dit is het standaardgedrag.
+<DT id="38"><B>-d</B>, <B>--no-check-builddeps</B><DD>
+Controleer bouwvereisten en tegenstrijdigheden niet (de lange optie sinds
+dpkg 1.18.8).
+<DT id="39"><B>--ignore-builtin-builddeps</B><DD>
+Controleer ingebouwde bouwvereisten en tegenstrijdigheden niet (sinds dpkg
+1.18.2). Dit zijn de distributiespecifieke impliciete bouwvereisten die
+gewoonlijk noodzakelijk zijn in een bouwomgeving, de zogenaamde set van
+pakketten van het type Build-Essential.
+<DT id="40"><B>--rules-requires-root</B><DD>
+Honoreer het veld <B>Rules-Requires-Root</B> niet; er wordt teruggevallen op
+zijn verouderde standaardwaarde (since dpkg 1.19.1).
+<DT id="41"><B>-nc</B>, <B>--no-pre-clean</B><DD>
+Schoon voor het bouwen de broncodeboom niet op (de lange optie sinds dpkg
+1.18.8). Impliceert <B>-b</B> indien geen van de opties <B>-F</B>, <B>-g</B>, <B>-G</B>,
+<B>-B</B>, <B>-A</B> of <B>-S</B> gekozen werd. Gecombineerd met <B>-S</B> impliceert dit
+<B>-d</B> (sinds dpkg 1.18.0).
+<DT id="42"><B>--pre-clean</B><DD>
+Schoon voor het bouwen de broncodeboom op (sinds dpkg 1.18.8). Dit is het
+standaardgedrag.
+<DT id="43"><B>-tc</B>, <B>--post-clean</B><DD>
+Schoon de broncodeboom op (met <I>commando-om-root-te-worden</I> <B>debian/rules
+clean</B>) nadat het pakket gebouwd werd (de lange optie sinds dpkg 1.18.8).
+<DT id="44"><B>--no-post-clean</B><DD>
+Schoon de broncodeboom niet op na het bouwen van het pakket (sinds dpkg
+1.19.1). Dit is het standaardgedrag.
+<DT id="45"><B>-r</B>, <B>--root-command=</B><I>commando-om-root-te-worden</I><DD>
+Wanneer <B>dpkg-buildpackage</B> een deel van het bouwproces in de hoedanigheid
+van root (systeembeheerder) moet uitvoeren, laat het het commando dat het
+uitvoert voorafgaan door <I>commando-om-root-te-worden</I> indien er een
+opgegeven werd (de lange optie sinds dpkg 1.18.8). Anders, als er geen
+opgegeven werd, wordt standaard <B>fakeroot</B> gebruikt als het beschikbaar
+is. <I>commando-om-root-te-worden</I> moet beginnen met de naam van een
+programma in het <B>PATH</B> en krijgt als argumenten de naam van het echte
+commando dat uitgevoerd moet worden en de argumenten die het moet
+krijgen. <I>commando-om-root-te-worden</I> kan parameters bevatten (ze moeten
+met spaties van elkaar gescheiden worden) maar geen
+shell-metatekens. Doorgaans is <I>commando-om-root-te-worden</I> <B>fakeroot</B>,
+<B>sudo</B>, <B>super</B> of <B>really</B>. <B>su</B> is niet geschikt, aangezien het enkel
+de shell van de gebruiker kan aanroepen met <B>-c</B> in plaats van
+afzonderlijke argumenten door te geven aan het uit te voeren commando.
+<DT id="46"><B>-R</B>, <B>--rules-file=</B><I>rules-bestand</I><DD>
+Een Debian-pakket bouwen houdt meestal het aanroepen van <B>debian/rules</B> in
+als een commando met verschillende standaardparameters (sinds dpkg 1.14.17,
+de lange optie sinds dpkg 1.18.8). Met deze optie is het mogelijk om een
+andere programma-aanroep te gebruiken om het pakket te bouwen (ze kan
+parameters bevatten die onderling door spaties gescheiden
+worden). Anderzijds kan de optie ook gebruikt worden om het standaard
+rules-bestand uit te voeren met een ander make-programma (bijvoorbeeld door
+<B>/usr/local/bin/make -f debian/rules</B> te gebruiken als <I>rules-bestand</I>).
+<DT id="47"><B>--check-command=</B><I>controlecommando</I><DD>
+Commando dat gebruikt wordt om het bestand <B>.changes</B> zelf en eventuele
+gebouwde artefacten waarnaar in het bestand verwezen wordt, te controleren
+(sinds dpkg 1.17.6). Het commando moet als argument de padnaam van
+<B>.changes</B> krijgen. Gewoonlijk is dit commando <B>lintian</B>.
+<DT id="48"><B>--check-option=</B><I>optie</I><DD>
+Geef optie <I>optie</I> door aan het <I>controlecommando</I> dat gespecificeerd werd
+met <B>DEB_CHECK_COMMAND</B> of met <B>--check-command</B> (sinds dpkg 1.17.6). Kan
+meermaals gebruikt worden.
+<DT id="49"><B>--hook-</B><I>hook-naam</I><B>=</B><I>hook-commando</I><DD>
+Stelt de opgegeven shell-code <I>hook-commando</I> in als de uitbreiding (hook)
+<I>hook-naam</I>, die zal uitgevoerd worden op de momenten die in de
+uitvoeringsstappen gepreciseerd worden (sinds dpkg 1.17.6). De uitbreidingen
+(hooks) zullen steeds uitgevoerd worden, zelfs als de volgende actie niet
+uitgevoerd wordt (met uitzondering voor de uitbreiding (hook)
+<B>binary</B>). Alle uitbreidingen (hooks) zullen uitgevoerd worden in de map
+van de uitgepakte broncode.
+<P>
+Opmerking: uitbreidingen (hooks) kunnen het bouwproces be&iuml;nvloeden en leiden
+tot het mislukken van de bouw als hun commando's falen. Wees dus alert voor
+onbedoelde consequenties.
+<P>
+Momenteel worden de volgende <I>hook-namen</I> ondersteund
+<P>
+<B>init preclean source build binary buildinfo changes postclean check sign
+done</B>
+<P>
+Het <I>hook-commando</I> ondersteunt de volgende
+substitutie-indelingstekenreeksen, die er voorafgaand aan de uitvoering op
+toegepast zullen worden:
+<P>
+<DL COMPACT><DT id="50"><DD>
+<DL COMPACT>
+<DT id="51"><B>%%</B><DD>
+E&eacute;n enkel %-teken.
+<DT id="52"><B>%a</B><DD>
+Een booleaanse waarde (0 of 1), die aangeeft of de volgende actie uitgevoerd
+wordt of niet.
+<DT id="53"><B>%p</B><DD>
+De naam van het broncodepakket.
+<DT id="54"><B>%v</B><DD>
+De versie van het broncodepakket.
+<DT id="55"><B>%s</B><DD>
+De versie van het broncodepakket (zonder de epoch).
+<DT id="56"><B>%u</B><DD>
+Het upstream versienummer (toeleveraarsversie).
+</DL>
+</DL>
+
+<DT id="57"><B>--buildinfo-option=</B><I>optie</I><DD>
+Geef optie <I>optie</I> door aan <B>dpkg-genbuildinfo</B> (sinds dpkg 1.18.11). Kan
+meermaals gebruikt worden.
+<DT id="58"><B>-p</B>, <B>--sign-command=</B><I>ondertekeningscommando</I><DD>
+Als <B>dpkg-buildpackage</B> GPG moet uitvoeren om een controlebestand (<B>.dsc</B>)
+van de broncode of een bestand <B>.changes</B> te ondertekenen zal het
+<I>ondertekeningscommando</I> (en indien nodig daarbij het <B>PATH</B> doorzoeken)
+uitvoeren in plaats van <B>gpg2</B> of <B>gpg</B> (de lange optie sinds dpkg
+1.18.8). Aan <I>ondertekeningscommando</I> zullen alle argumenten meegegeven
+worden die anders aan <B>gpg2</B> of <B>gpg</B> gegeven zouden
+zijn. <I>ondertekeningscommando</I> mag geen spaties bevatten en geen andere
+shell-metatekens.
+<DT id="59"><B>-k</B>, <B>--sign-key=</B><I>sleutel-id</I><DD>
+Geef de sleutel-ID op die gebruikt moet worden om pakketten te ondertekenen
+(de lange optie sinds dpkg 1.18.8).
+<DT id="60"><B>-us</B>, <B>--unsigned-source</B><DD>
+Onderteken het broncodepakket niet (de lange optie sinds dpkg 1.18.8).
+<DT id="61"><B>-ui</B>, <B>--unsigned-buildinfo</B><DD>
+Onderteken het bestand <B>.buildinfo</B> niet (sinds dpkg 1.18.19).
+<DT id="62"><B>-uc</B>, <B>--unsigned-changes</B><DD>
+Onderteken de bestanden <B>.buildinfo</B> en <B>.changes</B> niet (de lange optie
+sinds dpkg 1.18.8).
+<DT id="63"><B>--no-sign</B><DD>
+Onderteken geen enkel bestand; dit omvat het broncodepakket, het bestand
+<B>.buildinfo</B> en het bestand <B>.changes</B> (sinds dpkg 1.18.20).
+<DT id="64"><B>--force-sign</B><DD>
+Verplicht het ondertekenen van de resulterende bestanden (sinds dpkg
+1.17.0), ongeacht <B>-us</B>, <B>--unsigned-source</B>, <B>-ui</B>,
+<B>--unsigned-buildinfo</B>, <B>-uc</B>, <B>--unsigned-changes</B> of overige interne
+heuristiek.
+<DT id="65"><B>-sn</B><DD>
+
+<B>-ss</B>
+
+<B>-sA</B>
+
+<B>-sk</B>
+
+<B>-su</B>
+
+<B>-sr</B>
+
+<B>-sK</B>
+
+<B>-sU</B>
+
+<B>-sR</B>
+
+<B>-i</B>, <B>--diff-ignore</B>[=<I>regex</I>]
+
+<B>-I</B>, <B>--tar-ignore</B>[=<I>patroon</I>]
+
+<B>-z</B>, <B>--compression-level=</B><I>niveau</I>
+
+<B>-Z</B>, <B>--compression=</B><I>compressor</I>
+Wordt ongewijzigd doorgegeven aan <B>dpkg-source</B>. Zie de man-pagina ervan.
+<DT id="66"><B>--source-option=</B><I>optie</I><DD>
+Geef optie <I>optie</I> door aan <B>dpkg-source</B> (sinds dpkg 1.15.6). Kan
+meermaals gebruikt worden.
+<DT id="67"><B>--changes-option=</B><I>optie</I><DD>
+Geef optie <I>optie</I> door aan <B>dpkg-genchanges</B> (sinds dpkg 1.15.6). Kan
+meermaals gebruikt worden.
+<DT id="68"><B>--admindir=</B><I>map</I><DD>
+
+<B>--admindir </B><I>map</I>
+Geef een andere locatie op voor de database van <B>dpkg</B> (sinds dpkg
+1.14.0). De standaardlocatie is <I>/var/lib/dpkg</I>.
+<DT id="69"><B>-?</B>, <B>--help</B><DD>
+Toon info over het gebruik en sluit af.
+<DT id="70"><B>--version</B><DD>
+Toon de versie en sluit af.
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>OMGEVING</H2>
+
+<A NAME="lbAG">&nbsp;</A>
+<H3>Externe omgeving</H3>
+
+<DL COMPACT>
+<DT id="71"><B>DEB_CHECK_COMMAND</B><DD>
+Indien dit ingesteld werd, zal het gebruikt worden als het commando waarmee
+het bestand <B>.changes</B> gecontroleerd wordt (sinds dpkg 1.17.6). De optie
+<B>--check-command</B> heeft hierop voorrang.
+<DT id="72"><B>DEB_SIGN_KEYID</B><DD>
+Indien dit ingesteld werd, zal het gebruikt worden om de bestanden
+<B>.changes</B> en <B>.dsc</B> te ondertekenen (sinds dpkg 1.17.2). De optie
+<B>--sign-key</B> heeft hierop voorrang.
+<DT id="73"><B>DEB_BUILD_OPTIONS</B><DD>
+Indien dit ingesteld werd, bevat het een lijst van door spaties van elkaar
+gescheiden opties die het bouwproces kunnen be&iuml;nvloeden in <I>debian/rules</I>
+en het gedrag van sommige dpkg-commando's.
+<P>
+Bij <B>nocheck</B> zal de variabele <B>DEB_CHECK_COMMAND</B> genegeerd worden. Bij
+<B>parallel=</B><I>N</I> zal het aantal parallelle taken op <I>N</I> ingesteld worden,
+maar de optie <B>--jobs-try</B> heeft hierop voorrang.
+<DT id="74"><B>DEB_BUILD_PROFILES</B><DD>
+Indien dit ingesteld werd, zal het gebruikt worden als het/de actieve
+bouwprofiel(en) voor het pakket dat gebouw wordt (sinds dpkg 1.17.2). Het is
+een lijst van profielnamen die onderling door een spatie gescheiden zijn. De
+optie <B>-P</B> heeft hierop voorrang.
+<DT id="75"><B>DPKG_COLORS</B><DD>
+Stelt de kleurmodus in (sinds dpkg 1.18.5). Waarden die momenteel gebruikt
+mogen worden zijn: <B>auto</B> (standaard), <B>always</B> en <B>never</B>.
+<DT id="76"><B>DPKG_NLS</B><DD>
+Indien dit ingesteld is, zal het gebruikt worden om te beslissen over het
+activeren van moedertaalondersteuning, ook gekend als
+internationaliseringsondersteuning (of i18n) (sinds dpkg 1.19.0). Geldige
+waarden zijn: <B>0</B> and <B>1</B> (standaard).
+<P>
+</DL>
+<A NAME="lbAH">&nbsp;</A>
+<H3>Interne omgeving</H3>
+
+Zelfs al exporteert <B>dpkg-buildpackage</B> sommige variabelen, toch mag
+<B>debian/rules</B> er niet op rekenen dat ze aanwezig zijn en moet het in de
+plaats daarvan gebruik maken van de desbetreffende interface om de benodigde
+variabelen op te halen, aangezien dat bestand.het belangrijkste
+aanspreekpunt is voor het bouwen van pakketten en de op zichzelf staande
+uitvoering ervan ondersteund moet zijn.
+<P>
+<DL COMPACT>
+<DT id="77"><B>DEB_BUILD_*</B><DD>
+
+<B>DEB_HOST_*</B>
+
+<B>DEB_TARGET_*</B>
+<B>dpkg-architecture</B> wordt aangeroepen met de doorgegeven parameters <B>-a</B>
+en <B>-t</B>. Eventuele variabelen die zijn optie <B>-s</B> als uitvoer geeft,
+worden in de bouwomgeving ge&iuml;ntegreerd.
+<DT id="78"><B>DEB_RULES_REQUIRES_ROOT</B><DD>
+Deze variabele wordt ingesteld op de waarde die verkregen wordt uit het veld
+<B>Rules-Requires-Root</B> of vanuit de commandoregel. Indien ze ingesteld is,
+zal ze een geldige waarde zijn voor het veld <B>Rules-Requires-Root</B>. Ze
+wordt gebruikt om <B>debian/rules</B> te informeren of de specificatie
+<B>rootless-builds.txt</B> ondersteund wordt.
+<DT id="79"><B>DEB_GAIN_ROOT_CMD</B><DD>
+Deze variabele wordt ingesteld op <I>gain-root-command</I> wanneer het veld
+<B>Rules-Requires-Root</B> ingesteld staat op een andere waarde dan <B>no</B> of
+<B>binary-targets</B>.
+<DT id="80"><B>SOURCE_DATE_EPOCH</B><DD>
+Deze variabele wordt ingesteld op de Unix-tijd (timestamp) sinds het
+tijdstip (de epoch) van het laatste item in <I>debian/changelog</I>, voor zover
+hij niet reeds gedefinieerd is.
+</DL>
+<A NAME="lbAI">&nbsp;</A>
+<H2>BESTANDEN</H2>
+
+<DL COMPACT>
+<DT id="81"><I>/etc/dpkg/buildpackage.conf</I><DD>
+Configuratiebestand dat voor het hele systeem geldt
+<DT id="82"><I>$XDG_CONFIG_HOME/dpkg/buildpackage.conf</I> of<DD>
+
+<I>$HOME/.config/dpkg/buildpackage.conf</I>
+Configuratiebestand dat gebruikersafhankelijk is.
+</DL>
+<A NAME="lbAJ">&nbsp;</A>
+<H2>OPMERKINGEN</H2>
+
+<A NAME="lbAK">&nbsp;</A>
+<H3>Compileervlaggen worden niet langer ge&euml;xporteerd</H3>
+
+Tussen dpkg 1.14.17 en 1.16.1 exporteerde <B>dpkg-buildpackage</B>
+compileervlaggen (<B>CFLAGS</B>, <B>CXXFLAGS</B>, <B>FFLAGS</B>, <B>CPPFLAGS</B> en
+<B>LDFLAGS</B>) met de waarden die door <B>dpkg-buildflags</B> teruggegeven
+werden. Dit is niet langer het geval
+<A NAME="lbAL">&nbsp;</A>
+<H3>Standaard bouwtargets</H3>
+
+<B>dpkg-buildpackage</B> gebruikt sinds dpkg 1.16.2 de targets <B>build-arch</B> en
+<B>build-indep</B>. Deze targets zijn dus verplicht. Maar om te vermijden dat
+bestaande pakketten defect raken en om de overgang te vergemakkelijken, zal
+het, indien het broncodepakket niet zowel architectuuronafhankelijke als
+architectuurspecifieke binaire pakketten bouwt (sinds dpkg 1.18.8),
+terugvallen op het gebruik van het target <B>build</B> indien <B>make -f
+debian/rules -qn</B> <I>bouwtarget</I> 2 teruggeeft als afsluitwaarde.
+<A NAME="lbAM">&nbsp;</A>
+<H2>BUGS</H2>
+
+Het zou mogelijk moeten zijn om spaties en shell-metatekens en initi&euml;le
+argumenten op te geven voor <I>commando-om-root-te-worden</I> en
+<I>ondertekeningscommando</I>.
+<A NAME="lbAN">&nbsp;</A>
+<H2>ZIE OOK</H2>
+
+
+<B><A HREF="/cgi-bin/man/man2html?1+dpkg-source">dpkg-source</A></B>(1), <B><A HREF="/cgi-bin/man/man2html?1+dpkg-architecture">dpkg-architecture</A></B>(1), <B><A HREF="/cgi-bin/man/man2html?1+dpkg-buildflags">dpkg-buildflags</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?1+dpkg-genbuildinfo">dpkg-genbuildinfo</A></B>(1), <B><A HREF="/cgi-bin/man/man2html?1+dpkg-genchanges">dpkg-genchanges</A></B>(1), <B><A HREF="/cgi-bin/man/man2html?1+fakeroot">fakeroot</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?1+lintian">lintian</A></B>(1), <B><A HREF="/cgi-bin/man/man2html?1+gpg2">gpg2</A></B>(1), <B><A HREF="/cgi-bin/man/man2html?1+gpg">gpg</A></B>(1).
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="83"><A HREF="#lbAB">NAAM</A><DD>
+<DT id="84"><A HREF="#lbAC">OVERZICHT</A><DD>
+<DT id="85"><A HREF="#lbAD">BESCHRIJVING</A><DD>
+<DT id="86"><A HREF="#lbAE">OPTIES</A><DD>
+<DT id="87"><A HREF="#lbAF">OMGEVING</A><DD>
+<DL>
+<DT id="88"><A HREF="#lbAG">Externe omgeving</A><DD>
+<DT id="89"><A HREF="#lbAH">Interne omgeving</A><DD>
+</DL>
+<DT id="90"><A HREF="#lbAI">BESTANDEN</A><DD>
+<DT id="91"><A HREF="#lbAJ">OPMERKINGEN</A><DD>
+<DL>
+<DT id="92"><A HREF="#lbAK">Compileervlaggen worden niet langer ge&euml;xporteerd</A><DD>
+<DT id="93"><A HREF="#lbAL">Standaard bouwtargets</A><DD>
+</DL>
+<DT id="94"><A HREF="#lbAM">BUGS</A><DD>
+<DT id="95"><A HREF="#lbAN">ZIE OOK</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:19 GMT, March 31, 2021
+</BODY>
+</HTML>

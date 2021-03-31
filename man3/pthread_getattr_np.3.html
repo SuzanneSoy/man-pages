@@ -1,0 +1,465 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of PTHREAD_GETATTR_NP</TITLE>
+</HEAD><BODY>
+<H1>PTHREAD_GETATTR_NP</H1>
+Section: Linux Programmer's Manual (3)<BR>Updated: 2019-03-06<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+pthread_getattr_np - get attributes of created thread
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<PRE>
+<B>#define _GNU_SOURCE</B>             /* See <A HREF="/cgi-bin/man/man2html?7+feature_test_macros">feature_test_macros</A>(7) */
+<B>#include &lt;<A HREF="file:///usr/include/pthread.h">pthread.h</A>&gt;</B>
+
+<B>int pthread_getattr_np(pthread_t </B><I>thread</I><B>, pthread_attr_t *</B><I>attr</I><B>);</B>
+
+Compile and link with <I>-pthread</I>.
+</PRE>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+The
+<B>pthread_getattr_np</B>()
+
+function initializes the thread attributes object referred to by
+<I>attr</I>
+
+so that it contains actual attribute values describing the running thread
+<I>thread</I>.
+
+<P>
+
+The returned attribute values may differ from
+the corresponding attribute values passed in the
+<I>attr</I>
+
+object that was used to create the thread using
+<B><A HREF="/cgi-bin/man/man2html?3+pthread_create">pthread_create</A></B>(3).
+
+In particular, the following attributes may differ:
+<DL COMPACT>
+<DT id="1">*<DD>
+the detach state, since a joinable thread may have detached itself
+after creation;
+<DT id="2">*<DD>
+the stack size,
+which the implementation may align to a suitable boundary.
+<DT id="3">*<DD>
+and the guard size,
+which the implementation may round upward to a multiple of the page size,
+or ignore (i.e., treat as 0),
+if the application is allocating its own stack.
+</DL>
+<P>
+
+Furthermore, if the stack address attribute was not set
+in the thread attributes object used to create the thread,
+then the returned thread attributes object will report the actual
+stack address that the implementation selected for the thread.
+<P>
+
+When the thread attributes object returned by
+<B>pthread_getattr_np</B>()
+
+is no longer required, it should be destroyed using
+<B><A HREF="/cgi-bin/man/man2html?3+pthread_attr_destroy">pthread_attr_destroy</A></B>(3).
+
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+On success, this function returns 0;
+on error, it returns a nonzero error number.
+<A NAME="lbAF">&nbsp;</A>
+<H2>ERRORS</H2>
+
+<DL COMPACT>
+<DT id="4"><B>ENOMEM</B>
+
+<DD>
+
+Insufficient memory.
+</DL>
+<P>
+
+In addition, if
+<I>thread</I>
+
+refers to the main thread, then
+<B>pthread_getattr_np</B>()
+
+can fail because of errors from various underlying calls:
+<B><A HREF="/cgi-bin/man/man2html?3+fopen">fopen</A></B>(3),
+
+if
+<I>/proc/self/maps</I>
+
+can't be opened;
+and
+<B><A HREF="/cgi-bin/man/man2html?2+getrlimit">getrlimit</A></B>(2),
+
+if the
+<B>RLIMIT_STACK</B>
+
+resource limit is not supported.
+<A NAME="lbAG">&nbsp;</A>
+<H2>VERSIONS</H2>
+
+This function is available in glibc since version 2.2.3.
+<A NAME="lbAH">&nbsp;</A>
+<H2>ATTRIBUTES</H2>
+
+For an explanation of the terms used in this section, see
+<B><A HREF="/cgi-bin/man/man2html?7+attributes">attributes</A></B>(7).
+
+
+<TABLE BORDER>
+<TR VALIGN=top><TD><B>Interface</B></TD><TD><B>Attribute</B></TD><TD><B>Value</B><BR></TD></TR>
+<TR VALIGN=top><TD>
+<B>pthread_getattr_np</B>()
+
+</TD><TD>Thread safety</TD><TD>MT-Safe<BR></TD></TR>
+</TABLE>
+
+
+<A NAME="lbAI">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+This function is a nonstandard GNU extension;
+hence the suffix &quot;_np&quot; (nonportable) in the name.
+<A NAME="lbAJ">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+The program below demonstrates the use of
+<B>pthread_getattr_np</B>().
+
+The program creates a thread that then uses
+<B>pthread_getattr_np</B>()
+
+to retrieve and display its guard size, stack address,
+and stack size attributes.
+Command-line arguments can be used to set these attributes
+to values other than the default when creating the thread.
+The shell sessions below demonstrate the use of the program.
+<P>
+
+In the first run, on an x86-32 system,
+a thread is created using default attributes:
+<P>
+
+
+
+$<B> ulimit -s</B>      # No stack limit ==&gt; default stack size is 2 MB
+
+unlimited
+$<B> ./a.out</B>
+
+Attributes of created thread:
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Guard&nbsp;size&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;4096&nbsp;bytes
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Stack&nbsp;address&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;0x40196000&nbsp;(EOS&nbsp;=&nbsp;0x40397000)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Stack&nbsp;size&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;0x201000&nbsp;(2101248)&nbsp;bytes
+
+
+<P>
+
+In the following run, we see that if a guard size is specified,
+it is rounded up to the next multiple of the system page size
+(4096 bytes on x86-32):
+<P>
+
+
+
+$<B> ./a.out -g 4097</B>
+
+Thread attributes object after initializations:
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Guard&nbsp;size&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;4097&nbsp;bytes
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Stack&nbsp;address&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;(nil)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Stack&nbsp;size&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;0x0&nbsp;(0)&nbsp;bytes
+<P>
+Attributes of created thread:
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Guard&nbsp;size&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;8192&nbsp;bytes
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Stack&nbsp;address&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;0x40196000&nbsp;(EOS&nbsp;=&nbsp;0x40397000)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Stack&nbsp;size&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;0x201000&nbsp;(2101248)&nbsp;bytes
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<P>
+
+In the last run, the program manually allocates a stack for the thread.
+In this case, the guard size attribute is ignored.
+<P>
+
+
+
+$<B> ./a.out -g 4096 -s 0x8000 -a</B>
+
+Allocated thread stack at 0x804d000
+<P>
+Thread attributes object after initializations:
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Guard&nbsp;size&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;4096&nbsp;bytes
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Stack&nbsp;address&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;0x804d000&nbsp;(EOS&nbsp;=&nbsp;0x8055000)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Stack&nbsp;size&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;0x8000&nbsp;(32768)&nbsp;bytes
+<P>
+Attributes of created thread:
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Guard&nbsp;size&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;0&nbsp;bytes
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Stack&nbsp;address&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;0x804d000&nbsp;(EOS&nbsp;=&nbsp;0x8055000)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Stack&nbsp;size&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;0x8000&nbsp;(32768)&nbsp;bytes
+
+
+<A NAME="lbAK">&nbsp;</A>
+<H3>Program source</H3>
+
+
+
+#define _GNU_SOURCE     /* To get pthread_getattr_np() declaration */
+#include &lt;<A HREF="file:///usr/include/pthread.h">pthread.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdlib.h">stdlib.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/unistd.h">unistd.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/errno.h">errno.h</A>&gt;
+<P>
+#define handle_error_en(en, msg) \
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;do&nbsp;{&nbsp;errno&nbsp;=&nbsp;en;&nbsp;perror(msg);&nbsp;exit(EXIT_FAILURE);&nbsp;}&nbsp;while&nbsp;(0)
+<P>
+static void
+display_stack_related_attributes(pthread_attr_t *attr, char *prefix)
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;s;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;size_t&nbsp;stack_size,&nbsp;guard_size;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;void&nbsp;*stack_addr;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;s&nbsp;=&nbsp;pthread_attr_getguardsize(attr,&nbsp;&amp;guard_size);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(s&nbsp;!=&nbsp;0)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;handle_error_en(s,&nbsp;&quot;pthread_attr_getguardsize&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;%sGuard&nbsp;size&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;%d&nbsp;bytes\n&quot;,&nbsp;prefix,&nbsp;guard_size);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;s&nbsp;=&nbsp;pthread_attr_getstack(attr,&nbsp;&amp;stack_addr,&nbsp;&amp;stack_size);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(s&nbsp;!=&nbsp;0)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;handle_error_en(s,&nbsp;&quot;pthread_attr_getstack&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;%sStack&nbsp;address&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;%p&quot;,&nbsp;prefix,&nbsp;stack_addr);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(stack_size&nbsp;&gt;&nbsp;0)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;&nbsp;(EOS&nbsp;=&nbsp;%p)&quot;,&nbsp;(char&nbsp;*)&nbsp;stack_addr&nbsp;+&nbsp;stack_size);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;%sStack&nbsp;size&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;0x%x&nbsp;(%d)&nbsp;bytes\n&quot;,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;prefix,&nbsp;stack_size,&nbsp;stack_size);
+}
+<P>
+static void
+display_thread_attributes(pthread_t thread, char *prefix)
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;s;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;pthread_attr_t&nbsp;attr;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;s&nbsp;=&nbsp;pthread_getattr_np(thread,&nbsp;&amp;attr);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(s&nbsp;!=&nbsp;0)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;handle_error_en(s,&nbsp;&quot;pthread_getattr_np&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;display_stack_related_attributes(&amp;attr,&nbsp;prefix);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;s&nbsp;=&nbsp;pthread_attr_destroy(&amp;attr);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(s&nbsp;!=&nbsp;0)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;handle_error_en(s,&nbsp;&quot;pthread_attr_destroy&quot;);
+}
+<P>
+static void *           /* Start function for thread we create */
+thread_start(void *arg)
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;Attributes&nbsp;of&nbsp;created&nbsp;thread:\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;display_thread_attributes(pthread_self(),&nbsp;&quot;\t&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_SUCCESS);&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Terminate&nbsp;all&nbsp;threads&nbsp;*/
+}
+<P>
+static void
+usage(char *pname, char *msg)
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(msg&nbsp;!=&nbsp;NULL)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fputs(msg,&nbsp;stderr);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;Usage:&nbsp;%s&nbsp;[-s&nbsp;stack-size&nbsp;[-a]]&quot;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;&nbsp;[-g&nbsp;guard-size]\n&quot;,&nbsp;pname);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;\t\t-a&nbsp;means&nbsp;program&nbsp;should&nbsp;allocate&nbsp;stack\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+}
+<P>
+static pthread_attr_t *   /* Get thread attributes from command line */
+get_thread_attributes_from_cl(int argc, char *argv[],
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pthread_attr_t&nbsp;*attrp)
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;s,&nbsp;opt,&nbsp;allocate_stack;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;long&nbsp;stack_size,&nbsp;guard_size;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;void&nbsp;*stack_addr;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;pthread_attr_t&nbsp;*ret_attrp&nbsp;=&nbsp;NULL;&nbsp;&nbsp;&nbsp;/*&nbsp;Set&nbsp;to&nbsp;attrp&nbsp;if&nbsp;we&nbsp;initialize
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;a&nbsp;thread&nbsp;attributes&nbsp;object&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;allocate_stack&nbsp;=&nbsp;0;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;stack_size&nbsp;=&nbsp;-1;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;guard_size&nbsp;=&nbsp;-1;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;while&nbsp;((opt&nbsp;=&nbsp;getopt(argc,&nbsp;argv,&nbsp;&quot;ag:s:&quot;))&nbsp;!=&nbsp;-1)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;switch&nbsp;(opt)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;case&nbsp;'a':&nbsp;&nbsp;&nbsp;allocate_stack&nbsp;=&nbsp;1;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;break;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;case&nbsp;'g':&nbsp;&nbsp;&nbsp;guard_size&nbsp;=&nbsp;strtoul(optarg,&nbsp;NULL,&nbsp;0);&nbsp;&nbsp;break;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;case&nbsp;'s':&nbsp;&nbsp;&nbsp;stack_size&nbsp;=&nbsp;strtoul(optarg,&nbsp;NULL,&nbsp;0);&nbsp;&nbsp;break;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;default:&nbsp;&nbsp;&nbsp;&nbsp;usage(argv[0],&nbsp;NULL);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(allocate_stack&nbsp;&amp;&amp;&nbsp;stack_size&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;usage(argv[0],&nbsp;&quot;Specifying&nbsp;-a&nbsp;without&nbsp;-s&nbsp;makes&nbsp;no&nbsp;sense\n&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(argc&nbsp;&gt;&nbsp;optind)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;usage(argv[0],&nbsp;&quot;Extraneous&nbsp;command-line&nbsp;arguments\n&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(stack_size&nbsp;&gt;=&nbsp;0&nbsp;||&nbsp;guard_size&nbsp;&gt;&nbsp;0)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ret_attrp&nbsp;=&nbsp;attrp;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;s&nbsp;=&nbsp;pthread_attr_init(attrp);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(s&nbsp;!=&nbsp;0)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;handle_error_en(s,&nbsp;&quot;pthread_attr_init&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(stack_size&nbsp;&gt;=&nbsp;0)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(!allocate_stack)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;s&nbsp;=&nbsp;pthread_attr_setstacksize(attrp,&nbsp;stack_size);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(s&nbsp;!=&nbsp;0)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;handle_error_en(s,&nbsp;&quot;pthread_attr_setstacksize&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;else&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;s&nbsp;=&nbsp;posix_memalign(&amp;stack_addr,&nbsp;sysconf(_SC_PAGESIZE),
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;stack_size);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(s&nbsp;!=&nbsp;0)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;handle_error_en(s,&nbsp;&quot;posix_memalign&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;Allocated&nbsp;thread&nbsp;stack&nbsp;at&nbsp;%p\n\n&quot;,&nbsp;stack_addr);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;s&nbsp;=&nbsp;pthread_attr_setstack(attrp,&nbsp;stack_addr,&nbsp;stack_size);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(s&nbsp;!=&nbsp;0)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;handle_error_en(s,&nbsp;&quot;pthread_attr_setstacksize&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(guard_size&nbsp;&gt;=&nbsp;0)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;s&nbsp;=&nbsp;pthread_attr_setguardsize(attrp,&nbsp;guard_size);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(s&nbsp;!=&nbsp;0)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;handle_error_en(s,&nbsp;&quot;pthread_attr_setstacksize&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;ret_attrp;
+}
+<P>
+int
+main(int argc, char *argv[])
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;s;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;pthread_t&nbsp;thr;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;pthread_attr_t&nbsp;attr;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;pthread_attr_t&nbsp;*attrp&nbsp;=&nbsp;NULL;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Set&nbsp;to&nbsp;&amp;attr&nbsp;if&nbsp;we&nbsp;initialize
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;a&nbsp;thread&nbsp;attributes&nbsp;object&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;attrp&nbsp;=&nbsp;get_thread_attributes_from_cl(argc,&nbsp;argv,&nbsp;&amp;attr);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(attrp&nbsp;!=&nbsp;NULL)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;Thread&nbsp;attributes&nbsp;object&nbsp;after&nbsp;initializations:\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;display_stack_related_attributes(attrp,&nbsp;&quot;\t&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;s&nbsp;=&nbsp;pthread_create(&amp;thr,&nbsp;attrp,&nbsp;&amp;thread_start,&nbsp;NULL);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(s&nbsp;!=&nbsp;0)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;handle_error_en(s,&nbsp;&quot;pthread_create&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(attrp&nbsp;!=&nbsp;NULL)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;s&nbsp;=&nbsp;pthread_attr_destroy(attrp);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(s&nbsp;!=&nbsp;0)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;handle_error_en(s,&nbsp;&quot;pthread_attr_destroy&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;pause();&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Terminates&nbsp;when&nbsp;other&nbsp;thread&nbsp;calls&nbsp;exit()&nbsp;*/
+}
+
+<A NAME="lbAL">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+
+<B><A HREF="/cgi-bin/man/man2html?3+pthread_attr_getaffinity_np">pthread_attr_getaffinity_np</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+pthread_attr_getdetachstate">pthread_attr_getdetachstate</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+pthread_attr_getguardsize">pthread_attr_getguardsize</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+pthread_attr_getinheritsched">pthread_attr_getinheritsched</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+pthread_attr_getschedparam">pthread_attr_getschedparam</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+pthread_attr_getschedpolicy">pthread_attr_getschedpolicy</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+pthread_attr_getscope">pthread_attr_getscope</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+pthread_attr_getstack">pthread_attr_getstack</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+pthread_attr_getstackaddr">pthread_attr_getstackaddr</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+pthread_attr_getstacksize">pthread_attr_getstacksize</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+pthread_attr_init">pthread_attr_init</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+pthread_create">pthread_create</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?7+pthreads">pthreads</A></B>(7)
+
+<A NAME="lbAM">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="5"><A HREF="#lbAB">NAME</A><DD>
+<DT id="6"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="7"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="8"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DT id="9"><A HREF="#lbAF">ERRORS</A><DD>
+<DT id="10"><A HREF="#lbAG">VERSIONS</A><DD>
+<DT id="11"><A HREF="#lbAH">ATTRIBUTES</A><DD>
+<DT id="12"><A HREF="#lbAI">CONFORMING TO</A><DD>
+<DT id="13"><A HREF="#lbAJ">EXAMPLE</A><DD>
+<DL>
+<DT id="14"><A HREF="#lbAK">Program source</A><DD>
+</DL>
+<DT id="15"><A HREF="#lbAL">SEE ALSO</A><DD>
+<DT id="16"><A HREF="#lbAM">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:53 GMT, March 31, 2021
+</BODY>
+</HTML>

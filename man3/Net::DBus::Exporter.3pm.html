@@ -1,0 +1,588 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of Net::DBus::Exporter</TITLE>
+</HEAD><BODY>
+<H1>Net::DBus::Exporter</H1>
+Section: User Contributed Perl Documentation (3pm)<BR>Updated: 2019-12-26<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+Net::DBus::Exporter - Export object methods and signals to the bus
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+
+
+
+
+<PRE>
+  # Define a new package for the object we're going
+  # to export
+  package Demo::HelloWorld;
+
+  # Specify the main interface provided by our object
+  use Net::DBus::Exporter qw(org.example.demo.Greeter);
+
+  # We're going to be a DBus object
+  use base qw(Net::DBus::Object);
+
+  # Ensure only explicitly exported methods can be invoked
+  dbus_strict_exports;
+
+  # Export a 'Greeting' signal taking a stringl string parameter
+  dbus_signal(&quot;Greeting&quot;, [&quot;string&quot;]);
+
+  # Export 'Hello' as a method accepting a single string
+  # parameter, and returning a single string value
+  dbus_method(&quot;Hello&quot;, [&quot;string&quot;], [&quot;string&quot;]);
+
+  # Export 'Goodbye' as a method accepting a single string
+  # parameter, and returning a single string, but put it
+  # in the 'org.exaple.demo.Farewell' interface
+  dbus_method(&quot;Goodbye&quot;, [&quot;string&quot;], [&quot;string&quot;], &quot;org.example.demo.Farewell&quot;);
+
+</PRE>
+
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+
+The <TT>&quot;Net::DBus::Exporter&quot;</TT> module is used to export methods
+and signals defined in an object to the message bus. Since
+Perl is a loosely typed language it is not possible to automatically
+determine correct type information for methods to be exported.
+Thus when sub-classing Net::DBus::Object, this package will
+provide the type information for methods and signals.
+<P>
+
+When importing this package, an optional argument can be supplied
+to specify the default interface name to associate with methods
+and signals, for which an explicit interface is not specified.
+Thus in the common case of objects only providing a single interface,
+this removes the need to repeat the interface name against each
+method exported.
+<A NAME="lbAE">&nbsp;</A>
+<H2>SCALAR TYPES</H2>
+
+
+
+When specifying scalar data types for parameters and return values,
+the following string constants must be used to denote the data
+type. When values corresponding to these types are (un)marshalled
+they are represented as the Perl <FONT SIZE="-1">SCALAR</FONT> data type (see perldata).
+<DL COMPACT>
+<DT id="1">&quot;string&quot;<DD>
+
+
+
+
+A <FONT SIZE="-1">UTF-8</FONT> string of characters
+<DT id="2">&quot;int16&quot;<DD>
+
+
+
+
+A 16-bit signed integer
+<DT id="3">&quot;uint16&quot;<DD>
+
+
+
+
+A 16-bit unsigned integer
+<DT id="4">&quot;int32&quot;<DD>
+
+
+
+
+A 32-bit signed integer
+<DT id="5">&quot;uint32&quot;<DD>
+
+
+
+
+A 32-bit unsigned integer
+<DT id="6">&quot;int64&quot;<DD>
+
+
+
+
+A 64-bit signed integer. <FONT SIZE="-1">NB,</FONT> this type is not supported by
+many builds of Perl on 32-bit platforms, so if used, your
+data is liable to be truncated at 32-bits.
+<DT id="7">&quot;uint64&quot;<DD>
+
+
+
+
+A 64-bit unsigned integer. <FONT SIZE="-1">NB,</FONT> this type is not supported by
+many builds of Perl on 32-bit platforms, so if used, your
+data is liable to be truncated at 32-bits.
+<DT id="8">&quot;byte&quot;<DD>
+
+
+
+
+A single 8-bit byte
+<DT id="9">&quot;bool&quot;<DD>
+
+
+
+
+A boolean value
+<DT id="10">&quot;double&quot;<DD>
+
+
+
+
+An <FONT SIZE="-1">IEEE</FONT> double-precision floating point
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>COMPOUND TYPES</H2>
+
+
+
+When specifying compound data types for parameters and return
+values, an array reference must be used, with the first element
+being the name of the compound type.
+<DL COMPACT>
+<DT id="11">[&quot;array&quot;, <FONT SIZE="-1">ARRAY-TYPE</FONT>]<DD>
+
+
+
+
+An array of values, whose type os <TT>&quot;ARRAY-TYPE&quot;</TT>. The <TT>&quot;ARRAY-TYPE&quot;</TT>
+can be either a scalar type name, or a nested compound type. When
+values corresponding to the array type are (un)marshalled, they
+are represented as the Perl <FONT SIZE="-1">ARRAY</FONT> data type (see perldata). If,
+for example, a method was declared to have a single parameter with
+the type, [``array'', ``string''], then when calling the method one
+would provide a array reference of strings:
+
+
+<P>
+
+
+
+
+<PRE>
+    $object-&gt;hello([&quot;John&quot;, &quot;Doe&quot;])
+
+</PRE>
+
+
+<DT id="12">[&quot;dict&quot;, KEY-TYPE, <FONT SIZE="-1">VALUE-TYPE</FONT>]<DD>
+
+
+
+
+A dictionary of values, more commonly known as a hash table. The
+<TT>&quot;KEY-TYPE&quot;</TT> is the name of the scalar data type used for the dictionary
+keys. The <TT>&quot;VALUE-TYPE&quot;</TT> is the name of the scalar, or compound
+data type used for the dictionary values. When values corresponding
+to the dict type are (un)marshalled, they are represented as the
+Perl <FONT SIZE="-1">HASH</FONT> data type (see perldata). If, for example, a method was
+declared to have a single parameter with the type [``dict'', ``string'', ``string''],
+then when calling the method one would provide a hash reference
+of strings,
+
+
+<P>
+
+
+
+
+<PRE>
+   $object-&gt;hello({forename =&gt; &quot;John&quot;, surname =&gt; &quot;Doe&quot;});
+
+</PRE>
+
+
+<DT id="13">[&quot;struct&quot;, <FONT SIZE="-1">VALUE-TYPE-1, VALUE-TYPE-2</FONT>]<DD>
+
+
+
+
+A structure of values, best thought of as a variation on the array
+type where the elements can vary. Many languages have an explicit
+name associated with each value, but since Perl does not have a
+native representation of structures, they are represented by the
+<FONT SIZE="-1">LIST</FONT> data type. If, for exaple, a method was declared to have a single
+parameter with the type [``struct'', ``string'', ``string''], corresponding
+to the C structure
+
+
+<P>
+
+
+
+
+<PRE>
+    struct {
+      char *forename;
+      char *surname;
+    } name;
+
+</PRE>
+
+
+
+
+<P>
+
+
+then, when calling the method one would provide an array reference
+with the values orded to match the structure
+
+
+<P>
+
+
+
+
+<PRE>
+   $object-&gt;hello([&quot;John&quot;, &quot;Doe&quot;]);
+
+</PRE>
+
+
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H2>MAGIC TYPES</H2>
+
+
+
+When specifying introspection data for an exported service, there
+are a couple of so called <TT>&quot;magic&quot;</TT> types. Parameters declared as
+magic types are not visible to clients, but instead their values
+are provided automatically by the server side bindings. One use of
+magic types is to get an extra parameter passed with the unique
+name of the caller invoking the method.
+<DL COMPACT>
+<DT id="14">&quot;caller&quot;<DD>
+
+
+
+
+The value passed in is the unique name of the caller of the method.
+Unique names are strings automatically assigned to client connections
+by the bus daemon, for example ':1.15'
+<DT id="15">&quot;serial&quot;<DD>
+
+
+
+
+The value passed in is an integer within the scope of a caller, which
+increments on every method call.
+</DL>
+<A NAME="lbAH">&nbsp;</A>
+<H2>ANNOTATIONS</H2>
+
+
+
+When exporting methods, signals &amp; properties, in addition to the core
+data typing information, a number of metadata annotations are possible.
+These are specified by passing a hash reference with the desired keys
+as the last parameter when defining the export. The following annotations
+are currently supported
+<DL COMPACT>
+<DT id="16">no_return<DD>
+
+
+Indicate that this method does not return any value, and thus no reply
+message should be sent over the wire, likewise informing the clients
+not to expect / wait for a reply message
+<DT id="17">deprecated<DD>
+
+
+Indicate that use of this method/signal/property is discouraged, and
+it may disappear altogether in a future release. Clients will typically
+print out a warning message when a deprecated method/signal/property
+is used.
+<DT id="18">param_names<DD>
+
+
+An array of strings specifying names for the input parameters of the
+method or signal. If omitted, no names will be assigned.
+<DT id="19">return_names<DD>
+
+
+An array of strings specifying names for the return parameters of the
+method. If omitted, no names will be assigned.
+<DT id="20">strict_exceptions<DD>
+
+
+Exceptions thrown by this method which are not of type Net::DBus::Error will
+not be caught and converted to D-Bus errors. They will be rethrown and continue
+up the stack until something else catches them (or the process dies).
+</DL>
+<A NAME="lbAI">&nbsp;</A>
+<H2>METHODS</H2>
+
+
+
+<DL COMPACT>
+<DT id="21">dbus_method($name, $params, $returns, [\%annotations]);<DD>
+
+
+
+
+
+<DT id="22">dbus_method($name, $params, $returns, $interface, [\%annotations]);<DD>
+
+
+
+
+
+Exports a method called <TT>$name</TT>, having parameters whose types
+are defined by <TT>$params</TT>, and returning values whose types are
+defined by <TT>$returns</TT>. If the <TT>$interface</TT> parameter is
+provided, then the method is associated with that interface, otherwise
+the default interface for the calling package is used. The
+value for the <TT>$params</TT> parameter should be an array reference
+with each element defining the data type of a parameter to the
+method. Likewise, the <TT>$returns</TT> parameter should be an array
+reference with each element defining the data type of a return
+value. If it not possible to export a method which accepts a
+variable number of parameters, or returns a variable number of
+values.
+<DT id="23"><B>dbus_no_strict_exports()</B>;<DD>
+
+
+If a object is using the Exporter to generate DBus introspection data,
+the default behaviour is to only allow invocation of methods which have
+been explicitly exported.
+
+
+<P>
+
+
+To allow clients to access methods which have not been explicitly
+exported, call <TT>&quot;dbus_no_strict_exports&quot;</TT>. <FONT SIZE="-1">NB,</FONT> doing this may be
+a security risk if you have methods considered to be ``private'' for
+internal use only. As such this method should not normally be used.
+It is here only to allow switching export behaviour to match earlier
+releases.
+<DT id="24">dbus_property($name, $type, $access, [\%attributes]);<DD>
+
+
+
+
+
+<DT id="25">dbus_property($name, $type, $access, $interface, [\%attributes]);<DD>
+
+
+
+
+
+Exports a property called <TT>$name</TT>, whose data type is <TT>$type</TT>.
+If the <TT>$interface</TT> parameter is provided, then the property is
+associated with that interface, otherwise the default interface
+for the calling package is used.
+<DT id="26">dbus_signal($name, $params, [\%attributes]);<DD>
+
+
+
+
+
+<DT id="27">dbus_signal($name, $params, $interface, [\%attributes]);<DD>
+
+
+
+
+
+Exports a signal called <TT>$name</TT>, having parameters whose types
+are defined by <TT>$params</TT>. If the <TT>$interface</TT> parameter is
+provided, then the signal is associated with that interface, otherwise
+the default interface for the calling package is used. The
+value for the <TT>$params</TT> parameter should be an array reference
+with each element defining the data type of a parameter to the
+signal. Signals do not have return values. It not possible to
+export a signal which has a variable number of parameters.
+</DL>
+<A NAME="lbAJ">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+
+
+<DL COMPACT>
+<DT id="28">No parameters, no return values<DD>
+
+
+A method which simply prints ``Hello World'' each time its called
+
+
+<P>
+
+
+
+
+<PRE>
+   sub Hello {
+       my $self = shift;
+       print &quot;Hello World\n&quot;;
+   }
+
+   dbus_method(&quot;Hello&quot;, [], []);
+
+</PRE>
+
+
+<DT id="29">One string parameter, returning an boolean value<DD>
+
+
+A method which accepts a process name, issues the killall
+command on it, and returns a boolean value to indicate whether
+it was successful.
+
+
+<P>
+
+
+
+
+<PRE>
+   sub KillAll {
+       my $self = shift;
+       my $processname = shift;
+       my $ret  = system(&quot;killall $processname&quot;);
+       return $ret == 0 ? 1 : 0;
+   }
+
+   dbus_method(&quot;KillAll&quot;, [&quot;string&quot;], [&quot;bool&quot;]);
+
+</PRE>
+
+
+<DT id="30">One list of strings parameter, returning a dictionary<DD>
+
+
+A method which accepts a list of files names, stats them, and
+returns a dictionary containing the last modification times.
+
+
+<P>
+
+
+
+
+<PRE>
+    sub LastModified {
+       my $self = shift;
+       my $files = shift;
+
+       my %mods;
+       foreach my $file (@{$files}) {
+          $mods{$file} = (stat $file)[9];
+       }
+       return \%mods;
+    }
+
+    dbus_method(&quot;LastModified&quot;, [&quot;array&quot;, &quot;string&quot;], [&quot;dict&quot;, &quot;string&quot;, &quot;int32&quot;]);
+
+</PRE>
+
+
+<DT id="31">Annotating methods with metdata<DD>
+
+
+A method which is targeted for removal, and also does not
+return any value
+
+
+<P>
+
+
+
+
+<PRE>
+    sub PlayMP3 {
+        my $self = shift;
+        my $track = shift;
+
+        system &quot;mpg123 $track &amp;&quot;;
+    }
+
+    dbus_method(&quot;PlayMP3&quot;, [&quot;string&quot;], [], { deprecated =&gt; 1, no_return =&gt; 1 });
+
+</PRE>
+
+
+
+
+<P>
+
+
+Or giving names to input parameters:
+
+
+<P>
+
+
+
+
+<PRE>
+    sub PlayMP3 {
+        my $self = shift;
+        my $track = shift;
+
+        system &quot;mpg123 $track &amp;&quot;;
+    }
+
+    dbus_method(&quot;PlayMP3&quot;, [&quot;string&quot;], [], { param_names =&gt; [&quot;track&quot;] });
+
+</PRE>
+
+
+</DL>
+<A NAME="lbAK">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+
+
+Daniel P. Berrange &lt;<A HREF="mailto:dan@berrange.com">dan@berrange.com</A>&gt;
+<A NAME="lbAL">&nbsp;</A>
+<H2>COPYRIGHT</H2>
+
+
+
+Copright (C) 2004-2011, Daniel Berrange.
+<A NAME="lbAM">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+
+Net::DBus::Object, Net::DBus::Binding::Introspector
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="32"><A HREF="#lbAB">NAME</A><DD>
+<DT id="33"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="34"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="35"><A HREF="#lbAE">SCALAR TYPES</A><DD>
+<DT id="36"><A HREF="#lbAF">COMPOUND TYPES</A><DD>
+<DT id="37"><A HREF="#lbAG">MAGIC TYPES</A><DD>
+<DT id="38"><A HREF="#lbAH">ANNOTATIONS</A><DD>
+<DT id="39"><A HREF="#lbAI">METHODS</A><DD>
+<DT id="40"><A HREF="#lbAJ">EXAMPLES</A><DD>
+<DT id="41"><A HREF="#lbAK">AUTHOR</A><DD>
+<DT id="42"><A HREF="#lbAL">COPYRIGHT</A><DD>
+<DT id="43"><A HREF="#lbAM">SEE ALSO</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:49 GMT, March 31, 2021
+</BODY>
+</HTML>

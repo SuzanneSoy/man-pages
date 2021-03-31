@@ -1,0 +1,254 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of VCS</TITLE>
+</HEAD><BODY>
+<H1>VCS</H1>
+Section: Linux Programmer's Manual (4)<BR>Updated: 2019-03-06<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+vcs, vcsa - virtual console memory
+<A NAME="lbAC">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<I>/dev/vcs0</I>
+
+is a character device with major number 7 and minor number
+0, usually with mode 0644 and ownership root:tty.
+It refers to the memory of the currently
+displayed virtual console terminal.
+<P>
+
+<I>/dev/vcs[1-63]</I>
+
+are character devices for virtual console
+terminals, they have major number 7 and minor number 1 to 63, usually
+mode 0644 and ownership root:tty.
+<I>/dev/vcsa[0-63]</I>
+
+are the same, but
+using
+<I>unsigned short</I>s
+
+(in host byte order) that include attributes,
+and prefixed with four bytes giving the screen
+dimensions and cursor position:
+<I>lines</I>,
+
+<I>columns</I>,
+
+<I>x</I>,
+
+<I>y</I>.
+
+(<I>x</I>
+
+=
+<I>y</I>
+
+= 0 at the top left corner of the screen.)
+<P>
+
+When a 512-character font is loaded,
+the 9th bit position can be fetched by applying the
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+<B>VT_GETHIFONTMASK</B>
+
+operation
+(available in Linux kernels 2.6.18 and above)
+on
+<I>/dev/tty[1-63]</I>;
+
+the value is returned in the
+<I>unsigned short</I>
+
+pointed to by the third
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+argument.
+<P>
+
+These devices replace the screendump
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+operations of
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl_console">ioctl_console</A></B>(2),
+
+so the system
+administrator can control access using filesystem permissions.
+<P>
+
+The devices for the first eight virtual consoles may be created by:
+<P>
+
+
+
+for x in 0 1 2 3 4 5 6 7 8; do
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;mknod&nbsp;-m&nbsp;644&nbsp;/dev/vcs$x&nbsp;c&nbsp;7&nbsp;$x;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;mknod&nbsp;-m&nbsp;644&nbsp;/dev/vcsa$x&nbsp;c&nbsp;7&nbsp;$[$x+128];
+done
+chown root:tty /dev/vcs*
+
+
+<P>
+
+No
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+requests are supported.
+<A NAME="lbAD">&nbsp;</A>
+<H2>FILES</H2>
+
+<I>/dev/vcs[0-63]</I>
+
+<BR>
+
+<I>/dev/vcsa[0-63]</I>
+
+
+
+<A NAME="lbAE">&nbsp;</A>
+<H2>VERSIONS</H2>
+
+Introduced with version 1.1.92 of the Linux kernel.
+<A NAME="lbAF">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+You may do a screendump on vt3 by switching to vt1 and typing
+<P>
+
+
+
+cat /dev/vcs3 &gt;foo
+
+
+<P>
+
+Note that the output does not contain
+newline characters, so some processing may be required, like
+in
+<P>
+
+
+
+fold -w 81 /dev/vcs3 | lpr
+
+
+<P>
+
+or (horrors)
+<P>
+
+
+
+setterm -dump 3 -file /proc/self/fd/1
+
+
+<P>
+
+The
+<I>/dev/vcsa0</I>
+
+device is used for Braille support.
+<P>
+
+This program displays the character and screen attributes under the
+cursor of the second virtual console, then changes the background color
+there:
+<P>
+
+
+#include &lt;<A HREF="file:///usr/include/unistd.h">unistd.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdlib.h">stdlib.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/fcntl.h">fcntl.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/sys/ioctl.h">sys/ioctl.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/linux/vt.h">linux/vt.h</A>&gt;
+<P>
+int
+main(void)
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;fd;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;*device&nbsp;=&nbsp;&quot;/dev/vcsa2&quot;;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;*console&nbsp;=&nbsp;&quot;/dev/tty2&quot;;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;{unsigned&nbsp;char&nbsp;lines,&nbsp;cols,&nbsp;x,&nbsp;y;}&nbsp;scrn;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;unsigned&nbsp;short&nbsp;s;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;unsigned&nbsp;short&nbsp;mask;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;unsigned&nbsp;char&nbsp;attrib;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;ch;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fd&nbsp;=&nbsp;open(console,&nbsp;O_RDWR);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(fd&nbsp;&lt;&nbsp;0)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;perror(console);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(ioctl(fd,&nbsp;VT_GETHIFONTMASK,&nbsp;&amp;mask)&nbsp;&lt;&nbsp;0)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;perror(&quot;VT_GETHIFONTMASK&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;(void)&nbsp;close(fd);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fd&nbsp;=&nbsp;open(device,&nbsp;O_RDWR);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(fd&nbsp;&lt;&nbsp;0)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;perror(device);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;(void)&nbsp;read(fd,&nbsp;&amp;scrn,&nbsp;4);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;(void)&nbsp;lseek(fd,&nbsp;4&nbsp;+&nbsp;2*(scrn.y*scrn.cols&nbsp;+&nbsp;scrn.x),&nbsp;SEEK_SET);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;(void)&nbsp;read(fd,&nbsp;&amp;s,&nbsp;2);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;ch&nbsp;=&nbsp;s&nbsp;&amp;&nbsp;0xff;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(s&nbsp;&amp;&nbsp;mask)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ch&nbsp;|=&nbsp;0x100;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;attrib&nbsp;=&nbsp;((s&nbsp;&amp;&nbsp;~mask)&nbsp;&gt;&gt;&nbsp;8);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;ch=0x%03x&nbsp;attrib=0x%02x\n&quot;,&nbsp;ch,&nbsp;attrib);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;s&nbsp;^=&nbsp;0x1000;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;(void)&nbsp;lseek(fd,&nbsp;-2,&nbsp;SEEK_CUR);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;(void)&nbsp;write(fd,&nbsp;&amp;s,&nbsp;2);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_SUCCESS);
+}
+
+<A NAME="lbAG">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl_console">ioctl_console</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?4+tty">tty</A></B>(4),
+
+<B><A HREF="/cgi-bin/man/man2html?4+ttyS">ttyS</A></B>(4),
+
+<B><A HREF="/cgi-bin/man/man2html?8+gpm">gpm</A></B>(8)
+
+<A NAME="lbAH">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="1"><A HREF="#lbAB">NAME</A><DD>
+<DT id="2"><A HREF="#lbAC">DESCRIPTION</A><DD>
+<DT id="3"><A HREF="#lbAD">FILES</A><DD>
+<DT id="4"><A HREF="#lbAE">VERSIONS</A><DD>
+<DT id="5"><A HREF="#lbAF">EXAMPLE</A><DD>
+<DT id="6"><A HREF="#lbAG">SEE ALSO</A><DD>
+<DT id="7"><A HREF="#lbAH">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:02 GMT, March 31, 2021
+</BODY>
+</HTML>

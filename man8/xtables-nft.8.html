@@ -1,0 +1,237 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of XTABLES-NFT</TITLE>
+</HEAD><BODY>
+<H1>XTABLES-NFT</H1>
+Section: Maintenance Commands (8)<BR>Updated: June 2018<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<P>
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+xtables-nft --- iptables using nftables kernel api
+<P>
+<A NAME="lbAC">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<B>xtables-nft</B> are versions of iptables that use the nftables API.
+This is a set of tools to help the system administrator migrate the
+ruleset from <B><A HREF="/cgi-bin/man/man2html?8+iptables">iptables</A>(8)</B>, <B><A HREF="/cgi-bin/man/man2html?8+ip6tables">ip6tables</A>(8)</B>, <B><A HREF="/cgi-bin/man/man2html?8+arptables">arptables</A>(8)</B>, and
+<B><A HREF="/cgi-bin/man/man2html?8+ebtables">ebtables</A>(8)</B> to <B><A HREF="/cgi-bin/man/man2html?8+nftables">nftables</A>(8)</B>.
+<P>
+The <B>xtables-nft</B> set is composed of several commands:
+<DL COMPACT>
+<DT id="1">&bull;<DD>
+iptables-nft
+<DT id="2">&bull;<DD>
+iptables-nft-save
+<DT id="3">&bull;<DD>
+iptables-nft-restore
+<DT id="4">&bull;<DD>
+ip6tables-nft
+<DT id="5">&bull;<DD>
+ip6tables-nft-save
+<DT id="6">&bull;<DD>
+ip6tables-nft-restore
+<DT id="7">&bull;<DD>
+arptables-nft
+<DT id="8">&bull;<DD>
+ebtables-nft
+<P>
+These tools use the libxtables framework extensions and hook to the nf_tables
+kernel subsystem using the <B>nft_compat</B> module.
+<P>
+</DL>
+<A NAME="lbAD">&nbsp;</A>
+<H2>USAGE</H2>
+
+The xtables-nft tools allow you to manage the nf_tables backend using the
+native syntax of <B><A HREF="/cgi-bin/man/man2html?8+iptables">iptables</A>(8)</B>, <B><A HREF="/cgi-bin/man/man2html?8+ip6tables">ip6tables</A>(8)</B>, <B><A HREF="/cgi-bin/man/man2html?8+arptables">arptables</A>(8)</B>, and
+<B><A HREF="/cgi-bin/man/man2html?8+ebtables">ebtables</A>(8)</B>.
+<P>
+You should use the xtables-nft tools exactly the same way as you would use the
+corresponding original tools.
+<P>
+Adding a rule will result in that rule being added to the nf_tables kernel
+subsystem instead.
+Listing the ruleset will use the nf_tables backend as well.
+<P>
+When these tools were designed, the main idea was to replace each legacy binary
+with a symlink to the xtables-nft program, for example:
+<P>
+<PRE>
+        /sbin/iptables -&gt; /usr/sbin/iptables-nft-multi
+        /sbin/ip6tables -&gt; /usr/sbin/ip6tables-nft-multi
+        /sbin/arptables -&gt; /usr/sbin/arptables-nft-multi
+        /sbin/ebtables -&gt; /usr/sbin/ebtables-nft-multi
+</PRE>
+
+<P>
+The iptables version string will indicate whether the legacy API (get/setsockopt) or
+the new nf_tables api is used:
+<PRE>
+        iptables -V
+        iptables v1.7 (nf_tables)
+</PRE>
+
+<P>
+<A NAME="lbAE">&nbsp;</A>
+<H2>DIFFERENCES TO LEGACY IPTABLES</H2>
+
+<P>
+Because the xtables-nft tools use the nf_tables kernel API, rule additions
+and deletions are always atomic.  Unlike iptables-legacy, iptables-nft -A ..
+will NOT need to retrieve the current ruleset from the kernel, change it, and
+re-load the altered ruleset.  Instead, iptables-nft will tell the kernel to add
+one rule.  For this reason, the iptables-legacy --wait option is a no-op in
+iptables-nft.
+<P>
+Use of the xtables-nft tools allow monitoring ruleset changes using the
+<B><A HREF="/cgi-bin/man/man2html?8+xtables-monitor">xtables-monitor</A>(8)</B>
+
+command.
+<P>
+When using -j TRACE to debug packet traversal to the ruleset, note that you will need to use
+<B><A HREF="/cgi-bin/man/man2html?8+xtables-monitor">xtables-monitor</A>(8)</B>
+
+in --trace mode to obtain monitoring trace events.
+<P>
+<A NAME="lbAF">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+One basic example is creating the skeleton ruleset in nf_tables from the
+xtables-nft tools, in a fresh machine:
+<P>
+<PRE>
+        <A HREF="mailto:root@machine">root@machine</A>:~# iptables-nft -L
+        [...]
+        <A HREF="mailto:root@machine">root@machine</A>:~# ip6tables-nft -L
+        [...]
+        <A HREF="mailto:root@machine">root@machine</A>:~# arptables-nft -L
+        [...]
+        <A HREF="mailto:root@machine">root@machine</A>:~# ebtables-nft -L
+        [...]
+        <A HREF="mailto:root@machine">root@machine</A>:~# nft list ruleset
+        table ip filter {
+                chain INPUT {
+                        type filter hook input priority 0; policy accept;
+                }
+
+                chain FORWARD {
+                        type filter hook forward priority 0; policy accept;
+                }
+
+                chain OUTPUT {
+                        type filter hook output priority 0; policy accept;
+                }
+        }
+        table ip6 filter {
+                chain INPUT {
+                        type filter hook input priority 0; policy accept;
+                }
+
+                chain FORWARD {
+                        type filter hook forward priority 0; policy accept;
+                }
+
+                chain OUTPUT {
+                        type filter hook output priority 0; policy accept;
+                }
+        }
+        table bridge filter {
+                chain INPUT {
+                        type filter hook input priority -200; policy accept;
+                }
+
+                chain FORWARD {
+                        type filter hook forward priority -200; policy accept;
+                }
+
+                chain OUTPUT {
+                        type filter hook output priority -200; policy accept;
+                }
+        }
+        table arp filter {
+                chain INPUT {
+                        type filter hook input priority 0; policy accept;
+                }
+
+                chain FORWARD {
+                        type filter hook forward priority 0; policy accept;
+                }
+
+                chain OUTPUT {
+                        type filter hook output priority 0; policy accept;
+                }
+        }
+</PRE>
+
+<P>
+(please note that in fresh machines, listing the ruleset for the first time
+results in all tables an chain being created).
+<P>
+To migrate your complete filter ruleset, in the case of <B><A HREF="/cgi-bin/man/man2html?8+iptables">iptables</A>(8)</B>,
+you would use:
+<P>
+<PRE>
+        <A HREF="mailto:root@machine">root@machine</A>:~# iptables-legacy-save &gt; myruleset # reads from x_tables
+        <A HREF="mailto:root@machine">root@machine</A>:~# iptables-nft-restore myruleset   # writes to nf_tables
+</PRE>
+
+or
+<PRE>
+        <A HREF="mailto:root@machine">root@machine</A>:~# iptables-legacy-save | iptables-translate-restore | less
+</PRE>
+
+<P>
+to see how rules would look like in the nft
+<B><A HREF="/cgi-bin/man/man2html?8+nft">nft</A>(8)</B>
+syntax.
+<P>
+<A NAME="lbAG">&nbsp;</A>
+<H2>LIMITATIONS</H2>
+
+You should use <B>Linux kernel &gt;= 4.17</B>.
+<P>
+The CLUSTERIP target is not supported.
+<P>
+To get up-to-date information about this, please head to
+<B><A HREF="http://wiki.nftables.org/">http://wiki.nftables.org/</A></B>.
+<P>
+<A NAME="lbAH">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?8+nft">nft</A>(8)</B>, <B><A HREF="/cgi-bin/man/man2html?8+xtables-translate">xtables-translate</A>(8)</B>, <B><A HREF="/cgi-bin/man/man2html?8+xtables-monitor">xtables-monitor</A>(8)</B>
+<P>
+<A NAME="lbAI">&nbsp;</A>
+<H2>AUTHORS</H2>
+
+The nftables framework is written by the Netfilter project
+(<A HREF="https://www.netfilter.org).">https://www.netfilter.org).</A>
+<P>
+This manual page was written by Arturo Borrero Gonzalez
+&lt;<A HREF="mailto:arturo@debian.org">arturo@debian.org</A>&gt; for the Debian project, but may be used by others.
+<P>
+This documentation is free/libre under the terms of the GPLv2+.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="9"><A HREF="#lbAB">NAME</A><DD>
+<DT id="10"><A HREF="#lbAC">DESCRIPTION</A><DD>
+<DT id="11"><A HREF="#lbAD">USAGE</A><DD>
+<DT id="12"><A HREF="#lbAE">DIFFERENCES TO LEGACY IPTABLES</A><DD>
+<DT id="13"><A HREF="#lbAF">EXAMPLES</A><DD>
+<DT id="14"><A HREF="#lbAG">LIMITATIONS</A><DD>
+<DT id="15"><A HREF="#lbAH">SEE ALSO</A><DD>
+<DT id="16"><A HREF="#lbAI">AUTHORS</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:18 GMT, March 31, 2021
+</BODY>
+</HTML>

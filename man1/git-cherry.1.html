@@ -1,0 +1,265 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of GIT-CHERRY</TITLE>
+</HEAD><BODY>
+<H1>GIT-CHERRY</H1>
+Section: Git Manual (1)<BR>Updated: 03/04/2021<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+git-cherry - Find commits yet to be applied to upstream
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+<PRE>
+<I>git cherry</I> [-v] [&lt;upstream&gt; [&lt;head&gt; [&lt;limit&gt;]]]
+</PRE>
+
+<P>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+Determine whether there are commits in <B>&lt;head&gt;..&lt;upstream&gt;</B> that are equivalent to those in the range <B>&lt;limit&gt;..&lt;head&gt;</B>.
+<P>
+The equivalence test is based on the diff, after removing whitespace and line numbers. git-cherry therefore detects when commits have been &quot;copied&quot; by means of <B><A HREF="/cgi-bin/man/man2html?1+git-cherry-pick">git-cherry-pick</A></B>(1), <B><A HREF="/cgi-bin/man/man2html?1+git-am">git-am</A></B>(1) or <B><A HREF="/cgi-bin/man/man2html?1+git-rebase">git-rebase</A></B>(1).
+<P>
+Outputs the SHA1 of every commit in <B>&lt;limit&gt;..&lt;head&gt;</B>, prefixed with <B>-</B> for commits that have an equivalent in &lt;upstream&gt;, and <B>+</B> for commits that do not.
+<A NAME="lbAE">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<P>
+
+-v
+<DL COMPACT><DT id="1"><DD>
+Show the commit subjects next to the SHA1s.
+</DL>
+
+<P>
+
+&lt;upstream&gt;
+<DL COMPACT><DT id="2"><DD>
+Upstream branch to search for equivalent commits. Defaults to the upstream branch of HEAD.
+</DL>
+
+<P>
+
+&lt;head&gt;
+<DL COMPACT><DT id="3"><DD>
+Working branch; defaults to HEAD.
+</DL>
+
+<P>
+
+&lt;limit&gt;
+<DL COMPACT><DT id="4"><DD>
+Do not report commits up to (and including) limit.
+</DL>
+
+<A NAME="lbAF">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+<A NAME="lbAG">&nbsp;</A>
+<H3>Patch workflows</H3>
+
+<P>
+git-cherry is frequently used in patch-based workflows (see <B><A HREF="/cgi-bin/man/man2html?7+gitworkflows">gitworkflows</A></B>(7)) to determine if a series of patches has been applied by the upstream maintainer. In such a workflow you might create and send a topic branch like this:
+<P>
+<DL COMPACT><DT id="5"><DD>
+
+
+
+<PRE>
+$ git checkout -b topic origin/master
+# work and create some commits
+$ git format-patch origin/master
+$ git send-email ... 00*
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+Later, you can see whether your changes have been applied by saying (still on <B>topic</B>):
+<P>
+<DL COMPACT><DT id="6"><DD>
+
+
+
+<PRE>
+$ git fetch  # update your notion of origin/master
+$ git cherry -v
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<A NAME="lbAH">&nbsp;</A>
+<H3>Concrete example</H3>
+
+<P>
+In a situation where topic consisted of three commits, and the maintainer applied two of them, the situation might look like:
+<P>
+<DL COMPACT><DT id="7"><DD>
+
+
+
+<PRE>
+$ git log --graph --oneline --decorate --boundary origin/master...topic
+* 7654321 (origin/master) upstream tip commit
+[... snip some other commits ...]
+* cccc111 cherry-pick of C
+* aaaa111 cherry-pick of A
+[... snip a lot more that has happened ...]
+| * cccc000 (topic) commit C
+| * bbbb000 commit B
+| * aaaa000 commit A
+|/
+o 1234567 branch point
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+In such cases, git-cherry shows a concise summary of what has yet to be applied:
+<P>
+<DL COMPACT><DT id="8"><DD>
+
+
+
+<PRE>
+$ git cherry origin/master topic
+- cccc000... commit C
++ bbbb000... commit B
+- aaaa000... commit A
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+Here, we see that the commits A and C (marked with <B>-</B>) can be dropped from your <B>topic</B> branch when you rebase it on top of <B>origin/master</B>, while the commit B (marked with <B>+</B>) still needs to be kept so that it will be sent to be applied to <B>origin/master</B>.
+<A NAME="lbAI">&nbsp;</A>
+<H3>Using a limit</H3>
+
+<P>
+The optional &lt;limit&gt; is useful in cases where your topic is based on other work that is not in upstream. Expanding on the previous example, this might look like:
+<P>
+<DL COMPACT><DT id="9"><DD>
+
+
+
+<PRE>
+$ git log --graph --oneline --decorate --boundary origin/master...topic
+* 7654321 (origin/master) upstream tip commit
+[... snip some other commits ...]
+* cccc111 cherry-pick of C
+* aaaa111 cherry-pick of A
+[... snip a lot more that has happened ...]
+| * cccc000 (topic) commit C
+| * bbbb000 commit B
+| * aaaa000 commit A
+| * 0000fff (base) unpublished stuff F
+[... snip ...]
+| * 0000aaa unpublished stuff A
+|/
+o 1234567 merge-base between upstream and topic
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+By specifying <B>base</B> as the limit, you can avoid listing commits between <B>base</B> and <B>topic</B>:
+<P>
+<DL COMPACT><DT id="10"><DD>
+
+
+
+<PRE>
+$ git cherry origin/master topic base
+- cccc000... commit C
++ bbbb000... commit B
+- aaaa000... commit A
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<A NAME="lbAJ">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+<B><A HREF="/cgi-bin/man/man2html?1+git-patch-id">git-patch-id</A></B>(1)
+<A NAME="lbAK">&nbsp;</A>
+<H2>GIT</H2>
+
+<P>
+Part of the <B><A HREF="/cgi-bin/man/man2html?1+git">git</A></B>(1) suite
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="11"><A HREF="#lbAB">NAME</A><DD>
+<DT id="12"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="13"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="14"><A HREF="#lbAE">OPTIONS</A><DD>
+<DT id="15"><A HREF="#lbAF">EXAMPLES</A><DD>
+<DL>
+<DT id="16"><A HREF="#lbAG">Patch workflows</A><DD>
+<DT id="17"><A HREF="#lbAH">Concrete example</A><DD>
+<DT id="18"><A HREF="#lbAI">Using a limit</A><DD>
+</DL>
+<DT id="19"><A HREF="#lbAJ">SEE ALSO</A><DD>
+<DT id="20"><A HREF="#lbAK">GIT</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:13 GMT, March 31, 2021
+</BODY>
+</HTML>

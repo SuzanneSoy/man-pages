@@ -1,0 +1,279 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of sane-dll</TITLE>
+</HEAD><BODY>
+<H1>sane-dll</H1>
+Section: SANE Scanner Access Now Easy (5)<BR>Updated: 13 Jul 2008<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="ixAAB"></A>
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+sane-dll - SANE dynamic backend loader
+<A NAME="lbAC">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+The
+<B>sane-dll</B>
+
+library implements a SANE (Scanner Access Now Easy) backend that
+provides access to an arbitrary number of other SANE backends.  These
+backends may either be pre-loaded at the time the
+<B>sane-dll</B>
+
+library is built or, on systems that support dynamic loading of shared
+libraries, the backends may be loaded at runtime.  In the latter case,
+adding support for a new backend simply involves installing the
+relevant library in
+<I>@LIBDIR@</I>
+
+and adding an entry to the
+<I>dll.conf</I>
+
+configuration file.  In other words, no applications need to be
+modified or recompiled to add support for new devices.
+<A NAME="lbAD">&nbsp;</A>
+<H2>DEVICE NAMES</H2>
+
+This backend expects device names of the form:
+<P>
+
+<DL COMPACT><DT id="1"><DD>
+<I>backend</I>:<I>device</I>
+
+</DL>
+
+<P>
+
+Where
+<I>backend</I>
+
+is the name of the backend and
+<I>device</I>
+
+is the name of the device in this backend that should be addressed.
+If the device name does not contain a colon (:), then the entire string
+is treated as the
+<I>device</I>
+
+string for the default backend.  The default backend is the backend
+listed last in the configuration file (see below) or the first
+pre-loaded backend (if any).
+<A NAME="lbAE">&nbsp;</A>
+<H2>CONFIGURATION</H2>
+
+The contents of the
+<I>dll.conf</I>
+
+file is a list of backend names that may be loaded dynamically upon demand.
+Empty lines are ignored, also everything after a hash mark (#). A sample
+configuration file is shown below:
+<P>
+
+<DL COMPACT><DT id="2"><DD>
+net
+<BR>
+
+# this is a comment
+<BR>
+
+pnm
+<BR>
+
+mustek
+</DL>
+
+<P>
+
+It is also possible to add a file in
+<I>@CONFIGDIR@/dll.d</I>
+
+that contains the list of backends to be added. Backends mentioned in a
+file included in this directory will be added before any backends listed
+in
+<I>dll.conf.</I>
+
+Files in
+<I>@CONFIGDIR@/dll.d</I>
+
+can be freely named. They shall follow the format conventions as apply for
+<I>dll.conf.</I>
+
+<P>
+<P>
+
+Note that backends that were pre-loaded when building this library do
+not have to be listed in this configuration file.  That is, if a
+backend was preloaded, then that backend will always be present,
+regardless of whether it's listed in the configuration file or not.
+<P>
+
+The list of preloaded backends is determined by macro
+<B>PRELOADABLE_BACKENDS</B>
+
+in file backend/Makefile.in of the SANE source code distribution.  After
+changing the value of this macro, it is necessary to reconfigure, rebuild,
+and reinstall SANE for the change to take effect.
+<P>
+Aliases are defined in the config file
+<I>dll.aliases</I>.
+
+It can contain entries of the form
+<P>
+
+<DL COMPACT><DT id="3"><DD>
+<BR>
+
+alias SomeName SaneDeviceName
+<BR>
+
+alias &quot;Some Name&quot; SaneDeviceName
+<BR>
+
+hide SaneDeviceName
+</DL>
+
+<P>
+
+For example:
+<P>
+<P>
+
+<DL COMPACT><DT id="4"><DD>
+<BR>
+
+alias Epson net:somehost:epson:/dev/sgX
+<BR>
+
+alias &quot;Siemens ST400&quot; st400:/dev/sgY
+<BR>
+
+hide net:somehost:pnm:0
+<BR>
+
+hide net:somehost:pnm:1
+<BR>
+
+alias &quot;Read from file&quot; pnm:0
+<BR>
+
+hide pnm:1
+</DL>
+
+<P>
+
+<P>
+Aliased device names are automatically hidden.
+<P>
+The idea is that users don't have to deal with complicated device
+names (especially for networked devices), and to hide other exported
+devices which might confuse them. Note that a hidden device can still
+be accessed if the device name is known, it just doesn't appear on the
+list.
+<P>
+<A NAME="lbAF">&nbsp;</A>
+<H2>FILES</H2>
+
+<DL COMPACT>
+<DT id="5"><I>@CONFIGDIR@/dll.aliases</I>
+
+<DD>
+The list of aliased or hidden backends.
+<DT id="6"><I>@CONFIGDIR@/dll.conf</I>
+
+<DD>
+The backend configuration file (see also description of
+<B>SANE_CONFIG_DIR</B>
+
+below).
+<DT id="7"><I>@LIBDIR@/libsane-dll.a</I>
+
+<DD>
+The static library implementing this backend.
+<DT id="8"><I>@LIBDIR@/libsane-dll.so</I>
+
+<DD>
+The shared library implementing this backend (present on systems that
+support dynamic loading).
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H2>ENVIRONMENT</H2>
+
+<DL COMPACT>
+<DT id="9"><B>SANE_CONFIG_DIR</B>
+
+<DD>
+This environment variable specifies the list of directories that may
+contain the configuration file.  Under UNIX, the directories are
+separated by a colon (`:'), under OS/2, they are separated by a
+semi-colon (`;').  If this variable is not set, the configuration file
+is searched in two default directories: first, the current working
+directory (&quot;.&quot;) and then in @CONFIGDIR@.  If the value of the
+environment variable ends with the directory separator character, then
+the default directories are searched after the explicitly specified
+directories.  For example, setting
+<B>SANE_CONFIG_DIR</B>
+
+to &quot;/tmp/config:&quot; would result in directories &quot;tmp/config&quot;, &quot;.&quot;, and
+&quot;@CONFIGDIR@&quot; being searched (in this order).
+<DT id="10"><B>SANE_DEBUG_DLL</B>
+
+<DD>
+If the library was compiled with debug support enabled, this
+environment variable controls the debug level for this backend.  E.g.,
+a value of 128 requests all debug output to be printed.  Smaller
+levels reduce verbosity.
+<P>
+
+<PRE>
+Value  Description
+0      print severe errors only
+1      print normal errors and important messages
+2      print normal messages
+3      print debugging messages
+4      print everything
+</PRE>
+
+
+<P>
+Example:
+export SANE_DEBUG_DLL=3
+<P>
+<P>
+</DL>
+<A NAME="lbAH">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?7+sane">sane</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?1+scanimage">scanimage</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?5+sane-backendname">sane-backendname</A></B>(5)
+
+<P>
+<A NAME="lbAI">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+David Mosberger
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="11"><A HREF="#lbAB">NAME</A><DD>
+<DT id="12"><A HREF="#lbAC">DESCRIPTION</A><DD>
+<DT id="13"><A HREF="#lbAD">DEVICE NAMES</A><DD>
+<DT id="14"><A HREF="#lbAE">CONFIGURATION</A><DD>
+<DT id="15"><A HREF="#lbAF">FILES</A><DD>
+<DT id="16"><A HREF="#lbAG">ENVIRONMENT</A><DD>
+<DT id="17"><A HREF="#lbAH">SEE ALSO</A><DD>
+<DT id="18"><A HREF="#lbAI">AUTHOR</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:04 GMT, March 31, 2021
+</BODY>
+</HTML>

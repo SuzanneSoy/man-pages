@@ -1,0 +1,249 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of TAPRIO</TITLE>
+</HEAD><BODY>
+<H1>TAPRIO</H1>
+Section: Linux (8)<BR>Updated: 25 Sept 2018<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+TAPRIO - Time Aware Priority Shaper
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<B>tc qdisc ... dev</B>
+
+dev
+<B>parent</B>
+
+classid
+<B>[ handle</B>
+
+major:
+<B>] taprio num_tc</B>
+
+tcs
+<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<B>map</B>
+
+P0 P1 P2 ...
+<B>queues</B>
+
+<A HREF="mailto:count1@offset1">count1@offset1</A> <A HREF="mailto:count2@offset2">count2@offset2</A> ...
+<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<B>base-time</B>
+
+base-time
+<B>clockid</B>
+
+clockid
+<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<B>sched-entry</B>
+
+&lt;command 1&gt; &lt;gate mask 1&gt; &lt;interval 1&gt;
+<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<B>sched-entry</B>
+
+&lt;command 2&gt; &lt;gate mask 2&gt; &lt;interval 2&gt;
+<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<B>sched-entry</B>
+
+&lt;command 3&gt; &lt;gate mask 3&gt; &lt;interval 3&gt;
+<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<B>sched-entry</B>
+
+&lt;command N&gt; &lt;gate mask N&gt; &lt;interval N&gt;
+<P>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+The TAPRIO qdisc implements a simplified version of the scheduling
+state machine defined by IEEE 802.1Q-2018 Section 8.6.9, which allows
+configuration of a sequence of gate states, where each gate state
+allows outgoing traffic for a subset (potentially empty) of traffic
+classes.
+<P>
+How traffic is mapped to different hardware queues is similar to
+<B><A HREF="/cgi-bin/man/man2html?8+mqprio">mqprio</A>(8)</B>
+
+and so the
+<B>map</B>
+
+and
+<B>queues</B>
+
+parameters have the same meaning.
+<P>
+The other parameters specify the schedule, and at what point in time
+it should start (it can behave as the schedule started in the past).
+<P>
+<A NAME="lbAE">&nbsp;</A>
+<H2>PARAMETERS</H2>
+
+<DL COMPACT>
+<DT id="1">num_tc<DD>
+
+Number of traffic classes to use. Up to 16 classes supported.
+<P>
+<DT id="2">map<DD>
+<BR>
+
+The priority to traffic class map. Maps priorities 0..15 to a specified
+traffic class. See
+<B><A HREF="/cgi-bin/man/man2html?8+mqprio">mqprio</A>(8)</B>
+
+for more details.
+<P>
+<DT id="3">queues<DD>
+<BR>
+
+Provide count and offset of queue range for each traffic class. In the
+format,
+<B><A HREF="mailto:count@offset">count@offset</A>.</B>
+
+Queue ranges for each traffic classes cannot overlap and must be a
+contiguous range of queues.
+<P>
+<DT id="4">base-time<DD>
+<BR>
+
+Specifies the instant in nanoseconds, using the reference of
+<B>clockid,</B>
+
+defining the time when the schedule starts. If 'base-time' is a time
+in the past, the schedule will start at
+<P>
+base-time + (N * cycle-time)
+<P>
+where N is the smallest integer so the resulting time is greater than
+&quot;now&quot;, and &quot;cycle-time&quot; is the sum of all the intervals of the entries
+in the schedule;
+<P>
+<DT id="5">clockid<DD>
+<BR>
+
+Specifies the clock to be used by qdisc's internal timer for measuring
+time and scheduling events.
+<P>
+<DT id="6">sched-entry<DD>
+<BR>
+
+There may multiple
+<B>sched-entry</B>
+
+parameters in a single schedule. Each one has the
+<P>
+sched-entry &lt;command&gt; &lt;gatemask&gt; &lt;interval&gt;
+<P>
+format. The only supported &lt;command&gt; is &quot;S&quot;, which
+means &quot;SetGateStates&quot;, following the IEEE 802.1Q-2018 definition
+(Table 8-7). &lt;gate mask&gt; is a bitmask where each bit is a associated
+with a traffic class, so bit 0 (the least significant bit) being &quot;on&quot;
+means that traffic class 0 is &quot;active&quot; for that schedule entry.
+&lt;interval&gt; is a time duration, in nanoseconds, that specifies for how
+long that state defined by &lt;command&gt; and &lt;gate mask&gt; should be held
+before moving to the next entry.
+<P>
+<DT id="7">flags<DD>
+<BR>
+
+Specifies different modes for taprio. Currently, only txtime-assist is
+supported which can be enabled by setting it to 0x1. In this mode, taprio will
+set the transmit timestamp depending on the interval in which the packet needs
+to be transmitted. It will then utililize the
+<B><A HREF="/cgi-bin/man/man2html?8+etf">etf</A>(8)</B>
+
+qdisc to sort and transmit the packets at the right time. The second example
+can be used as a reference to configure this mode.
+<P>
+<DT id="8">txtime-delay<DD>
+<BR>
+
+This parameter is specific to the txtime offload mode. It specifies the maximum
+time a packet might take to reach the network card from the taprio qdisc. The
+value should always be greater than the delta specified in the
+<B><A HREF="/cgi-bin/man/man2html?8+etf">etf</A>(8)</B>
+
+qdisc.
+<P>
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+<P>
+The following example shows how an traffic schedule with three traffic
+classes (&quot;num_tc 3&quot;), which are separated different traffic classes,
+we are going to call these TC 0, TC 1 and TC 2. We could read the
+&quot;map&quot; parameter below as: traffic with priority 3 is classified as TC
+0, priority 2 is classified as TC 1 and the rest is classified as TC
+2.
+<P>
+The schedule will start at instant 1528743495910289987 using the
+reference CLOCK_TAI. The schedule is composed of three entries each of
+300us duration.
+<P>
+
+# tc qdisc replace dev eth0 parent root handle 100 taprio \
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;num_tc&nbsp;3&nbsp;\
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;map&nbsp;2&nbsp;2&nbsp;1&nbsp;0&nbsp;2&nbsp;2&nbsp;2&nbsp;2&nbsp;2&nbsp;2&nbsp;2&nbsp;2&nbsp;2&nbsp;2&nbsp;2&nbsp;2&nbsp;\
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;queues&nbsp;1@0&nbsp;1@1&nbsp;2@2&nbsp;\
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;base-time&nbsp;1528743495910289987&nbsp;\
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sched-entry&nbsp;S&nbsp;01&nbsp;300000&nbsp;\
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sched-entry&nbsp;S&nbsp;02&nbsp;300000&nbsp;\
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sched-entry&nbsp;S&nbsp;04&nbsp;300000&nbsp;\
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;clockid&nbsp;CLOCK_TAI
+
+<P>
+Following is an example to enable the txtime offload mode in taprio. See
+<B><A HREF="/cgi-bin/man/man2html?8+etf">etf</A>(8)</B>
+
+for more information about configuring the ETF qdisc.
+<P>
+
+# tc qdisc replace dev eth0 parent root handle 100 taprio \
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;num_tc&nbsp;3&nbsp;\
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;map&nbsp;2&nbsp;2&nbsp;1&nbsp;0&nbsp;2&nbsp;2&nbsp;2&nbsp;2&nbsp;2&nbsp;2&nbsp;2&nbsp;2&nbsp;2&nbsp;2&nbsp;2&nbsp;2&nbsp;\
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;queues&nbsp;1@0&nbsp;1@0&nbsp;1@0&nbsp;\
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;base-time&nbsp;1528743495910289987&nbsp;\
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sched-entry&nbsp;S&nbsp;01&nbsp;300000&nbsp;\
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sched-entry&nbsp;S&nbsp;02&nbsp;300000&nbsp;\
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sched-entry&nbsp;S&nbsp;04&nbsp;400000&nbsp;\
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;flags&nbsp;0x1&nbsp;\
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;txtime-delay&nbsp;200000&nbsp;\
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;clockid&nbsp;CLOCK_TAI
+<P>
+# tc qdisc replace dev $IFACE parent 100:1 etf skip_skb_check \
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;offload&nbsp;delta&nbsp;200000&nbsp;clockid&nbsp;CLOCK_TAI
+
+<P>
+<A NAME="lbAG">&nbsp;</A>
+<H2>AUTHORS</H2>
+
+Vinicius Costa Gomes &lt;<A HREF="mailto:vinicius.gomes@intel.com">vinicius.gomes@intel.com</A>&gt;
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="9"><A HREF="#lbAB">NAME</A><DD>
+<DT id="10"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="11"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="12"><A HREF="#lbAE">PARAMETERS</A><DD>
+<DT id="13"><A HREF="#lbAF">EXAMPLES</A><DD>
+<DT id="14"><A HREF="#lbAG">AUTHORS</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:17 GMT, March 31, 2021
+</BODY>
+</HTML>

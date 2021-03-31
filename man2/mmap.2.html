@@ -1,0 +1,1380 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of MMAP</TITLE>
+</HEAD><BODY>
+<H1>MMAP</H1>
+Section: Linux Programmer's Manual (2)<BR>Updated: 2019-10-10<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+mmap, munmap - map or unmap files or devices into memory
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<PRE>
+<B>#include &lt;<A HREF="file:///usr/include/sys/mman.h">sys/mman.h</A>&gt;</B>
+
+<B>void *mmap(void *</B><I>addr</I><B>, size_t </B><I>length</I><B>, int </B><I>prot</I><B>, int </B><I>flags</I><B>,</B>
+<B>           int </B><I>fd</I><B>, off_t </B><I>offset</I><B>);</B>
+<B>int munmap(void *</B><I>addr</I><B>, size_t </B><I>length</I><B>);</B>
+</PRE>
+
+<P>
+
+See NOTES for information on feature test macro requirements.
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<B>mmap</B>()
+
+creates a new mapping in the virtual address space of
+the calling process.
+The starting address for the new mapping is specified in
+<I>addr</I>.
+
+The
+<I>length</I>
+
+argument specifies the length of the mapping (which must be greater than 0).
+<P>
+
+If
+<I>addr</I>
+
+is NULL,
+then the kernel chooses the (page-aligned) address
+at which to create the mapping;
+this is the most portable method of creating a new mapping.
+If
+<I>addr</I>
+
+is not NULL,
+then the kernel takes it as a hint about where to place the mapping;
+on Linux, the kernel will pick a nearby page boundary (but always above
+or equal to the value specified by
+<I>/proc/sys/vm/mmap_min_addr</I>)
+
+and attempt to create the mapping there.
+If another mapping already exists there, the kernel picks a new address that
+may or may not depend on the hint.
+
+
+The address of the new mapping is returned as the result of the call.
+<P>
+
+The contents of a file mapping (as opposed to an anonymous mapping; see
+<B>MAP_ANONYMOUS</B>
+
+below), are initialized using
+<I>length</I>
+
+bytes starting at offset
+<I>offset</I>
+
+in the file (or other object) referred to by the file descriptor
+<I>fd</I>.
+
+<I>offset</I>
+
+must be a multiple of the page size as returned by
+<I>sysconf(_SC_PAGE_SIZE)</I>.
+
+<P>
+
+After the
+<B>mmap</B>()
+
+call has returned, the file descriptor,
+<I>fd</I>,
+
+can be closed immediately without invalidating the mapping.
+<P>
+
+The
+<I>prot</I>
+
+argument describes the desired memory protection of the mapping
+(and must not conflict with the open mode of the file).
+It is either
+<B>PROT_NONE</B>
+
+or the bitwise OR of one or more of the following flags:
+<DL COMPACT>
+<DT id="1"><B>PROT_EXEC</B>
+
+<DD>
+Pages may be executed.
+<DT id="2"><B>PROT_READ</B>
+
+<DD>
+Pages may be read.
+<DT id="3"><B>PROT_WRITE</B>
+
+<DD>
+Pages may be written.
+<DT id="4"><B>PROT_NONE</B>
+
+<DD>
+Pages may not be accessed.
+</DL>
+<P>
+
+The
+<I>flags</I>
+
+argument determines whether updates to the mapping
+are visible to other processes mapping the same region,
+and whether updates are carried through to the underlying file.
+This behavior is determined by including exactly one
+of the following values in
+<I>flags</I>:
+
+<DL COMPACT>
+<DT id="5"><B>MAP_SHARED</B>
+
+<DD>
+Share this mapping.
+Updates to the mapping are visible to other processes mapping the same region,
+and (in the case of file-backed mappings)
+are carried through to the underlying file.
+(To precisely control when updates are carried through
+to the underlying file requires the use of
+<B><A HREF="/cgi-bin/man/man2html?2+msync">msync</A></B>(2).)
+
+<DT id="6"><B>MAP_SHARED_VALIDATE</B> (since Linux 4.15)
+
+<DD>
+This flag provides the same behavior as
+<B>MAP_SHARED</B>
+
+except that
+<B>MAP_SHARED</B>
+
+mappings ignore unknown flags in
+<I>flags</I>.
+
+By contrast, when creating a mapping using
+<B>MAP_SHARED_VALIDATE</B>,
+
+the kernel verifies all passed flags are known and fails the
+mapping with the error
+<B>EOPNOTSUPP</B>
+
+for unknown flags.
+This mapping type is also required to be able to use some mapping flags
+(e.g.,
+<B>MAP_SYNC</B>).
+
+<DT id="7"><B>MAP_PRIVATE</B>
+
+<DD>
+Create a private copy-on-write mapping.
+Updates to the mapping are not visible to other processes
+mapping the same file, and are not carried through to
+the underlying file.
+It is unspecified whether changes made to the file after the
+<B>mmap</B>()
+
+call are visible in the mapped region.
+</DL>
+<P>
+
+Both
+<B>MAP_SHARED</B>
+
+and
+<B>MAP_PRIVATE</B>
+
+are described in POSIX.1-2001 and POSIX.1-2008.
+<B>MAP_SHARED_VALIDATE</B>
+
+is a Linux extension.
+<P>
+
+In addition, zero or more of the following values can be ORed in
+<I>flags</I>:
+
+<DL COMPACT>
+<DT id="8"><B>MAP_32BIT</B> (since Linux 2.4.20, 2.6)
+
+<DD>
+Put the mapping into the first 2 Gigabytes of the process address space.
+This flag is supported only on x86-64, for 64-bit programs.
+It was added to allow thread stacks to be allocated somewhere
+in the first 2&nbsp;GB of memory,
+so as to improve context-switch performance on some early
+64-bit processors.
+
+Modern x86-64 processors no longer have this performance problem,
+so use of this flag is not required on those systems.
+The
+<B>MAP_32BIT</B>
+
+flag is ignored when
+<B>MAP_FIXED</B>
+
+is set.
+<DT id="9"><B>MAP_ANON</B>
+
+<DD>
+Synonym for
+<B>MAP_ANONYMOUS</B>.
+
+Deprecated.
+<DT id="10"><B>MAP_ANONYMOUS</B>
+
+<DD>
+The mapping is not backed by any file;
+its contents are initialized to zero.
+The
+<I>fd</I>
+
+argument is ignored;
+however, some implementations require
+<I>fd</I>
+
+to be -1 if
+<B>MAP_ANONYMOUS</B>
+
+(or
+<B>MAP_ANON</B>)
+
+is specified,
+and portable applications should ensure this.
+The
+<I>offset</I>
+
+argument should be zero.
+
+
+The use of
+<B>MAP_ANONYMOUS</B>
+
+in conjunction with
+<B>MAP_SHARED</B>
+
+is supported on Linux only since kernel 2.4.
+<DT id="11"><B>MAP_DENYWRITE</B>
+
+<DD>
+This flag is ignored.
+
+(Long ago---Linux 2.0 and earlier---it signaled
+that attempts to write to the underlying file should fail with
+<B>ETXTBUSY</B>.
+
+But this was a source of denial-of-service attacks.)
+<DT id="12"><B>MAP_EXECUTABLE</B>
+
+<DD>
+This flag is ignored.
+
+
+
+
+
+<DT id="13"><B>MAP_FILE</B>
+
+<DD>
+Compatibility flag.
+Ignored.
+
+
+<DT id="14"><B>MAP_FIXED</B>
+
+<DD>
+Don't interpret
+<I>addr</I>
+
+as a hint: place the mapping at exactly that address.
+<I>addr</I>
+
+must be suitably aligned: for most architectures a multiple of the page
+size is sufficient; however, some architectures may impose additional
+restrictions.
+If the memory region specified by
+<I>addr</I>
+
+and
+<I>len</I>
+
+overlaps pages of any existing mapping(s), then the overlapped
+part of the existing mapping(s) will be discarded.
+If the specified address cannot be used,
+<B>mmap</B>()
+
+will fail.
+<DT id="15"><DD>
+Software that aspires to be portable should use the
+<B>MAP_FIXED</B>
+
+flag with care,
+keeping in mind that the exact layout of a process's memory mappings
+is allowed to change significantly between kernel versions,
+C library versions, and operating system releases.
+<I>Carefully read the discussion of this flag in NOTES!</I>
+
+<DT id="16"><B>MAP_FIXED_NOREPLACE</B> (since Linux 4.17)
+
+<DD>
+
+This flag provides behavior that is similar to
+<B>MAP_FIXED</B>
+
+with respect to the
+<I>addr</I>
+
+enforcement, but differs in that
+<B>MAP_FIXED_NOREPLACE</B>
+
+never clobbers a preexisting mapped range.
+If the requested range would collide with an existing mapping,
+then this call fails with the error
+<B>EEXIST.</B>
+
+This flag can therefore be used as a way to atomically
+(with respect to other threads) attempt to map an address range:
+one thread will succeed; all others will report failure.
+<DT id="17"><DD>
+Note that older kernels which do not recognize the
+<B>MAP_FIXED_NOREPLACE</B>
+
+flag will typically (upon detecting a collision with a preexisting mapping)
+fall back to a &quot;non-<B>MAP_FIXED</B>&quot; type of behavior:
+they will return an address that is different from the requested address.
+Therefore, backward-compatible software
+should check the returned address against the requested address.
+<DT id="18"><B>MAP_GROWSDOWN</B>
+
+<DD>
+This flag is used for stacks.
+It indicates to the kernel virtual memory system that the mapping
+should extend downward in memory.
+The return address is one page lower than the memory area that is
+actually created in the process's virtual address space.
+Touching an address in the &quot;guard&quot; page below the mapping will cause
+the mapping to grow by a page.
+This growth can be repeated until the mapping grows to within a
+page of the high end of the next lower mapping,
+at which point touching the &quot;guard&quot; page will result in a
+<B>SIGSEGV</B>
+
+signal.
+<DT id="19"><B>MAP_HUGETLB</B> (since Linux 2.6.32)
+
+<DD>
+Allocate the mapping using &quot;huge pages.&quot;
+See the Linux kernel source file
+<I>Documentation/admin-guide/mm/hugetlbpage.rst</I>
+
+for further information, as well as NOTES, below.
+<DT id="20"><B>MAP_HUGE_2MB</B>, <B>MAP_HUGE_1GB</B> (since Linux 3.8)
+
+<DD>
+
+Used in conjunction with
+<B>MAP_HUGETLB</B>
+
+to select alternative hugetlb page sizes (respectively, 2&nbsp;MB and 1&nbsp;GB)
+on systems that support multiple hugetlb page sizes.
+<DT id="21"><DD>
+More generally, the desired huge page size can be configured by encoding
+the base-2 logarithm of the desired page size in the six bits at the offset
+<B>MAP_HUGE_SHIFT</B>.
+
+(A value of zero in this bit field provides the default huge page size;
+the default huge page size can be discovered via the
+<I>Hugepagesize</I>
+
+field exposed by
+<I>/proc/meminfo</I>.)
+
+Thus, the above two constants are defined as:
+<DT id="22"><DD>
+
+
+#define MAP_HUGE_2MB    (21 &lt;&lt; MAP_HUGE_SHIFT)
+#define MAP_HUGE_1GB    (30 &lt;&lt; MAP_HUGE_SHIFT)
+
+
+<DT id="23"><DD>
+The range of huge page sizes that are supported by the system
+can be discovered by listing the subdirectories in
+<I>/sys/kernel/mm/hugepages</I>.
+
+<DT id="24"><B>MAP_LOCKED</B> (since Linux 2.5.37)
+
+<DD>
+Mark the mapped region to be locked in the same way as
+<B><A HREF="/cgi-bin/man/man2html?2+mlock">mlock</A></B>(2).
+
+This implementation will try to populate (prefault) the whole range but the
+<B>mmap</B>()
+
+call doesn't fail with
+<B>ENOMEM</B>
+
+if this fails.
+Therefore major faults might happen later on.
+So the semantic is not as strong as
+<B><A HREF="/cgi-bin/man/man2html?2+mlock">mlock</A></B>(2).
+
+One should use
+<B>mmap</B>()
+
+plus
+<B><A HREF="/cgi-bin/man/man2html?2+mlock">mlock</A></B>(2)
+
+when major faults are not acceptable after the initialization of the mapping.
+The
+<B>MAP_LOCKED</B>
+
+flag is ignored in older kernels.
+
+<DT id="25"><B>MAP_NONBLOCK</B> (since Linux 2.5.46)
+
+<DD>
+This flag is meaningful only in conjunction with
+<B>MAP_POPULATE</B>.
+
+Don't perform read-ahead:
+create page tables entries only for pages
+that are already present in RAM.
+Since Linux 2.6.23, this flag causes
+<B>MAP_POPULATE</B>
+
+to do nothing.
+One day, the combination of
+<B>MAP_POPULATE</B>
+
+and
+<B>MAP_NONBLOCK</B>
+
+may be reimplemented.
+<DT id="26"><B>MAP_NORESERVE</B>
+
+<DD>
+Do not reserve swap space for this mapping.
+When swap space is reserved, one has the guarantee
+that it is possible to modify the mapping.
+When swap space is not reserved one might get
+<B>SIGSEGV</B>
+
+upon a write
+if no physical memory is available.
+See also the discussion of the file
+<I>/proc/sys/vm/overcommit_memory</I>
+
+in
+<B><A HREF="/cgi-bin/man/man2html?5+proc">proc</A></B>(5).
+
+In kernels before 2.6, this flag had effect only for
+private writable mappings.
+<DT id="27"><B>MAP_POPULATE</B> (since Linux 2.5.46)
+
+<DD>
+Populate (prefault) page tables for a mapping.
+For a file mapping, this causes read-ahead on the file.
+This will help to reduce blocking on page faults later.
+<B>MAP_POPULATE</B>
+
+is supported for private mappings only since Linux 2.6.23.
+<DT id="28"><B>MAP_STACK</B> (since Linux 2.6.27)
+
+<DD>
+Allocate the mapping at an address suitable for a process
+or thread stack.
+<DT id="29"><DD>
+This flag is currently a no-op on Linux.
+However, by employing this flag, applications can ensure that
+they transparently obtain support if the flag
+is implemented in the future.
+Thus, it is used in the glibc threading implementation to allow for
+the fact that some architectures may (later) require special treatment
+for stack allocations.
+
+
+
+
+
+A further reason to employ this flag is portability:
+<B>MAP_STACK</B>
+
+exists (and has an effect) on some other systems (e.g., some of the BSDs).
+<DT id="30"><B>MAP_SYNC</B> (since Linux 4.15)
+
+<DD>
+This flag is available only with the
+<B>MAP_SHARED_VALIDATE</B>
+
+mapping type;
+mappings of type
+<B>MAP_SHARED</B>
+
+will silently ignore this flag.
+This flag is supported only for files supporting DAX
+(direct mapping of persistent memory).
+For other files, creating a mapping with this flag results in an
+<B>EOPNOTSUPP</B>
+
+error.
+<DT id="31"><DD>
+Shared file mappings with this flag provide the guarantee that while
+some memory is writably mapped in the address space of the process,
+it will be visible in the same file at the same offset even after
+the system crashes or is rebooted.
+In conjunction with the use of appropriate CPU instructions,
+this provides users of such mappings with a more efficient way
+of making data modifications persistent.
+<DT id="32"><B>MAP_UNINITIALIZED</B> (since Linux 2.6.33)
+
+<DD>
+Don't clear anonymous pages.
+This flag is intended to improve performance on embedded devices.
+This flag is honored only if the kernel was configured with the
+<B>CONFIG_MMAP_ALLOW_UNINITIALIZED</B>
+
+option.
+Because of the security implications,
+that option is normally enabled only on embedded devices
+(i.e., devices where one has complete control of the contents of user memory).
+</DL>
+<P>
+
+Of the above flags, only
+<B>MAP_FIXED</B>
+
+is specified in POSIX.1-2001 and POSIX.1-2008.
+However, most systems also support
+<B>MAP_ANONYMOUS</B>
+
+(or its synonym
+<B>MAP_ANON</B>).
+
+
+
+
+
+<P>
+
+Memory mapped by
+<B>mmap</B>()
+
+is preserved across
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2),
+
+with the same attributes.
+<P>
+
+A file is mapped in multiples of the page size.
+For a file that is not
+a multiple of the page size, the remaining memory is zeroed when mapped,
+and writes to that region are not written out to the file.
+The effect of
+changing the size of the underlying file of a mapping on the pages that
+correspond to added or removed regions of the file is unspecified.
+<A NAME="lbAE">&nbsp;</A>
+<H3>munmap()</H3>
+
+The
+<B>munmap</B>()
+
+system call deletes the mappings for the specified address range, and
+causes further references to addresses within the range to generate
+invalid memory references.
+The region is also automatically unmapped
+when the process is terminated.
+On the other hand, closing the file
+descriptor does not unmap the region.
+<P>
+
+The address
+<I>addr</I>
+
+must be a multiple of the page size (but
+<I>length</I>
+
+need not be).
+All pages containing a part
+of the indicated range are unmapped, and subsequent references
+to these pages will generate
+<B>SIGSEGV</B>.
+
+It is not an error if the
+indicated range does not contain any mapped pages.
+<A NAME="lbAF">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+On success,
+<B>mmap</B>()
+
+returns a pointer to the mapped area.
+On error, the value
+<B>MAP_FAILED</B>
+
+(that is,
+<I>(void&nbsp;*)&nbsp;-1</I>)
+
+is returned, and
+<I>errno</I>
+
+is set to indicate the cause of the error.
+<P>
+
+On success,
+<B>munmap</B>()
+
+returns 0.
+On failure, it returns -1, and
+<I>errno</I>
+
+is set to indicate the cause of the error (probably to
+<B>EINVAL</B>).
+
+<A NAME="lbAG">&nbsp;</A>
+<H2>ERRORS</H2>
+
+<DL COMPACT>
+<DT id="33"><B>EACCES</B>
+
+<DD>
+A file descriptor refers to a non-regular file.
+Or a file mapping was requested, but
+<I>fd</I>
+
+is not open for reading.
+Or
+<B>MAP_SHARED</B>
+
+was requested and
+<B>PROT_WRITE</B>
+
+is set, but
+<I>fd</I>
+
+is not open in read/write
+(<B>O_RDWR</B>)
+
+mode.
+Or
+<B>PROT_WRITE</B>
+
+is set, but the file is append-only.
+<DT id="34"><B>EAGAIN</B>
+
+<DD>
+The file has been locked, or too much memory has been locked (see
+<B><A HREF="/cgi-bin/man/man2html?2+setrlimit">setrlimit</A></B>(2)).
+
+<DT id="35"><B>EBADF</B>
+
+<DD>
+<I>fd</I>
+
+is not a valid file descriptor (and
+<B>MAP_ANONYMOUS</B>
+
+was not set).
+<DT id="36"><B>EEXIST</B>
+
+<DD>
+<B>MAP_FIXED_NOREPLACE</B>
+
+was specified in
+<I>flags</I>,
+
+and the range covered by
+<I>addr</I>
+
+and
+<I>length</I>
+
+clashes with an existing mapping.
+<DT id="37"><B>EINVAL</B>
+
+<DD>
+We don't like
+<I>addr</I>,
+
+<I>length</I>,
+
+or
+<I>offset</I>
+
+(e.g., they are too large, or not aligned on a page boundary).
+<DT id="38"><B>EINVAL</B>
+
+<DD>
+(since Linux 2.6.12)
+<I>length</I>
+
+was 0.
+<DT id="39"><B>EINVAL</B>
+
+<DD>
+<I>flags</I>
+
+contained none of
+<B>MAP_PRIVATE</B>,
+
+<B>MAP_SHARED</B>
+
+or
+<B>MAP_SHARED_VALIDATE</B>.
+
+<DT id="40"><B>ENFILE</B>
+
+<DD>
+
+
+The system-wide limit on the total number of open files has been reached.
+
+
+
+<DT id="41"><B>ENODEV</B>
+
+<DD>
+The underlying filesystem of the specified file does not support
+memory mapping.
+<DT id="42"><B>ENOMEM</B>
+
+<DD>
+No memory is available.
+<DT id="43"><B>ENOMEM</B>
+
+<DD>
+The process's maximum number of mappings would have been exceeded.
+This error can also occur for
+<B>munmap</B>(),
+
+when unmapping a region in the middle of an existing mapping,
+since this results in two smaller mappings on either side of
+the region being unmapped.
+<DT id="44"><B>ENOMEM</B>
+
+<DD>
+(since Linux 4.7)
+The process's
+<B>RLIMIT_DATA</B>
+
+limit, described in
+<B><A HREF="/cgi-bin/man/man2html?2+getrlimit">getrlimit</A></B>(2),
+
+would have been exceeded.
+<DT id="45"><B>EOVERFLOW</B>
+
+<DD>
+On 32-bit architecture together with the large file extension
+(i.e., using 64-bit
+<I>off_t</I>):
+
+the number of pages used for
+<I>length</I>
+
+plus number of pages used for
+<I>offset</I>
+
+would overflow
+<I>unsigned long</I>
+
+(32 bits).
+<DT id="46"><B>EPERM</B>
+
+<DD>
+The
+<I>prot</I>
+
+argument asks for
+<B>PROT_EXEC</B>
+
+but the mapped area belongs to a file on a filesystem that
+was mounted no-exec.
+
+<DT id="47"><B>EPERM</B>
+
+<DD>
+The operation was prevented by a file seal; see
+<B><A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A></B>(2).
+
+<DT id="48"><B>ETXTBSY</B>
+
+<DD>
+<B>MAP_DENYWRITE</B>
+
+was set but the object specified by
+<I>fd</I>
+
+is open for writing.
+</DL>
+<P>
+
+Use of a mapped region can result in these signals:
+<DL COMPACT>
+<DT id="49"><B>SIGSEGV</B>
+
+<DD>
+Attempted write into a region mapped as read-only.
+<DT id="50"><B>SIGBUS</B>
+
+<DD>
+Attempted access to a portion of the buffer that does not correspond
+to the file (for example, beyond the end of the file, including the
+case where another process has truncated the file).
+</DL>
+<A NAME="lbAH">&nbsp;</A>
+<H2>ATTRIBUTES</H2>
+
+For an explanation of the terms used in this section, see
+<B><A HREF="/cgi-bin/man/man2html?7+attributes">attributes</A></B>(7).
+
+<TABLE BORDER>
+<TR VALIGN=top><TD><B>Interface</B></TD><TD><B>Attribute</B></TD><TD><B>Value</B><BR></TD></TR>
+<TR VALIGN=top><TD>
+<B>mmap</B>(),
+
+<B>munmap</B>()
+
+</TD><TD>Thread safety</TD><TD>MT-Safe<BR></TD></TR>
+</TABLE>
+
+<A NAME="lbAI">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+POSIX.1-2001, POSIX.1-2008, SVr4, 4.4BSD.
+
+
+<A NAME="lbAJ">&nbsp;</A>
+<H2>AVAILABILITY</H2>
+
+On POSIX systems on which
+<B>mmap</B>(),
+
+<B><A HREF="/cgi-bin/man/man2html?2+msync">msync</A></B>(2),
+
+and
+<B>munmap</B>()
+
+are available,
+<B>_POSIX_MAPPED_FILES</B>
+
+is defined in <I>&lt;<A HREF="file:///usr/include/unistd.h">unistd.h</A>&gt;</I> to a value greater than 0.
+(See also
+<B><A HREF="/cgi-bin/man/man2html?3+sysconf">sysconf</A></B>(3).)
+
+
+
+
+<A NAME="lbAK">&nbsp;</A>
+<H2>NOTES</H2>
+
+On some hardware architectures (e.g., i386),
+<B>PROT_WRITE</B>
+
+implies
+<B>PROT_READ</B>.
+
+It is architecture dependent whether
+<B>PROT_READ</B>
+
+implies
+<B>PROT_EXEC</B>
+
+or not.
+Portable programs should always set
+<B>PROT_EXEC</B>
+
+if they intend to execute code in the new mapping.
+<P>
+
+The portable way to create a mapping is to specify
+<I>addr</I>
+
+as 0 (NULL), and omit
+<B>MAP_FIXED</B>
+
+from
+<I>flags</I>.
+
+In this case, the system chooses the address for the mapping;
+the address is chosen so as not to conflict with any existing mapping,
+and will not be 0.
+If the
+<B>MAP_FIXED</B>
+
+flag is specified, and
+<I>addr</I>
+
+is 0 (NULL), then the mapped address will be 0 (NULL).
+<P>
+
+Certain
+<I>flags</I>
+
+constants are defined only if suitable feature test macros are defined
+(possibly by default):
+<B>_DEFAULT_SOURCE</B>
+
+with glibc 2.19 or later;
+or
+<B>_BSD_SOURCE</B>
+
+or
+<B>_SVID_SOURCE</B>
+
+in glibc 2.19 and earlier.
+(Employing
+<B>_GNU_SOURCE</B>
+
+also suffices,
+and requiring that macro specifically would have been more logical,
+since these flags are all Linux-specific.)
+The relevant flags are:
+<B>MAP_32BIT</B>,
+
+<B>MAP_ANONYMOUS</B>
+
+(and the synonym
+<B>MAP_ANON</B>),
+
+<B>MAP_DENYWRITE</B>,
+
+<B>MAP_EXECUTABLE</B>,
+
+<B>MAP_FILE</B>,
+
+<B>MAP_GROWSDOWN</B>,
+
+<B>MAP_HUGETLB</B>,
+
+<B>MAP_LOCKED</B>,
+
+<B>MAP_NONBLOCK</B>,
+
+<B>MAP_NORESERVE</B>,
+
+<B>MAP_POPULATE</B>,
+
+and
+<B>MAP_STACK</B>.
+
+<P>
+
+An application can determine which pages of a mapping are
+currently resident in the buffer/page cache using
+<B><A HREF="/cgi-bin/man/man2html?2+mincore">mincore</A></B>(2).
+
+
+<A NAME="lbAL">&nbsp;</A>
+<H3>Using MAP_FIXED safely</H3>
+
+The only safe use for
+<B>MAP_FIXED</B>
+
+is where the address range specified by
+<I>addr</I>
+
+and
+<I>length</I>
+
+was previously reserved using another mapping;
+otherwise, the use of
+<B>MAP_FIXED</B>
+
+is hazardous because it forcibly removes preexisting mappings,
+making it easy for a multithreaded process to corrupt its own address space.
+<P>
+
+For example, suppose that thread A looks through
+<I>/proc/&lt;pid&gt;/maps</I>
+
+and in order to locate an unused address range that it can map using
+<B>MAP_FIXED</B>,
+
+while thread B simultaneously acquires part or all of that same
+address range.
+When thread A subsequently employs
+<B>mmap(MAP_FIXED)</B>,
+
+it will effectively clobber the mapping that thread B created.
+In this scenario,
+thread B need not create a mapping directly; simply making a library call
+that, internally, uses
+<B><A HREF="/cgi-bin/man/man2html?3+dlopen">dlopen</A></B>(3)
+
+to load some other shared library, will suffice.
+The
+<B><A HREF="/cgi-bin/man/man2html?3+dlopen">dlopen</A></B>(3)
+
+call will map the library into the process's address space.
+Furthermore, almost any library call may be implemented in a way that
+adds memory mappings to the address space, either with this technique,
+or by simply allocating memory.
+Examples include
+<B><A HREF="/cgi-bin/man/man2html?2+brk">brk</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?3+malloc">malloc</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+pthread_create">pthread_create</A></B>(3),
+
+and the PAM libraries
+
+
+<P>
+
+Since Linux 4.17, a multithreaded program can use the
+<B>MAP_FIXED_NOREPLACE</B>
+
+flag to avoid the hazard described above
+when attempting to create a mapping at a fixed address
+that has not been reserved by a preexisting mapping.
+
+<A NAME="lbAM">&nbsp;</A>
+<H3>Timestamps changes for file-backed mappings</H3>
+
+For file-backed mappings, the
+<I>st_atime</I>
+
+field for the mapped file may be updated at any time between the
+<B>mmap</B>()
+
+and the corresponding unmapping; the first reference to a mapped
+page will update the field if it has not been already.
+<P>
+
+The
+<I>st_ctime</I>
+
+and
+<I>st_mtime</I>
+
+field for a file mapped with
+<B>PROT_WRITE</B>
+
+and
+<B>MAP_SHARED</B>
+
+will be updated after
+a write to the mapped region, and before a subsequent
+<B><A HREF="/cgi-bin/man/man2html?2+msync">msync</A></B>(2)
+
+with the
+<B>MS_SYNC</B>
+
+or
+<B>MS_ASYNC</B>
+
+flag, if one occurs.
+
+<A NAME="lbAN">&nbsp;</A>
+<H3>Huge page (Huge TLB) mappings</H3>
+
+For mappings that employ huge pages, the requirements for the arguments of
+<B>mmap</B>()
+
+and
+<B>munmap</B>()
+
+differ somewhat from the requirements for mappings
+that use the native system page size.
+<P>
+
+For
+<B>mmap</B>(),
+
+<I>offset</I>
+
+must be a multiple of the underlying huge page size.
+The system automatically aligns
+<I>length</I>
+
+to be a multiple of the underlying huge page size.
+<P>
+
+For
+<B>munmap</B>(),
+
+<I>addr</I>
+
+and
+<I>length</I>
+
+must both be a multiple of the underlying huge page size.
+
+<A NAME="lbAO">&nbsp;</A>
+<H3>C library/kernel differences</H3>
+
+This page describes the interface provided by the glibc
+<B>mmap</B>()
+
+wrapper function.
+Originally, this function invoked a system call of the same name.
+Since kernel 2.4, that system call has been superseded by
+<B><A HREF="/cgi-bin/man/man2html?2+mmap2">mmap2</A></B>(2),
+
+and nowadays
+
+the glibc
+<B>mmap</B>()
+
+wrapper function invokes
+<B><A HREF="/cgi-bin/man/man2html?2+mmap2">mmap2</A></B>(2)
+
+with a suitably adjusted value for
+<I>offset</I>.
+
+<A NAME="lbAP">&nbsp;</A>
+<H2>BUGS</H2>
+
+On Linux, there are no guarantees like those suggested above under
+<B>MAP_NORESERVE</B>.
+
+By default, any process can be killed
+at any moment when the system runs out of memory.
+<P>
+
+In kernels before 2.6.7, the
+<B>MAP_POPULATE</B>
+
+flag has effect only if
+<I>prot</I>
+
+is specified as
+<B>PROT_NONE</B>.
+
+<P>
+
+SUSv3 specifies that
+<B>mmap</B>()
+
+should fail if
+<I>length</I>
+
+is 0.
+However, in kernels before 2.6.12,
+<B>mmap</B>()
+
+succeeded in this case: no mapping was created and the call returned
+<I>addr</I>.
+
+Since kernel 2.6.12,
+<B>mmap</B>()
+
+fails with the error
+<B>EINVAL</B>
+
+for this case.
+<P>
+
+POSIX specifies that the system shall always
+zero fill any partial page at the end
+of the object and that system will never write any modification of the
+object beyond its end.
+On Linux, when you write data to such partial page after the end
+of the object, the data stays in the page cache even after the file
+is closed and unmapped
+and even though the data is never written to the file itself,
+subsequent mappings may see the modified content.
+In some cases, this could be fixed by calling
+<B><A HREF="/cgi-bin/man/man2html?2+msync">msync</A></B>(2)
+
+before the unmap takes place;
+however, this doesn't work on
+<B><A HREF="/cgi-bin/man/man2html?5+tmpfs">tmpfs</A></B>(5)
+
+(for example, when using the POSIX shared memory interface documented in
+<B><A HREF="/cgi-bin/man/man2html?7+shm_overview">shm_overview</A></B>(7)).
+
+<A NAME="lbAQ">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+
+
+<P>
+
+The following program prints part of the file specified in
+its first command-line argument to standard output.
+The range of bytes to be printed is specified via offset and length
+values in the second and third command-line arguments.
+The program creates a memory mapping of the required
+pages of the file and then uses
+<B><A HREF="/cgi-bin/man/man2html?2+write">write</A></B>(2)
+
+to output the desired bytes.
+<A NAME="lbAR">&nbsp;</A>
+<H3>Program source</H3>
+
+
+#include &lt;<A HREF="file:///usr/include/sys/mman.h">sys/mman.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/sys/stat.h">sys/stat.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/fcntl.h">fcntl.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdlib.h">stdlib.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/unistd.h">unistd.h</A>&gt;
+<P>
+#define handle_error(msg) \
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;do&nbsp;{&nbsp;perror(msg);&nbsp;exit(EXIT_FAILURE);&nbsp;}&nbsp;while&nbsp;(0)
+<P>
+int
+main(int argc, char *argv[])
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;*addr;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;fd;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;stat&nbsp;sb;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;off_t&nbsp;offset,&nbsp;pa_offset;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;size_t&nbsp;length;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;ssize_t&nbsp;s;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(argc&nbsp;&lt;&nbsp;3&nbsp;||&nbsp;argc&nbsp;&gt;&nbsp;4)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;%s&nbsp;file&nbsp;offset&nbsp;[length]\n&quot;,&nbsp;argv[0]);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fd&nbsp;=&nbsp;open(argv[1],&nbsp;O_RDONLY);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(fd&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;handle_error(&quot;open&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(fstat(fd,&nbsp;&amp;sb)&nbsp;==&nbsp;-1)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;To&nbsp;obtain&nbsp;file&nbsp;size&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;handle_error(&quot;fstat&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;offset&nbsp;=&nbsp;atoi(argv[2]);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;pa_offset&nbsp;=&nbsp;offset&nbsp;&amp;&nbsp;~(sysconf(_SC_PAGE_SIZE)&nbsp;-&nbsp;1);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;offset&nbsp;for&nbsp;mmap()&nbsp;must&nbsp;be&nbsp;page&nbsp;aligned&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(offset&nbsp;&gt;=&nbsp;sb.st_size)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;offset&nbsp;is&nbsp;past&nbsp;end&nbsp;of&nbsp;file\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(argc&nbsp;==&nbsp;4)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;length&nbsp;=&nbsp;atoi(argv[3]);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(offset&nbsp;+&nbsp;length&nbsp;&gt;&nbsp;sb.st_size)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;length&nbsp;=&nbsp;sb.st_size&nbsp;-&nbsp;offset;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Can't&nbsp;display&nbsp;bytes&nbsp;past&nbsp;end&nbsp;of&nbsp;file&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;else&nbsp;{&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;No&nbsp;length&nbsp;arg&nbsp;==&gt;&nbsp;display&nbsp;to&nbsp;end&nbsp;of&nbsp;file&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;length&nbsp;=&nbsp;sb.st_size&nbsp;-&nbsp;offset;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;addr&nbsp;=&nbsp;mmap(NULL,&nbsp;length&nbsp;+&nbsp;offset&nbsp;-&nbsp;pa_offset,&nbsp;PROT_READ,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MAP_PRIVATE,&nbsp;fd,&nbsp;pa_offset);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(addr&nbsp;==&nbsp;MAP_FAILED)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;handle_error(&quot;mmap&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;s&nbsp;=&nbsp;write(STDOUT_FILENO,&nbsp;addr&nbsp;+&nbsp;offset&nbsp;-&nbsp;pa_offset,&nbsp;length);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(s&nbsp;!=&nbsp;length)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(s&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;handle_error(&quot;write&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;partial&nbsp;write&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;munmap(addr,&nbsp;length&nbsp;+&nbsp;offset&nbsp;-&nbsp;pa_offset);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;close(fd);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_SUCCESS);
+}
+
+<A NAME="lbAS">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?2+ftruncate">ftruncate</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+getpagesize">getpagesize</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+memfd_create">memfd_create</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+mincore">mincore</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+mlock">mlock</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+mmap2">mmap2</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+mprotect">mprotect</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+mremap">mremap</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+msync">msync</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+remap_file_pages">remap_file_pages</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+setrlimit">setrlimit</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+shmat">shmat</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+userfaultfd">userfaultfd</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?3+shm_open">shm_open</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?7+shm_overview">shm_overview</A></B>(7)
+
+<P>
+
+The descriptions of the following files in
+<B><A HREF="/cgi-bin/man/man2html?5+proc">proc</A></B>(5):
+
+<I>/proc/[pid]/maps</I>,
+
+<I>/proc/[pid]/map_files</I>,
+
+and
+<I>/proc/[pid]/smaps</I>.
+
+<P>
+
+B.O. Gallmeister, POSIX.4, O'Reilly, pp. 128-129 and 389-391.
+
+
+
+<A NAME="lbAT">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="51"><A HREF="#lbAB">NAME</A><DD>
+<DT id="52"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="53"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DL>
+<DT id="54"><A HREF="#lbAE">munmap()</A><DD>
+</DL>
+<DT id="55"><A HREF="#lbAF">RETURN VALUE</A><DD>
+<DT id="56"><A HREF="#lbAG">ERRORS</A><DD>
+<DT id="57"><A HREF="#lbAH">ATTRIBUTES</A><DD>
+<DT id="58"><A HREF="#lbAI">CONFORMING TO</A><DD>
+<DT id="59"><A HREF="#lbAJ">AVAILABILITY</A><DD>
+<DT id="60"><A HREF="#lbAK">NOTES</A><DD>
+<DL>
+<DT id="61"><A HREF="#lbAL">Using MAP_FIXED safely</A><DD>
+<DT id="62"><A HREF="#lbAM">Timestamps changes for file-backed mappings</A><DD>
+<DT id="63"><A HREF="#lbAN">Huge page (Huge TLB) mappings</A><DD>
+<DT id="64"><A HREF="#lbAO">C library/kernel differences</A><DD>
+</DL>
+<DT id="65"><A HREF="#lbAP">BUGS</A><DD>
+<DT id="66"><A HREF="#lbAQ">EXAMPLE</A><DD>
+<DL>
+<DT id="67"><A HREF="#lbAR">Program source</A><DD>
+</DL>
+<DT id="68"><A HREF="#lbAS">SEE ALSO</A><DD>
+<DT id="69"><A HREF="#lbAT">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:33 GMT, March 31, 2021
+</BODY>
+</HTML>

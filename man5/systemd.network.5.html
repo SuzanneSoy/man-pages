@@ -1,0 +1,3696 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SYSTEMD.NETWORK</TITLE>
+</HEAD><BODY>
+<H1>SYSTEMD.NETWORK</H1>
+Section: systemd.network (5)<BR>Updated: <BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+systemd.network - Network configuration
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+
+<I>network</I>.network
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+A plain ini-style text file that encodes network configuration for matching network interfaces, used by
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-networkd">systemd-networkd</A></B>(8). See
+<B><A HREF="/cgi-bin/man/man2html?7+systemd.syntax">systemd.syntax</A></B>(7)
+for a general description of the syntax.
+<P>
+
+The main network file must have the extension
+.network; other extensions are ignored. Networks are applied to links whenever the links appear.
+<P>
+
+The
+.network
+files are read from the files located in the system network directories
+/lib/systemd/network
+and
+/usr/local/lib/systemd/network, the volatile runtime network directory
+/run/systemd/network
+and the local administration network directory
+/etc/systemd/network. All configuration files are collectively sorted and processed in lexical order, regardless of the directories in which they live. However, files with identical filenames replace each other. Files in
+/etc
+have the highest priority, files in
+/run
+take precedence over files with the same name under
+/usr. This can be used to override a system-supplied configuration file with a local file if needed. As a special case, an empty file (file size 0) or symlink with the same name pointing to
+/dev/null
+disables the configuration file entirely (it is &quot;masked&quot;).
+<P>
+
+Along with the network file
+foo.network, a &quot;drop-in&quot; directory
+foo.network.d/
+may exist. All files with the suffix
+&quot;.conf&quot;
+from this directory will be parsed after the file itself is parsed. This is useful to alter or add configuration settings, without having to modify the main configuration file. Each drop-in file must have appropriate section headers.
+<P>
+
+In addition to
+/etc/systemd/network, drop-in
+&quot;.d&quot;
+directories can be placed in
+/lib/systemd/network
+or
+/run/systemd/network
+directories. Drop-in files in
+/etc
+take precedence over those in
+/run
+which in turn take precedence over those in
+/lib. Drop-in files under any of these directories take precedence over the main network file wherever located.
+<P>
+
+Note that an interface without any static IPv6 addresses configured, and neither DHCPv6 nor IPv6LL enabled, shall be considered to have no IPv6 support. IPv6 will be automatically disabled for that interface by writing &quot;1&quot; to
+/proc/sys/net/ipv6/conf/<I>ifname</I>/disable_ipv6.
+<A NAME="lbAE">&nbsp;</A>
+<H2>[MATCH] SECTION OPTIONS</H2>
+
+<P>
+
+The network file contains a
+&quot;[Match]&quot;
+section, which determines if a given network file may be applied to a given device; and a
+&quot;[Network]&quot;
+section specifying how the device should be configured. The first (in lexical order) of the network files that matches a given device is applied, all later files are ignored, even if they match as well.
+<P>
+
+A network file is said to match a network interface if all matches specified by the
+&quot;[Match]&quot;
+section are satisfied. When a network file does not contain valid settings in
+&quot;[Match]&quot;
+section, then the file will match all interfaces and
+<B>systemd-networkd</B>
+warns about that. Hint: to avoid the warning and to make it clear that all interfaces shall be matched, add the following:
+<P>
+<DL COMPACT><DT id="1"><DD>
+
+
+
+<PRE>
+Name=*
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+The following keys are accepted:
+<P>
+
+<I>MACAddress=</I>
+<DL COMPACT><DT id="2"><DD>
+A whitespace-separated list of hardware addresses. Use full colon-, hyphen- or dot-delimited hexadecimal. See the example below. This option may appear more than once, in which case the lists are merged. If the empty string is assigned to this option, the list of hardware addresses defined prior to this is reset.
+<P>
+Example:
+<P>
+<DL COMPACT><DT id="3"><DD>
+
+
+
+<PRE>
+MACAddress=01:23:45:67:89:ab 00-11-22-33-44-55 AABB.CCDD.EEFF
+</PRE>
+
+</DL>
+
+
+
+
+</DL>
+
+<P>
+
+<I>PermanentMACAddress=</I>
+<DL COMPACT><DT id="4"><DD>
+A whitespace-separated list of hardware's permanent addresses. While
+<I>MACAddress=</I>
+matches the device's current MAC address, this matches the device's permanent MAC address, which may be different from the current one. Use full colon-, hyphen- or dot-delimited hexadecimal. This option may appear more than once, in which case the lists are merged. If the empty string is assigned to this option, the list of hardware addresses defined prior to this is reset.
+</DL>
+
+<P>
+
+<I>Path=</I>
+<DL COMPACT><DT id="5"><DD>
+A whitespace-separated list of shell-style globs matching the persistent path, as exposed by the udev property
+<I>ID_PATH</I>.
+</DL>
+
+<P>
+
+<I>Driver=</I>
+<DL COMPACT><DT id="6"><DD>
+A whitespace-separated list of shell-style globs matching the driver currently bound to the device, as exposed by the udev property
+<I>ID_NET_DRIVER</I>
+of its parent device, or if that is not set, the driver as exposed by
+<B>ethtool -i</B>
+of the device itself. If the list is prefixed with a &quot;!&quot;, the test is inverted.
+</DL>
+
+<P>
+
+<I>Type=</I>
+<DL COMPACT><DT id="7"><DD>
+A whitespace-separated list of shell-style globs matching the device type, as exposed by
+<B>networkctl status</B>. If the list is prefixed with a &quot;!&quot;, the test is inverted.
+</DL>
+
+<P>
+
+<I>Property=</I>
+<DL COMPACT><DT id="8"><DD>
+A whitespace-separated list of udev property name with its value after a equal (&quot;=&quot;). If multiple properties are specified, the test results are ANDed. If the list is prefixed with a &quot;!&quot;, the test is inverted. If a value contains white spaces, then please quote whole key and value pair. If a value contains quotation, then please escape the quotation with
+&quot;\&quot;.
+<P>
+Example: if a .link file has the following:
+<P>
+<DL COMPACT><DT id="9"><DD>
+
+
+
+<PRE>
+Property=ID_MODEL_ID=9999 &quot;ID_VENDOR_FROM_DATABASE=vendor name&quot; &quot;KEY=with \&quot;quotation\&quot;&quot;
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+then, the .link file matches only when an interface has all the above three properties.
+</DL>
+
+<P>
+
+<I>Name=</I>
+<DL COMPACT><DT id="10"><DD>
+A whitespace-separated list of shell-style globs matching the device name, as exposed by the udev property
+&quot;INTERFACE&quot;, or device's alternative names. If the list is prefixed with a &quot;!&quot;, the test is inverted.
+</DL>
+
+<P>
+
+<I>WLANInterfaceType=</I>
+<DL COMPACT><DT id="11"><DD>
+A whitespace-separated list of wireless network type. Supported values are
+&quot;ad-hoc&quot;,
+&quot;station&quot;,
+&quot;ap&quot;,
+&quot;ap-vlan&quot;,
+&quot;wds&quot;,
+&quot;monitor&quot;,
+&quot;mesh-point&quot;,
+&quot;p2p-client&quot;,
+&quot;p2p-go&quot;,
+&quot;p2p-device&quot;,
+&quot;ocb&quot;, and
+&quot;nan&quot;. If the list is prefixed with a &quot;!&quot;, the test is inverted.
+</DL>
+
+<P>
+
+<I>SSID=</I>
+<DL COMPACT><DT id="12"><DD>
+A whitespace-separated list of shell-style globs matching the SSID of the currently connected wireless LAN. If the list is prefixed with a &quot;!&quot;, the test is inverted.
+</DL>
+
+<P>
+
+<I>BSSID=</I>
+<DL COMPACT><DT id="13"><DD>
+A whitespace-separated list of hardware address of the currently connected wireless LAN. Use full colon-, hyphen- or dot-delimited hexadecimal. See the example in
+<I>MACAddress=</I>. This option may appear more than one, in which case the lists are merged. If the empty string is assigned to this option, the list of BSSID defined prior to this is reset.
+</DL>
+
+<P>
+
+<I>Host=</I>
+<DL COMPACT><DT id="14"><DD>
+Matches against the hostname or machine ID of the host. See
+<I>ConditionHost=</I>
+in
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.unit">systemd.unit</A></B>(5)
+for details. When prefixed with an exclamation mark (&quot;!&quot;), the result is negated. If an empty string is assigned, then previously assigned value is cleared.
+</DL>
+
+<P>
+
+<I>Virtualization=</I>
+<DL COMPACT><DT id="15"><DD>
+Checks whether the system is executed in a virtualized environment and optionally test whether it is a specific implementation. See
+<I>ConditionVirtualization=</I>
+in
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.unit">systemd.unit</A></B>(5)
+for details. When prefixed with an exclamation mark (&quot;!&quot;), the result is negated. If an empty string is assigned, then previously assigned value is cleared.
+</DL>
+
+<P>
+
+<I>KernelCommandLine=</I>
+<DL COMPACT><DT id="16"><DD>
+Checks whether a specific kernel command line option is set. See
+<I>ConditionKernelCommandLine=</I>
+in
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.unit">systemd.unit</A></B>(5)
+for details. When prefixed with an exclamation mark (&quot;!&quot;), the result is negated. If an empty string is assigned, then previously assigned value is cleared.
+</DL>
+
+<P>
+
+<I>KernelVersion=</I>
+<DL COMPACT><DT id="17"><DD>
+Checks whether the kernel version (as reported by
+<B>uname -r</B>) matches a certain expression. See
+<I>ConditionKernelVersion=</I>
+in
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.unit">systemd.unit</A></B>(5)
+for details. When prefixed with an exclamation mark (&quot;!&quot;), the result is negated. If an empty string is assigned, then previously assigned value is cleared.
+</DL>
+
+<P>
+
+<I>Architecture=</I>
+<DL COMPACT><DT id="18"><DD>
+Checks whether the system is running on a specific architecture. See
+<I>ConditionArchitecture=</I>
+in
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.unit">systemd.unit</A></B>(5)
+for details. When prefixed with an exclamation mark (&quot;!&quot;), the result is negated. If an empty string is assigned, then previously assigned value is cleared.
+</DL>
+
+<A NAME="lbAF">&nbsp;</A>
+<H2>[LINK] SECTION OPTIONS</H2>
+
+<P>
+
+The
+&quot;[Link]&quot;
+section accepts the following keys:
+<P>
+
+<I>MACAddress=</I>
+<DL COMPACT><DT id="19"><DD>
+The hardware address to set for the device.
+</DL>
+
+<P>
+
+<I>MTUBytes=</I>
+<DL COMPACT><DT id="20"><DD>
+The maximum transmission unit in bytes to set for the device. The usual suffixes K, M, G, are supported and are understood to the base of 1024.
+<P>
+Note that if IPv6 is enabled on the interface, and the MTU is chosen below 1280 (the minimum MTU for IPv6) it will automatically be increased to this value.
+</DL>
+
+<P>
+
+<I>ARP=</I>
+<DL COMPACT><DT id="21"><DD>
+Takes a boolean. If set to true, the ARP (low-level Address Resolution Protocol) for this interface is enabled. When unset, the kernel's default will be used.
+<P>
+For example, disabling ARP is useful when creating multiple MACVLAN or VLAN virtual interfaces atop a single lower-level physical interface, which will then only serve as a link/&quot;bridge&quot; device aggregating traffic to the same physical link and not participate in the network otherwise.
+</DL>
+
+<P>
+
+<I>Multicast=</I>
+<DL COMPACT><DT id="22"><DD>
+Takes a boolean. If set to true, the multicast flag on the device is enabled.
+</DL>
+
+<P>
+
+<I>AllMulticast=</I>
+<DL COMPACT><DT id="23"><DD>
+Takes a boolean. If set to true, the driver retrieves all multicast packets from the network. This happens when multicast routing is enabled.
+</DL>
+
+<P>
+
+<I>Unmanaged=</I>
+<DL COMPACT><DT id="24"><DD>
+Takes a boolean. When
+&quot;yes&quot;, no attempts are made to bring up or configure matching links, equivalent to when there are no matching network files. Defaults to
+&quot;no&quot;.
+<P>
+This is useful for preventing later matching network files from interfering with certain interfaces that are fully controlled by other applications.
+</DL>
+
+<P>
+
+<I>RequiredForOnline=</I>
+<DL COMPACT><DT id="25"><DD>
+Takes a boolean or a minimum operational state and an optional maximum operational state. Please see
+<B><A HREF="/cgi-bin/man/man2html?1+networkctl">networkctl</A></B>(1)
+for possible operational states. When
+&quot;yes&quot;, the network is deemed required when determining whether the system is online when running
+<B>systemd-networkd-wait-online</B>. When
+&quot;no&quot;, the network is ignored when checking for online state. When a minimum operational state and an optional maximum operational state are set,
+&quot;yes&quot;
+is implied, and this controls the minimum and maximum operational state required for the network interface to be considered online. Defaults to
+&quot;yes&quot;.
+<P>
+The network will be brought up normally in all cases, but in the event that there is no address being assigned by DHCP or the cable is not plugged in, the link will simply remain offline and be skipped automatically by
+<B>systemd-networkd-wait-online</B>
+if
+&quot;RequiredForOnline=no&quot;.
+</DL>
+
+<A NAME="lbAG">&nbsp;</A>
+<H2>[NETWORK] SECTION OPTIONS</H2>
+
+<P>
+
+The
+&quot;[Network]&quot;
+section accepts the following keys:
+<P>
+
+<I>Description=</I>
+<DL COMPACT><DT id="26"><DD>
+A description of the device. This is only used for presentation purposes.
+</DL>
+
+<P>
+
+<I>DHCP=</I>
+<DL COMPACT><DT id="27"><DD>
+Enables DHCPv4 and/or DHCPv6 client support. Accepts
+&quot;yes&quot;,
+&quot;no&quot;,
+&quot;ipv4&quot;, or
+&quot;ipv6&quot;. Defaults to
+&quot;no&quot;.
+<P>
+Note that DHCPv6 will by default be triggered by Router Advertisement, if that is enabled, regardless of this parameter. By enabling DHCPv6 support explicitly, the DHCPv6 client will be started regardless of the presence of routers on the link, or what flags the routers pass. See
+&quot;IPv6AcceptRA=&quot;.
+<P>
+Furthermore, note that by default the domain name specified through DHCP, on Ubuntu, are used for name resolution. See option
+<B>UseDomains=</B>
+below.
+<P>
+See the
+&quot;[DHCPv4]&quot;
+or
+&quot;[DHCPv6]&quot;
+section below for further configuration options for the DHCP client support.
+</DL>
+
+<P>
+
+<I>DHCPServer=</I>
+<DL COMPACT><DT id="28"><DD>
+Takes a boolean. If set to
+&quot;yes&quot;, DHCPv4 server will be started. Defaults to
+&quot;no&quot;. Further settings for the DHCP server may be set in the
+&quot;[DHCPServer]&quot;
+section described below.
+</DL>
+
+<P>
+
+<I>LinkLocalAddressing=</I>
+<DL COMPACT><DT id="29"><DD>
+Enables link-local address autoconfiguration. Accepts
+&quot;yes&quot;,
+&quot;no&quot;,
+&quot;ipv4&quot;,
+&quot;ipv6&quot;,
+&quot;fallback&quot;, or
+&quot;ipv4-fallback&quot;. If
+&quot;fallback&quot;
+or
+&quot;ipv4-fallback&quot;
+is specified, then an IPv4 link-local address is configured only when DHCPv4 fails. If
+&quot;fallback&quot;, an IPv6 link-local address is always configured, and if
+&quot;ipv4-fallback&quot;, the address is not configured. Note that, the fallback mechanism works only when DHCPv4 client is enabled, that is, it requires
+&quot;DHCP=yes&quot;
+or
+&quot;DHCP=ipv4&quot;. If
+<I>Bridge=</I>
+is set, defaults to
+&quot;no&quot;, and if not, defaults to
+&quot;ipv6&quot;.
+</DL>
+
+<P>
+
+<I>IPv4LLRoute=</I>
+<DL COMPACT><DT id="30"><DD>
+Takes a boolean. If set to true, sets up the route needed for non-IPv4LL hosts to communicate with IPv4LL-only hosts. Defaults to false.
+</DL>
+
+<P>
+
+<I>DefaultRouteOnDevice=</I>
+<DL COMPACT><DT id="31"><DD>
+Takes a boolean. If set to true, sets up the default route bound to the interface. Defaults to false. This is useful when creating routes on point-to-point interfaces. This is equivalent to e.g. the following.
+<P>
+<DL COMPACT><DT id="32"><DD>
+
+
+
+<PRE>
+ip route add default dev veth99
+</PRE>
+
+</DL>
+
+
+
+
+</DL>
+
+<P>
+
+<I>IPv6Token=</I>
+<DL COMPACT><DT id="33"><DD>
+Specifies an optional address generation mode and a required IPv6 address. If the mode is present, the two parts must be separated with a colon
+&quot;<I>mode</I>:<I>address</I>&quot;. The address generation mode may be either
+<B>prefixstable</B>
+or
+<B>static</B>. If not specified,
+<B>static</B>
+is assumed.
+<P>
+When the mode is set to
+<B>static</B>, or unspecified, the lower bits of the supplied address are combined with the upper bits of a prefix received in a Router Advertisement message to form a complete address. Note that if multiple prefixes are received in an RA message, or in multiple RA messages, addresses will be formed from each of them using the supplied address. This mode implements SLAAC but uses a static interface identifier instead of an identifier generated using the EUI-64 algorithm. Because the interface identifier is static, if Duplicate Address Detection detects that the computed address is a duplicate (in use by another node on the link), then this mode will fail to provide an address for that prefix.
+<P>
+When the mode is set to
+&quot;prefixstable&quot;
+the RFC 7217 algorithm for generating interface identifiers will be used, but only when a prefix received in an RA message matches the supplied address. See
+m[blue]<B>RFC 7217</B>m[]<FONT SIZE="-2">[1]</FONT>. Prefix matching will be attempted against each
+<B>prefixstable</B>
+IPv6Token variable provided in the configuration; if a received prefix does not match any of the provided addresses, then the EUI-64 algorithm will be used to form an interface identifier for that prefix. This mode is also SLAAC, but with a potentially stable interface identifier which does not directly map to the interface's hardware address. Note that the
+<B>prefixstable</B>
+algorithm includes both the interface's name and MAC address in the hash used to compute the interface identifier, so if either of those are changed the resulting interface identifier (and address) will change, even if the prefix received in the RA message has not changed. Note that if multiple
+<B>prefixstable</B>
+IPv6Token variables are supplied with addresses that match a prefix received in an RA message, only the first one will be used to generate addresses.
+</DL>
+
+<P>
+
+<I>LLMNR=</I>
+<DL COMPACT><DT id="34"><DD>
+Takes a boolean or
+&quot;resolve&quot;. When true, enables
+m[blue]<B>Link-Local Multicast Name Resolution</B>m[]<FONT SIZE="-2">[2]</FONT>
+on the link. When set to
+&quot;resolve&quot;, only resolution is enabled, but not host registration and announcement. Defaults to true. This setting is read by
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-resolved.service">systemd-resolved.service</A></B>(8).
+</DL>
+
+<P>
+
+<I>MulticastDNS=</I>
+<DL COMPACT><DT id="35"><DD>
+Takes a boolean or
+&quot;resolve&quot;. When true, enables
+m[blue]<B>Multicast DNS</B>m[]<FONT SIZE="-2">[3]</FONT>
+support on the link. When set to
+&quot;resolve&quot;, only resolution is enabled, but not host or service registration and announcement. Defaults to false. This setting is read by
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-resolved.service">systemd-resolved.service</A></B>(8).
+</DL>
+
+<P>
+
+<I>DNSOverTLS=</I>
+<DL COMPACT><DT id="36"><DD>
+Takes a boolean or
+&quot;opportunistic&quot;. When true, enables
+m[blue]<B>DNS-over-TLS</B>m[]<FONT SIZE="-2">[4]</FONT>
+support on the link. When set to
+&quot;opportunistic&quot;, compatibility with non-DNS-over-TLS servers is increased, by automatically turning off DNS-over-TLS servers in this case. This option defines a per-interface setting for
+<B><A HREF="/cgi-bin/man/man2html?5+resolved.conf">resolved.conf</A></B>(5)'s global
+<I>DNSOverTLS=</I>
+option. Defaults to false. This setting is read by
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-resolved.service">systemd-resolved.service</A></B>(8).
+</DL>
+
+<P>
+
+<I>DNSSEC=</I>
+<DL COMPACT><DT id="37"><DD>
+Takes a boolean. or
+&quot;allow-downgrade&quot;. When true, enables
+m[blue]<B>DNSSEC</B>m[]<FONT SIZE="-2">[5]</FONT>
+DNS validation support on the link. When set to
+&quot;allow-downgrade&quot;, compatibility with non-DNSSEC capable networks is increased, by automatically turning off DNSSEC in this case. This option defines a per-interface setting for
+<B><A HREF="/cgi-bin/man/man2html?5+resolved.conf">resolved.conf</A></B>(5)'s global
+<I>DNSSEC=</I>
+option. Defaults to false. This setting is read by
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-resolved.service">systemd-resolved.service</A></B>(8).
+</DL>
+
+<P>
+
+<I>DNSSECNegativeTrustAnchors=</I>
+<DL COMPACT><DT id="38"><DD>
+A space-separated list of DNSSEC negative trust anchor domains. If specified and DNSSEC is enabled, look-ups done via the interface's DNS server will be subject to the list of negative trust anchors, and not require authentication for the specified domains, or anything below it. Use this to disable DNSSEC authentication for specific private domains, that cannot be proven valid using the Internet DNS hierarchy. Defaults to the empty list. This setting is read by
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-resolved.service">systemd-resolved.service</A></B>(8).
+</DL>
+
+<P>
+
+<I>LLDP=</I>
+<DL COMPACT><DT id="39"><DD>
+Controls support for Ethernet LLDP packet reception. LLDP is a link-layer protocol commonly implemented on professional routers and bridges which announces which physical port a system is connected to, as well as other related data. Accepts a boolean or the special value
+&quot;routers-only&quot;. When true, incoming LLDP packets are accepted and a database of all LLDP neighbors maintained. If
+&quot;routers-only&quot;
+is set only LLDP data of various types of routers is collected and LLDP data about other types of devices ignored (such as stations, telephones and others). If false, LLDP reception is disabled. Defaults to
+&quot;routers-only&quot;. Use
+<B><A HREF="/cgi-bin/man/man2html?1+networkctl">networkctl</A></B>(1)
+to query the collected neighbor data. LLDP is only available on Ethernet links. See
+<I>EmitLLDP=</I>
+below for enabling LLDP packet emission from the local system.
+</DL>
+
+<P>
+
+<I>EmitLLDP=</I>
+<DL COMPACT><DT id="40"><DD>
+Controls support for Ethernet LLDP packet emission. Accepts a boolean parameter or the special values
+&quot;nearest-bridge&quot;,
+&quot;non-tpmr-bridge&quot;
+and
+&quot;customer-bridge&quot;. Defaults to false, which turns off LLDP packet emission. If not false, a short LLDP packet with information about the local system is sent out in regular intervals on the link. The LLDP packet will contain information about the local host name, the local machine ID (as stored in
+<B><A HREF="/cgi-bin/man/man2html?5+machine-id">machine-id</A></B>(5)) and the local interface name, as well as the pretty hostname of the system (as set in
+<B><A HREF="/cgi-bin/man/man2html?5+machine-info">machine-info</A></B>(5)). LLDP emission is only available on Ethernet links. Note that this setting passes data suitable for identification of host to the network and should thus not be enabled on untrusted networks, where such identification data should not be made available. Use this option to permit other systems to identify on which interfaces they are connected to this system. The three special values control propagation of the LLDP packets. The
+&quot;nearest-bridge&quot;
+setting permits propagation only to the nearest connected bridge,
+&quot;non-tpmr-bridge&quot;
+permits propagation across Two-Port MAC Relays, but not any other bridges, and
+&quot;customer-bridge&quot;
+permits propagation until a customer bridge is reached. For details about these concepts, see
+m[blue]<B>IEEE 802.1AB-2016</B>m[]<FONT SIZE="-2">[6]</FONT>. Note that configuring this setting to true is equivalent to
+&quot;nearest-bridge&quot;, the recommended and most restricted level of propagation. See
+<I>LLDP=</I>
+above for an option to enable LLDP reception.
+</DL>
+
+<P>
+
+<I>BindCarrier=</I>
+<DL COMPACT><DT id="41"><DD>
+A link name or a list of link names. When set, controls the behavior of the current link. When all links in the list are in an operational down state, the current link is brought down. When at least one link has carrier, the current interface is brought up.
+</DL>
+
+<P>
+
+<I>Address=</I>
+<DL COMPACT><DT id="42"><DD>
+A static IPv4 or IPv6 address and its prefix length, separated by a
+&quot;/&quot;
+character. Specify this key more than once to configure several addresses. The format of the address must be as described in
+<B><A HREF="/cgi-bin/man/man2html?3+inet_pton">inet_pton</A></B>(3). This is a short-hand for an [Address] section only containing an Address key (see below). This option may be specified more than once.
+<P>
+If the specified address is
+&quot;0.0.0.0&quot;
+(for IPv4) or
+&quot;::&quot;
+(for IPv6), a new address range of the requested size is automatically allocated from a system-wide pool of unused ranges. Note that the prefix length must be equal or larger than 8 for IPv4, and 64 for IPv6. The allocated range is checked against all current network interfaces and all known network configuration files to avoid address range conflicts. The default system-wide pool consists of 192.168.0.0/16, 172.16.0.0/12 and 10.0.0.0/8 for IPv4, and fd00::/8 for IPv6. This functionality is useful to manage a large number of dynamically created network interfaces with the same network configuration and automatic address range assignment.
+</DL>
+
+<P>
+
+<I>Gateway=</I>
+<DL COMPACT><DT id="43"><DD>
+The gateway address, which must be in the format described in
+<B><A HREF="/cgi-bin/man/man2html?3+inet_pton">inet_pton</A></B>(3). This is a short-hand for a [Route] section only containing a Gateway key. This option may be specified more than once.
+</DL>
+
+<P>
+
+<I>DNS=</I>
+<DL COMPACT><DT id="44"><DD>
+A DNS server address, which must be in the format described in
+<B><A HREF="/cgi-bin/man/man2html?3+inet_pton">inet_pton</A></B>(3). This option may be specified more than once. This setting is read by
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-resolved.service">systemd-resolved.service</A></B>(8).
+</DL>
+
+<P>
+
+<I>Domains=</I>
+<DL COMPACT><DT id="45"><DD>
+A whitespace-separated list of domains which should be resolved using the DNS servers on this link. Each item in the list should be a domain name, optionally prefixed with a tilde (&quot;~&quot;). The domains with the prefix are called &quot;routing-only domains&quot;. The domains without the prefix are called &quot;search domains&quot; and are first used as search suffixes for extending single-label host names (host names containing no dots) to become fully qualified domain names (FQDNs). If a single-label host name is resolved on this interface, each of the specified search domains are appended to it in turn, converting it into a fully qualified domain name, until one of them may be successfully resolved.
+<P>
+Both &quot;search&quot; and &quot;routing-only&quot; domains are used for routing of DNS queries: look-ups for host names ending in those domains (hence also single label names, if any &quot;search domains&quot; are listed), are routed to the DNS servers configured for this interface. The domain routing logic is particularly useful on multi-homed hosts with DNS servers serving particular private DNS zones on each interface.
+<P>
+The &quot;routing-only&quot; domain
+&quot;~.&quot;
+(the tilde indicating definition of a routing domain, the dot referring to the DNS root domain which is the implied suffix of all valid DNS names) has special effect. It causes all DNS traffic which does not match another configured domain routing entry to be routed to DNS servers specified for this interface. This setting is useful to prefer a certain set of DNS servers if a link on which they are connected is available.
+<P>
+This setting is read by
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-resolved.service">systemd-resolved.service</A></B>(8). &quot;Search domains&quot; correspond to the
+<I>domain</I>
+and
+<I>search</I>
+entries in
+<B><A HREF="/cgi-bin/man/man2html?5+resolv.conf">resolv.conf</A></B>(5). Domain name routing has no equivalent in the traditional glibc API, which has no concept of domain name servers limited to a specific link.
+</DL>
+
+<P>
+
+<I>DNSDefaultRoute=</I>
+<DL COMPACT><DT id="46"><DD>
+Takes a boolean argument. If true, this link's configured DNS servers are used for resolving domain names that do not match any link's configured
+<I>Domains=</I>
+setting. If false, this link's configured DNS servers are never used for such domains, and are exclusively used for resolving names that match at least one of the domains configured on this link. If not specified defaults to an automatic mode: queries not matching any link's configured domains will be routed to this link if it has no routing-only domains configured.
+</DL>
+
+<P>
+
+<I>NTP=</I>
+<DL COMPACT><DT id="47"><DD>
+An NTP server address. This option may be specified more than once. This setting is read by
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-timesyncd.service">systemd-timesyncd.service</A></B>(8).
+</DL>
+
+<P>
+
+<I>IPForward=</I>
+<DL COMPACT><DT id="48"><DD>
+Configures IP packet forwarding for the system. If enabled, incoming packets on any network interface will be forwarded to any other interfaces according to the routing table. Takes a boolean, or the values
+&quot;ipv4&quot;
+or
+&quot;ipv6&quot;, which only enable IP packet forwarding for the specified address family. This controls the
+net.ipv4.ip_forward
+and
+net.ipv6.conf.all.forwarding
+sysctl options of the network interface (see
+m[blue]<B>ip-sysctl.txt</B>m[]<FONT SIZE="-2">[7]</FONT>
+for details about sysctl options). Defaults to
+&quot;no&quot;.
+<P>
+Note: this setting controls a global kernel option, and does so one way only: if a network that has this setting enabled is set up the global setting is turned on. However, it is never turned off again, even after all networks with this setting enabled are shut down again.
+<P>
+To allow IP packet forwarding only between specific network interfaces use a firewall.
+</DL>
+
+<P>
+
+<I>IPMasquerade=</I>
+<DL COMPACT><DT id="49"><DD>
+Configures IP masquerading for the network interface. If enabled, packets forwarded from the network interface will be appear as coming from the local host. Takes a boolean argument. Implies
+<I>IPForward=ipv4</I>. Defaults to
+&quot;no&quot;.
+</DL>
+
+<P>
+
+<I>IPv6PrivacyExtensions=</I>
+<DL COMPACT><DT id="50"><DD>
+Configures use of stateless temporary addresses that change over time (see
+m[blue]<B>RFC 4941</B>m[]<FONT SIZE="-2">[8]</FONT>, Privacy Extensions for Stateless Address Autoconfiguration in IPv6). Takes a boolean or the special values
+&quot;prefer-public&quot;
+and
+&quot;kernel&quot;. When true, enables the privacy extensions and prefers temporary addresses over public addresses. When
+&quot;prefer-public&quot;, enables the privacy extensions, but prefers public addresses over temporary addresses. When false, the privacy extensions remain disabled. When
+&quot;kernel&quot;, the kernel's default setting will be left in place. Defaults to
+&quot;no&quot;.
+</DL>
+
+<P>
+
+<I>IPv6AcceptRA=</I>
+<DL COMPACT><DT id="51"><DD>
+Takes a boolean. Controls IPv6 Router Advertisement (RA) reception support for the interface. If true, RAs are accepted; if false, RAs are ignored. When RAs are accepted, they may trigger the start of the DHCPv6 client if the relevant flags are set in the RA data, or if no routers are found on the link. The default is to disable RA reception for bridge devices or when IP forwarding is enabled, and to enable it otherwise. Cannot be enabled on bond devices and when link local adressing is disabled.
+<P>
+Further settings for the IPv6 RA support may be configured in the
+&quot;[IPv6AcceptRA]&quot;
+section, see below.
+<P>
+Also see
+m[blue]<B>ip-sysctl.txt</B>m[]<FONT SIZE="-2">[7]</FONT>
+in the kernel documentation regarding
+&quot;accept_ra&quot;, but note that systemd's setting of
+<B>1</B>
+(i.e. true) corresponds to kernel's setting of
+<B>2</B>.
+<P>
+Note that kernel's implementation of the IPv6 RA protocol is always disabled, regardless of this setting. If this option is enabled, a userspace implementation of the IPv6 RA protocol is used, and the kernel's own implementation remains disabled, since
+<B>systemd-networkd</B>
+needs to know all details supplied in the advertisements, and these are not available from the kernel if the kernel's own implementation is used.
+</DL>
+
+<P>
+
+<I>IPv6DuplicateAddressDetection=</I>
+<DL COMPACT><DT id="52"><DD>
+Configures the amount of IPv6 Duplicate Address Detection (DAD) probes to send. When unset, the kernel's default will be used.
+</DL>
+
+<P>
+
+<I>IPv6HopLimit=</I>
+<DL COMPACT><DT id="53"><DD>
+Configures IPv6 Hop Limit. For each router that forwards the packet, the hop limit is decremented by 1. When the hop limit field reaches zero, the packet is discarded. When unset, the kernel's default will be used.
+</DL>
+
+<P>
+
+<I>IPv4ProxyARP=</I>
+<DL COMPACT><DT id="54"><DD>
+Takes a boolean. Configures proxy ARP for IPv4. Proxy ARP is the technique in which one host, usually a router, answers ARP requests intended for another machine. By &quot;faking&quot; its identity, the router accepts responsibility for routing packets to the &quot;real&quot; destination. (see
+m[blue]<B>RFC 1027</B>m[]<FONT SIZE="-2">[9]</FONT>. When unset, the kernel's default will be used.
+</DL>
+
+<P>
+
+<I>IPv6ProxyNDP=</I>
+<DL COMPACT><DT id="55"><DD>
+Takes a boolean. Configures proxy NDP for IPv6. Proxy NDP (Neighbor Discovery Protocol) is a technique for IPv6 to allow routing of addresses to a different destination when peers expect them to be present on a certain physical link. In this case a router answers Neighbour Advertisement messages intended for another machine by offering its own MAC address as destination. Unlike proxy ARP for IPv4, it is not enabled globally, but will only send Neighbour Advertisement messages for addresses in the IPv6 neighbor proxy table, which can also be shown by
+<B>ip -6 neighbour show proxy</B>. systemd-networkd will control the per-interface `proxy_ndp` switch for each configured interface depending on this option. When unset, the kernel's default will be used.
+</DL>
+
+<P>
+
+<I>IPv6ProxyNDPAddress=</I>
+<DL COMPACT><DT id="56"><DD>
+An IPv6 address, for which Neighbour Advertisement messages will be proxied. This option may be specified more than once. systemd-networkd will add the
+<B>IPv6ProxyNDPAddress=</B>
+entries to the kernel's IPv6 neighbor proxy table. This option implies
+<B>IPv6ProxyNDP=yes</B>
+but has no effect if
+<B>IPv6ProxyNDP</B>
+has been set to false. When unset, the kernel's default will be used.
+</DL>
+
+<P>
+
+<I>IPv6PrefixDelegation=</I>
+<DL COMPACT><DT id="57"><DD>
+Whether to enable or disable Router Advertisement sending on a link. Allowed values are
+&quot;static&quot;
+which distributes prefixes as defined in the
+&quot;[IPv6PrefixDelegation]&quot;
+and any
+&quot;[IPv6Prefix]&quot;
+sections,
+&quot;dhcpv6&quot;
+which requests prefixes using a DHCPv6 client configured for another link and any values configured in the
+&quot;[IPv6PrefixDelegation]&quot;
+section while ignoring all static prefix configuration sections,
+&quot;yes&quot;
+which uses both static configuration and DHCPv6, and
+&quot;false&quot;
+which turns off IPv6 prefix delegation altogether. Defaults to
+&quot;false&quot;. See the
+&quot;[IPv6PrefixDelegation]&quot;
+and the
+&quot;[IPv6Prefix]&quot;
+sections for more configuration options.
+</DL>
+
+<P>
+
+<I>IPv6MTUBytes=</I>
+<DL COMPACT><DT id="58"><DD>
+Configures IPv6 maximum transmission unit (MTU). An integer greater than or equal to 1280 bytes. When unset, the kernel's default will be used.
+</DL>
+
+<P>
+
+<I>Bridge=</I>
+<DL COMPACT><DT id="59"><DD>
+The name of the bridge to add the link to. See
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.netdev">systemd.netdev</A></B>(5).
+</DL>
+
+<P>
+
+<I>Bond=</I>
+<DL COMPACT><DT id="60"><DD>
+The name of the bond to add the link to. See
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.netdev">systemd.netdev</A></B>(5).
+</DL>
+
+<P>
+
+<I>VRF=</I>
+<DL COMPACT><DT id="61"><DD>
+The name of the VRF to add the link to. See
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.netdev">systemd.netdev</A></B>(5).
+</DL>
+
+<P>
+
+<I>VLAN=</I>
+<DL COMPACT><DT id="62"><DD>
+The name of a VLAN to create on the link. See
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.netdev">systemd.netdev</A></B>(5). This option may be specified more than once.
+</DL>
+
+<P>
+
+<I>IPVLAN=</I>
+<DL COMPACT><DT id="63"><DD>
+The name of a IPVLAN to create on the link. See
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.netdev">systemd.netdev</A></B>(5). This option may be specified more than once.
+</DL>
+
+<P>
+
+<I>MACVLAN=</I>
+<DL COMPACT><DT id="64"><DD>
+The name of a MACVLAN to create on the link. See
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.netdev">systemd.netdev</A></B>(5). This option may be specified more than once.
+</DL>
+
+<P>
+
+<I>VXLAN=</I>
+<DL COMPACT><DT id="65"><DD>
+The name of a VXLAN to create on the link. See
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.netdev">systemd.netdev</A></B>(5). This option may be specified more than once.
+</DL>
+
+<P>
+
+<I>Tunnel=</I>
+<DL COMPACT><DT id="66"><DD>
+The name of a Tunnel to create on the link. See
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.netdev">systemd.netdev</A></B>(5). This option may be specified more than once.
+</DL>
+
+<P>
+
+<I>MACsec=</I>
+<DL COMPACT><DT id="67"><DD>
+The name of a MACsec device to create on the link. See
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.netdev">systemd.netdev</A></B>(5). This option may be specified more than once.
+</DL>
+
+<P>
+
+<I>ActiveSlave=</I>
+<DL COMPACT><DT id="68"><DD>
+Takes a boolean. Specifies the new active slave. The
+&quot;ActiveSlave=&quot;
+option is only valid for following modes:
+&quot;active-backup&quot;,
+&quot;balance-alb&quot;
+and
+&quot;balance-tlb&quot;. Defaults to false.
+</DL>
+
+<P>
+
+<I>PrimarySlave=</I>
+<DL COMPACT><DT id="69"><DD>
+Takes a boolean. Specifies which slave is the primary device. The specified device will always be the active slave while it is available. Only when the primary is off-line will alternate devices be used. This is useful when one slave is preferred over another, e.g. when one slave has higher throughput than another. The
+&quot;PrimarySlave=&quot;
+option is only valid for following modes:
+&quot;active-backup&quot;,
+&quot;balance-alb&quot;
+and
+&quot;balance-tlb&quot;. Defaults to false.
+</DL>
+
+<P>
+
+<I>ConfigureWithoutCarrier=</I>
+<DL COMPACT><DT id="70"><DD>
+Takes a boolean. Allows networkd to configure a specific link even if it has no carrier. Defaults to false.
+</DL>
+
+<P>
+
+<I>IgnoreCarrierLoss=</I>
+<DL COMPACT><DT id="71"><DD>
+Takes a boolean. Allows networkd to retain both the static and dynamic configuration of the interface even if its carrier is lost. When unset, the value specified with
+<B>ConfigureWithoutCarrier=</B>
+is used.
+</DL>
+
+<P>
+
+<I>Xfrm=</I>
+<DL COMPACT><DT id="72"><DD>
+The name of the xfrm to create on the link. See
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.netdev">systemd.netdev</A></B>(5). This option may be specified more than once.
+</DL>
+
+<P>
+
+<I>KeepConfiguration=</I>
+<DL COMPACT><DT id="73"><DD>
+Takes a boolean or one of
+&quot;static&quot;,
+&quot;dhcp-on-stop&quot;,
+&quot;dhcp&quot;. When
+&quot;static&quot;,
+<B>systemd-networkd</B>
+will not drop static addresses and routes on starting up process. When set to
+&quot;dhcp-on-stop&quot;,
+<B>systemd-networkd</B>
+will not drop addresses and routes on stopping the daemon. When
+&quot;dhcp&quot;, the addresses and routes provided by a DHCP server will never be dropped even if the DHCP lease expires. This is contrary to the DHCP specification, but may be the best choice if, e.g., the root filesystem relies on this connection. The setting
+&quot;dhcp&quot;
+implies
+&quot;dhcp-on-stop&quot;, and
+&quot;yes&quot;
+implies
+&quot;dhcp&quot;
+and
+&quot;static&quot;. Defaults to
+&quot;no&quot;.
+</DL>
+
+<A NAME="lbAH">&nbsp;</A>
+<H2>[ADDRESS] SECTION OPTIONS</H2>
+
+<P>
+
+An
+&quot;[Address]&quot;
+section accepts the following keys. Specify several
+&quot;[Address]&quot;
+sections to configure several addresses.
+<P>
+
+<I>Address=</I>
+<DL COMPACT><DT id="74"><DD>
+As in the
+&quot;[Network]&quot;
+section. This key is mandatory. Each
+&quot;[Address]&quot;
+section can contain one
+<I>Address=</I>
+setting.
+</DL>
+
+<P>
+
+<I>Peer=</I>
+<DL COMPACT><DT id="75"><DD>
+The peer address in a point-to-point connection. Accepts the same format as the
+<I>Address=</I>
+key.
+</DL>
+
+<P>
+
+<I>Broadcast=</I>
+<DL COMPACT><DT id="76"><DD>
+The broadcast address, which must be in the format described in
+<B><A HREF="/cgi-bin/man/man2html?3+inet_pton">inet_pton</A></B>(3). This key only applies to IPv4 addresses. If it is not given, it is derived from the
+<I>Address=</I>
+key.
+</DL>
+
+<P>
+
+<I>Label=</I>
+<DL COMPACT><DT id="77"><DD>
+An address label.
+</DL>
+
+<P>
+
+<I>PreferredLifetime=</I>
+<DL COMPACT><DT id="78"><DD>
+Allows the default &quot;preferred lifetime&quot; of the address to be overridden. Only three settings are accepted:
+&quot;forever&quot;
+or
+&quot;infinity&quot;
+which is the default and means that the address never expires, and
+&quot;0&quot;
+which means that the address is considered immediately &quot;expired&quot; and will not be used, unless explicitly requested. A setting of PreferredLifetime=0 is useful for addresses which are added to be used only by a specific application, which is then configured to use them explicitly.
+</DL>
+
+<P>
+
+<I>Scope=</I>
+<DL COMPACT><DT id="79"><DD>
+The scope of the address, which can be
+&quot;global&quot;,
+&quot;link&quot;
+or
+&quot;host&quot;
+or an unsigned integer ranges 0 to 255. Defaults to
+&quot;global&quot;.
+</DL>
+
+<P>
+
+<I>HomeAddress=</I>
+<DL COMPACT><DT id="80"><DD>
+Takes a boolean. Designates this address the &quot;home address&quot; as defined in
+m[blue]<B>RFC 6275</B>m[]<FONT SIZE="-2">[10]</FONT>. Supported only on IPv6. Defaults to false.
+</DL>
+
+<P>
+
+<I>DuplicateAddressDetection=</I>
+<DL COMPACT><DT id="81"><DD>
+Takes one of
+&quot;ipv4&quot;,
+&quot;ipv6&quot;,
+&quot;both&quot;,
+&quot;none&quot;. When
+&quot;ipv4&quot;, performs IPv4 Duplicate Address Detection. See
+m[blue]<B>RFC 5224</B>m[]<FONT SIZE="-2">[11]</FONT>. When
+&quot;ipv6&quot;, performs IPv6 Duplicate Address Detection. See
+m[blue]<B>RFC 4862</B>m[]<FONT SIZE="-2">[12]</FONT>. Defaults to
+&quot;ipv6&quot;.
+</DL>
+
+<P>
+
+<I>ManageTemporaryAddress=</I>
+<DL COMPACT><DT id="82"><DD>
+Takes a boolean. If true the kernel manage temporary addresses created from this one as template on behalf of Privacy Extensions
+m[blue]<B>RFC 3041</B>m[]<FONT SIZE="-2">[13]</FONT>. For this to become active, the use_tempaddr sysctl setting has to be set to a value greater than zero. The given address needs to have a prefix length of 64. This flag allows using privacy extensions in a manually configured network, just like if stateless auto-configuration was active. Defaults to false.
+</DL>
+
+<P>
+
+<I>AddPrefixRoute=</I>
+<DL COMPACT><DT id="83"><DD>
+Takes a boolean. When true, the prefix route for the address is automatically added. Defaults to true.
+</DL>
+
+<P>
+
+<I>AutoJoin=</I>
+<DL COMPACT><DT id="84"><DD>
+Takes a boolean. Joining multicast group on ethernet level via
+<B>ip maddr</B>
+command would not work if we have an Ethernet switch that does IGMP snooping since the switch would not replicate multicast packets on ports that did not have IGMP reports for the multicast addresses. Linux vxlan interfaces created via
+<B>ip link add vxlan</B>
+or networkd's netdev kind vxlan have the group option that enables then to do the required join. By extending ip address command with option
+&quot;autojoin&quot;
+we can get similar functionality for openvswitch (OVS) vxlan interfaces as well as other tunneling mechanisms that need to receive multicast traffic. Defaults to
+&quot;no&quot;.
+</DL>
+
+<A NAME="lbAI">&nbsp;</A>
+<H2>[NEIGHBOR] SECTION OPTIONS</H2>
+
+<P>
+
+A
+&quot;[Neighbor]&quot;
+section accepts the following keys. The neighbor section adds a permanent, static entry to the neighbor table (IPv6) or ARP table (IPv4) for the given hardware address on the links matched for the network. Specify several
+&quot;[Neighbor]&quot;
+sections to configure several static neighbors.
+<P>
+
+<I>Address=</I>
+<DL COMPACT><DT id="85"><DD>
+The IP address of the neighbor.
+</DL>
+
+<P>
+
+<I>LinkLayerAddress=</I>
+<DL COMPACT><DT id="86"><DD>
+The link layer address (MAC address or IP address) of the neighbor.
+</DL>
+
+<A NAME="lbAJ">&nbsp;</A>
+<H2>[IPV6ADDRESSLABEL] SECTION OPTIONS</H2>
+
+<P>
+
+An
+&quot;[IPv6AddressLabel]&quot;
+section accepts the following keys. Specify several
+&quot;[IPv6AddressLabel]&quot;
+sections to configure several address labels. IPv6 address labels are used for address selection. See
+m[blue]<B>RFC 3484</B>m[]<FONT SIZE="-2">[14]</FONT>. Precedence is managed by userspace, and only the label itself is stored in the kernel
+<P>
+
+<I>Label=</I>
+<DL COMPACT><DT id="87"><DD>
+The label for the prefix (an unsigned integer) ranges 0 to 4294967294. 0xffffffff is reserved. This key is mandatory.
+</DL>
+
+<P>
+
+<I>Prefix=</I>
+<DL COMPACT><DT id="88"><DD>
+IPv6 prefix is an address with a prefix length, separated by a slash
+&quot;/&quot;
+character. This key is mandatory.
+</DL>
+
+<A NAME="lbAK">&nbsp;</A>
+<H2>[ROUTINGPOLICYRULE] SECTION OPTIONS</H2>
+
+<P>
+
+An
+&quot;[RoutingPolicyRule]&quot;
+section accepts the following keys. Specify several
+&quot;[RoutingPolicyRule]&quot;
+sections to configure several rules.
+<P>
+
+<I>TypeOfService=</I>
+<DL COMPACT><DT id="89"><DD>
+Specifies the type of service to match a number between 0 to 255.
+</DL>
+
+<P>
+
+<I>From=</I>
+<DL COMPACT><DT id="90"><DD>
+Specifies the source address prefix to match. Possibly followed by a slash and the prefix length.
+</DL>
+
+<P>
+
+<I>To=</I>
+<DL COMPACT><DT id="91"><DD>
+Specifies the destination address prefix to match. Possibly followed by a slash and the prefix length.
+</DL>
+
+<P>
+
+<I>FirewallMark=</I>
+<DL COMPACT><DT id="92"><DD>
+Specifies the iptables firewall mark value to match (a number between 1 and 4294967295).
+</DL>
+
+<P>
+
+<I>Table=</I>
+<DL COMPACT><DT id="93"><DD>
+Specifies the routing table identifier to lookup if the rule selector matches. Takes one of
+&quot;default&quot;,
+&quot;main&quot;, and
+&quot;local&quot;, or a number between 1 and 4294967295. Defaults to
+&quot;main&quot;.
+</DL>
+
+<P>
+
+<I>Priority=</I>
+<DL COMPACT><DT id="94"><DD>
+Specifies the priority of this rule.
+<I>Priority=</I>
+is an unsigned integer. Higher number means lower priority, and rules get processed in order of increasing number.
+</DL>
+
+<P>
+
+<I>IncomingInterface=</I>
+<DL COMPACT><DT id="95"><DD>
+Specifies incoming device to match. If the interface is loopback, the rule only matches packets originating from this host.
+</DL>
+
+<P>
+
+<I>OutgoingInterface=</I>
+<DL COMPACT><DT id="96"><DD>
+Specifies the outgoing device to match. The outgoing interface is only available for packets originating from local sockets that are bound to a device.
+</DL>
+
+<P>
+
+<I>SourcePort=</I>
+<DL COMPACT><DT id="97"><DD>
+Specifies the source IP port or IP port range match in forwarding information base (FIB) rules. A port range is specified by the lower and upper port separated by a dash. Defaults to unset.
+</DL>
+
+<P>
+
+<I>DestinationPort=</I>
+<DL COMPACT><DT id="98"><DD>
+Specifies the destination IP port or IP port range match in forwarding information base (FIB) rules. A port range is specified by the lower and upper port separated by a dash. Defaults to unset.
+</DL>
+
+<P>
+
+<I>IPProtocol=</I>
+<DL COMPACT><DT id="99"><DD>
+Specifies the IP protocol to match in forwarding information base (FIB) rules. Takes IP protocol name such as
+&quot;tcp&quot;,
+&quot;udp&quot;
+or
+&quot;sctp&quot;, or IP protocol number such as
+&quot;6&quot;
+for
+&quot;tcp&quot;
+or
+&quot;17&quot;
+for
+&quot;udp&quot;. Defaults to unset.
+</DL>
+
+<P>
+
+<I>InvertRule=</I>
+<DL COMPACT><DT id="100"><DD>
+A boolean. Specifies whether the rule is to be inverted. Defaults to false.
+</DL>
+
+<P>
+
+<I>Family=</I>
+<DL COMPACT><DT id="101"><DD>
+Takes a special value
+&quot;ipv4&quot;,
+&quot;ipv6&quot;, or
+&quot;both&quot;. By default, the address family is determined by the address specified in
+<I>To=</I>
+or
+<I>From=</I>. If neither
+<I>To=</I>
+nor
+<I>From=</I>
+are specified, then defaults to
+&quot;ipv4&quot;.
+</DL>
+
+<P>
+
+<I>User=</I>
+<DL COMPACT><DT id="102"><DD>
+Takes a username, a user ID, or a range of user IDs separated by a dash. Defaults to unset.
+</DL>
+
+<P>
+
+<I>SuppressPrefixLength=</I>
+<DL COMPACT><DT id="103"><DD>
+Takes a number
+<I>N</I>
+in the range 0-128 and rejects routing decisions that have a prefix length of
+<I>N</I>
+or less. Defaults to unset.
+</DL>
+
+<A NAME="lbAL">&nbsp;</A>
+<H2>[NEXTHOP] SECTION OPTIONS</H2>
+
+<P>
+
+The
+&quot;[NextHop]&quot;
+section accepts the following keys. Specify several
+&quot;[NextHop]&quot;
+sections to configure several nexthop. Nexthop is used to manipulate entries in the kernel's nexthop tables.
+<P>
+
+<I>Gateway=</I>
+<DL COMPACT><DT id="104"><DD>
+As in the
+&quot;[Network]&quot;
+section. This is mandatory.
+</DL>
+
+<P>
+
+<I>Id=</I>
+<DL COMPACT><DT id="105"><DD>
+The id of the nexthop (an unsigned integer). If unspecified or '0' then automatically chosen by kernel.
+</DL>
+
+<A NAME="lbAM">&nbsp;</A>
+<H2>[ROUTE] SECTION OPTIONS</H2>
+
+<P>
+
+The
+&quot;[Route]&quot;
+section accepts the following keys. Specify several
+&quot;[Route]&quot;
+sections to configure several routes.
+<P>
+
+<I>Gateway=</I>
+<DL COMPACT><DT id="106"><DD>
+Takes the gateway address or special value
+&quot;_dhcp&quot;. If
+&quot;_dhcp&quot;, then the gateway address provided by DHCP (or in the IPv6 case, provided by IPv6 RA) is used.
+</DL>
+
+<P>
+
+<I>GatewayOnLink=</I>
+<DL COMPACT><DT id="107"><DD>
+Takes a boolean. If set to true, the kernel does not have to check if the gateway is reachable directly by the current machine (i.e., the kernel does not need to check if the gateway is attached to the local network), so that we can insert the route in the kernel table without it being complained about. Defaults to
+&quot;no&quot;.
+</DL>
+
+<P>
+
+<I>Destination=</I>
+<DL COMPACT><DT id="108"><DD>
+The destination prefix of the route. Possibly followed by a slash and the prefix length. If omitted, a full-length host route is assumed.
+</DL>
+
+<P>
+
+<I>Source=</I>
+<DL COMPACT><DT id="109"><DD>
+The source prefix of the route. Possibly followed by a slash and the prefix length. If omitted, a full-length host route is assumed.
+</DL>
+
+<P>
+
+<I>Metric=</I>
+<DL COMPACT><DT id="110"><DD>
+The metric of the route (an unsigned integer).
+</DL>
+
+<P>
+
+<I>IPv6Preference=</I>
+<DL COMPACT><DT id="111"><DD>
+Specifies the route preference as defined in
+m[blue]<B>RFC4191</B>m[]<FONT SIZE="-2">[15]</FONT>
+for Router Discovery messages. Which can be one of
+&quot;low&quot;
+the route has a lowest priority,
+&quot;medium&quot;
+the route has a default priority or
+&quot;high&quot;
+the route has a highest priority.
+</DL>
+
+<P>
+
+<I>Scope=</I>
+<DL COMPACT><DT id="112"><DD>
+The scope of the route, which can be
+&quot;global&quot;,
+&quot;site&quot;,
+&quot;link&quot;,
+&quot;host&quot;, or
+&quot;nowhere&quot;. For IPv4 route, defaults to
+&quot;host&quot;
+if
+<I>Type=</I>
+is
+&quot;local&quot;
+or
+&quot;nat&quot;, and
+&quot;link&quot;
+if
+<I>Type=</I>
+is
+&quot;broadcast&quot;,
+&quot;multicast&quot;, or
+&quot;anycast&quot;. In other cases, defaults to
+&quot;global&quot;.
+</DL>
+
+<P>
+
+<I>PreferredSource=</I>
+<DL COMPACT><DT id="113"><DD>
+The preferred source address of the route. The address must be in the format described in
+<B><A HREF="/cgi-bin/man/man2html?3+inet_pton">inet_pton</A></B>(3).
+</DL>
+
+<P>
+
+<I>Table=</I>
+<DL COMPACT><DT id="114"><DD>
+The table identifier for the route. Takes
+&quot;default&quot;,
+&quot;main&quot;,
+&quot;local&quot;
+or a number between 1 and 4294967295. The table can be retrieved using
+<B>ip route show table </B><B></B><I>num</I>. If unset and
+<I>Type=</I>
+is
+&quot;local&quot;,
+&quot;broadcast&quot;,
+&quot;anycast&quot;, or
+&quot;nat&quot;, then
+&quot;local&quot;
+is used. In other cases, defaults to
+&quot;main&quot;.
+</DL>
+
+<P>
+
+<I>Protocol=</I>
+<DL COMPACT><DT id="115"><DD>
+The protocol identifier for the route. Takes a number between 0 and 255 or the special values
+&quot;kernel&quot;,
+&quot;boot&quot;,
+&quot;static&quot;,
+&quot;ra&quot;
+and
+&quot;dhcp&quot;. Defaults to
+&quot;static&quot;.
+</DL>
+
+<P>
+
+<I>Type=</I>
+<DL COMPACT><DT id="116"><DD>
+Specifies the type for the route. Takes one of
+&quot;unicast&quot;,
+&quot;local&quot;,
+&quot;broadcast&quot;,
+&quot;anycast&quot;,
+&quot;multicast&quot;,
+&quot;blackhole&quot;,
+&quot;unreachable&quot;,
+&quot;prohibit&quot;,
+&quot;throw&quot;,
+&quot;nat&quot;, and
+&quot;xresolve&quot;. If
+&quot;unicast&quot;, a regular route is defined, i.e. a route indicating the path to take to a destination network address. If
+&quot;blackhole&quot;, packets to the defined route are discarded silently. If
+&quot;unreachable&quot;, packets to the defined route are discarded and the ICMP message &quot;Host Unreachable&quot; is generated. If
+&quot;prohibit&quot;, packets to the defined route are discarded and the ICMP message &quot;Communication Administratively Prohibited&quot; is generated. If
+&quot;throw&quot;, route lookup in the current routing table will fail and the route selection process will return to Routing Policy Database (RPDB). Defaults to
+&quot;unicast&quot;.
+</DL>
+
+<P>
+
+<I>InitialCongestionWindow=</I>
+<DL COMPACT><DT id="117"><DD>
+The TCP initial congestion window is used during the start of a TCP connection. During the start of a TCP session, when a client requests a resource, the server's initial congestion window determines how many data bytes will be sent during the initial burst of data. Takes a size in bytes between 1 and 4294967295 (2^32 - 1). The usual suffixes K, M, G are supported and are understood to the base of 1024. When unset, the kernel's default will be used.
+</DL>
+
+<P>
+
+<I>InitialAdvertisedReceiveWindow=</I>
+<DL COMPACT><DT id="118"><DD>
+The TCP initial advertised receive window is the amount of receive data (in bytes) that can initially be buffered at one time on a connection. The sending host can send only that amount of data before waiting for an acknowledgment and window update from the receiving host. Takes a size in bytes between 1 and 4294967295 (2^32 - 1). The usual suffixes K, M, G are supported and are understood to the base of 1024. When unset, the kernel's default will be used.
+</DL>
+
+<P>
+
+<I>QuickAck=</I>
+<DL COMPACT><DT id="119"><DD>
+Takes a boolean. When true enables TCP quick ack mode for the route. When unset, the kernel's default will be used.
+</DL>
+
+<P>
+
+<I>FastOpenNoCookie=</I>
+<DL COMPACT><DT id="120"><DD>
+Takes a boolean. When true enables TCP fastopen without a cookie on a per-route basis. When unset, the kernel's default will be used.
+</DL>
+
+<P>
+
+<I>TTLPropagate=</I>
+<DL COMPACT><DT id="121"><DD>
+Takes a boolean. When true enables TTL propagation at Label Switched Path (LSP) egress. When unset, the kernel's default will be used.
+</DL>
+
+<P>
+
+<I>MTUBytes=</I>
+<DL COMPACT><DT id="122"><DD>
+The maximum transmission unit in bytes to set for the route. The usual suffixes K, M, G, are supported and are understood to the base of 1024.
+<P>
+Note that if IPv6 is enabled on the interface, and the MTU is chosen below 1280 (the minimum MTU for IPv6) it will automatically be increased to this value.
+</DL>
+
+<P>
+
+<I>IPServiceType=</I>
+<DL COMPACT><DT id="123"><DD>
+Takes string;
+&quot;CS6&quot;
+or
+&quot;CS4&quot;. Used to set IP service type to CS6 (network control) or CS4 (Realtime). Defaults to CS6.
+</DL>
+
+<P>
+
+<I>MultiPathRoute=</I><I>address</I><I>[@</I><I>name</I><I>] [</I><I>weight</I><I>]</I>
+<DL COMPACT><DT id="124"><DD>
+Configures multipath route. Multipath routing is the technique of using multiple alternative paths through a network. Takes gateway address. Optionally, takes a network interface name or index separated with
+&quot;@&quot;, and a weight in 1..256 for this multipath route separated with whitespace. This setting can be specified multiple times. If an empty string is assigned, then the all previous assignments are cleared.
+</DL>
+
+<A NAME="lbAN">&nbsp;</A>
+<H2>[DHCPV4] SECTION OPTIONS</H2>
+
+<P>
+
+The
+&quot;[DHCPv4]&quot;
+section configures the DHCPv4 client, if it is enabled with the
+<I>DHCP=</I>
+setting described above:
+<P>
+
+<I>UseDNS=</I>
+<DL COMPACT><DT id="125"><DD>
+When true (the default), the DNS servers received from the DHCP server will be used and take precedence over any statically configured ones.
+<P>
+This corresponds to the
+<B>nameserver</B>
+option in
+<B><A HREF="/cgi-bin/man/man2html?5+resolv.conf">resolv.conf</A></B>(5).
+</DL>
+
+<P>
+
+<I>RoutesToDNS=</I>
+<DL COMPACT><DT id="126"><DD>
+When true, the routes to the DNS servers received from the DHCP server will be configured. When
+<I>UseDNS=</I>
+is disabled, this setting is ignored. Defaults to false.
+</DL>
+
+<P>
+
+<I>UseNTP=</I>
+<DL COMPACT><DT id="127"><DD>
+When true (the default), the NTP servers received from the DHCP server will be used by systemd-timesyncd and take precedence over any statically configured ones.
+</DL>
+
+<P>
+
+<I>UseSIP=</I>
+<DL COMPACT><DT id="128"><DD>
+When true (the default), the SIP servers received from the DHCP server will be saved at the state files and can be read via
+<B>sd_network_link_get_sip_servers()</B>
+function.
+</DL>
+
+<P>
+
+<I>UseMTU=</I>
+<DL COMPACT><DT id="129"><DD>
+When true, the interface maximum transmission unit from the DHCP server will be used on the current link. If
+<I>MTUBytes=</I>
+is set, then this setting is ignored. Defaults to false.
+</DL>
+
+<P>
+
+<I>Anonymize=</I>
+<DL COMPACT><DT id="130"><DD>
+Takes a boolean. When true, the options sent to the DHCP server will follow the
+m[blue]<B>RFC 7844</B>m[]<FONT SIZE="-2">[16]</FONT>
+(Anonymity Profiles for DHCP Clients) to minimize disclosure of identifying information. Defaults to false.
+<P>
+This option should only be set to true when
+<I>MACAddressPolicy=</I>
+is set to
+&quot;random&quot;
+(see
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.link">systemd.link</A></B>(5)).
+<P>
+Note that this configuration will overwrite others. In concrete, the following variables will be ignored:
+<I>SendHostname=</I>,
+<I>ClientIdentifier=</I>,
+<I>UseRoutes=</I>,
+<I>UseMTU=</I>,
+<I>VendorClassIdentifier=</I>,
+<I>UseTimezone=</I>.
+<P>
+With this option enabled DHCP requests will mimic those generated by Microsoft Windows, in order to reduce the ability to fingerprint and recognize installations. This means DHCP request sizes will grow and lease data will be more comprehensive than normally, though most of the requested data is not actually used.
+</DL>
+
+<P>
+
+<I>SendHostname=</I>
+<DL COMPACT><DT id="131"><DD>
+When true (the default), the machine's hostname will be sent to the DHCP server. Note that the machine's hostname must consist only of 7-bit ASCII lower-case characters and no spaces or dots, and be formatted as a valid DNS domain name. Otherwise, the hostname is not sent even if this is set to true.
+</DL>
+
+<P>
+
+<I>UseHostname=</I>
+<DL COMPACT><DT id="132"><DD>
+When true (the default), the hostname received from the DHCP server will be set as the transient hostname of the system.
+</DL>
+
+<P>
+
+<I>Hostname=</I>
+<DL COMPACT><DT id="133"><DD>
+Use this value for the hostname which is sent to the DHCP server, instead of machine's hostname. Note that the specified hostname must consist only of 7-bit ASCII lower-case characters and no spaces or dots, and be formatted as a valid DNS domain name.
+</DL>
+
+<P>
+
+<I>UseDomains=</I>
+<DL COMPACT><DT id="134"><DD>
+Takes a boolean, or the special value
+&quot;route&quot;. When true, the domain name received from the DHCP server will be used as DNS search domain over this link, similar to the effect of the
+<B>Domains=</B>
+setting. If set to
+&quot;route&quot;, the domain name received from the DHCP server will be used for routing DNS queries only, but not for searching, similar to the effect of the
+<B>Domains=</B>
+setting when the argument is prefixed with
+&quot;~&quot;. Defaults to true on Ubuntu.
+<P>
+It is recommended to enable this option only on trusted networks, as setting this affects resolution of all host names, in particular of single-label names. It is generally safer to use the supplied domain only as routing domain, rather than as search domain, in order to not have it affect local resolution of single-label names.
+<P>
+When set to true, this setting corresponds to the
+<B>domain</B>
+option in
+<B><A HREF="/cgi-bin/man/man2html?5+resolv.conf">resolv.conf</A></B>(5).
+</DL>
+
+<P>
+
+<I>UseRoutes=</I>
+<DL COMPACT><DT id="135"><DD>
+When true (the default), the static routes will be requested from the DHCP server and added to the routing table with a metric of 1024, and a scope of &quot;global&quot;, &quot;link&quot; or &quot;host&quot;, depending on the route's destination and gateway. If the destination is on the local host, e.g., 127.x.x.x, or the same as the link's own address, the scope will be set to &quot;host&quot;. Otherwise if the gateway is null (a direct route), a &quot;link&quot; scope will be used. For anything else, scope defaults to &quot;global&quot;.
+</DL>
+
+<P>
+
+<I>UseGateway=</I>
+<DL COMPACT><DT id="136"><DD>
+When true, the gateway will be requested from the DHCP server and added to the routing table with a metric of 1024, and a scope of &quot;link&quot;. When unset, the value specified with
+<B>UseRoutes=</B>
+is used.
+</DL>
+
+<P>
+
+<I>UseTimezone=</I>
+<DL COMPACT><DT id="137"><DD>
+When true, the timezone received from the DHCP server will be set as timezone of the local system. Defaults to
+&quot;no&quot;.
+</DL>
+
+<P>
+
+<I>ClientIdentifier=</I>
+<DL COMPACT><DT id="138"><DD>
+The DHCPv4 client identifier to use. Takes one of
+&quot;mac&quot;,
+&quot;duid&quot;
+or
+&quot;duid-only&quot;. If set to
+&quot;mac&quot;, the MAC address of the link is used. If set to
+&quot;duid&quot;, an RFC4361-compliant Client ID, which is the combination of IAID and DUID (see below), is used. If set to
+&quot;duid-only&quot;, only DUID is used, this may not be RFC compliant, but some setups may require to use this. Defaults to
+&quot;duid&quot;.
+</DL>
+
+<P>
+
+<I>VendorClassIdentifier=</I>
+<DL COMPACT><DT id="139"><DD>
+The vendor class identifier used to identify vendor type and configuration.
+</DL>
+
+<P>
+
+<I>UserClass=</I>
+<DL COMPACT><DT id="140"><DD>
+A DHCPv4 client can use UserClass option to identify the type or category of user or applications it represents. The information contained in this option is a string that represents the user class of which the client is a member. Each class sets an identifying string of information to be used by the DHCP service to classify clients. Takes a whitespace-separated list of strings.
+</DL>
+
+<P>
+
+<I>MaxAttempts=</I>
+<DL COMPACT><DT id="141"><DD>
+Specifies how many times the DHCPv4 client configuration should be attempted. Takes a number or
+&quot;infinity&quot;. Defaults to
+&quot;infinity&quot;. Note that the time between retries is increased exponentially, so the network will not be overloaded even if this number is high.
+</DL>
+
+<P>
+
+<I>DUIDType=</I>
+<DL COMPACT><DT id="142"><DD>
+Override the global
+<I>DUIDType</I>
+setting for this network. See
+<B><A HREF="/cgi-bin/man/man2html?5+networkd.conf">networkd.conf</A></B>(5)
+for a description of possible values.
+</DL>
+
+<P>
+
+<I>DUIDRawData=</I>
+<DL COMPACT><DT id="143"><DD>
+Override the global
+<I>DUIDRawData</I>
+setting for this network. See
+<B><A HREF="/cgi-bin/man/man2html?5+networkd.conf">networkd.conf</A></B>(5)
+for a description of possible values.
+</DL>
+
+<P>
+
+<I>IAID=</I>
+<DL COMPACT><DT id="144"><DD>
+The DHCP Identity Association Identifier (IAID) for the interface, a 32-bit unsigned integer.
+</DL>
+
+<P>
+
+<I>RequestBroadcast=</I>
+<DL COMPACT><DT id="145"><DD>
+Request the server to use broadcast messages before the IP address has been configured. This is necessary for devices that cannot receive RAW packets, or that cannot receive packets at all before an IP address has been configured. On the other hand, this must not be enabled on networks where broadcasts are filtered out.
+</DL>
+
+<P>
+
+<I>RouteMetric=</I>
+<DL COMPACT><DT id="146"><DD>
+Set the routing metric for routes specified by the DHCP server.
+</DL>
+
+<P>
+
+<I>RouteTable=</I><I>num</I>
+<DL COMPACT><DT id="147"><DD>
+The table identifier for DHCP routes (a number between 1 and 4294967295, or 0 to unset). The table can be retrieved using
+<B>ip route show table </B><B></B><I>num</I>.
+<P>
+When used in combination with
+<I>VRF=</I>
+the VRF's routing table is used unless this parameter is specified.
+</DL>
+
+<P>
+
+<I>RouteMTUBytes=</I>
+<DL COMPACT><DT id="148"><DD>
+Specifies the MTU for the DHCP routes. Please see the [Route] section for further details.
+</DL>
+
+<P>
+
+<I>ListenPort=</I>
+<DL COMPACT><DT id="149"><DD>
+Allow setting custom port for the DHCP client to listen on.
+</DL>
+
+<P>
+
+<I>SendRelease=</I>
+<DL COMPACT><DT id="150"><DD>
+When true, the DHCPv4 client sends a DHCP release packet when it stops. Defaults to true.
+</DL>
+
+<P>
+
+<I>SendDecline=</I>
+<DL COMPACT><DT id="151"><DD>
+A boolen. When
+&quot;true&quot;, DHCPv4 clients receives IP address from DHCP server. After new IP is received, DHCPv4 performs IPv4 Duplicate Address Detection. If duplicate use of IP is detected the DHCPv4 client rejects the IP by sending a DHCPDECLINE packet DHCP clients try to obtain an IP address again. See
+m[blue]<B>RFC 5224</B>m[]<FONT SIZE="-2">[11]</FONT>. Defaults to
+&quot;unset&quot;.
+</DL>
+
+<P>
+
+<I>BlackList=</I>
+<DL COMPACT><DT id="152"><DD>
+A whitespace-separated list of IPv4 addresses. DHCP offers from servers in the list are rejected.
+</DL>
+
+<P>
+
+<I>RequestOptions=</I>
+<DL COMPACT><DT id="153"><DD>
+A whitespace-separated list of integers in the range 1-254.
+</DL>
+
+<P>
+
+<I>SendOption=</I>
+<DL COMPACT><DT id="154"><DD>
+Send an arbitrary option in the DHCPv4 request. Takes a DHCP option number, data type and data separated with a colon (&quot;<I>option</I>:<I>type</I>:<I>value</I>&quot;). The option number must be an integer in the range 1..254. The type takes one of
+&quot;uint8&quot;,
+&quot;uint16&quot;,
+&quot;uint32&quot;,
+&quot;ipv4address&quot;, or
+&quot;string&quot;. Special characters in the data string may be escaped using
+m[blue]<B>C-style escapes</B>m[]<FONT SIZE="-2">[17]</FONT>. This setting can be specified multiple times. If an empty string is specified, then all options specified earlier are cleared. Defaults to unset.
+</DL>
+
+<A NAME="lbAO">&nbsp;</A>
+<H2>[DHCPV6] SECTION OPTIONS</H2>
+
+<P>
+
+The
+&quot;[DHCPv6]&quot;
+section configures the DHCPv6 client, if it is enabled with the
+<I>DHCP=</I>
+setting described above, or invoked by the IPv6 Router Advertisement:
+<P>
+
+<I>UseDNS=</I>, <I>UseNTP=</I>
+<DL COMPACT><DT id="155"><DD>
+As in the
+&quot;[DHCPv4]&quot;
+section.
+</DL>
+
+<P>
+
+<I>RapidCommit=</I>
+<DL COMPACT><DT id="156"><DD>
+Takes a boolean. The DHCPv6 client can obtain configuration parameters from a DHCPv6 server through a rapid two-message exchange (solicit and reply). When the rapid commit option is enabled by both the DHCPv6 client and the DHCPv6 server, the two-message exchange is used, rather than the default four-method exchange (solicit, advertise, request, and reply). The two-message exchange provides faster client configuration and is beneficial in environments in which networks are under a heavy load. See
+m[blue]<B>RFC 3315</B>m[]<FONT SIZE="-2">[18]</FONT>
+for details. Defaults to true.
+</DL>
+
+<P>
+
+<I>ForceDHCPv6PDOtherInformation=</I>
+<DL COMPACT><DT id="157"><DD>
+Takes a boolean that enforces DHCPv6 stateful mode when the 'Other information' bit is set in Router Advertisement messages. By default setting only the 'O' bit in Router Advertisements makes DHCPv6 request network information in a stateless manner using a two-message Information Request and Information Reply message exchange.
+m[blue]<B>RFC 7084</B>m[]<FONT SIZE="-2">[19]</FONT>, requirement WPD-4, updates this behavior for a Customer Edge router so that stateful DHCPv6 Prefix Delegation is also requested when only the 'O' bit is set in Router Advertisements. This option enables such a CE behavior as it is impossible to automatically distinguish the intention of the 'O' bit otherwise. By default this option is set to 'false', enable it if no prefixes are delegated when the device should be acting as a CE router.
+</DL>
+
+<P>
+
+<I>PrefixDelegationHint=</I>
+<DL COMPACT><DT id="158"><DD>
+Takes an IPv6 address with prefix length as
+<I>Address=</I>
+in the &quot;[Network]&quot; section. Specifies the DHCPv6 client for the requesting router to include a prefix-hint in the DHCPv6 solicitation. Prefix ranges 1-128. Defaults to unset.
+</DL>
+
+<A NAME="lbAP">&nbsp;</A>
+<H2>[IPV6ACCEPTRA] SECTION OPTIONS</H2>
+
+<P>
+
+The
+&quot;[IPv6AcceptRA]&quot;
+section configures the IPv6 Router Advertisement (RA) client, if it is enabled with the
+<I>IPv6AcceptRA=</I>
+setting described above:
+<P>
+
+<I>UseDNS=</I>
+<DL COMPACT><DT id="159"><DD>
+When true (the default), the DNS servers received in the Router Advertisement will be used and take precedence over any statically configured ones.
+<P>
+This corresponds to the
+<B>nameserver</B>
+option in
+<B><A HREF="/cgi-bin/man/man2html?5+resolv.conf">resolv.conf</A></B>(5).
+</DL>
+
+<P>
+
+<I>UseDomains=</I>
+<DL COMPACT><DT id="160"><DD>
+Takes a boolean, or the special value
+&quot;route&quot;. When true, the domain name received via IPv6 Router Advertisement (RA) will be used as DNS search domain over this link, similar to the effect of the
+<B>Domains=</B>
+setting. If set to
+&quot;route&quot;, the domain name received via IPv6 RA will be used for routing DNS queries only, but not for searching, similar to the effect of the
+<B>Domains=</B>
+setting when the argument is prefixed with
+&quot;~&quot;. Defaults to true on Ubuntu.
+<P>
+It is recommended to enable this option only on trusted networks, as setting this affects resolution of all host names, in particular of single-label names. It is generally safer to use the supplied domain only as routing domain, rather than as search domain, in order to not have it affect local resolution of single-label names.
+<P>
+When set to true, this setting corresponds to the
+<B>domain</B>
+option in
+<B><A HREF="/cgi-bin/man/man2html?5+resolv.conf">resolv.conf</A></B>(5).
+</DL>
+
+<P>
+
+<I>RouteTable=</I><I>num</I>
+<DL COMPACT><DT id="161"><DD>
+The table identifier for the routes received in the Router Advertisement (a number between 1 and 4294967295, or 0 to unset). The table can be retrieved using
+<B>ip route show table </B><B></B><I>num</I>.
+</DL>
+
+<P>
+
+<I>UseAutonomousPrefix=</I>
+<DL COMPACT><DT id="162"><DD>
+When true (the default), the autonomous prefix received in the Router Advertisement will be used and take precedence over any statically configured ones.
+</DL>
+
+<P>
+
+<I>UseOnLinkPrefix=</I>
+<DL COMPACT><DT id="163"><DD>
+When true (the default), the onlink prefix received in the Router Advertisement will be used and take precedence over any statically configured ones.
+</DL>
+
+<P>
+
+<I>BlackList=</I>
+<DL COMPACT><DT id="164"><DD>
+A whitespace-separated list of IPv6 prefixes. IPv6 prefixes supplied via router advertisements in the list are ignored.
+</DL>
+
+<A NAME="lbAQ">&nbsp;</A>
+<H2>[DHCPSERVER] SECTION OPTIONS</H2>
+
+<P>
+
+The
+&quot;[DHCPServer]&quot;
+section contains settings for the DHCP server, if enabled via the
+<I>DHCPServer=</I>
+option described above:
+<P>
+
+<I>PoolOffset=</I>, <I>PoolSize=</I>
+<DL COMPACT><DT id="165"><DD>
+Configures the pool of addresses to hand out. The pool is a contiguous sequence of IP addresses in the subnet configured for the server address, which does not include the subnet nor the broadcast address.
+<I>PoolOffset=</I>
+takes the offset of the pool from the start of subnet, or zero to use the default value.
+<I>PoolSize=</I>
+takes the number of IP addresses in the pool or zero to use the default value. By default, the pool starts at the first address after the subnet address and takes up the rest of the subnet, excluding the broadcast address. If the pool includes the server address (the default), this is reserved and not handed out to clients.
+</DL>
+
+<P>
+
+<I>DefaultLeaseTimeSec=</I>, <I>MaxLeaseTimeSec=</I>
+<DL COMPACT><DT id="166"><DD>
+Control the default and maximum DHCP lease time to pass to clients. These settings take time values in seconds or another common time unit, depending on the suffix. The default lease time is used for clients that did not ask for a specific lease time. If a client asks for a lease time longer than the maximum lease time, it is automatically shortened to the specified time. The default lease time defaults to 1h, the maximum lease time to 12h. Shorter lease times are beneficial if the configuration data in DHCP leases changes frequently and clients shall learn the new settings with shorter latencies. Longer lease times reduce the generated DHCP network traffic.
+</DL>
+
+<P>
+
+<I>EmitDNS=</I>, <I>DNS=</I>
+<DL COMPACT><DT id="167"><DD>
+Takes a boolean. Configures whether the DHCP leases handed out to clients shall contain DNS server information. Defaults to
+&quot;yes&quot;. The DNS servers to pass to clients may be configured with the
+<I>DNS=</I>
+option, which takes a list of IPv4 addresses. If the
+<I>EmitDNS=</I>
+option is enabled but no servers configured, the servers are automatically propagated from an &quot;uplink&quot; interface that has appropriate servers set. The &quot;uplink&quot; interface is determined by the default route of the system with the highest priority. Note that this information is acquired at the time the lease is handed out, and does not take uplink interfaces into account that acquire DNS or NTP server information at a later point. DNS server propagation does not take
+/etc/resolv.conf
+into account. Also, note that the leases are not refreshed if the uplink network configuration changes. To ensure clients regularly acquire the most current uplink DNS server information, it is thus advisable to shorten the DHCP lease time via
+<I>MaxLeaseTimeSec=</I>
+described above.
+</DL>
+
+<P>
+
+<I>EmitNTP=</I>, <I>NTP=</I>
+<DL COMPACT><DT id="168"><DD>
+Similar to the
+<I>EmitDNS=</I>
+and
+<I>DNS=</I>
+settings described above, these settings configure whether and what NTP server information shall be emitted as part of the DHCP lease. The same syntax, propagation semantics and defaults apply as for
+<I>EmitDNS=</I>
+and
+<I>DNS=</I>.
+</DL>
+
+<P>
+
+<I>EmitSIP=</I>, <I>SIP=</I>
+<DL COMPACT><DT id="169"><DD>
+Similar to the
+<I>EmitDNS=</I>
+and
+<I>DNS=</I>
+settings described above, these settings configure whether and what SIP server information shall be emitted as part of the DHCP lease. The same syntax, propagation semantics and defaults apply as for
+<I>EmitDNS=</I>
+and
+<I>DNS=</I>.
+</DL>
+
+<P>
+
+<I>EmitRouter=</I>
+<DL COMPACT><DT id="170"><DD>
+Similar to the
+<I>EmitDNS=</I>
+setting described above, this setting configures whether the DHCP lease should contain the router option. The same syntax, propagation semantics and defaults apply as for
+<I>EmitDNS=</I>.
+</DL>
+
+<P>
+
+<I>EmitTimezone=</I>, <I>Timezone=</I>
+<DL COMPACT><DT id="171"><DD>
+Takes a boolean. Configures whether the DHCP leases handed out to clients shall contain timezone information. Defaults to
+&quot;yes&quot;. The
+<I>Timezone=</I>
+setting takes a timezone string (such as
+&quot;Europe/Berlin&quot;
+or
+&quot;UTC&quot;) to pass to clients. If no explicit timezone is set, the system timezone of the local host is propagated, as determined by the
+/etc/localtime
+symlink.
+</DL>
+
+<P>
+
+<I>SendOption=</I>
+<DL COMPACT><DT id="172"><DD>
+Send a raw option with value via DHCPv4 server. Takes a DHCP option number, data type and data (&quot;<I>option</I>:<I>type</I>:<I>value</I>&quot;). The option number is an integer in the range 1..254. The type takes one of
+&quot;uint8&quot;,
+&quot;uint16&quot;,
+&quot;uint32&quot;,
+&quot;ipv4address&quot;, or
+&quot;string&quot;. Special characters in the data string may be escaped using
+m[blue]<B>C-style escapes</B>m[]<FONT SIZE="-2">[17]</FONT>. This setting can be specified multiple times. If an empty string is specified, then all options specified earlier are cleared. Defaults to unset.
+</DL>
+
+<A NAME="lbAR">&nbsp;</A>
+<H2>[IPV6PREFIXDELEGATION] SECTION OPTIONS</H2>
+
+<P>
+
+The
+&quot;[IPv6PrefixDelegation]&quot;
+section contains settings for sending IPv6 Router Advertisements and whether to act as a router, if enabled via the
+<I>IPv6PrefixDelegation=</I>
+option described above. IPv6 network prefixes are defined with one or more
+&quot;[IPv6Prefix]&quot;
+sections.
+<P>
+
+<I>Managed=</I>, <I>OtherInformation=</I>
+<DL COMPACT><DT id="173"><DD>
+Takes a boolean. Controls whether a DHCPv6 server is used to acquire IPv6 addresses on the network link when
+<I>Managed=</I>
+is set to
+&quot;true&quot;
+or if only additional network information can be obtained via DHCPv6 for the network link when
+<I>OtherInformation=</I>
+is set to
+&quot;true&quot;. Both settings default to
+&quot;false&quot;, which means that a DHCPv6 server is not being used.
+</DL>
+
+<P>
+
+<I>RouterLifetimeSec=</I>
+<DL COMPACT><DT id="174"><DD>
+Takes a timespan. Configures the IPv6 router lifetime in seconds. If set, this host also announces itself in Router Advertisements as an IPv6 router for the network link. When unset, the host is not acting as a router.
+</DL>
+
+<P>
+
+<I>RouterPreference=</I>
+<DL COMPACT><DT id="175"><DD>
+Configures IPv6 router preference if
+<I>RouterLifetimeSec=</I>
+is non-zero. Valid values are
+&quot;high&quot;,
+&quot;medium&quot;
+and
+&quot;low&quot;, with
+&quot;normal&quot;
+and
+&quot;default&quot;
+added as synonyms for
+&quot;medium&quot;
+just to make configuration easier. See
+m[blue]<B>RFC 4191</B>m[]<FONT SIZE="-2">[15]</FONT>
+for details. Defaults to
+&quot;medium&quot;.
+</DL>
+
+<P>
+
+<I>EmitDNS=</I>, <I>DNS=</I>
+<DL COMPACT><DT id="176"><DD>
+<I>DNS=</I>
+specifies a list of recursive DNS server IPv6 addresses that are distributed via Router Advertisement messages when
+<I>EmitDNS=</I>
+is true.
+<I>DNS=</I>
+also takes special value
+&quot;_link_local&quot;; in that case the IPv6 link local address is distributed. If
+<I>DNS=</I>
+is empty, DNS servers are read from the
+&quot;[Network]&quot;
+section. If the
+&quot;[Network]&quot;
+section does not contain any DNS servers either, DNS servers from the uplink with the highest priority default route are used. When
+<I>EmitDNS=</I>
+is false, no DNS server information is sent in Router Advertisement messages.
+<I>EmitDNS=</I>
+defaults to true.
+</DL>
+
+<P>
+
+<I>EmitDomains=</I>, <I>Domains=</I>
+<DL COMPACT><DT id="177"><DD>
+A list of DNS search domains distributed via Router Advertisement messages when
+<I>EmitDomains=</I>
+is true. If
+<I>Domains=</I>
+is empty, DNS search domains are read from the
+&quot;[Network]&quot;
+section. If the
+&quot;[Network]&quot;
+section does not contain any DNS search domains either, DNS search domains from the uplink with the highest priority default route are used. When
+<I>EmitDomains=</I>
+is false, no DNS search domain information is sent in Router Advertisement messages.
+<I>EmitDomains=</I>
+defaults to true.
+</DL>
+
+<P>
+
+<I>DNSLifetimeSec=</I>
+<DL COMPACT><DT id="178"><DD>
+Lifetime in seconds for the DNS server addresses listed in
+<I>DNS=</I>
+and search domains listed in
+<I>Domains=</I>.
+</DL>
+
+<A NAME="lbAS">&nbsp;</A>
+<H2>[IPV6PREFIX] SECTION OPTIONS</H2>
+
+<P>
+
+One or more
+&quot;[IPv6Prefix]&quot;
+sections contain the IPv6 prefixes that are announced via Router Advertisements. See
+m[blue]<B>RFC 4861</B>m[]<FONT SIZE="-2">[20]</FONT>
+for further details.
+<P>
+
+<I>AddressAutoconfiguration=</I>, <I>OnLink=</I>
+<DL COMPACT><DT id="179"><DD>
+Takes a boolean to specify whether IPv6 addresses can be autoconfigured with this prefix and whether the prefix can be used for onlink determination. Both settings default to
+&quot;true&quot;
+in order to ease configuration.
+</DL>
+
+<P>
+
+<I>Prefix=</I>
+<DL COMPACT><DT id="180"><DD>
+The IPv6 prefix that is to be distributed to hosts. Similarly to configuring static IPv6 addresses, the setting is configured as an IPv6 prefix and its prefix length, separated by a
+&quot;/&quot;
+character. Use multiple
+&quot;[IPv6Prefix]&quot;
+sections to configure multiple IPv6 prefixes since prefix lifetimes, address autoconfiguration and onlink status may differ from one prefix to another.
+</DL>
+
+<P>
+
+<I>PreferredLifetimeSec=</I>, <I>ValidLifetimeSec=</I>
+<DL COMPACT><DT id="181"><DD>
+Preferred and valid lifetimes for the prefix measured in seconds.
+<I>PreferredLifetimeSec=</I>
+defaults to 604800 seconds (one week) and
+<I>ValidLifetimeSec=</I>
+defaults to 2592000 seconds (30 days).
+</DL>
+
+<A NAME="lbAT">&nbsp;</A>
+<H2>[IPV6ROUTEPREFIX] SECTION OPTIONS</H2>
+
+<P>
+
+One or more
+&quot;[IPv6RoutePrefix]&quot;
+sections contain the IPv6 prefix routes that are announced via Router Advertisements. See
+m[blue]<B>RFC 4191</B>m[]<FONT SIZE="-2">[15]</FONT>
+for further details.
+<P>
+
+<I>Route=</I>
+<DL COMPACT><DT id="182"><DD>
+The IPv6 route that is to be distributed to hosts. Similarly to configuring static IPv6 routes, the setting is configured as an IPv6 prefix routes and its prefix route length, separated by a&quot;/&quot;
+character. Use multiple
+&quot;[IPv6PrefixRoutes]&quot;
+sections to configure multiple IPv6 prefix routes.
+</DL>
+
+<P>
+
+<I>LifetimeSec=</I>
+<DL COMPACT><DT id="183"><DD>
+Lifetime for the route prefix measured in seconds.
+<I>LifetimeSec=</I>
+defaults to 604800 seconds (one week).
+</DL>
+
+<A NAME="lbAU">&nbsp;</A>
+<H2>[BRIDGE] SECTION OPTIONS</H2>
+
+<P>
+
+The
+&quot;[Bridge]&quot;
+section accepts the following keys.
+<P>
+
+<I>UnicastFlood=</I>
+<DL COMPACT><DT id="184"><DD>
+Takes a boolean. Controls whether the bridge should flood traffic for which an FDB entry is missing and the destination is unknown through this port. When unset, the kernel's default will be used.
+</DL>
+
+<P>
+
+<I>MulticastFlood=</I>
+<DL COMPACT><DT id="185"><DD>
+Takes a boolean. Controls whether the bridge should flood traffic for which an MDB entry is missing and the destination is unknown through this port. When unset, the kernel's default will be used.
+</DL>
+
+<P>
+
+<I>MulticastToUnicast=</I>
+<DL COMPACT><DT id="186"><DD>
+Takes a boolean. Multicast to unicast works on top of the multicast snooping feature of the bridge. Which means unicast copies are only delivered to hosts which are interested in it. When unset, the kernel's default will be used.
+</DL>
+
+<P>
+
+<I>NeighborSuppression=</I>
+<DL COMPACT><DT id="187"><DD>
+Takes a boolean. Configures whether ARP and ND neighbor suppression is enabled for this port. When unset, the kernel's default will be used.
+</DL>
+
+<P>
+
+<I>Learning=</I>
+<DL COMPACT><DT id="188"><DD>
+Takes a boolean. Configures whether MAC address learning is enabled for this port. When unset, the kernel's default will be used.
+</DL>
+
+<P>
+
+<I>HairPin=</I>
+<DL COMPACT><DT id="189"><DD>
+Takes a boolean. Configures whether traffic may be sent back out of the port on which it was received. When this flag is false, and the bridge will not forward traffic back out of the receiving port. When unset, the kernel's default will be used.
+</DL>
+
+<P>
+
+<I>UseBPDU=</I>
+<DL COMPACT><DT id="190"><DD>
+Takes a boolean. Configures whether STP Bridge Protocol Data Units will be processed by the bridge port. When unset, the kernel's default will be used.
+</DL>
+
+<P>
+
+<I>FastLeave=</I>
+<DL COMPACT><DT id="191"><DD>
+Takes a boolean. This flag allows the bridge to immediately stop multicast traffic on a port that receives an IGMP Leave message. It is only used with IGMP snooping if enabled on the bridge. When unset, the kernel's default will be used.
+</DL>
+
+<P>
+
+<I>AllowPortToBeRoot=</I>
+<DL COMPACT><DT id="192"><DD>
+Takes a boolean. Configures whether a given port is allowed to become a root port. Only used when STP is enabled on the bridge. When unset, the kernel's default will be used.
+</DL>
+
+<P>
+
+<I>ProxyARP=</I>
+<DL COMPACT><DT id="193"><DD>
+Takes a boolean. Configures whether proxy ARP to be enabled on this port. When unset, the kernel's default will be used.
+</DL>
+
+<P>
+
+<I>ProxyARPWiFi=</I>
+<DL COMPACT><DT id="194"><DD>
+Takes a boolean. Configures whether proxy ARP to be enabled on this port which meets extended requirements by IEEE 802.11 and Hotspot 2.0 specifications. When unset, the kernel's default will be used.
+</DL>
+
+<P>
+
+<I>MulticastRouter=</I>
+<DL COMPACT><DT id="195"><DD>
+Configures this port for having multicast routers attached. A port with a multicast router will receive all multicast traffic. Takes one of
+&quot;no&quot;
+to disable multicast routers on this port,
+&quot;query&quot;
+to let the system detect the presence of routers,
+&quot;permanent&quot;
+to permanently enable multicast traffic forwarding on this port, or
+&quot;temporary&quot;
+to enable multicast routers temporarily on this port, not depending on incoming queries. When unset, the kernel's default will be used.
+</DL>
+
+<P>
+
+<I>Cost=</I>
+<DL COMPACT><DT id="196"><DD>
+Sets the &quot;cost&quot; of sending packets of this interface. Each port in a bridge may have a different speed and the cost is used to decide which link to use. Faster interfaces should have lower costs. It is an integer value between 1 and 65535.
+</DL>
+
+<P>
+
+<I>Priority=</I>
+<DL COMPACT><DT id="197"><DD>
+Sets the &quot;priority&quot; of sending packets on this interface. Each port in a bridge may have a different priority which is used to decide which link to use. Lower value means higher priority. It is an integer value between 0 to 63. Networkd does not set any default, meaning the kernel default value of 32 is used.
+</DL>
+
+<A NAME="lbAV">&nbsp;</A>
+<H2>[BRIDGEFDB] SECTION OPTIONS</H2>
+
+<P>
+
+The
+&quot;[BridgeFDB]&quot;
+section manages the forwarding database table of a port and accepts the following keys. Specify several
+&quot;[BridgeFDB]&quot;
+sections to configure several static MAC table entries.
+<P>
+
+<I>MACAddress=</I>
+<DL COMPACT><DT id="198"><DD>
+As in the
+&quot;[Network]&quot;
+section. This key is mandatory.
+</DL>
+
+<P>
+
+<I>Destination=</I>
+<DL COMPACT><DT id="199"><DD>
+Takes an IP address of the destination VXLAN tunnel endpoint.
+</DL>
+
+<P>
+
+<I>VLANId=</I>
+<DL COMPACT><DT id="200"><DD>
+The VLAN ID for the new static MAC table entry. If omitted, no VLAN ID information is appended to the new static MAC table entry.
+</DL>
+
+<P>
+
+<I>VNI=</I>
+<DL COMPACT><DT id="201"><DD>
+The VXLAN Network Identifier (or VXLAN Segment ID) to use to connect to the remote VXLAN tunnel endpoint. Takes a number in the range 1-16777215. Defaults to unset.
+</DL>
+
+<P>
+
+<I>AssociatedWith=</I>
+<DL COMPACT><DT id="202"><DD>
+Specifies where the address is associated with. Takes one of
+&quot;use&quot;,
+&quot;self&quot;,
+&quot;master&quot;
+or
+&quot;router&quot;.
+&quot;use&quot;
+means the address is in use. User space can use this option to indicate to the kernel that the fdb entry is in use.
+&quot;self&quot;
+means the address is associated with the port drivers fdb. Usually hardware.
+&quot;master&quot;
+means the address is associated with master devices fdb.
+&quot;router&quot;
+means the destination address is associated with a router. Note that it's valid if the referenced device is a VXLAN type device and has route shortcircuit enabled. Defaults to
+&quot;self&quot;.
+</DL>
+
+<A NAME="lbAW">&nbsp;</A>
+<H2>[CAN] SECTION OPTIONS</H2>
+
+<P>
+
+The
+&quot;[CAN]&quot;
+section manages the Controller Area Network (CAN bus) and accepts the following keys.
+<P>
+
+<I>BitRate=</I>
+<DL COMPACT><DT id="203"><DD>
+The bitrate of CAN device in bits per second. The usual SI prefixes (K, M) with the base of 1000 can be used here.
+</DL>
+
+<P>
+
+<I>SamplePoint=</I>
+<DL COMPACT><DT id="204"><DD>
+Optional sample point in percent with one decimal (e.g.
+&quot;75%&quot;,
+&quot;87.5%&quot;) or permille (e.g.
+&quot;875‰&quot;).
+</DL>
+
+<P>
+
+<I>RestartSec=</I>
+<DL COMPACT><DT id="205"><DD>
+Automatic restart delay time. If set to a non-zero value, a restart of the CAN controller will be triggered automatically in case of a bus-off condition after the specified delay time. Subsecond delays can be specified using decimals (e.g.
+&quot;0.1s&quot;) or a
+&quot;ms&quot;
+or
+&quot;us&quot;
+postfix. Using
+&quot;infinity&quot;
+or
+&quot;0&quot;
+will turn the automatic restart off. By default automatic restart is disabled.
+</DL>
+
+<P>
+
+<I>TripleSampling=</I>
+<DL COMPACT><DT id="206"><DD>
+Takes a boolean. When
+&quot;yes&quot;, three samples (instead of one) are used to determine the value of a received bit by majority rule. When unset, the kernel's default will be used.
+</DL>
+
+<A NAME="lbAX">&nbsp;</A>
+<H2>[QDISC] SECTION OPTIONS</H2>
+
+<P>
+
+The
+&quot;[QDisc]&quot;
+section manages the traffic control queueing discipline (qdisc).
+<P>
+
+<I>Parent=</I>
+<DL COMPACT><DT id="207"><DD>
+Specifies the parent Queueing Discipline (qdisc). Takes one of
+&quot;clsact&quot;
+or
+&quot;ingress&quot;. This is mandatory.
+</DL>
+
+<P>
+
+<I>Handle=</I>
+<DL COMPACT><DT id="208"><DD>
+Specifies the major number of unique identifier of the qdisc, known as the handle. Takes a number in hexadecimal ranges 1 to ffff. Defaults to unset.
+</DL>
+
+<A NAME="lbAY">&nbsp;</A>
+<H2>[NETWORKEMULATOR] SECTION OPTIONS</H2>
+
+<P>
+
+The
+&quot;[NetworkEmulator]&quot;
+section manages the queueing discipline (qdisc) of the network emulator. It can be used to configure the kernel packet scheduler and simulate packet delay and loss for UDP or TCP applications, or limit the bandwidth usage of a particular service to simulate internet connections.
+<P>
+
+<I>Parent=</I>
+<DL COMPACT><DT id="209"><DD>
+Specifies the parent Queueing Discipline (qdisc). Takes one of
+&quot;root&quot;,
+&quot;clsact&quot;
+or
+&quot;ingress&quot;. Defaults to
+&quot;root&quot;.
+</DL>
+
+<P>
+
+<I>Handle=</I>
+<DL COMPACT><DT id="210"><DD>
+Specifies the major number of unique identifier of the qdisc, known as the handle. Takes a number in hexadecimal ranges 1 to ffff. Defaults to unset.
+</DL>
+
+<P>
+
+<I>DelaySec=</I>
+<DL COMPACT><DT id="211"><DD>
+Specifies the fixed amount of delay to be added to all packets going out of the interface. Defaults to unset.
+</DL>
+
+<P>
+
+<I>DelayJitterSec=</I>
+<DL COMPACT><DT id="212"><DD>
+Specifies the chosen delay to be added to the packets outgoing to the network interface. Defaults to unset.
+</DL>
+
+<P>
+
+<I>PacketLimit=</I>
+<DL COMPACT><DT id="213"><DD>
+Specifies the maximum number of packets the qdisc may hold queued at a time. An unsigned integer ranges 0 to 4294967294. Defaults to 1000.
+</DL>
+
+<P>
+
+<I>LossRate=</I>
+<DL COMPACT><DT id="214"><DD>
+Specifies an independent loss probability to be added to the packets outgoing from the network interface. Takes a percentage value, suffixed with &quot;%&quot;. Defaults to unset.
+</DL>
+
+<P>
+
+<I>DuplicateRate=</I>
+<DL COMPACT><DT id="215"><DD>
+Specifies that the chosen percent of packets is duplicated before queuing them. Takes a percentage value, suffixed with &quot;%&quot;. Defaults to unset.
+</DL>
+
+<A NAME="lbAZ">&nbsp;</A>
+<H2>[TOKENBUCKETFILTER] SECTION OPTIONS</H2>
+
+<P>
+
+The
+&quot;[TokenBucketFilter]&quot;
+section manages the queueing discipline (qdisc) of token bucket filter (tbf).
+<P>
+
+<I>Parent=</I>
+<DL COMPACT><DT id="216"><DD>
+Specifies the parent Queueing Discipline (qdisc). Takes one of
+&quot;root&quot;,
+&quot;clsact&quot;
+or
+&quot;ingress&quot;. Defaults to
+&quot;root&quot;.
+</DL>
+
+<P>
+
+<I>Handle=</I>
+<DL COMPACT><DT id="217"><DD>
+Specifies the major number of unique identifier of the qdisc, known as the handle. Takes a number in hexadecimal ranges 1 to ffff. Defaults to unset.
+</DL>
+
+<P>
+
+<I>LatencySec=</I>
+<DL COMPACT><DT id="218"><DD>
+Specifies the latency parameter, which specifies the maximum amount of time a packet can sit in the Token Bucket Filter (TBF). Defaults to unset.
+</DL>
+
+<P>
+
+<I>LimitSize=</I>
+<DL COMPACT><DT id="219"><DD>
+Takes the number of bytes that can be queued waiting for tokens to become available. When the size is suffixed with K, M, or G, it is parsed as Kilobytes, Megabytes, or Gigabytes, respectively, to the base of 1000. Defaults to unset.
+</DL>
+
+<P>
+
+<I>Burst=</I>
+<DL COMPACT><DT id="220"><DD>
+Specifies the size of the bucket. This is the maximum amount of bytes that tokens can be available for instantaneous transfer. When the size is suffixed with K, M, or G, it is parsed as Kilobytes, Megabytes, or Gigabytes, respectively, to the base of 1000. Defaults to unset.
+</DL>
+
+<P>
+
+<I>Rate=</I>
+<DL COMPACT><DT id="221"><DD>
+Specifies the device specific bandwidth. When suffixed with K, M, or G, the specified bandwidth is parsed as Kilobits, Megabits, or Gigabits, respectively, to the base of 1000. Defaults to unset.
+</DL>
+
+<P>
+
+<I>MPUBytes=</I>
+<DL COMPACT><DT id="222"><DD>
+The Minimum Packet Unit (MPU) determines the minimal token usage (specified in bytes) for a packet. When suffixed with K, M, or G, the specified size is parsed as Kilobytes, Megabytes, or Gigabytes, respectively, to the base of 1000. Defaults to zero.
+</DL>
+
+<P>
+
+<I>PeakRate=</I>
+<DL COMPACT><DT id="223"><DD>
+Takes the maximum depletion rate of the bucket. When suffixed with K, M, or G, the specified size is parsed as Kilobits, Megabits, or Gigabits, respectively, to the base of 1000. Defaults to unset.
+</DL>
+
+<P>
+
+<I>MTUBytes=</I>
+<DL COMPACT><DT id="224"><DD>
+Specifies the size of the peakrate bucket. When suffixed with K, M, or G, the specified size is parsed as Kilobytes, Megabytes, or Gigabytes, respectively, to the base of 1000. Defaults to unset.
+</DL>
+
+<A NAME="lbBA">&nbsp;</A>
+<H2>[STOCHASTICFAIRNESSQUEUEING] SECTION OPTIONS</H2>
+
+<P>
+
+The
+&quot;[StochasticFairnessQueueing]&quot;
+section manages the queueing discipline (qdisc) of stochastic fairness queueing (sfq).
+<P>
+
+<I>Parent=</I>
+<DL COMPACT><DT id="225"><DD>
+Specifies the parent Queueing Discipline (qdisc). Takes one of
+&quot;root&quot;,
+&quot;clsact&quot;
+or
+&quot;ingress&quot;. Defaults to
+&quot;root&quot;.
+</DL>
+
+<P>
+
+<I>Handle=</I>
+<DL COMPACT><DT id="226"><DD>
+Specifies the major number of unique identifier of the qdisc, known as the handle. Takes a number in hexadecimal ranges 1 to ffff. Defaults to unset.
+</DL>
+
+<P>
+
+<I>PerturbPeriodSec=</I>
+<DL COMPACT><DT id="227"><DD>
+Specifies the interval in seconds for queue algorithm perturbation. Defaults to unset.
+</DL>
+
+<A NAME="lbBB">&nbsp;</A>
+<H2>[CONTROLLEDDELAY] SECTION OPTIONS</H2>
+
+<P>
+
+The
+&quot;[ControlledDelay]&quot;
+section manages the queueing discipline (qdisc) of controlled delay (CoDel).
+<P>
+
+<I>Parent=</I>
+<DL COMPACT><DT id="228"><DD>
+Specifies the parent Queueing Discipline (qdisc). Takes one of
+&quot;root&quot;,
+&quot;clsact&quot;
+or
+&quot;ingress&quot;. Defaults to
+&quot;root&quot;.
+</DL>
+
+<P>
+
+<I>Handle=</I>
+<DL COMPACT><DT id="229"><DD>
+Specifies the major number of unique identifier of the qdisc, known as the handle. Takes a number in hexadecimal ranges 1 to ffff. Defaults to unset.
+</DL>
+
+<P>
+
+<I>PacketLimit=</I>
+<DL COMPACT><DT id="230"><DD>
+Specifies the hard limit on the queue size in number of packets. When this limit is reached, incoming packets are dropped. An unsigned integer ranges 0 to 4294967294. Defaults to unset and kernel's default is used.
+</DL>
+
+<P>
+
+<I>TargetSec=</I>
+<DL COMPACT><DT id="231"><DD>
+Takes a timespan. Specifies the acceptable minimum standing/persistent queue delay. Defaults to unset and kernel's default is used.
+</DL>
+
+<P>
+
+<I>IntervalSec=</I>
+<DL COMPACT><DT id="232"><DD>
+Takes a timespan. This is used to ensure that the measured minimum delay does not become too stale. Defaults to unset and kernel's default is used.
+</DL>
+
+<P>
+
+<I>ECN=</I>
+<DL COMPACT><DT id="233"><DD>
+Takes a boolean. This can be used to mark packets instead of dropping them. Defaults to unset and kernel's default is used.
+</DL>
+
+<P>
+
+<I>CEThresholdSec=</I>
+<DL COMPACT><DT id="234"><DD>
+Takes a timespan. This sets a threshold above which all packets are marked with ECN Congestion Experienced (CE). Defaults to unset and kernel's default is used.
+</DL>
+
+<A NAME="lbBC">&nbsp;</A>
+<H2>[FAIRQUEUEINGCONTROLLEDDELAY] SECTION OPTIONS</H2>
+
+<P>
+
+The
+&quot;[FairQueueingControlledDelay]&quot;
+section manages the queueing discipline (qdisc) of fair queuing controlled delay (FQ-CoDel).
+<P>
+
+<I>Parent=</I>
+<DL COMPACT><DT id="235"><DD>
+Specifies the parent Queueing Discipline (qdisc). Takes one of
+&quot;root&quot;,
+&quot;clsact&quot;
+or
+&quot;ingress&quot;. Defaults to
+&quot;root&quot;.
+</DL>
+
+<P>
+
+<I>Handle=</I>
+<DL COMPACT><DT id="236"><DD>
+Specifies the major number of unique identifier of the qdisc, known as the handle. Takes a number in hexadecimal ranges 1 to ffff. Defaults to unset.
+</DL>
+
+<P>
+
+<I>PacketLimit=</I>
+<DL COMPACT><DT id="237"><DD>
+Specifies the hard limit on the real queue size. When this limit is reached, incoming packets are dropped. Defaults to unset and kernel's default is used.
+</DL>
+
+<P>
+
+<I>MemoryLimit=</I>
+<DL COMPACT><DT id="238"><DD>
+Specifies the limit on the total number of bytes that can be queued in this FQ-CoDel instance. When suffixed with K, M, or G, the specified size is parsed as Kilobytes, Megabytes, or Gigabytes, respectively, to the base of 1024. Defaults to unset and kernel's default is used.
+</DL>
+
+<P>
+
+<I>Flows=</I>
+<DL COMPACT><DT id="239"><DD>
+Specifies the number of flows into which the incoming packets are classified. Defaults to unset and kernel's default is used.
+</DL>
+
+<P>
+
+<I>TargetSec=</I>
+<DL COMPACT><DT id="240"><DD>
+Takes a timespan. Specifies the acceptable minimum standing/persistent queue delay. Defaults to unset and kernel's default is used.
+</DL>
+
+<P>
+
+<I>IntervalSec=</I>
+<DL COMPACT><DT id="241"><DD>
+Takes a timespan. This is used to ensure that the measured minimum delay does not become too stale. Defaults to unset and kernel's default is used.
+</DL>
+
+<P>
+
+<I>Quantum=</I>
+<DL COMPACT><DT id="242"><DD>
+Specifies the number of bytes used as 'deficit' in the fair queuing algorithmtimespan. When suffixed with K, M, or G, the specified size is parsed as Kilobytes, Megabytes, or Gigabytes, respectively, to the base of 1024. Defaults to unset and kernel's default is used.
+</DL>
+
+<P>
+
+<I>ECN=</I>
+<DL COMPACT><DT id="243"><DD>
+Takes a boolean. This can be used to mark packets instead of dropping them. Defaults to unset and kernel's default is used.
+</DL>
+
+<P>
+
+<I>CEThresholdSec=</I>
+<DL COMPACT><DT id="244"><DD>
+Takes a timespan. This sets a threshold above which all packets are marked with ECN Congestion Experienced (CE). Defaults to unset and kernel's default is used.
+</DL>
+
+<A NAME="lbBD">&nbsp;</A>
+<H2>[FAIRQUEUEING] SECTION OPTIONS</H2>
+
+<P>
+
+The
+&quot;[FairQueueing]&quot;
+section manages the queueing discipline (qdisc) of fair queue traffic policing (FQ).
+<P>
+
+<I>Parent=</I>
+<DL COMPACT><DT id="245"><DD>
+Specifies the parent Queueing Discipline (qdisc). Takes one of
+&quot;root&quot;,
+&quot;clsact&quot;
+or
+&quot;ingress&quot;. Defaults to
+&quot;root&quot;.
+</DL>
+
+<P>
+
+<I>Handle=</I>
+<DL COMPACT><DT id="246"><DD>
+Specifies the major number of unique identifier of the qdisc, known as the handle. Takes a number in hexadecimal ranges 1 to ffff. Defaults to unset.
+</DL>
+
+<P>
+
+<I>PacketLimit=</I>
+<DL COMPACT><DT id="247"><DD>
+Specifies the hard limit on the real queue size. When this limit is reached, incoming packets are dropped. Defaults to unset and kernel's default is used.
+</DL>
+
+<P>
+
+<I>FlowLimit=</I>
+<DL COMPACT><DT id="248"><DD>
+Specifies the hard limit on the maximum number of packets queued per flow. Defaults to unset and kernel's default is used.
+</DL>
+
+<P>
+
+<I>Quantum=</I>
+<DL COMPACT><DT id="249"><DD>
+Specifies the credit per dequeue RR round, i.e. the amount of bytes a flow is allowed to dequeue at once. When suffixed with K, M, or G, the specified size is parsed as Kilobytes, Megabytes, or Gigabytes, respectively, to the base of 1024. Defaults to unset and kernel's default is used.
+</DL>
+
+<P>
+
+<I>InitialQuantum=</I>
+<DL COMPACT><DT id="250"><DD>
+Specifies the initial sending rate credit, i.e. the amount of bytes a new flow is allowed to dequeue initially. When suffixed with K, M, or G, the specified size is parsed as Kilobytes, Megabytes, or Gigabytes, respectively, to the base of 1024. Defaults to unset and kernel's default is used.
+</DL>
+
+<P>
+
+<I>MaximumRate=</I>
+<DL COMPACT><DT id="251"><DD>
+Specifies the maximum sending rate of a flow. When suffixed with K, M, or G, the specified size is parsed as Kilobits, Megabits, or Gigabits, respectively, to the base of 1000. Defaults to unset and kernel's default is used.
+</DL>
+
+<P>
+
+<I>Buckets=</I>
+<DL COMPACT><DT id="252"><DD>
+Specifies the size of the hash table used for flow lookups. Defaults to unset and kernel's default is used.
+</DL>
+
+<P>
+
+<I>OrphanMask=</I>
+<DL COMPACT><DT id="253"><DD>
+Takes an unsigned integer. For packets not owned by a socket, fq is able to mask a part of hash and reduce number of buckets associated with the traffic. Defaults to unset and kernel's default is used.
+</DL>
+
+<P>
+
+<I>Pacing=</I>
+<DL COMPACT><DT id="254"><DD>
+Takes a boolean, and enables or disables flow pacing. Defaults to unset and kernel's default is used.
+</DL>
+
+<P>
+
+<I>CEThresholdSec=</I>
+<DL COMPACT><DT id="255"><DD>
+Takes a timespan. This sets a threshold above which all packets are marked with ECN Congestion Experienced (CE). Defaults to unset and kernel's default is used.
+</DL>
+
+<A NAME="lbBE">&nbsp;</A>
+<H2>[TRIVIALLINKEQUALIZER] SECTION OPTIONS</H2>
+
+<P>
+
+The
+&quot;[TrivialLinkEqualizer]&quot;
+section manages the queueing discipline (qdisc) of trivial link equalizer (teql).
+<P>
+
+<I>Parent=</I>
+<DL COMPACT><DT id="256"><DD>
+Specifies the parent Queueing Discipline (qdisc). Takes one of
+&quot;root&quot;,
+&quot;clsact&quot;
+or
+&quot;ingress&quot;. Defaults to
+&quot;root&quot;.
+</DL>
+
+<P>
+
+<I>Handle=</I>
+<DL COMPACT><DT id="257"><DD>
+Specifies the major number of unique identifier of the qdisc, known as the handle. Takes a number in hexadecimal ranges 1 to ffff. Defaults to unset.
+</DL>
+
+<P>
+
+<I>Id=</I>
+<DL COMPACT><DT id="258"><DD>
+Specifies the interface ID
+&quot;N&quot;
+of teql. Defaults to
+&quot;0&quot;. Note that when teql is used, currently, the module
+<B>sch_teql</B>
+with
+<B>max_equalizers=N+1</B>
+option must be loaded before
+<B>systemd-networkd</B>
+is started.
+</DL>
+
+<A NAME="lbBF">&nbsp;</A>
+<H2>[BRIDGEVLAN] SECTION OPTIONS</H2>
+
+<P>
+
+The
+&quot;[BridgeVLAN]&quot;
+section manages the VLAN ID configuration of a bridge port and accepts the following keys. Specify several
+&quot;[BridgeVLAN]&quot;
+sections to configure several VLAN entries. The
+<I>VLANFiltering=</I>
+option has to be enabled, see
+&quot;[Bridge]&quot;
+section in
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.netdev">systemd.netdev</A></B>(5).
+<P>
+
+<I>VLAN=</I>
+<DL COMPACT><DT id="259"><DD>
+The VLAN ID allowed on the port. This can be either a single ID or a range M-N. VLAN IDs are valid from 1 to 4094.
+</DL>
+
+<P>
+
+<I>EgressUntagged=</I>
+<DL COMPACT><DT id="260"><DD>
+The VLAN ID specified here will be used to untag frames on egress. Configuring
+<I>EgressUntagged=</I>
+implicates the use of
+<I>VLAN=</I>
+above and will enable the VLAN ID for ingress as well. This can be either a single ID or a range M-N.
+</DL>
+
+<P>
+
+<I>PVID=</I>
+<DL COMPACT><DT id="261"><DD>
+The Port VLAN ID specified here is assigned to all untagged frames at ingress.
+<I>PVID=</I>
+can be used only once. Configuring
+<I>PVID=</I>
+implicates the use of
+<I>VLAN=</I>
+above and will enable the VLAN ID for ingress as well.
+</DL>
+
+<A NAME="lbBG">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+<P>
+
+<B>Example&nbsp;1.&nbsp;Static network configuration</B>
+<P>
+<DL COMPACT><DT id="262"><DD>
+
+
+
+<PRE>
+# /etc/systemd/network/50-static.network
+[Match]
+Name=enp2s0
+
+[Network]
+Address=192.168.0.15/24
+Gateway=192.168.0.1
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+This brings interface
+&quot;enp2s0&quot;
+up with a static address. The specified gateway will be used for a default route.
+<P>
+
+<B>Example&nbsp;2.&nbsp;DHCP on ethernet links</B>
+<P>
+<DL COMPACT><DT id="263"><DD>
+
+
+
+<PRE>
+# /etc/systemd/network/80-dhcp.network
+[Match]
+Name=en*
+
+[Network]
+DHCP=yes
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+This will enable DHCPv4 and DHCPv6 on all interfaces with names starting with
+&quot;en&quot;
+(i.e. ethernet interfaces).
+<P>
+
+<B>Example&nbsp;3.&nbsp;IPv6 Prefix Delegation</B>
+<P>
+<DL COMPACT><DT id="264"><DD>
+
+
+
+<PRE>
+# /etc/systemd/network/55-ipv6-pd-upstream.network
+[Match]
+Name=enp1s0
+
+[Network]
+DHCP=ipv6
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<DL COMPACT><DT id="265"><DD>
+
+
+
+<PRE>
+# /etc/systemd/network/56-ipv6-pd-downstream.network
+[Match]
+Name=enp2s0
+
+[Network]
+IPv6PrefixDelegation=dhcpv6
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+This will enable IPv6 PD on the interface enp1s0 as an upstream interface where the DHCPv6 client is running and enp2s0 as a downstream interface where the prefix is delegated to.
+<P>
+
+<B>Example&nbsp;4.&nbsp;A bridge with two enslaved links</B>
+<P>
+<DL COMPACT><DT id="266"><DD>
+
+
+
+<PRE>
+# /etc/systemd/network/25-bridge-static.network
+[Match]
+Name=bridge0
+
+[Network]
+Address=192.168.0.15/24
+Gateway=192.168.0.1
+DNS=192.168.0.1
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<DL COMPACT><DT id="267"><DD>
+
+
+
+<PRE>
+# /etc/systemd/network/25-bridge-slave-interface-1.network
+[Match]
+Name=enp2s0
+
+[Network]
+Bridge=bridge0
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<DL COMPACT><DT id="268"><DD>
+
+
+
+<PRE>
+# /etc/systemd/network/25-bridge-slave-interface-2.network
+[Match]
+Name=wlp3s0
+
+[Network]
+Bridge=bridge0
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+This creates a bridge and attaches devices
+&quot;enp2s0&quot;
+and
+&quot;wlp3s0&quot;
+to it. The bridge will have the specified static address and network assigned, and a default route via the specified gateway will be added. The specified DNS server will be added to the global list of DNS resolvers.
+<P>
+
+<B>Example&nbsp;5.&nbsp;</B>
+<P>
+<DL COMPACT><DT id="269"><DD>
+
+
+
+<PRE>
+# /etc/systemd/network/20-bridge-slave-interface-vlan.network
+[Match]
+Name=enp2s0
+
+[Network]
+Bridge=bridge0
+
+[BridgeVLAN]
+VLAN=1-32
+PVID=42
+EgressUntagged=42
+
+[BridgeVLAN]
+VLAN=100-200
+
+[BridgeVLAN]
+EgressUntagged=300-400
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+This overrides the configuration specified in the previous example for the interface
+&quot;enp2s0&quot;, and enables VLAN on that bridge port. VLAN IDs 1-32, 42, 100-400 will be allowed. Packets tagged with VLAN IDs 42, 300-400 will be untagged when they leave on this interface. Untagged packets which arrive on this interface will be assigned VLAN ID 42.
+<P>
+
+<B>Example&nbsp;6.&nbsp;Various tunnels</B>
+<P>
+<DL COMPACT><DT id="270"><DD>
+
+
+
+<PRE>
+/etc/systemd/network/25-tunnels.network
+[Match]
+Name=ens1
+
+[Network]
+Tunnel=ipip-tun
+Tunnel=sit-tun
+Tunnel=gre-tun
+Tunnel=vti-tun
+      
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<DL COMPACT><DT id="271"><DD>
+
+
+
+<PRE>
+/etc/systemd/network/25-tunnel-ipip.netdev
+[NetDev]
+Name=ipip-tun
+Kind=ipip
+      
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<DL COMPACT><DT id="272"><DD>
+
+
+
+<PRE>
+/etc/systemd/network/25-tunnel-sit.netdev
+[NetDev]
+Name=sit-tun
+Kind=sit
+      
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<DL COMPACT><DT id="273"><DD>
+
+
+
+<PRE>
+/etc/systemd/network/25-tunnel-gre.netdev
+[NetDev]
+Name=gre-tun
+Kind=gre
+      
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<DL COMPACT><DT id="274"><DD>
+
+
+
+<PRE>
+/etc/systemd/network/25-tunnel-vti.netdev
+[NetDev]
+Name=vti-tun
+Kind=vti
+      
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+This will bring interface
+&quot;ens1&quot;
+up and create an IPIP tunnel, a SIT tunnel, a GRE tunnel, and a VTI tunnel using it.
+<P>
+
+<B>Example&nbsp;7.&nbsp;A bond device</B>
+<P>
+<DL COMPACT><DT id="275"><DD>
+
+
+
+<PRE>
+# /etc/systemd/network/30-bond1.network
+[Match]
+Name=bond1
+
+[Network]
+DHCP=ipv6
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<DL COMPACT><DT id="276"><DD>
+
+
+
+<PRE>
+# /etc/systemd/network/30-bond1.netdev
+[NetDev]
+Name=bond1
+Kind=bond
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<DL COMPACT><DT id="277"><DD>
+
+
+
+<PRE>
+# /etc/systemd/network/30-bond1-dev1.network
+[Match]
+MACAddress=52:54:00:e9:64:41
+
+[Network]
+Bond=bond1
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<DL COMPACT><DT id="278"><DD>
+
+
+
+<PRE>
+# /etc/systemd/network/30-bond1-dev2.network
+[Match]
+MACAddress=52:54:00:e9:64:42
+
+[Network]
+Bond=bond1
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+This will create a bond device
+&quot;bond1&quot;
+and enslave the two devices with MAC addresses 52:54:00:e9:64:41 and 52:54:00:e9:64:42 to it. IPv6 DHCP will be used to acquire an address.
+<P>
+
+<B>Example&nbsp;8.&nbsp;Virtual Routing and Forwarding (VRF)</B>
+<P>
+
+Add the
+&quot;bond1&quot;
+interface to the VRF master interface
+&quot;vrf1&quot;. This will redirect routes generated on this interface to be within the routing table defined during VRF creation. For kernels before 4.8 traffic won't be redirected towards the VRFs routing table unless specific ip-rules are added.
+<P>
+<DL COMPACT><DT id="279"><DD>
+
+
+
+<PRE>
+# /etc/systemd/network/25-vrf.network
+[Match]
+Name=bond1
+
+[Network]
+VRF=vrf1
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+<B>Example&nbsp;9.&nbsp;MacVTap</B>
+<P>
+
+This brings up a network interface
+&quot;macvtap-test&quot;
+and attaches it to
+&quot;enp0s25&quot;.
+<P>
+<DL COMPACT><DT id="280"><DD>
+
+
+
+<PRE>
+# /lib/systemd/network/25-macvtap.network
+[Match]
+Name=enp0s25
+
+[Network]
+MACVTAP=macvtap-test
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+<B>Example&nbsp;10.&nbsp;A Xfrm interface with physical underlying device.</B>
+<P>
+<DL COMPACT><DT id="281"><DD>
+
+
+
+<PRE>
+# /etc/systemd/network/27-xfrm.netdev
+[NetDev]
+Name=xfrm0
+
+[Xfrm]
+InterfaceId=7
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<DL COMPACT><DT id="282"><DD>
+
+
+
+<PRE>
+# /etc/systemd/network/27-eth0.network
+[Match]
+Name=eth0
+
+[Network]
+Xfrm=xfrm0
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+This creates a
+&quot;xfrm0&quot;
+interface and binds it to the
+&quot;eth0&quot;
+device. This allows hardware based ipsec offloading to the
+&quot;eth0&quot;
+nic. If offloading is not needed, xfrm interfaces can be assigned to the
+&quot;lo&quot;
+device.
+<A NAME="lbBH">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-networkd.service">systemd-networkd.service</A></B>(8),
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.link">systemd.link</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.netdev">systemd.netdev</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-resolved.service">systemd-resolved.service</A></B>(8)
+<A NAME="lbBI">&nbsp;</A>
+<H2>NOTES</H2>
+
+<DL COMPACT>
+<DT id="283"> 1.<DD>
+RFC 7217
+<DL COMPACT><DT id="284"><DD>
+<A HREF="https://tools.ietf.org/html/rfc7217">https://tools.ietf.org/html/rfc7217</A>
+</DL>
+
+<DT id="285"> 2.<DD>
+Link-Local Multicast Name Resolution
+<DL COMPACT><DT id="286"><DD>
+<A HREF="https://tools.ietf.org/html/rfc4795">https://tools.ietf.org/html/rfc4795</A>
+</DL>
+
+<DT id="287"> 3.<DD>
+Multicast DNS
+<DL COMPACT><DT id="288"><DD>
+<A HREF="https://tools.ietf.org/html/rfc6762">https://tools.ietf.org/html/rfc6762</A>
+</DL>
+
+<DT id="289"> 4.<DD>
+DNS-over-TLS
+<DL COMPACT><DT id="290"><DD>
+<A HREF="https://tools.ietf.org/html/rfc7858">https://tools.ietf.org/html/rfc7858</A>
+</DL>
+
+<DT id="291"> 5.<DD>
+DNSSEC
+<DL COMPACT><DT id="292"><DD>
+<A HREF="https://tools.ietf.org/html/rfc4033">https://tools.ietf.org/html/rfc4033</A>
+</DL>
+
+<DT id="293"> 6.<DD>
+IEEE 802.1AB-2016
+<DL COMPACT><DT id="294"><DD>
+<A HREF="https://standards.ieee.org/findstds/standard/802.1AB-2016.html">https://standards.ieee.org/findstds/standard/802.1AB-2016.html</A>
+</DL>
+
+<DT id="295"> 7.<DD>
+ip-sysctl.txt
+<DL COMPACT><DT id="296"><DD>
+<A HREF="https://www.kernel.org/doc/Documentation/networking/ip-sysctl.txt">https://www.kernel.org/doc/Documentation/networking/ip-sysctl.txt</A>
+</DL>
+
+<DT id="297"> 8.<DD>
+RFC 4941
+<DL COMPACT><DT id="298"><DD>
+<A HREF="https://tools.ietf.org/html/rfc4941">https://tools.ietf.org/html/rfc4941</A>
+</DL>
+
+<DT id="299"> 9.<DD>
+RFC 1027
+<DL COMPACT><DT id="300"><DD>
+<A HREF="https://tools.ietf.org/html/rfc1027">https://tools.ietf.org/html/rfc1027</A>
+</DL>
+
+<DT id="301">10.<DD>
+RFC 6275
+<DL COMPACT><DT id="302"><DD>
+<A HREF="https://tools.ietf.org/html/rfc6275">https://tools.ietf.org/html/rfc6275</A>
+</DL>
+
+<DT id="303">11.<DD>
+RFC 5224
+<DL COMPACT><DT id="304"><DD>
+<A HREF="https://tools.ietf.org/html/rfc5227">https://tools.ietf.org/html/rfc5227</A>
+</DL>
+
+<DT id="305">12.<DD>
+RFC 4862
+<DL COMPACT><DT id="306"><DD>
+<A HREF="https://tools.ietf.org/html/rfc4862">https://tools.ietf.org/html/rfc4862</A>
+</DL>
+
+<DT id="307">13.<DD>
+RFC 3041
+<DL COMPACT><DT id="308"><DD>
+<A HREF="https://tools.ietf.org/html/rfc3041">https://tools.ietf.org/html/rfc3041</A>
+</DL>
+
+<DT id="309">14.<DD>
+RFC 3484
+<DL COMPACT><DT id="310"><DD>
+<A HREF="https://tools.ietf.org/html/rfc3484">https://tools.ietf.org/html/rfc3484</A>
+</DL>
+
+<DT id="311">15.<DD>
+RFC4191
+<DL COMPACT><DT id="312"><DD>
+<A HREF="https://tools.ietf.org/html/rfc4191">https://tools.ietf.org/html/rfc4191</A>
+</DL>
+
+<DT id="313">16.<DD>
+RFC 7844
+<DL COMPACT><DT id="314"><DD>
+<A HREF="https://tools.ietf.org/html/rfc7844">https://tools.ietf.org/html/rfc7844</A>
+</DL>
+
+<DT id="315">17.<DD>
+C-style escapes
+<DL COMPACT><DT id="316"><DD>
+<A HREF="https://en.wikipedia.org/wiki/Escape_sequences_in_C#Table_of_escape_sequences">https://en.wikipedia.org/wiki/Escape_sequences_in_C#Table_of_escape_sequences</A>
+</DL>
+
+<DT id="317">18.<DD>
+RFC 3315
+<DL COMPACT><DT id="318"><DD>
+<A HREF="https://tools.ietf.org/html/rfc3315#section-17.2.1">https://tools.ietf.org/html/rfc3315#section-17.2.1</A>
+</DL>
+
+<DT id="319">19.<DD>
+RFC 7084
+<DL COMPACT><DT id="320"><DD>
+<A HREF="https://tools.ietf.org/html/rfc7084">https://tools.ietf.org/html/rfc7084</A>
+</DL>
+
+<DT id="321">20.<DD>
+RFC 4861
+<DL COMPACT><DT id="322"><DD>
+<A HREF="https://tools.ietf.org/html/rfc4861">https://tools.ietf.org/html/rfc4861</A>
+</DL>
+
+<P>
+</DL>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="323"><A HREF="#lbAB">NAME</A><DD>
+<DT id="324"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="325"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="326"><A HREF="#lbAE">[MATCH] SECTION OPTIONS</A><DD>
+<DT id="327"><A HREF="#lbAF">[LINK] SECTION OPTIONS</A><DD>
+<DT id="328"><A HREF="#lbAG">[NETWORK] SECTION OPTIONS</A><DD>
+<DT id="329"><A HREF="#lbAH">[ADDRESS] SECTION OPTIONS</A><DD>
+<DT id="330"><A HREF="#lbAI">[NEIGHBOR] SECTION OPTIONS</A><DD>
+<DT id="331"><A HREF="#lbAJ">[IPV6ADDRESSLABEL] SECTION OPTIONS</A><DD>
+<DT id="332"><A HREF="#lbAK">[ROUTINGPOLICYRULE] SECTION OPTIONS</A><DD>
+<DT id="333"><A HREF="#lbAL">[NEXTHOP] SECTION OPTIONS</A><DD>
+<DT id="334"><A HREF="#lbAM">[ROUTE] SECTION OPTIONS</A><DD>
+<DT id="335"><A HREF="#lbAN">[DHCPV4] SECTION OPTIONS</A><DD>
+<DT id="336"><A HREF="#lbAO">[DHCPV6] SECTION OPTIONS</A><DD>
+<DT id="337"><A HREF="#lbAP">[IPV6ACCEPTRA] SECTION OPTIONS</A><DD>
+<DT id="338"><A HREF="#lbAQ">[DHCPSERVER] SECTION OPTIONS</A><DD>
+<DT id="339"><A HREF="#lbAR">[IPV6PREFIXDELEGATION] SECTION OPTIONS</A><DD>
+<DT id="340"><A HREF="#lbAS">[IPV6PREFIX] SECTION OPTIONS</A><DD>
+<DT id="341"><A HREF="#lbAT">[IPV6ROUTEPREFIX] SECTION OPTIONS</A><DD>
+<DT id="342"><A HREF="#lbAU">[BRIDGE] SECTION OPTIONS</A><DD>
+<DT id="343"><A HREF="#lbAV">[BRIDGEFDB] SECTION OPTIONS</A><DD>
+<DT id="344"><A HREF="#lbAW">[CAN] SECTION OPTIONS</A><DD>
+<DT id="345"><A HREF="#lbAX">[QDISC] SECTION OPTIONS</A><DD>
+<DT id="346"><A HREF="#lbAY">[NETWORKEMULATOR] SECTION OPTIONS</A><DD>
+<DT id="347"><A HREF="#lbAZ">[TOKENBUCKETFILTER] SECTION OPTIONS</A><DD>
+<DT id="348"><A HREF="#lbBA">[STOCHASTICFAIRNESSQUEUEING] SECTION OPTIONS</A><DD>
+<DT id="349"><A HREF="#lbBB">[CONTROLLEDDELAY] SECTION OPTIONS</A><DD>
+<DT id="350"><A HREF="#lbBC">[FAIRQUEUEINGCONTROLLEDDELAY] SECTION OPTIONS</A><DD>
+<DT id="351"><A HREF="#lbBD">[FAIRQUEUEING] SECTION OPTIONS</A><DD>
+<DT id="352"><A HREF="#lbBE">[TRIVIALLINKEQUALIZER] SECTION OPTIONS</A><DD>
+<DT id="353"><A HREF="#lbBF">[BRIDGEVLAN] SECTION OPTIONS</A><DD>
+<DT id="354"><A HREF="#lbBG">EXAMPLES</A><DD>
+<DT id="355"><A HREF="#lbBH">SEE ALSO</A><DD>
+<DT id="356"><A HREF="#lbBI">NOTES</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:06 GMT, March 31, 2021
+</BODY>
+</HTML>

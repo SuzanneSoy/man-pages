@@ -1,0 +1,375 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of acpid</TITLE>
+</HEAD><BODY>
+<H1>acpid</H1>
+Section: Maintenance Commands (8)<BR>Updated: <BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+acpid - Advanced Configuration and Power Interface event daemon
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<B>acpid</B> [<I>options</I>]
+<P>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<B>acpid</B> is designed to notify user-space programs of ACPI events.
+<B>acpid</B> should be started during the system boot, and will run as a
+background process, by default.  It will open an events file
+(<I>/proc/acpi/event</I> by default) and attempt to read whole lines which
+represent ACPI events.  If the events file does not exist, <B>acpid</B> will
+attempt to connect to the Linux kernel via the input layer and netlink.  When an
+ACPI event is received from one of these sources, <B>acpid</B> will examine a
+list of rules, and execute the rules that match the event. <B>acpid</B> will
+ignore all incoming ACPI events if a lock file exists (<I>/var/lock/acpid</I> by
+default).
+<P>
+
+<I>Rules</I> are defined by simple configuration files.  <B>acpid</B>
+will look in a configuration directory (<I>/etc/acpi/events</I> by default),
+and parse all regular files with names that consist entirely of upper and
+lower case letters, digits, underscores, and hyphens (similar to
+<B><A HREF="/cgi-bin/man/man2html?8+run-parts">run-parts</A></B>(8))
+
+that do not begin with a period ('.') or end with a tilde (~).
+Each file must define two things: an <I>event</I> and an
+<I>action</I>.  Any blank lines, or lines where the first character is a
+hash ('#') are ignored.  Extraneous lines are flagged as warnings, but
+are not fatal.  Each line has three tokens: the key, a literal equal sign,
+and the value.  The key can be up to 63 characters, and is case-insensitive
+(but whitespace matters).  The value can be up to 511 characters, and is
+case and whitespace sensitive.
+<P>
+
+The event value is a regular expression (see
+<B><A HREF="/cgi-bin/man/man2html?3+regcomp">regcomp</A></B>(3)),
+
+against which events are matched.
+<P>
+
+The action value is a commandline, which will be invoked via <I>/bin/sh</I>
+whenever an event matching the rule in question occurs.  The commandline may
+include shell-special characters, and they will be preserved.  The only special
+characters in an action value are &quot;%&quot; escaped.  The string &quot;%e&quot; will be
+replaced by the literal text of the event for which the action was invoked.
+This string may contain spaces, so the commandline must take care to quote the &quot;%e&quot; if it wants a single token.  The string &quot;%%&quot; will be replaced by a
+literal &quot;%&quot;.  All other &quot;%&quot; escapes are reserved, and will cause a rule to
+not load.
+<P>
+
+This feature allows multiple rules to be defined for the same event (though no
+ordering is guaranteed), as well as one rule to be defined for multiple events.
+To force <B>acpid</B> to reload the rule configuration, send it a SIGHUP.
+<P>
+
+The pseudo-action <I>&lt;drop&gt;</I> causes the event to be dropped
+completely and no further processing undertaken; clients connecting
+via the UNIX domain socket (see below) will not be notified of the
+event. This may be useful on some machines, such as certain laptops which
+generate spurious battery events at frequent intervals. The name of
+this pseudo-action may be redefined with a commandline option.
+<P>
+
+In addition to rule files, <B>acpid</B> also accepts connections on a UNIX
+domain socket (<I>/var/run/acpid.socket</I> by default).  Any application may
+connect to this socket.  Once connected, <B>acpid</B> will send the text of
+all ACPI events to the client.  The client has the responsibility of filtering
+for messages about which it cares.  <B>acpid</B> will not close the client
+socket except in the case of a SIGHUP or <B>acpid</B> exiting.
+<P>
+
+For faster startup, this socket can be passed in as stdin so that <B>acpid</B>
+need not create the socket.  In addition, if a socket is passed in as stdin, 
+<B>acpid</B> will not daemonize.  It will be run in foreground.  This behavior 
+is provided to support
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1).
+
+<P>
+
+<B>acpid</B>
+
+will log all of its activities, as well as the stdout and stderr of any
+actions, to syslog.
+<P>
+
+All the default files and directories can be changed with commandline options.
+<A NAME="lbAE">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<DL COMPACT>
+<DT id="1"><B>-c</B><I></I>, <B>--confdir</B><I> directory</I>
+
+<DD>
+This option changes the directory in which <B>acpid</B> looks for rule
+configuration files.  Default is <I>/etc/acpi/events</I>.
+<DT id="2"><B>-C</B><I></I>, <B>--clientmax</B><I> number</I>
+
+<DD>
+This option changes the maximum number of non-root socket connections which
+can be made to the <B>acpid</B> socket.  Default is <I>256</I>.
+<DT id="3"><B>-d</B><I></I>, <B>--debug</B>
+
+<DD>
+This option increases the <B>acpid</B> debug level by one.
+<DT id="4"><B>-e</B><I></I>, <B>--eventfile</B><I> filename</I>
+
+<DD>
+This option changes the event file from which <B>acpid</B> reads events.
+Default is <I>/proc/acpi/event</I>.
+<DT id="5"><B>-n</B><I></I>, <B>--netlink</B>
+
+<DD>
+This option forces <B>acpid</B> to use the Linux kernel input layer and netlink interface for ACPI events.
+<DT id="6"><B>-f</B><I></I>, <B>--foreground</B>
+
+<DD>
+This option keeps <B>acpid</B> in the foreground by not forking at startup,
+and makes it log to stderr instead of syslog.
+<DT id="7"><B>-l</B><I></I>, <B>--logevents</B>
+
+<DD>
+This option tells <B>acpid</B> to log information about all events and actions.
+<DT id="8"><B>-L</B><I></I>, <B>--lockfile</B><I> filename</I>
+
+<DD>
+This option changes the lock file used to stop event processing.
+Default is <I>/var/lock/acpid</I>.
+<DT id="9"><B>-g</B><I></I>, <B>--socketgroup</B><I> groupname</I>
+
+<DD>
+This option changes the group ownership of the UNIX domain socket to which
+<B>acpid</B> publishes events.
+<DT id="10"><B>-m</B><I></I>, <B>--socketmode</B><I> mode</I>
+
+<DD>
+This option changes the permissions of the UNIX domain socket to which
+<B>acpid</B> publishes events.  Default is <I>0666</I>.
+<DT id="11"><B>-s</B><I></I>, <B>--socketfile</B><I> filename</I>
+
+<DD>
+This option changes the name of the UNIX domain socket which <B>acpid</B> opens.
+Default is <I>/var/run/acpid.socket</I>.
+<DT id="12"><B>-S</B><I></I>, <B>--nosocket</B>
+
+<DD>
+This option tells <B>acpid</B> not to open a UNIX domain socket.  This
+overrides the <I>-s</I> option, and negates all other socket options.
+<DT id="13"><B>-p</B><I></I>, <B>--pidfile</B><I> filename</I>
+
+<DD>
+This option tells <B>acpid</B> to use the specified file as its pidfile.  If
+the file exists, it will be removed and over-written.
+Default is <I>/var/run/acpid.pid</I>.
+<DT id="14"><B>-r</B><I></I>, <B>--dropaction</B><I> action</I>
+
+<DD>
+This option defines the pseudo-action which tells <B>acpid</B> to abort
+all processing of an event, including client notifications.
+Default is <I>&lt;drop&gt;</I>.
+<DT id="15"><B>-t</B><I></I>, <B>--tpmutefix</B>
+
+<DD>
+This option enables special handling of the mute button for certain
+ThinkPad models with mute LEDs that get out of sync with the mute state
+when the mute button is held down.  With this option, the mute button
+will generate the following events in sync with the number of presses
+(and, by extension, the state of the LED):
+<DT id="16"><DD>
+<BR>
+
+button/mute MUTE (key pressed) K
+<BR>
+
+button/mute MUTE (key released) K
+<DT id="17"><B>-v</B><I></I>, <B>--version</B>
+
+<DD>
+Print version information and exit.
+<DT id="18"><B>-h</B><I></I>, <B>--help</B>
+
+<DD>
+Show help and exit.
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+This example will shut down your system if you press the power button.
+<P>
+
+Create a file named /etc/acpi/events/power that contains the following:
+<DL COMPACT>
+<DT id="19"><DD>
+<BR>
+
+event=button/power
+<BR>
+
+action=/etc/acpi/power.sh &quot;%e&quot;
+</DL>
+<P>
+
+Then create a file named /etc/acpi/power.sh that contains the following:
+<DL COMPACT>
+<DT id="20"><DD>
+/sbin/shutdown -h now &quot;Power button pressed&quot;
+</DL>
+<P>
+
+Now, when <B>acpid</B> is running, a press of the power button will cause the
+rule in /etc/acpi/events/power to trigger the script in /etc/acpi/power.sh.
+The script will then shut down the system.
+<A NAME="lbAG">&nbsp;</A>
+<H2>TROUBLESHOOTING</H2>
+
+<B>acpid</B> is a simple program that runs scripts in response to ACPI
+events from the kernel.  When there's trouble, the problem is rarely
+with <B>acpid</B> itself.  The following are some suggestions for
+finding the most common sources of ACPI-related problems.
+<P>
+
+When troubleshooting <B>acpid</B>, it is important to be aware that other parts
+of a system might be handling ACPI events.
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1)
+
+is capable of handling the power switch and various other
+events that are commonly handled by <B>acpid</B>.  See the description of
+HandlePowerKey in
+<B><A HREF="/cgi-bin/man/man2html?5+logind.conf">logind.conf</A></B>(5)
+
+for more.  Some window managers also
+take over <B>acpid</B>'s normal handling of the power button and other events.
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?8+kacpimon">kacpimon</A></B>(8)
+
+can be used to verify that the expected ACPI events are
+coming in.  See the man page for
+<B><A HREF="/cgi-bin/man/man2html?8+kacpimon">kacpimon</A></B>(8)
+
+for the proper procedure.
+If the events aren't
+coming in, you've probably got a kernel driver issue.
+<P>
+
+If the expected events are coming in, then you'll need
+to check and see if your window manager is responsible for
+handling these events.  Some are, some aren't.  (E.g. in Ubuntu
+14.04 (Unity/GNOME), there are settings for the laptop lid in the
+System Settings &gt; Power &gt; &quot;When the lid is closed&quot; fields.)
+If your window manager is responsible for handling the problematic
+event, and you've got it configured properly, then you may have a
+window manager issue.
+<P>
+
+Lastly, take a look in <I>/etc/acpi/events</I> (see above).  Is there
+a configuration file in there for the event
+in question (e.g. /etc/acpi/events/lidbtn for laptop lid open/close
+events)?  Is it properly connected to a
+script (e.g. /etc/acpi/lid.sh)?  Is that script working?  It's not
+unusual for an <B>acpid</B> script to check and see if there is a window
+manager running, then do nothing if there is.  This means it is up
+to the window manager to handle this event.
+<A NAME="lbAH">&nbsp;</A>
+<H2>DEPENDENCIES</H2>
+
+<B>acpid</B> should work on any linux kernel released since 2003.
+<A NAME="lbAI">&nbsp;</A>
+<H2>FILES</H2>
+
+
+<B>/proc/acpi/event</B>
+
+<BR>
+
+<B>/dev/input/event*</B>
+
+<BR>
+
+<B>/etc/acpi/</B>
+
+<BR>
+
+<B>/var/run/acpid.socket</B>
+
+<BR>
+
+<B>/var/run/acpid.pid</B>
+
+<BR>
+
+<B>/var/lock/acpid</B>
+
+<BR>
+
+
+<A NAME="lbAJ">&nbsp;</A>
+<H2>BUGS</H2>
+
+There are no known bugs.  To file bug reports, see <B>PROJECT WEBSITE</B> 
+below.
+<A NAME="lbAK">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?3+regcomp">regcomp</A></B>(3)
+
+<B><A HREF="/cgi-bin/man/man2html?1+sh">sh</A></B>(1)
+
+<B><A HREF="/cgi-bin/man/man2html?2+socket">socket</A></B>(2)
+
+<B><A HREF="/cgi-bin/man/man2html?2+connect">connect</A></B>(2)
+
+<B><A HREF="/cgi-bin/man/man2html?1+init">init</A></B>(1)
+
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1)
+
+<B><A HREF="/cgi-bin/man/man2html?8+acpi_listen">acpi_listen</A></B>(8)
+
+<B><A HREF="/cgi-bin/man/man2html?8+kacpimon">kacpimon</A></B>(8)
+
+<A NAME="lbAL">&nbsp;</A>
+<H2>PROJECT WEBSITE</H2>
+
+<A HREF="http://sourceforge.net/projects/acpid2/">http://sourceforge.net/projects/acpid2/</A>
+<A NAME="lbAM">&nbsp;</A>
+<H2>AUTHORS</H2>
+
+Ted Felix &lt;<A HREF="mailto:ted@tedfelix.com">ted@tedfelix.com</A>&gt;
+<BR>
+
+Tim Hockin &lt;<A HREF="mailto:thockin@hockin.org">thockin@hockin.org</A>&gt;
+<BR>
+
+Andrew Henroid
+<P>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="21"><A HREF="#lbAB">NAME</A><DD>
+<DT id="22"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="23"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="24"><A HREF="#lbAE">OPTIONS</A><DD>
+<DT id="25"><A HREF="#lbAF">EXAMPLE</A><DD>
+<DT id="26"><A HREF="#lbAG">TROUBLESHOOTING</A><DD>
+<DT id="27"><A HREF="#lbAH">DEPENDENCIES</A><DD>
+<DT id="28"><A HREF="#lbAI">FILES</A><DD>
+<DT id="29"><A HREF="#lbAJ">BUGS</A><DD>
+<DT id="30"><A HREF="#lbAK">SEE ALSO</A><DD>
+<DT id="31"><A HREF="#lbAL">PROJECT WEBSITE</A><DD>
+<DT id="32"><A HREF="#lbAM">AUTHORS</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:10 GMT, March 31, 2021
+</BODY>
+</HTML>

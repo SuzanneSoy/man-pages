@@ -1,0 +1,295 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of fakeroot</TITLE>
+</HEAD><BODY>
+<H1>fakeroot</H1>
+Section: Debian manual (1)<BR>Updated: 5 October 2014<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAMN</H2>
+
+fakeroot - utför ett kommando i en miljö som fejkar root-privilegier för
+filmanipulation
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<B>fakeroot</B> <B>[-l|--lib</B> <I>bibliotek]</I> <B>[--faked</B> <I>fejkad-binär</I><B>]</B>
+<B>[-i</B> <I>läsfil</I><B>]</B> <B>[-s</B> <I>sparfil</I><B>]</B> <B>[-u|--unknown-is-real ]</B>
+<B>[-b|--fd-base ]</B> <B>[-h|--help ]</B> <B>[-v|--version ]</B> <B>[--]</B> <B>[kommando]</B>
+<A NAME="lbAD">&nbsp;</A>
+<H2>BESKRIVNING</H2>
+
+<B>fakeroot</B> utför ett kommando i en miljö där kommandot tror sig ha
+root-privilegier för filmanipulering. Detta är användbart för att ge
+användare möjlighet att skapa arkiv (tar, ar, .deb osv) som innehåller filer
+med root-rättigheter/ägarskap. Utan <B>fakeroot</B> tvingas man att ha
+root-privilegier för att skapa de filer arkivet består av med korrekt
+ägarskaps- och rättighetsinformation, alternativt konstruera arkiven
+manuellt utan att använda arkiveringsprogrammet.
+<P>
+<B>fakeroot</B> works by replacing the file manipulation library functions
+(<A HREF="/cgi-bin/man/man2html?2+chmod">chmod</A>(2), <A HREF="/cgi-bin/man/man2html?2+stat">stat</A>(2) etc.) by ones that simulate the effect the real library
+functions would have had, had the user really been root. These wrapper
+functions are in a shared library <B>/usr/lib/*/libfakeroot-*.so</B> or similar
+location on your platform.  The shared object is loaded through the
+<B>LD_PRELOAD</B> mechanism of the dynamic loader. (See <B><A HREF="/cgi-bin/man/man2html?8+ld.so">ld.so</A></B>(8))
+<P>
+Om du planerar att bygga paket med hjälp av <B>fakeroot</B>, försök först att
+bygga fakeroot-paketet: ”debian/rules build”-stadiet har ett par tester (som
+mestadels testar efter buggar i gamla versioner av fakeroot).  Om dessa
+tester misslyckas (till exempel på grund av att du har vissa libc5-program
+på ditt system) så är det troligt att du också kommer att misslyckas bygga
+andra paket, och det är möjligt att dessa fel blir betydligt svårare att
+hitta.
+<P>
+Märk väl att det är bäst att inte bygga binärerna själva med hjälp av
+fakeroot. Särskilt configure och liknande program ogillar att systemet
+plötsligt beter sig annorlunda än vad de förväntar sig. Det är också möjligt
+att dessa program rensar bort vissa miljövariabler som fakeroot behöver.
+<P>
+<A NAME="lbAE">&nbsp;</A>
+<H2>FLAGGOR</H2>
+
+<DL COMPACT>
+<DT id="1"><B>-l</B> <I>bibliotek</I>, <B>--lib</B> <I>bibliotek</I><DD>
+Ange ett alternativt bibliotek med ersättningsfunktioner.
+<DT id="2"><B>--faked</B><I>&nbsp;binär</I><DD>
+Ange en alternativ binär att använda istället för <A HREF="/cgi-bin/man/man2html?1+faked">faked</A>(1).
+<DT id="3"><B>[--]</B><I>&nbsp;kommando</I><DD>
+Det kommando som du vill att fakeroot skall utföra. Använd '--' om
+kommandot har andra flaggor som kan tänkas förvirra fakeroots tolkning av
+kommandoradsflaggor.
+<DT id="4"><B>-s</B><I>&nbsp;sparfil</I><DD>
+Spara fakeroot-miljön till sparfil vid avslut. Denna fil kan användas för
+att senare återställa miljön med -i. Men om denna filen skulle läcka kommer
+fakeroot börja bete sig på konstiga sätt om du inte låter bli filerna som
+använts inuti fakeroot när du är utanför miljön. Detta kan dock fortfarande
+vara användbart. Det kan till exempel användas med <A HREF="/cgi-bin/man/man2html?1+rsync">rsync</A>(1) för att
+säkerhetskopiera och återställa hela katalogträd kompletta med användare,
+grupp och enhetsinformation utan att behöva vara root. Se
+<I>/usr/share/doc/fakeroot/README.saving</I> för vidare information.
+<DT id="5"><B>-i</B><I>&nbsp;läsfil</I><DD>
+Läs in en fakeroot-miljö som tidigare sparats via -s från läsfil. Notera att
+detta inte implicit sparar filen, använd -s också för det
+beteendet. Användning av samma fil för både -i och -s vid samma
+<B>fakeroot</B>-körning är säkert.
+<DT id="6"><B>-u</B>, <B>--unknown-is-real</B><DD>
+Använd det riktiga ägarskapet för filer som inte tidigare är kända av
+fakeroot istället för att låtsas att de ägs av root:root.
+<DT id="7"><B>-b</B><I>&nbsp;fd</I><DD>
+Ange fd-bas (endast TCP-läge). fd är det minsta fildeskriptornummer som
+används för TCP-anslutningar; detta kan vara viktigt för att undvika
+konflikter med fildeskriptorerna som används av program som körs under
+fakeroot.
+<DT id="8"><B>-h</B><DD>
+Visa hjälp.
+<DT id="9"><B>-v</B><DD>
+Visa version.
+<P>
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>EXEMPEL</H2>
+
+Här är ett exempel på hur <B>fakeroot</B> kan användas.  Notera att i den
+fejkade root-miljön så lyckas filmanipulering som kräver root-privilegier,
+trots att den egentligen inte utförs.
+
+<P>
+<PRE>
+$  whoami
+joost
+$ fakeroot /bin/bash
+#  whoami
+root
+# mknod hda3 b 3 1
+# ls -ld hda3
+brw-r--r--   1 root     root       3,   1 Jul  2 22:58 hda3
+# chown joost:root hda3
+# ls -ld hda3
+brw-r--r--   1 joost    root       3,   1 Jul  2 22:58 hda3
+# ls -ld /
+drwxr-xr-x  20 root     root         1024 Jun 17 21:50 /
+# chown joost:users /
+# chmod a+w /
+# ls -ld /
+drwxrwxrwx  20 joost    users        1024 Jun 17 21:50 /
+# exit
+$ ls -ld /
+drwxr-xr-x  20 root     root         1024 Jun 17 21:50 //
+$ ls -ld hda3
+-rw-r--r--   1 joost    users           0 Jul  2 22:58 hda3
+
+</PRE>
+
+<P>
+
+Enbart de operationer som användaren <B>joost</B> skulle kunna ha genomfört som
+sig själv utförs på riktigt.
+<P>
+<B>fakeroot</B> skrevs speciellt i syfte att ge användare möjlighet att skapa
+Debian GNU/Linux-paket (i <B><A HREF="/cgi-bin/man/man2html?5+deb">deb</A>(5)</B> format) utan att behöva
+root-privilegier.  Detta kan utföras genom kommandon såsom
+<B>dpkg-buildpackage -rfakeroot</B> eller <B>debuild -rfakeroot</B> (-rfakeroot är
+numera standard i debuild, så du behöver inte ens använda den parametern).
+<A NAME="lbAG">&nbsp;</A>
+<H2>SÄKERHETSASPEKTER</H2>
+
+<B>fakeroot</B> är ett vanligt program utan setuid. Det ger inte användaren
+några extra privilegier, och minskar inte systemets säkerhet.
+<A NAME="lbAH">&nbsp;</A>
+<H2>FILER</H2>
+
+<I>/usr/lib/*/libfakeroot-*.so</I> The shared library containing the wrapper
+functions.
+<A NAME="lbAI">&nbsp;</A>
+<H2>MILJÖ</H2>
+
+<DL COMPACT>
+<DT id="10"><B>FAKEROOTKEY</B><DD>
+Den nyckel som används för att kommunicera med fakeroot-demonen. Varje
+program som startats med korrekt <B>LD_PRELOAD</B> och en <B>FAKEROOTKEY</B> för en
+körande demon kommer automatiskt att ansluta till den demonen, och kommer
+att ha samma fejkade syn på filsystemets ägarskap och rättigheter (givet att
+demonen och programmet som ansluter till den startats av samma användare).
+<DT id="11"><B>LD_LIBRARY_PATH</B><DD>
+<DT id="12"><B>LD_PRELOAD</B><DD>
+Fakeroot är implementerat av ersättning av systemanrop. Detta åstadkoms
+genom att ställa in LD_LIBRARY_PATH=/usr/lib/fakeroot och
+LD_PRELOAD=libfakeroot.so.0. Det biblioteket läses in innan systemets
+C-bibliotek, och därför kan de flesta biblioteksfunktioner genskjutas av
+det. Om du behöver ställa in antingen <B>LD_LIBRARY_PATH</B> eller <B>LD_PRELOAD</B>
+inifrån en fakeroot-miljö bör den ställas in relativt till de givna
+sökvägarna, d.v.s. <B>LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/foo/bar/</B>
+<P>
+</DL>
+<A NAME="lbAJ">&nbsp;</A>
+<H2>BEGRÄNSNINGAR</H2>
+
+<DL COMPACT>
+<DT id="13"><B>Biblioteksversioner</B><DD>
+Varje kommando som utförs inom <B>fakeroot</B> måste vara länkat mot samma
+version av libc som <B>fakeroot</B> självt.
+<DT id="14"><B>open()/create()</B><DD>
+fakeroot innehåller inga ersättningsfunktioner för open(), create(), osv. Så
+om användaren <B>joost</B> antingen utför
+
+<P>
+<PRE>
+touch foo
+fakeroot
+ls -al foo
+
+</PRE>
+
+<P>
+
+eller omvänt,
+
+<P>
+<PRE>
+fakeroot
+touch foo
+ls -al foo
+
+</PRE>
+
+<P>
+
+så kan fakeroot inte på något sätt känna till att i det första fallet så
+borde ägaren för filen foo vara <B>joost</B> men i det senare fallet
+<B>root</B>. När det gäller Debian-paket, så är det alltid ok att ge alla
+”okända” filer uid=gid=0. Den korrekta lösningen på det här problemet är att
+även ha en ersättningsfunktion för <B>open()</B> och <B>create()</B>, men det skapar
+andra problem, såsom paketet libtricks visar exempel på. Det paketet har
+ersättningar för betydligt fler funktioner, och försökte att göra betydligt
+mer än <B>fakeroot .</B> Det visade sig att en smärre uppgradering av libc (från
+en version där funktionen <B>stat()</B> inte använde sig av <B>open()</B> till en
+version där <B>stat()</B> ibland använde sig av <B>open()</B>), orsakade
+oförklarliga krascher (dvs, <B>stat()</B> i libc6 anropade ersättningsfunktionen
+för <B>open()</B>, som senare anropade libc6 version av <B>stat()</B>, osv).
+<DT id="15"><B>GNU configure (och liknande program)</B><DD>
+fakeroot ändrar i praktiken hur systemet beter sig. Program som försöker
+känna av systemets beteende (exempelvis GNU configure) kan bli förvirrade av
+detta (och även om de inte blir det så kan fakeroot bli förvirrat). Därför
+är det inte rekommenderat att utföra ”configure” inifrån fakeroot. Då
+configure bör anropas av ”debian/rules build”, så borde ”dpkg-buildpackage
+-rfakeroot” ta hand om detta på ett korrekt sätt.
+</DL>
+<A NAME="lbAK">&nbsp;</A>
+<H2>BUGGAR</H2>
+
+fakeroot har ingen ersättningsfunktion för open(). Detta i sig självt är
+inget fel, men om ett program utför open(&quot;fil&quot;, O_WRONLY, 000), försöker
+skriva till filen ”fil”, stänger den, och sedan försöker att läsa filen, så
+misslyckas detta då filen kommer att ha rättigheterna 000. Felet består i
+att om en process med root-privilegier försöker sig på det samma, så kommer
+anropet till open() att lyckas, eftersom filrättigheter inte kontrolleras
+alls för root. Jag valde att inte skriva ersättningsfunktioner för open(),
+eftersom open() används av många andra funktioner i libc (även de som har
+ersättningsfunktioner), vilket ger upphov till cirkelreferenser eller
+potential för cirkelreferenser ifall implementationen av vissa funktioner i
+libc förändras).
+<A NAME="lbAL">&nbsp;</A>
+<H2>LICENS</H2>
+
+<B>fakeroot</B> distribueras under GNU General Public License.  (GPL 2.0 eller
+senare).
+<A NAME="lbAM">&nbsp;</A>
+<H2>FÖRFATTARE</H2>
+
+<DL COMPACT>
+<DT id="16">joost witteveen<DD>
+&lt;<I><A HREF="mailto:joostje@debian.org">joostje@debian.org</A></I>&gt;
+<DT id="17">Clint Adams<DD>
+&lt;<I><A HREF="mailto:clint@debian.org">clint@debian.org</A></I>&gt;
+<DT id="18">Timo Savola<DD>
+</DL>
+<A NAME="lbAN">&nbsp;</A>
+<H2>ÖVERSÄTTNING</H2>
+
+David Weinehall
+&lt;<I><A HREF="mailto:tao@kernel.org">tao@kernel.org</A></I>&gt;
+
+<A NAME="lbAO">&nbsp;</A>
+<H2>MANUALSIDA</H2>
+
+till större delen skriven av J.H.M. Dassen
+&lt;<A HREF="mailto:jdassen@wi.LeidenUniv.nl">jdassen@wi.LeidenUniv.nl</A>&gt; med ett flertal ändringar/tillägg av
+joost och Clint.
+<A NAME="lbAP">&nbsp;</A>
+<H2>SE ÄVEN</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?1+faked">faked</A></B>(1)  <B><A HREF="/cgi-bin/man/man2html?1+dpkg-buildpackage">dpkg-buildpackage</A></B>(1), <B><A HREF="/cgi-bin/man/man2html?1+debuild">debuild</A></B>(1)
+<B>/usr/share/doc/fakeroot/DEBUG</B>
+<P>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="19"><A HREF="#lbAB">NAMN</A><DD>
+<DT id="20"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="21"><A HREF="#lbAD">BESKRIVNING</A><DD>
+<DT id="22"><A HREF="#lbAE">FLAGGOR</A><DD>
+<DT id="23"><A HREF="#lbAF">EXEMPEL</A><DD>
+<DT id="24"><A HREF="#lbAG">SÄKERHETSASPEKTER</A><DD>
+<DT id="25"><A HREF="#lbAH">FILER</A><DD>
+<DT id="26"><A HREF="#lbAI">MILJÖ</A><DD>
+<DT id="27"><A HREF="#lbAJ">BEGRÄNSNINGAR</A><DD>
+<DT id="28"><A HREF="#lbAK">BUGGAR</A><DD>
+<DT id="29"><A HREF="#lbAL">LICENS</A><DD>
+<DT id="30"><A HREF="#lbAM">FÖRFATTARE</A><DD>
+<DT id="31"><A HREF="#lbAN">ÖVERSÄTTNING</A><DD>
+<DT id="32"><A HREF="#lbAO">MANUALSIDA</A><DD>
+<DT id="33"><A HREF="#lbAP">SE ÄVEN</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:23 GMT, March 31, 2021
+</BODY>
+</HTML>

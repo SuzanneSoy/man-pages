@@ -1,0 +1,996 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SELECT</TITLE>
+</HEAD><BODY>
+<H1>SELECT</H1>
+Section: Linux Programmer's Manual (2)<BR>Updated: 2019-11-19<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+select, pselect, FD_CLR, FD_ISSET, FD_SET, FD_ZERO -
+synchronous I/O multiplexing
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<PRE>
+/* According to POSIX.1-2001, POSIX.1-2008 */
+<B>#include &lt;<A HREF="file:///usr/include/sys/select.h">sys/select.h</A>&gt;</B>
+
+/* According to earlier standards */
+<B>#include &lt;<A HREF="file:///usr/include/sys/time.h">sys/time.h</A>&gt;</B>
+<B>#include &lt;<A HREF="file:///usr/include/sys/types.h">sys/types.h</A>&gt;</B>
+<B>#include &lt;<A HREF="file:///usr/include/unistd.h">unistd.h</A>&gt;</B>
+
+<B>int select(int </B><I>nfds</I><B>, fd_set *</B><I>readfds</I><B>, fd_set *</B><I>writefds</I><B>,</B>
+<B>           fd_set *</B><I>exceptfds</I><B>, struct timeval *</B><I>timeout</I><B>);</B>
+
+<B>void FD_CLR(int </B><I>fd</I><B>, fd_set *</B><I>set</I><B>);</B>
+<B>int  FD_ISSET(int </B><I>fd</I><B>, fd_set *</B><I>set</I><B>);</B>
+<B>void FD_SET(int </B><I>fd</I><B>, fd_set *</B><I>set</I><B>);</B>
+<B>void FD_ZERO(fd_set *</B><I>set</I><B>);</B>
+
+<B>#include &lt;<A HREF="file:///usr/include/sys/select.h">sys/select.h</A>&gt;</B>
+
+<B>int pselect(int </B><I>nfds</I><B>, fd_set *</B><I>readfds</I><B>, fd_set *</B><I>writefds</I><B>,</B>
+<B>            fd_set *</B><I>exceptfds</I><B>, const struct timespec *</B><I>timeout</I><B>,</B>
+<B>            const sigset_t *</B><I>sigmask</I><B>);</B>
+</PRE>
+
+<P>
+
+
+Feature Test Macro Requirements for glibc (see
+<B><A HREF="/cgi-bin/man/man2html?7+feature_test_macros">feature_test_macros</A></B>(7)):
+
+
+<P>
+
+<B>pselect</B>():
+
+_POSIX_C_SOURCE&nbsp;&gt;=&nbsp;200112L
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<B>select</B>()
+
+and
+<B>pselect</B>()
+
+allow a program to monitor multiple file descriptors,
+waiting until one or more of the file descriptors become &quot;ready&quot;
+for some class of I/O operation (e.g., input possible).
+A file descriptor is considered ready if it is possible to
+perform a corresponding I/O operation (e.g.,
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2),
+
+or a sufficiently small
+<B><A HREF="/cgi-bin/man/man2html?2+write">write</A></B>(2))
+
+without blocking.
+<P>
+
+<B>select</B>()
+
+can monitor only file descriptors numbers that are less than
+<B>FD_SETSIZE</B>;
+
+<B><A HREF="/cgi-bin/man/man2html?2+poll">poll</A></B>(2)
+
+does not have this limitation.
+See BUGS.
+<P>
+
+The operation of
+<B>select</B>()
+
+and
+<B>pselect</B>()
+
+is identical, other than these three differences:
+<DL COMPACT>
+<DT id="1">(i)<DD>
+<B>select</B>()
+
+uses a timeout that is a
+<I>struct timeval</I>
+
+(with seconds and microseconds), while
+<B>pselect</B>()
+
+uses a
+<I>struct timespec</I>
+
+(with seconds and nanoseconds).
+<DT id="2">(ii)<DD>
+<B>select</B>()
+
+may update the
+<I>timeout</I>
+
+argument to indicate how much time was left.
+<B>pselect</B>()
+
+does not change this argument.
+<DT id="3">(iii)<DD>
+<B>select</B>()
+
+has no
+<I>sigmask</I>
+
+argument, and behaves as
+<B>pselect</B>()
+
+called with NULL
+<I>sigmask</I>.
+
+</DL>
+<P>
+
+Three independent sets of file descriptors are watched.
+The file descriptors listed in
+<I>readfds</I>
+
+will be watched to see if characters become
+available for reading (more precisely, to see if a read will not
+block; in particular, a file descriptor is also ready on end-of-file).
+The file descriptors in
+<I>writefds</I>
+
+will be watched to see if space is available for write (though a large
+write may still block).
+The file descriptors in
+<I>exceptfds</I>
+
+will be watched for exceptional conditions.
+(For examples of some exceptional conditions, see the discussion of
+<B>POLLPRI</B>
+
+in
+<B><A HREF="/cgi-bin/man/man2html?2+poll">poll</A></B>(2).)
+
+<P>
+
+On exit, each of the file descriptor sets is modified in place
+to indicate which file descriptors actually changed status.
+(Thus, if using
+<B>select</B>()
+
+within a loop, the sets must be reinitialized before each call.)
+<P>
+
+Each of the three file descriptor sets may be specified as NULL
+if no file descriptors are to be watched for the corresponding class
+of events.
+<P>
+
+Four macros are provided to manipulate the sets.
+<B>FD_ZERO</B>()
+
+clears a set.
+<B>FD_SET</B>()
+
+and
+<B>FD_CLR</B>()
+
+add and remove a given file descriptor from a set.
+<B>FD_ISSET</B>()
+
+tests to see if a file descriptor is part of the set;
+this is useful after
+<B>select</B>()
+
+returns.
+<P>
+
+<I>nfds</I>
+
+should be set to the highest-numbered file descriptor in any
+of the three sets, plus 1.
+The indicated file descriptors in each set are checked, up to this limit
+(but see BUGS).
+<P>
+
+The
+<I>timeout</I>
+
+argument specifies the interval that
+<B>select</B>()
+
+should block waiting for a file descriptor to become ready.
+The call will block until either:
+<DL COMPACT>
+<DT id="4">*<DD>
+a file descriptor becomes ready;
+<DT id="5">*<DD>
+the call is interrupted by a signal handler; or
+<DT id="6">*<DD>
+the timeout expires.
+</DL>
+<P>
+
+Note that the
+<I>timeout</I>
+
+interval will be rounded up to the system clock granularity,
+and kernel scheduling delays mean that the blocking interval
+may overrun by a small amount.
+If both fields of the
+<I>timeval</I>
+
+structure are zero, then
+<B>select</B>()
+
+returns immediately.
+(This is useful for polling.)
+If
+<I>timeout</I>
+
+is NULL (no timeout),
+<B>select</B>()
+
+can block indefinitely.
+<P>
+
+<I>sigmask</I>
+
+is a pointer to a signal mask (see
+<B><A HREF="/cgi-bin/man/man2html?2+sigprocmask">sigprocmask</A></B>(2));
+
+if it is not NULL, then
+<B>pselect</B>()
+
+first replaces the current signal mask by the one pointed to by
+<I>sigmask</I>,
+
+then does the &quot;select&quot; function, and then restores the original
+signal mask.
+<P>
+
+Other than the difference in the precision of the
+<I>timeout</I>
+
+argument, the following
+<B>pselect</B>()
+
+call:
+<P>
+
+
+
+ready = pselect(nfds, &amp;readfds, &amp;writefds, &amp;exceptfds,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;timeout,&nbsp;&amp;sigmask);
+
+
+<P>
+
+is equivalent to
+<I>atomically</I>
+
+executing the following calls:
+<P>
+
+
+
+sigset_t origmask;
+<P>
+pthread_sigmask(SIG_SETMASK, &amp;sigmask, &amp;origmask);
+ready = select(nfds, &amp;readfds, &amp;writefds, &amp;exceptfds, timeout);
+pthread_sigmask(SIG_SETMASK, &amp;origmask, NULL);
+
+
+<P>
+
+<P>
+
+The reason that
+<B>pselect</B>()
+
+is needed is that if one wants to wait for either a signal
+or for a file descriptor to become ready, then
+an atomic test is needed to prevent race conditions.
+(Suppose the signal handler sets a global flag and
+returns.
+Then a test of this global flag followed by a call of
+<B>select</B>()
+
+could hang indefinitely if the signal arrived just after the test
+but just before the call.
+By contrast,
+<B>pselect</B>()
+
+allows one to first block signals, handle the signals that have come in,
+then call
+<B>pselect</B>()
+
+with the desired
+<I>sigmask</I>,
+
+avoiding the race.)
+<A NAME="lbAE">&nbsp;</A>
+<H3>The timeout</H3>
+
+The time structures involved are defined in
+<I>&lt;<A HREF="file:///usr/include/sys/time.h">sys/time.h</A>&gt;</I>
+
+and look like
+<P>
+
+
+
+struct timeval {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;long&nbsp;&nbsp;&nbsp;&nbsp;tv_sec;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;seconds&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;long&nbsp;&nbsp;&nbsp;&nbsp;tv_usec;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;microseconds&nbsp;*/
+};
+
+
+<P>
+
+and
+<P>
+
+
+
+struct timespec {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;long&nbsp;&nbsp;&nbsp;&nbsp;tv_sec;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;seconds&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;long&nbsp;&nbsp;&nbsp;&nbsp;tv_nsec;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;nanoseconds&nbsp;*/
+};
+
+
+<P>
+
+(However, see below on the POSIX.1 versions.)
+<P>
+
+Some code calls
+<B>select</B>()
+
+with all three sets empty,
+<I>nfds</I>
+
+zero, and a non-NULL
+<I>timeout</I>
+
+as a fairly portable way to sleep with subsecond precision.
+<P>
+
+On Linux,
+<B>select</B>()
+
+modifies
+<I>timeout</I>
+
+to reflect the amount of time not slept; most other implementations
+do not do this.
+(POSIX.1 permits either behavior.)
+This causes problems both when Linux code which reads
+<I>timeout</I>
+
+is ported to other operating systems, and when code is ported to Linux
+that reuses a <I>struct timeval</I> for multiple
+<B>select</B>()s
+
+in a loop without reinitializing it.
+Consider
+<I>timeout</I>
+
+to be undefined after
+<B>select</B>()
+
+returns.
+
+
+
+
+<A NAME="lbAF">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+On success,
+<B>select</B>()
+
+and
+<B>pselect</B>()
+
+return the number of file descriptors contained in the three returned
+descriptor sets (that is, the total number of bits that are set in
+<I>readfds</I>,
+
+<I>writefds</I>,
+
+<I>exceptfds</I>)
+
+which may be zero if the timeout expires before anything interesting happens.
+On error, -1 is returned, and
+<I>errno</I>
+
+is set to indicate the error;
+the file descriptor sets are unmodified,
+and
+<I>timeout</I>
+
+becomes undefined.
+<A NAME="lbAG">&nbsp;</A>
+<H2>ERRORS</H2>
+
+<DL COMPACT>
+<DT id="7"><B>EBADF</B>
+
+<DD>
+An invalid file descriptor was given in one of the sets.
+(Perhaps a file descriptor that was already closed,
+or one on which an error has occurred.)
+However, see BUGS.
+<DT id="8"><B>EINTR</B>
+
+<DD>
+A signal was caught; see
+<B><A HREF="/cgi-bin/man/man2html?7+signal">signal</A></B>(7).
+
+<DT id="9"><B>EINVAL</B>
+
+<DD>
+<I>nfds</I>
+
+is negative or exceeds the
+<B>RLIMIT_NOFILE</B>
+
+resource limit (see
+<B><A HREF="/cgi-bin/man/man2html?2+getrlimit">getrlimit</A></B>(2)).
+
+<DT id="10"><B>EINVAL</B>
+
+<DD>
+The value contained within
+<I>timeout</I>
+
+is invalid.
+<DT id="11"><B>ENOMEM</B>
+
+<DD>
+Unable to allocate memory for internal tables.
+</DL>
+<A NAME="lbAH">&nbsp;</A>
+<H2>VERSIONS</H2>
+
+<B>pselect</B>()
+
+was added to Linux in kernel 2.6.16.
+Prior to this,
+<B>pselect</B>()
+
+was emulated in glibc (but see BUGS).
+<A NAME="lbAI">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+<B>select</B>()
+
+conforms to POSIX.1-2001, POSIX.1-2008, and
+4.4BSD
+(<B>select</B>()
+
+first appeared in 4.2BSD).
+Generally portable to/from
+non-BSD systems supporting clones of the BSD socket layer (including
+System&nbsp;V variants).
+However, note that the System&nbsp;V variant typically
+sets the timeout variable before exit, but the BSD variant does not.
+<P>
+
+<B>pselect</B>()
+
+is defined in POSIX.1g, and in
+POSIX.1-2001 and POSIX.1-2008.
+<A NAME="lbAJ">&nbsp;</A>
+<H2>NOTES</H2>
+
+An
+<I>fd_set</I>
+
+is a fixed size buffer.
+Executing
+<B>FD_CLR</B>()
+
+or
+<B>FD_SET</B>()
+
+with a value of
+<I>fd</I>
+
+that is negative or is equal to or larger than
+<B>FD_SETSIZE</B>
+
+will result
+in undefined behavior.
+Moreover, POSIX requires
+<I>fd</I>
+
+to be a valid file descriptor.
+<P>
+
+The operation of
+<B>select</B>()
+
+and
+<B>pselect</B>()
+
+is not affected by the
+<B>O_NONBLOCK</B>
+
+flag.
+<P>
+
+On some other UNIX systems,
+
+<B>select</B>()
+
+can fail with the error
+<B>EAGAIN</B>
+
+if the system fails to allocate kernel-internal resources, rather than
+<B>ENOMEM</B>
+
+as Linux does.
+POSIX specifies this error for
+<B><A HREF="/cgi-bin/man/man2html?2+poll">poll</A></B>(2),
+
+but not for
+<B>select</B>().
+
+Portable programs may wish to check for
+<B>EAGAIN</B>
+
+and loop, just as with
+<B>EINTR</B>.
+
+<P>
+
+On systems that lack
+<B>pselect</B>(),
+
+reliable (and more portable) signal trapping can be achieved
+using the self-pipe trick.
+In this technique,
+a signal handler writes a byte to a pipe whose other end
+is monitored by
+<B>select</B>()
+
+in the main program.
+(To avoid possibly blocking when writing to a pipe that may be full
+or reading from a pipe that may be empty,
+nonblocking I/O is used when reading from and writing to the pipe.)
+<P>
+
+Concerning the types involved, the classical situation is that
+the two fields of a
+<I>timeval</I>
+
+structure are typed as
+<I>long</I>
+
+(as shown above), and the structure is defined in
+<I>&lt;<A HREF="file:///usr/include/sys/time.h">sys/time.h</A>&gt;</I>.
+
+The POSIX.1 situation is
+<P>
+
+
+
+struct timeval {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;time_t&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;tv_sec;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;seconds&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;suseconds_t&nbsp;&nbsp;&nbsp;&nbsp;tv_usec;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;microseconds&nbsp;*/
+};
+
+
+<P>
+
+where the structure is defined in
+<I>&lt;<A HREF="file:///usr/include/sys/select.h">sys/select.h</A>&gt;</I>
+
+and the data types
+<I>time_t</I>
+
+and
+<I>suseconds_t</I>
+
+are defined in
+<I>&lt;<A HREF="file:///usr/include/sys/types.h">sys/types.h</A>&gt;</I>.
+
+<P>
+
+Concerning prototypes, the classical situation is that one should
+include
+<I>&lt;<A HREF="file:///usr/include/time.h">time.h</A>&gt;</I>
+
+for
+<B>select</B>().
+
+The POSIX.1 situation is that one should include
+<I>&lt;<A HREF="file:///usr/include/sys/select.h">sys/select.h</A>&gt;</I>
+
+for
+<B>select</B>()
+
+and
+<B>pselect</B>().
+
+<P>
+
+Under glibc 2.0,
+<I>&lt;<A HREF="file:///usr/include/sys/select.h">sys/select.h</A>&gt;</I>
+
+gives the wrong prototype for
+<B>pselect</B>().
+
+Under glibc 2.1 to 2.2.1, it gives
+<B>pselect</B>()
+
+when
+<B>_GNU_SOURCE</B>
+
+is defined.
+Since glibc 2.2.2, the requirements are as shown in the SYNOPSIS.
+
+<A NAME="lbAK">&nbsp;</A>
+<H3>Correspondence between select() and poll() notifications</H3>
+
+Within the Linux kernel source,
+
+we find the following definitions which show the correspondence
+between the readable, writable, and exceptional condition notifications of
+<B>select</B>()
+
+and the event notifications provided by
+<B><A HREF="/cgi-bin/man/man2html?2+poll">poll</A></B>(2)
+
+and
+<B><A HREF="/cgi-bin/man/man2html?7+epoll">epoll</A></B>(7):
+
+<P>
+
+
+
+#define POLLIN_SET  (EPOLLRDNORM | EPOLLRDBAND | EPOLLIN |
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EPOLLHUP&nbsp;|&nbsp;EPOLLERR)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Ready&nbsp;for&nbsp;reading&nbsp;*/
+#define POLLOUT_SET (EPOLLWRBAND | EPOLLWRNORM | EPOLLOUT |
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EPOLLERR)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Ready&nbsp;for&nbsp;writing&nbsp;*/
+#define POLLEX_SET  (EPOLLPRI)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Exceptional&nbsp;condition&nbsp;*/
+
+
+
+<A NAME="lbAL">&nbsp;</A>
+<H3>Multithreaded applications</H3>
+
+If a file descriptor being monitored by
+<B>select</B>()
+
+is closed in another thread, the result is unspecified.
+On some UNIX systems,
+<B>select</B>()
+
+unblocks and returns, with an indication that the file descriptor is ready
+(a subsequent I/O operation will likely fail with an error,
+unless another process reopens file descriptor between the time
+<B>select</B>()
+
+returned and the I/O operation is performed).
+On Linux (and some other systems),
+closing the file descriptor in another thread has no effect on
+<B>select</B>().
+
+In summary, any application that relies on a particular behavior
+in this scenario must be considered buggy.
+
+<A NAME="lbAM">&nbsp;</A>
+<H3>C library/kernel differences</H3>
+
+The Linux kernel allows file descriptor sets of arbitrary size,
+determining the length of the sets to be checked from the value of
+<I>nfds</I>.
+
+However, in the glibc implementation, the
+<I>fd_set</I>
+
+type is fixed in size.
+See also BUGS.
+<P>
+
+The
+<B>pselect</B>()
+
+interface described in this page is implemented by glibc.
+The underlying Linux system call is named
+<B>pselect6</B>().
+
+This system call has somewhat different behavior from the glibc
+wrapper function.
+<P>
+
+The Linux
+<B>pselect6</B>()
+
+system call modifies its
+<I>timeout</I>
+
+argument.
+However, the glibc wrapper function hides this behavior
+by using a local variable for the timeout argument that
+is passed to the system call.
+Thus, the glibc
+<B>pselect</B>()
+
+function does not modify its
+<I>timeout</I>
+
+argument;
+this is the behavior required by POSIX.1-2001.
+<P>
+
+The final argument of the
+<B>pselect6</B>()
+
+system call is not a
+<I>sigset_t&nbsp;*</I>
+
+pointer, but is instead a structure of the form:
+<P>
+
+
+
+struct {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;const&nbsp;kernel_sigset_t&nbsp;*ss;&nbsp;&nbsp;&nbsp;/*&nbsp;Pointer&nbsp;to&nbsp;signal&nbsp;set&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;size_t&nbsp;ss_len;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Size&nbsp;(in&nbsp;bytes)&nbsp;of&nbsp;object
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pointed&nbsp;to&nbsp;by&nbsp;'ss'&nbsp;*/
+};
+
+
+<P>
+
+This allows the system call to obtain both
+a pointer to the signal set and its size,
+while allowing for the fact that most architectures
+support a maximum of 6 arguments to a system call.
+See
+<B><A HREF="/cgi-bin/man/man2html?2+sigprocmask">sigprocmask</A></B>(2)
+
+for a discussion of the difference between the kernel and libc
+notion of the signal set.
+<A NAME="lbAN">&nbsp;</A>
+<H2>BUGS</H2>
+
+POSIX allows an implementation to define an upper limit,
+advertised via the constant
+<B>FD_SETSIZE</B>,
+
+on the range of file descriptors that can be specified
+in a file descriptor set.
+The Linux kernel imposes no fixed limit, but the glibc implementation makes
+<I>fd_set</I>
+
+a fixed-size type, with
+<B>FD_SETSIZE</B>
+
+defined as 1024, and the
+<B>FD_*</B>()
+
+macros operating according to that limit.
+To monitor file descriptors greater than 1023, use
+<B><A HREF="/cgi-bin/man/man2html?2+poll">poll</A></B>(2)
+
+instead.
+<P>
+
+The implementation of the
+<I>fd_set</I>
+
+arguments as value-result arguments means that they must be
+reinitialized on each call to
+<B>select</B>().
+
+This design error is avoided by
+<B><A HREF="/cgi-bin/man/man2html?2+poll">poll</A></B>(2),
+
+which uses separate structure fields for the input and output of the call.
+<P>
+
+According to POSIX,
+<B>select</B>()
+
+should check all specified file descriptors in the three file descriptor sets,
+up to the limit
+<I>nfds-1</I>.
+
+However, the current implementation ignores any file descriptor in
+these sets that is greater than the maximum file descriptor number
+that the process currently has open.
+According to POSIX, any such file descriptor that is specified in one
+of the sets should result in the error
+<B>EBADF</B>.
+
+<P>
+
+Glibc 2.0 provided a version of
+<B>pselect</B>()
+
+that did not take a
+<I>sigmask</I>
+
+argument.
+<P>
+
+Starting with version 2.1, glibc provided an emulation of
+<B>pselect</B>()
+
+that was implemented using
+<B><A HREF="/cgi-bin/man/man2html?2+sigprocmask">sigprocmask</A></B>(2)
+
+and
+<B>select</B>().
+
+This implementation remained vulnerable to the very race condition that
+<B>pselect</B>()
+
+was designed to prevent.
+Modern versions of glibc use the (race-free)
+<B>pselect</B>()
+
+system call on kernels where it is provided.
+<P>
+
+Under Linux,
+<B>select</B>()
+
+may report a socket file descriptor as &quot;ready for reading&quot;, while
+nevertheless a subsequent read blocks.
+This could for example
+happen when data has arrived but upon examination has wrong
+checksum and is discarded.
+There may be other circumstances
+in which a file descriptor is spuriously reported as ready.
+
+
+Thus it may be safer to use
+<B>O_NONBLOCK</B>
+
+on sockets that should not block.
+
+<P>
+
+On Linux,
+<B>select</B>()
+
+also modifies
+<I>timeout</I>
+
+if the call is interrupted by a signal handler (i.e., the
+<B>EINTR</B>
+
+error return).
+This is not permitted by POSIX.1.
+The Linux
+<B>pselect</B>()
+
+system call has the same behavior,
+but the glibc wrapper hides this behavior by internally copying the
+<I>timeout</I>
+
+to a local variable and passing that variable to the system call.
+<A NAME="lbAO">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdlib.h">stdlib.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/sys/time.h">sys/time.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/sys/types.h">sys/types.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/unistd.h">unistd.h</A>&gt;
+<P>
+int
+main(void)
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fd_set&nbsp;rfds;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;timeval&nbsp;tv;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;retval;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Watch&nbsp;stdin&nbsp;(fd&nbsp;0)&nbsp;to&nbsp;see&nbsp;when&nbsp;it&nbsp;has&nbsp;input.&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;FD_ZERO(&amp;rfds);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;FD_SET(0,&nbsp;&amp;rfds);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Wait&nbsp;up&nbsp;to&nbsp;five&nbsp;seconds.&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;tv.tv_sec&nbsp;=&nbsp;5;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;tv.tv_usec&nbsp;=&nbsp;0;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;retval&nbsp;=&nbsp;select(1,&nbsp;&amp;rfds,&nbsp;NULL,&nbsp;NULL,&nbsp;&amp;tv);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Don't&nbsp;rely&nbsp;on&nbsp;the&nbsp;value&nbsp;of&nbsp;tv&nbsp;now!&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(retval&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;perror(&quot;select()&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;else&nbsp;if&nbsp;(retval)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;Data&nbsp;is&nbsp;available&nbsp;now.\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;FD_ISSET(0,&nbsp;&amp;rfds)&nbsp;will&nbsp;be&nbsp;true.&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;else
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;No&nbsp;data&nbsp;within&nbsp;five&nbsp;seconds.\n&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_SUCCESS);
+}
+
+<A NAME="lbAP">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?2+accept">accept</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+connect">connect</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+poll">poll</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+recv">recv</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+restart_syscall">restart_syscall</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+send">send</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+sigprocmask">sigprocmask</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+write">write</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?7+epoll">epoll</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+time">time</A></B>(7)
+
+<P>
+
+For a tutorial with discussion and examples, see
+<B><A HREF="/cgi-bin/man/man2html?2+select_tut">select_tut</A></B>(2).
+
+<A NAME="lbAQ">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="12"><A HREF="#lbAB">NAME</A><DD>
+<DT id="13"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="14"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DL>
+<DT id="15"><A HREF="#lbAE">The timeout</A><DD>
+</DL>
+<DT id="16"><A HREF="#lbAF">RETURN VALUE</A><DD>
+<DT id="17"><A HREF="#lbAG">ERRORS</A><DD>
+<DT id="18"><A HREF="#lbAH">VERSIONS</A><DD>
+<DT id="19"><A HREF="#lbAI">CONFORMING TO</A><DD>
+<DT id="20"><A HREF="#lbAJ">NOTES</A><DD>
+<DL>
+<DT id="21"><A HREF="#lbAK">Correspondence between select() and poll() notifications</A><DD>
+<DT id="22"><A HREF="#lbAL">Multithreaded applications</A><DD>
+<DT id="23"><A HREF="#lbAM">C library/kernel differences</A><DD>
+</DL>
+<DT id="24"><A HREF="#lbAN">BUGS</A><DD>
+<DT id="25"><A HREF="#lbAO">EXAMPLE</A><DD>
+<DT id="26"><A HREF="#lbAP">SEE ALSO</A><DD>
+<DT id="27"><A HREF="#lbAQ">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:34 GMT, March 31, 2021
+</BODY>
+</HTML>

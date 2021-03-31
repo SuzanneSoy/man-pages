@@ -1,0 +1,257 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SD_BUS_NEW</TITLE>
+</HEAD><BODY>
+<H1>SD_BUS_NEW</H1>
+Section: sd_bus_new (3)<BR>Updated: <BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+sd_bus_new, sd_bus_ref, sd_bus_unref, sd_bus_unrefp, sd_bus_close_unref, sd_bus_close_unrefp, sd_bus_flush_close_unref, sd_bus_flush_close_unrefp - Create a new bus object and create or destroy references to it
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+<B>
+</B><PRE>
+#include &lt;<A HREF="file:///usr/include/systemd/sd-bus.h">systemd/sd-bus.h</A>&gt;
+</PRE>
+
+
+<DL COMPACT>
+<DT id="1">
+<B>int sd_bus_new(sd_bus&nbsp;**</B><I>bus</I><B>);</B>
+
+<DT id="2">
+<B>sd_bus *sd_bus_ref(sd_bus&nbsp;*</B><I>bus</I><B>);</B>
+
+<DT id="3">
+<B>sd_bus *sd_bus_unref(sd_bus&nbsp;*</B><I>bus</I><B>);</B>
+
+<DT id="4">
+<B>sd_bus *sd_bus_close_unref(sd_bus&nbsp;*</B><I>bus</I><B>);</B>
+
+<DT id="5">
+<B>sd_bus *sd_bus_flush_close_unref(sd_bus&nbsp;*</B><I>bus</I><B>);</B>
+
+<DT id="6">
+<B>void sd_bus_unrefp(sd_bus&nbsp;**</B><I>busp</I><B>);</B>
+
+<DT id="7">
+<B>void sd_bus_close_unrefp(sd_bus&nbsp;**</B><I>busp</I><B>);</B>
+
+<DT id="8">
+<B>void sd_bus_flush_close_unrefp(sd_bus&nbsp;**</B><I>busp</I><B>);</B>
+
+</DL>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+<B>sd_bus_new()</B>
+<DD>creates a new bus object. This object is reference-counted, and will be destroyed when all references are gone. Initially, the caller of this function owns the sole reference and the bus object will not be connected to any bus. To connect it to a bus, make sure to set an address with
+<B><A HREF="/cgi-bin/man/man2html?3+sd_bus_set_address">sd_bus_set_address</A></B>(3)
+or a related call, and then start the connection with
+<B><A HREF="/cgi-bin/man/man2html?3+sd_bus_start">sd_bus_start</A></B>(3).
+<P>
+
+In most cases, it is a better idea to invoke
+<B><A HREF="/cgi-bin/man/man2html?3+sd_bus_default_user">sd_bus_default_user</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_bus_default_system">sd_bus_default_system</A></B>(3)
+or related calls instead of the more low-level
+<B>sd_bus_new()</B>
+and
+<B>sd_bus_start()</B>. The higher-level calls not only allocate a bus object but also start the connection to a well-known bus in a single function invocation.
+<P>
+
+<B>sd_bus_ref()</B>
+increases the reference counter of
+<I>bus</I>
+by one.
+<P>
+
+<B>sd_bus_unref()</B>
+decreases the reference counter of
+<I>bus</I>
+by one. Once the reference count has dropped to zero,
+<I>bus</I>
+is destroyed and cannot be used anymore, so further calls to
+<B>sd_bus_ref()</B>
+or
+<B>sd_bus_unref()</B>
+are illegal.
+<P>
+
+<B>sd_bus_unrefp()</B>
+is similar to
+<B>sd_bus_unref()</B>
+but takes a pointer to a pointer to an
+<B>sd_bus</B>
+object. This call is useful in conjunction with GCC's and LLVM's
+m[blue]<B>Clean-up Variable Attribute</B>m[]<FONT SIZE="-2">[1]</FONT>. Note that this function is defined as inline function. Use a declaration like the following, in order to allocate a bus object that is freed automatically as the code block is left:
+<P>
+<DL COMPACT><DT id="9"><DD>
+
+
+
+<PRE>
+{
+  __attribute__((cleanup(sd_bus_unrefp))) sd_bus *bus = NULL;
+  int r;
+  ...
+  r = sd_bus_default(&amp;bus);
+  if (r &lt; 0)
+    fprintf(stderr, &quot;Failed to allocate bus: %s\n&quot;, strerror(-r));
+  ...
+}
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+<B>sd_bus_ref()</B>
+and
+<B>sd_bus_unref()</B>
+execute no operation if the passed in bus object address is
+<B>NULL</B>.
+<B>sd_bus_unrefp()</B>
+will first dereference its argument, which must not be
+<B>NULL</B>, and will execute no operation if
+<I>that</I>
+is
+<B>NULL</B>.
+<P>
+
+<B>sd_bus_close_unref()</B>
+is similar to
+<B>sd_bus_unref()</B>, but first executes
+<B><A HREF="/cgi-bin/man/man2html?3+sd_bus_close">sd_bus_close</A></B>(3), ensuring that the connection is terminated before the reference to the connection is dropped and possibly the object freed.
+<P>
+
+<B>sd_bus_flush_close_unref()</B>
+is similar to
+<B>sd_bus_unref()</B>, but first executes
+<B><A HREF="/cgi-bin/man/man2html?3+sd_bus_flush">sd_bus_flush</A></B>(3)
+as well as
+<B><A HREF="/cgi-bin/man/man2html?3+sd_bus_close">sd_bus_close</A></B>(3), ensuring that any pending messages are synchronously flushed out before the reference to the connection is dropped and possibly the object freed. This call is particularly useful immediately before exiting from a program as it ensures that any pending outgoing messages are written out, and unprocessed but queued incoming messages released before the connection is terminated and released.
+<P>
+
+<B>sd_bus_close_unrefp()</B>
+is similar to
+<B>sd_bus_close_unref()</B>, but may be used in GCC's and LLVM's Clean-up Variable Attribute, see above. Similarly,
+<B>sd_bus_flush_close_unrefp()</B>
+is similar to
+<B>sd_bus_flush_close_unref()</B>.
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+<P>
+
+On success,
+<B>sd_bus_new()</B>
+returns 0 or a positive integer. On failure, it returns a negative errno-style error code.
+<P>
+
+<B>sd_bus_ref()</B>
+always returns the argument.
+<P>
+
+<B>sd_bus_unref()</B>
+and
+<B>sd_bus_flush_close_unref()</B>
+always return
+<B>NULL</B>.
+<A NAME="lbAF">&nbsp;</A>
+<H3>Errors</H3>
+
+<P>
+
+Returned errors may indicate the following problems:
+<P>
+
+<B>-ENOMEM</B>
+<DL COMPACT><DT id="10"><DD>
+Memory allocation failed.
+</DL>
+
+<A NAME="lbAG">&nbsp;</A>
+<H2>NOTES</H2>
+
+<P>
+
+These APIs are implemented as a shared library, which can be compiled and linked to with the
+<B>libsystemd</B>&nbsp;<B><A HREF="/cgi-bin/man/man2html?1+pkg-config">pkg-config</A></B>(1)
+file.
+<A NAME="lbAH">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?3+sd-bus">sd-bus</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_bus_default_user">sd_bus_default_user</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_bus_default_system">sd_bus_default_system</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_bus_open_user">sd_bus_open_user</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_bus_open_system">sd_bus_open_system</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_bus_close">sd_bus_close</A></B>(3)
+<A NAME="lbAI">&nbsp;</A>
+<H2>NOTES</H2>
+
+<DL COMPACT>
+<DT id="11"> 1.<DD>
+Clean-up Variable Attribute
+<DL COMPACT><DT id="12"><DD>
+<A HREF="https://gcc.gnu.org/onlinedocs/gcc/Common-Variable-Attributes.html">https://gcc.gnu.org/onlinedocs/gcc/Common-Variable-Attributes.html</A>
+</DL>
+
+<P>
+</DL>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="13"><A HREF="#lbAB">NAME</A><DD>
+<DT id="14"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="15"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="16"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DL>
+<DT id="17"><A HREF="#lbAF">Errors</A><DD>
+</DL>
+<DT id="18"><A HREF="#lbAG">NOTES</A><DD>
+<DT id="19"><A HREF="#lbAH">SEE ALSO</A><DD>
+<DT id="20"><A HREF="#lbAI">NOTES</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:55 GMT, March 31, 2021
+</BODY>
+</HTML>

@@ -1,0 +1,3130 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of FIND</TITLE>
+</HEAD><BODY>
+<H1>FIND</H1>
+Section: User Commands  (1)<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+find - search for files in a directory hierarchy
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<B>find</B>
+
+[-H] [-L] [-P] [-D debugopts] [-Olevel] [starting-point...] [expression]
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+This manual page
+documents the GNU version of
+<B>find</B>.
+
+GNU
+<B>find</B>
+
+searches the directory tree rooted at each given starting-point by
+evaluating the given expression from left to right, according to the
+rules of precedence (see section OPERATORS), until the outcome is
+known (the left hand side is false for <I>and</I> operations, true for
+<I>or</I>),
+
+at which point
+<B>find</B>
+
+moves on to the next file name.  If no starting-point is specified,
+`.' is assumed.
+<P>
+
+If you are using
+<B>find</B>
+
+in an environment where security is important (for example if you are
+using it to search directories that are writable by other users), you
+should read the `Security Considerations' chapter of the findutils
+documentation, which is called <B>Finding Files</B> and comes with
+findutils.
+That document also includes a lot more detail
+and discussion than this manual page, so you may find it a more useful
+source of information.
+<A NAME="lbAE">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+The
+<B>-H</B>,
+
+<B>-L</B>
+
+and
+<B>-P</B>
+
+options control the treatment of symbolic
+links.  Command-line arguments following these are taken to be names
+of files or directories to be examined, up to the first argument that
+begins with `-', or the argument `(' or `!'.  That argument and any
+following arguments are taken to be the expression describing what is
+to be searched for.  If no paths are given, the current directory is
+used.  If no expression is given, the expression
+<B>-print</B>
+
+is used
+(but you should probably consider using
+<B>-print0</B>
+
+instead, anyway).
+<P>
+
+This manual page talks about `options' within the expression list.
+These options control the behaviour of
+<B>find</B>
+
+but are specified immediately after the last path name.  The five
+`real' options
+<B>-H</B>,
+
+<B>-L</B>,
+
+<B>-P</B>,
+
+<B>-D</B>
+
+and
+<B>-O</B>
+
+must appear before
+the first path name, if at all.  A double dash
+<B>--</B>
+
+can also be used
+to signal that any remaining arguments are not options (though
+ensuring that all start points begin with either `./' or `/' is
+generally safer if you use wildcards in the list of start points).
+<DL COMPACT>
+<DT id="1">-P<DD>
+Never follow symbolic links.  This is the default behaviour.  When
+<B>find</B>
+
+examines or prints information a file, and the file is a symbolic
+link, the information used shall be taken from the properties of the
+symbolic link itself.
+<P>
+<DT id="2">-L<DD>
+Follow symbolic links.  When
+<B>find</B>
+
+examines or prints information about files, the information used shall
+be taken from the properties of the file to which the link points, not
+from the link itself (unless it is a broken symbolic link or
+<B>find</B>
+
+is unable to examine the file to which the link points).  Use of this
+option implies
+<B>-noleaf</B>.
+
+If you later use the
+<B>-P</B>
+
+option,
+<B>-noleaf</B>
+
+will still be in effect.  If
+<B>-L</B>
+
+is in effect and
+<B>find</B>
+
+discovers a symbolic link to a subdirectory during its search,
+the subdirectory pointed to by the symbolic link will be searched.
+<DT id="3"><DD>
+When the
+<B>-L</B>
+
+option is in effect, the
+<B>-type</B>
+
+predicate will always
+match against the type of the file that a symbolic link points to
+rather than the link itself (unless the symbolic link is broken).
+Actions that can cause symbolic links to become broken while
+<B>find</B>
+
+is executing (for example
+<B>-delete</B>)
+
+can give rise to confusing behaviour.
+Using
+<B>-L</B>
+
+causes the
+<B>-lname</B>
+
+and
+<B>-ilname</B>
+
+predicates always to return
+false.
+<P>
+<DT id="4">-H<DD>
+Do not follow symbolic links, except while processing the command
+line arguments.  When
+<B>find</B>
+
+examines or prints information about files, the information used
+shall be taken from the properties of the symbolic link itself.
+The only exception to this behaviour is when a file specified on the
+command line is a symbolic link,
+and the link can be resolved.
+For that situation, the information used is taken from whatever the
+link points to
+(that is, the link is followed).
+The information about the link itself is used as a fallback if the
+file pointed to by the symbolic link cannot be examined.
+If
+<B>-H</B>
+
+is in effect and one of the
+paths specified on the command line is a symbolic link to a directory,
+the contents of that directory will be examined (though of course
+-maxdepth 0 would prevent this).
+</DL>
+<P>
+
+If more than one of
+<B>-H</B>,
+
+<B>-L</B>
+
+and
+<B>-P</B>
+
+is specified, each overrides the
+others; the last one appearing on the command line takes effect.
+Since it is the default, the
+<B>-P</B>
+
+option should be considered to be in
+effect unless either
+<B>-H</B>
+
+or
+<B>-L</B>
+
+is specified.
+<P>
+GNU
+<B>find</B>
+
+frequently stats files during the processing of the command line
+itself, before any searching has begun.  These options also affect how
+those arguments are processed.  Specifically, there are a number of
+tests that compare files listed on the command line against a file we
+are currently considering.  In each case, the file specified on the
+command line will have been examined and some of its properties will
+have been saved.  If the named file is in fact a symbolic link, and
+the
+<B>-P</B>
+
+option is in effect (or if neither
+<B>-H</B>
+
+nor
+<B>-L</B>
+
+were specified), the information used for the comparison will be taken from
+the properties of the symbolic link.  Otherwise, it will be taken from
+the properties of the file the link points to.  If
+<B>find</B>
+
+cannot follow the link (for example because it has insufficient
+privileges or the link points to a nonexistent file) the properties of
+the link itself will be used.
+<P>
+
+When the
+<B>-H</B>
+
+or
+<B>-L options are in effect, any symbolic links listed</B>
+
+as the argument of
+<B>-newer</B>
+
+will be dereferenced, and the timestamp
+will be taken from the file to which the symbolic link points.  The
+same consideration applies to
+<B>-newerXY</B>,
+
+<B>-anewer</B>
+
+and
+<B>-cnewer</B>.
+
+<P>
+The
+<B>-follow</B>
+
+option has a similar effect to
+<B>-L</B>,
+
+though it takes
+effect at the point where it appears (that is, if
+<B>-L</B>
+
+is not used but
+<B>-follow</B>
+
+is, any symbolic links appearing after
+<B>-follow</B>
+
+on the
+command line will be dereferenced, and those before it will not).
+<P>
+<DL COMPACT>
+<DT id="5">-D debugopts<DD>
+Print diagnostic information; this can be helpful to diagnose problems
+with why
+<B>find</B>
+
+is not doing what you want.  The list of debug options should be comma
+separated.  Compatibility of the debug options is not guaranteed
+between releases of findutils.  For a complete list of valid debug
+options, see the output of
+<B>find -D</B>
+
+<B>help</B>.
+
+Valid debug options include
+<DL COMPACT><DT id="6"><DD>
+<DL COMPACT>
+<DT id="7">exec<DD>
+Show diagnostic information relating to -exec, -execdir, -ok and -okdir
+<DT id="8">opt<DD>
+Prints diagnostic information relating to the optimisation of the
+expression tree; see the -O option.
+<DT id="9">rates<DD>
+Prints a summary indicating how often each predicate succeeded or
+failed.
+<DT id="10">search<DD>
+Navigate the directory tree verbosely.
+<DT id="11">stat<DD>
+Print messages as files are examined with the
+<B>stat</B>
+
+and
+<B>lstat</B>
+
+system calls.  The
+<B>find</B>
+
+program tries to minimise such calls.
+<DT id="12">tree<DD>
+Show the expression tree in its original and optimised form.
+<DT id="13">all<DD>
+Enable all of the other debug options (but
+<B>help</B>).
+
+<DT id="14">help<DD>
+Explain the debugging options.
+</DL>
+</DL>
+
+<DT id="15">-Olevel<DD>
+Enables query optimisation.
+The
+<B>find</B>
+
+program reorders tests to speed up execution while preserving the
+overall effect; that is, predicates with side effects are not
+reordered relative to each other.  The optimisations performed at each
+optimisation level are as follows.
+<DL COMPACT><DT id="16"><DD>
+<DL COMPACT>
+<DT id="17">0<DD>
+Equivalent to optimisation level 1.
+<DT id="18">1<DD>
+This is the default optimisation level and corresponds to the
+traditional behaviour.  Expressions are reordered so that tests based
+only on the names of files (for example
+<B>-name</B>
+
+and
+<B>-regex</B>)
+
+are performed first.
+<DT id="19">2<DD>
+Any
+<B>-type</B>
+
+or
+<B>-xtype</B>
+
+tests are performed after any tests based only on the names of files,
+but before any tests that require information from the inode.  On many
+modern versions of Unix, file types are returned by
+<B>readdir()</B>
+
+and so these predicates are faster to evaluate than predicates which
+need to stat the file first.
+If you use the
+<B>-fstype</B>
+
+<I>FOO</I>
+
+predicate and specify a filesystem type
+<I>FOO</I>
+
+which is not known (that is, present in `/etc/mtab') at the time
+<B>find</B>
+
+starts, that predicate is equivalent to
+<B>-false</B>.
+
+<DT id="20">3<DD>
+At this optimisation level, the full cost-based query optimiser is
+enabled.  The order of tests is modified so that cheap (i.e. fast)
+tests are performed first and more expensive ones are performed later,
+if necessary.  Within each cost band, predicates are evaluated earlier
+or later according to whether they are likely to succeed or not.  For
+<B>-o</B>,
+
+predicates which are likely to succeed are evaluated earlier, and for
+<B>-a</B>,
+
+predicates which are likely to fail are evaluated earlier.
+</DL>
+</DL>
+
+<DT id="21"><DD>
+The cost-based optimiser has a fixed idea of how likely any given test
+is to succeed.  In some cases the probability takes account of the
+specific nature of the test (for example,
+<B>-type f</B>
+
+is assumed to be more likely to succeed than
+<B>-type c</B>).
+
+The cost-based optimiser is currently being evaluated.
+If it does not actually improve the performance of
+<B>find</B>,
+
+it will be removed again.  Conversely, optimisations that prove to be
+reliable, robust and effective may be enabled at lower optimisation
+levels over time.  However, the default behaviour (i.e. optimisation
+level 1) will not be changed in the 4.3.x release series.  The
+findutils test suite runs all the tests on
+<B>find</B>
+
+at each optimisation level and ensures that the result is the same.
+</DL>
+<P>
+
+<A NAME="lbAF">&nbsp;</A>
+<H2>EXPRESSION</H2>
+
+The part of the command line after the list of starting points is the
+<I>expression</I>.
+
+This is a kind of query specification describing how we match files
+and what we do with the files that were matched.
+An expression is composed of a sequence of things:
+<P>
+<DL COMPACT>
+<DT id="22">Tests<DD>
+Tests return a true or false value, usually on the basis of some
+property of a file we are considering.  The
+<B>-empty</B>
+
+test for example is true only when the current file is empty.
+<P>
+<DT id="23">Actions<DD>
+Actions have side effects (such as printing something on the standard
+output) and return either true or false, usually based on whether or
+not they are successful.  The
+<B>-print</B>
+
+action for example prints the name of the current file on the standard
+output.
+<P>
+<DT id="24">Global options<DD>
+Global options affect the operation of tests and actions specified on
+any part of the command line.  Global options always return true.  The
+<B>-depth</B>
+
+option for example makes
+<B>find</B>
+
+traverse the file system in a depth-first order.
+<P>
+<DT id="25">Positional options<DD>
+Positional options affect only tests or actions which follow them.
+Positional options always return true.  The
+<B>-regextype</B>
+
+option for example is positional, specifying the regular expression
+dialect for regular expressions occurring later on the command line.
+<P>
+<DT id="26">Operators<DD>
+Operators join together the other items within the expression.  They
+include for example
+<B>-o</B>
+
+(meaning logical OR) and
+<B>-a</B>
+
+(meaning logical AND).  Where an operator is missing,
+<B>-a</B>
+
+is assumed.
+<P>
+</DL>
+<P>
+
+The
+<B>-print</B>
+
+action is performed on all files for which the whole expression is
+true, unless it contains an action other than
+<B>-prune</B>
+
+or
+<B>-quit</B>.
+
+Actions which inhibit the default
+<B>-print</B>
+
+are
+<B>-delete</B>,
+
+<B>-exec</B>,
+
+<B>-execdir</B>,
+
+<B>-ok</B>,
+
+<B>-okdir</B>,
+
+<B>-fls</B>,
+
+<B>-fprint</B>,
+
+<B>-fprintf</B>,
+
+<B>-ls</B>,
+
+<B>-print</B>
+
+and
+<B>-printf</B>.
+
+<P>
+<P>
+The
+<B>-delete</B>
+
+action also acts like an option (since it implies
+<B>-depth</B>).
+
+<P>
+<A NAME="lbAG">&nbsp;</A>
+<H3>POSITIONAL OPTIONS</H3>
+
+Positional options always return true.  They affect only tests occurring
+later on the command line.
+<P>
+<DL COMPACT>
+<DT id="27">-daystart<DD>
+Measure times (for
+<B>-amin</B>,
+
+<B>-atime</B>,
+
+<B>-cmin</B>,
+
+<B>-ctime</B>,
+
+<B>-mmin</B>,
+
+and
+<B>-mtime</B>)
+
+from the beginning of today rather than from 24 hours ago.  This
+option only affects tests which appear later on the command line.
+<P>
+<DT id="28">-follow<DD>
+Deprecated; use the
+<B>-L</B>
+
+option instead.  Dereference symbolic links.
+Implies
+<B>-noleaf</B>.
+
+The
+<B>-follow</B>
+
+option affects only those tests which
+appear after it on the command line.  Unless the
+<B>-H</B>
+
+or
+<B>-L</B>
+
+option has
+been specified, the position of the
+<B>-follow</B>
+
+option changes the behaviour of the
+<B>-newer</B>
+
+predicate; any files listed as the argument
+of
+<B>-newer</B>
+
+will be dereferenced if they are symbolic links.  The same
+consideration applies to
+<B>-newerXY</B>,
+
+<B>-anewer</B>
+
+and
+<B>-cnewer</B>.
+
+Similarly, the
+<B>-type</B>
+
+predicate will always match against the type of the file
+that a symbolic link points to rather than the link itself.  Using
+<B>-follow</B>
+
+causes the
+<B>-lname and</B>
+
+<B>-ilname</B>
+
+predicates always to return false.
+<P>
+<DT id="29">-regextype <I>type</I><DD>
+Changes the regular expression syntax understood by
+<B>-regex</B>
+
+and
+<B>-iregex</B>
+
+tests which occur later on the command line.  To see which regular
+expression types are known, use
+<B>-regextype</B>
+
+<B>help</B>.
+
+The Texinfo documentation (see
+<B>SEE</B>
+
+<B>ALSO</B>)
+
+explains the meaning of and
+differences between the various types of regular expression.
+<P>
+<DT id="30">-warn, -nowarn<DD>
+Turn warning messages on or off.  These warnings apply only to the
+command line usage, not to any conditions that
+<B>find</B>
+
+might encounter when it searches directories.  The default behaviour
+corresponds to
+<B>-warn</B>
+
+if standard input is a tty, and to
+<B>-nowarn</B>
+
+otherwise.  If a warning message relating to command-line usage is
+produced, the exit status of
+<B>find</B>
+
+is not affected.  If the POSIXLY_CORRECT environment variable is set,
+and
+<B>-warn</B>
+
+is also used, it is not specified which, if any,
+warnings will be active.
+<P>
+</DL>
+<A NAME="lbAH">&nbsp;</A>
+<H3>GLOBAL OPTIONS</H3>
+
+Global options always return true.
+Global options take effect even for tests which occur earlier on the
+command line.  To prevent confusion, global options should specified
+on the command-line after the list of start points, just before the
+first test, positional option or action.
+If you specify a global option in some other place,
+<B>find</B>
+
+will issue a warning message explaining that this can be confusing.
+<P>
+The global options occur after the list of start points, and so are
+not the same kind of option as
+<B>-L</B>,
+
+for example.
+<P>
+<DL COMPACT>
+<DT id="31">-d<DD>
+A synonym for -depth, for compatibility with FreeBSD, NetBSD, MacOS X and OpenBSD.
+<P>
+<DT id="32">-depth<DD>
+Process each directory's contents before the directory itself.  The
+-delete action also implies
+<B>-depth</B>.
+
+<P>
+<DT id="33">-help, --help<DD>
+Print a summary of the command-line usage of
+<B>find</B>
+
+and exit.
+<P>
+<DT id="34">-ignore_readdir_race<DD>
+Normally, <B>find</B> will emit an error message when it fails to stat a file.
+If you give this option and a file is deleted between the time <B>find</B>
+reads the name of the file from the directory and the time it tries to stat
+the file, no error message will be issued.
+This also applies to files or directories whose names are given on the
+command line.
+This option takes effect at the time the command line is read,
+which means that you cannot search one part of the filesystem with
+this option on and part of it with this option off
+(if you need to do that, you will need to issue two <B>find</B> commands
+instead, one with the option and one without it).
+<P>
+Furthermore,
+<B>find</B>
+
+with the
+<B>-ignore_readdir_race</B>
+
+option will ignore errors of the
+<B>-delete</B>
+
+action in the case the file has disappeared since the parent directory was read:
+it will not output an error diagnostic, and the return code of the
+<B>-delete</B>
+
+action will be true.
+<P>
+<DT id="35">-maxdepth <I>levels</I><DD>
+Descend at most <I>levels</I> (a non-negative integer) levels of
+directories below the starting-points.
+<B>-maxdepth 0</B>
+
+means only apply the tests and actions to the starting-points themselves.
+<P>
+<DT id="36">-mindepth <I>levels</I><DD>
+Do not apply any tests or actions at levels less than <I>levels</I> (a
+non-negative integer).
+<B>-mindepth 1</B>
+
+means process all files except the starting-points.
+<P>
+<DT id="37">-mount<DD>
+Don't descend directories on other filesystems.  An alternate name for
+<B>-xdev</B>,
+
+for compatibility with some other versions of
+<B>find</B>.
+
+<P>
+<DT id="38">-noignore_readdir_race<DD>
+Turns off the effect of
+<B>-ignore_readdir_race</B>.
+
+<P>
+<DT id="39">-noleaf<DD>
+Do not optimize by assuming that directories contain 2 fewer
+subdirectories than their hard link count.  This option is needed when
+searching filesystems that do not follow the Unix directory-link
+convention, such as CD-ROM or MS-DOS filesystems or AFS volume mount
+points.  Each directory on a normal Unix filesystem has at least 2
+hard links: its name and its `.' entry.  Additionally, its
+subdirectories (if any) each have a `..' entry linked to that
+directory.  When
+<B>find</B>
+
+is examining a directory, after it has statted 2 fewer subdirectories
+than the directory's link count, it knows that the rest of the entries
+in the directory are non-directories (`leaf' files in the directory
+tree).  If only the files' names need to be examined, there is no need
+to stat them; this gives a significant increase in search speed.
+<P>
+<DT id="40">-version, --version<DD>
+Print the <B>find</B> version number and exit.
+<P>
+<DT id="41">-xdev<DD>
+Don't descend directories on other filesystems.
+<P>
+</DL>
+<A NAME="lbAI">&nbsp;</A>
+<H3>TESTS</H3>
+
+Some tests, for example
+<B>-newerXY</B>
+
+and
+<B>-samefile</B>,
+
+allow comparison between the file currently being examined and some
+reference file specified on the command line.  When these tests are
+used, the interpretation of the reference file is determined by the
+options
+<B>-H</B>,
+
+<B>-L</B>
+
+and
+<B>-P</B>
+
+and any previous
+<B>-follow</B>,
+
+but the reference file is only examined once, at the time the command
+line is parsed.  If the reference file cannot be examined (for
+example, the
+<B><A HREF="/cgi-bin/man/man2html?2+stat">stat</A></B>(2)
+
+system call fails for it), an error message is issued, and
+<B>find</B>
+
+exits with a nonzero status.
+<P>
+
+Numeric arguments can be specified as
+<DL COMPACT>
+<DT id="42"><I>+n</I><DD>
+for greater than
+<I>n</I>,
+
+<DT id="43"><I>-n</I><DD>
+for less than
+<I>n</I>,
+
+<DT id="44"><I>n</I><DD>
+for exactly
+<I>n</I>.
+
+</DL>
+<P>
+
+<P>
+<DL COMPACT>
+<DT id="45">-amin <I>n</I><DD>
+File was last accessed <I>n</I> minutes ago.
+<P>
+<DT id="46">-anewer <I>reference</I><DD>
+Time of the last access of the current file is more recent than that
+of the last data modification of the <I>reference</I> file.
+If <I>reference</I> is a symbolic link and the
+<B>-H</B>
+
+option or the
+<B>-L</B>
+
+option is in effect, then the time of the last data modification of the file
+it points to is always used.
+<P>
+<DT id="47">-atime <I>n</I><DD>
+File was last accessed
+<I>n</I>*24
+
+hours ago.
+When find figures out how many 24-hour periods ago the file
+was last accessed, any fractional part is ignored, so to match
+<B>-atime</B>
+
+<B>+1</B>,
+
+a file has to have been accessed at least
+<I>two</I>
+
+days ago.
+<P>
+<DT id="48">-cmin <I>n</I><DD>
+File's status was last changed <I>n</I> minutes ago.
+<P>
+<DT id="49">-cnewer <I>reference</I><DD>
+Time of the last status change of the current file is more recent than that
+of the last data modification of the <I>reference</I> file.
+If <I>reference</I> is a symbolic link and the
+<B>-H</B>
+
+option or the
+<B>-L</B>
+
+option is in effect, then the time of the last data modification of the file
+it points to is always used.
+<P>
+<DT id="50">-ctime <I>n</I><DD>
+File's status was last changed
+<I>n</I>*24
+
+hours ago.
+See the comments for
+<B>-atime</B>
+
+to understand how rounding affects the interpretation of file status
+change times.
+<P>
+<DT id="51">-empty<DD>
+File is empty and is either a regular file or a directory.
+<P>
+<DT id="52">-executable<DD>
+Matches files which are executable and directories which are
+searchable (in a file name resolution sense) by the current user.
+This takes into account access control lists and other permissions
+artefacts which the
+<B>-perm</B>
+
+test ignores.  This test makes use of the
+<B><A HREF="/cgi-bin/man/man2html?2+access">access</A></B>(2)
+
+system call, and so can be fooled by NFS servers which do UID
+mapping (or root-squashing), since many systems implement
+<B><A HREF="/cgi-bin/man/man2html?2+access">access</A></B>(2)
+
+in the client's kernel and so cannot make use of the UID mapping
+information held on the server.  Because this test is based only on
+the result of the
+<B><A HREF="/cgi-bin/man/man2html?2+access">access</A></B>(2)
+
+system call, there is no guarantee that a file for which this test
+succeeds can actually be executed.
+<P>
+<DT id="53">-false<DD>
+Always false.
+<P>
+<DT id="54">-fstype <I>type</I><DD>
+File is on a filesystem of type
+<I>type</I>.
+
+The valid filesystem types vary among different versions of Unix;
+an incomplete list of
+filesystem types that are accepted on some version of Unix or another
+is: ufs, 4.2, 4.3, nfs, tmp, mfs, S51K, S52K.  You can use
+<B>-printf</B>
+
+with the %F directive to see the types of your filesystems.
+<P>
+<DT id="55">-gid <I>n</I><DD>
+File's numeric group ID is
+<I>n</I>.
+
+<P>
+<DT id="56">-group <I>gname</I><DD>
+File belongs to group <I>gname</I> (numeric group ID allowed).
+<P>
+<DT id="57">-ilname <I>pattern</I><DD>
+Like
+<B>-lname</B>,
+
+but the match is case insensitive.
+If the
+<B>-L</B>
+
+option or the
+<B>-follow</B>
+
+option is in effect, this test returns false unless the symbolic link
+is broken.
+<P>
+<P>
+<DT id="58">-iname <I>pattern</I><DD>
+Like
+<B>-name</B>,
+
+but the match is case insensitive.  For example, the
+patterns `fo*' and `F??' match the file names `Foo', `FOO', `foo',
+`fOo', etc.
+The pattern `*foo*` will also match a file called '.foobar'.
+<P>
+<DT id="59">-inum <I>n</I><DD>
+File has inode number
+<I>n</I>.
+
+It is normally easier to use the
+<B>-samefile</B>
+
+test instead.
+<P>
+<DT id="60">-ipath <I>pattern</I><DD>
+Like
+<B>-path</B>.
+
+but the match is case insensitive.
+<P>
+<DT id="61">-iregex <I>pattern</I><DD>
+Like
+<B>-regex</B>,
+
+but the match is case insensitive.
+<P>
+<DT id="62">-iwholename <I>pattern</I><DD>
+See -ipath.  This alternative is less portable than
+<B>-ipath</B>.
+
+<P>
+<DT id="63">-links <I>n</I><DD>
+File has <I>n</I> hard links.
+<P>
+<DT id="64">-lname <I>pattern</I><DD>
+File is a symbolic link whose contents match shell pattern
+<I>pattern</I>.
+
+The metacharacters do not treat `/' or `.' specially.
+If the
+<B>-L</B>
+
+option or the
+<B>-follow</B>
+
+option is in effect, this test returns false unless the symbolic link
+is broken.
+<P>
+<DT id="65">-mmin <I>n</I><DD>
+File's data was last modified <I>n</I> minutes ago.
+<P>
+<DT id="66">-mtime <I>n</I><DD>
+File's data was last modified
+<I>n</I>*24
+
+hours ago.
+See the comments for
+<B>-atime</B>
+
+to understand how rounding affects the interpretation of file
+modification times.
+<P>
+<DT id="67">-name <I>pattern</I><DD>
+Base of file name (the path with the leading directories removed)
+matches shell pattern
+<I>pattern</I>.
+
+Because the leading directories are removed,
+the file names considered for a match with
+<B>-name</B>
+
+will never include a slash, so `-name a/b' will never match anything
+(you probably need to use
+<B>-path</B>
+
+instead).
+A warning is issued if you try to do this,
+unless the environment variable POSIXLY_CORRECT is set.
+The metacharacters (`*', `?',
+and `[]') match a `.' at the start of the base name (this is a change
+in findutils-4.2.2; see section STANDARDS CONFORMANCE below).  To ignore a
+directory and the files under it, use
+<B>-prune</B>
+
+rather than checking every file in the tree;
+see an example in the description of that action.
+Braces are not recognised as being
+special, despite the fact that some shells including Bash imbue braces
+with a special meaning in shell patterns.  The filename matching is
+performed with the use of the
+<B><A HREF="/cgi-bin/man/man2html?3+fnmatch">fnmatch</A></B>(3)
+
+library function.
+Don't forget to enclose the pattern in quotes in order to protect it
+from expansion by the shell.
+<P>
+<DT id="68">-newer <I>reference</I><DD>
+Time of the last data modification of the current file is more recent than that
+of the last data modification of the <I>reference</I> file.
+If <I>reference</I> is a symbolic link and the
+<B>-H</B>
+
+option or the
+<B>-L</B>
+
+option is in effect, then the time of the last data modification of the file
+it points to is always used.
+<P>
+<DT id="69">-newerXY <I>reference</I><DD>
+Succeeds if timestamp <I>X</I> of the file being considered is newer
+than timestamp <I>Y</I> of the file
+<I>reference</I>.
+
+The letters <I>X</I> and <I>Y</I> can be any of the following letters:
+<P>
+<TABLE>
+<TR VALIGN=top><TD>a</TD><TD>The access time of the file <I>reference</I><BR></TD></TR>
+<TR VALIGN=top><TD>B</TD><TD>The birth time of the file <I>reference</I><BR></TD></TR>
+<TR VALIGN=top><TD>c</TD><TD>The inode status change time of <I>reference</I><BR></TD></TR>
+<TR VALIGN=top><TD>m</TD><TD>The modification time of the file <I>reference</I><BR></TD></TR>
+<TR VALIGN=top><TD>t</TD><TD><I>reference</I> is interpreted directly as a time<BR></TD></TR>
+</TABLE>
+
+<P>
+Some combinations are invalid; for example, it is invalid for
+<I>X</I>
+
+to be
+<I>t</I>.
+
+Some combinations are not implemented on all systems; for example
+<I>B</I>
+
+is not supported on all systems.  If an invalid or unsupported
+combination of
+<I>XY</I>
+
+is specified, a fatal error results.  Time specifications are
+interpreted as for the argument to the
+<B>-d</B>
+
+option of GNU
+<B>date</B>.
+
+If you try to use the birth time of a reference file, and the birth
+time cannot be determined, a fatal error message results.  If you
+specify a test which refers to the birth time of files being examined,
+this test will fail for any files where the birth time is unknown.
+<P>
+<DT id="70">-nogroup<DD>
+No group corresponds to file's numeric group ID.
+<P>
+<DT id="71">-nouser<DD>
+No user corresponds to file's numeric user ID.
+<P>
+<DT id="72">-path <I>pattern</I><DD>
+File name matches shell pattern
+<I>pattern</I>.
+
+The metacharacters do not treat `/' or `.' specially;
+so, for example,
+<BR>
+
+
+find . -path &quot;./sr*sc&quot;
+<BR>
+
+
+will print an entry for a directory called `./src/misc' (if one
+exists).  To ignore a whole directory tree, use
+<B>-prune</B>
+
+rather than
+checking every file in the tree.
+Note that the pattern match test applies to the whole file name,
+starting from one of the start points named on the command line.  It
+would only make sense to use an absolute path name here if the
+relevant start point is also an absolute path.  This means that this
+command will never match anything:
+<BR>
+
+
+find bar -path /foo/bar/myfile -print
+<BR>
+
+
+Find compares the
+<B>-path</B>
+
+argument with the concatenation of a directory name and the base name
+of the file it's examining.  Since the concatenation will never end
+with a slash,
+<B>-path</B>
+
+arguments ending in a slash will match nothing (except perhaps a start
+point specified on the command line).
+The predicate
+<B>-path</B>
+
+is also supported by HP-UX
+<B>find</B>
+
+and is part of the POSIX 2008 standard.
+<P>
+<DT id="73">-perm <I>mode</I><DD>
+File's permission bits are exactly <I>mode</I> (octal or symbolic).
+Since an exact match is required, if you want to use this form for
+symbolic modes, you may have to specify a rather complex mode string.
+For example `-perm g=w' will only match files which have mode 0020
+(that is, ones for which group write permission is the only permission
+set).  It is more likely that you will want to use the `/' or `-'
+forms, for example `-perm -g=w', which matches any file with group
+write permission.  See the
+<B>EXAMPLES</B>
+
+section for some illustrative examples.
+<P>
+<DT id="74">-perm -<I>mode</I><DD>
+All of the permission bits <I>mode</I> are set for the file.
+Symbolic modes are accepted in this form, and this is usually the way
+in which you would want to use them.  You must specify `u', `g' or `o' if
+you use a symbolic mode.
+See the
+<B>EXAMPLES</B>
+
+section for some illustrative examples.
+<P>
+<DT id="75">-perm /<I>mode</I><DD>
+Any of the permission bits <I>mode</I> are set for the file.  Symbolic
+modes are accepted in this form.  You must specify `u', `g' or `o' if
+you use a symbolic mode.  See the
+<B>EXAMPLES</B>
+
+section for some illustrative examples.  If no permission bits in
+<I>mode</I>
+
+are set, this test matches any file (the idea here is to be consistent
+with the behaviour of
+<B>-perm</B>
+
+<B>-000</B>).
+
+<P>
+<DT id="76">-perm +<I>mode</I><DD>
+This is no longer supported (and has been deprecated since 2005).  Use
+<B>-perm /</B><I>mode</I>
+
+instead.
+<P>
+<DT id="77">-readable<DD>
+Matches files which are readable by the current user.  This takes into
+account access control lists and other permissions artefacts which the
+<B>-perm</B>
+
+test ignores.  This test makes use of the
+<B><A HREF="/cgi-bin/man/man2html?2+access">access</A></B>(2)
+
+system call, and so can be fooled by NFS servers which do UID
+mapping (or root-squashing), since many systems implement
+<B><A HREF="/cgi-bin/man/man2html?2+access">access</A></B>(2)
+
+in the client's kernel and so cannot make use of the UID mapping
+information held on the server.
+<P>
+<DT id="78">-regex <I>pattern</I><DD>
+File name matches regular expression
+<I>pattern</I>.
+
+This is a match on the whole path, not a search.
+For example, to match a file named `./fubar3',
+you can use the regular expression `.*bar.' or `.*b.*3',
+but not `f.*r3'.
+The regular expressions understood by
+<B>find</B>
+
+are by default Emacs Regular Expressions (except that `.' matches
+newline), but this can be changed with the
+<B>-regextype</B>
+
+option.
+<P>
+<DT id="79">-samefile <I>name</I><DD>
+File refers to the same inode as
+<I>name</I>.
+
+When
+<B>-L</B>
+
+is in effect, this can include symbolic links.
+<P>
+<DT id="80">-size <I>n</I>[cwbkMG]<DD>
+File uses <I>n</I> units of space, rounding up.  The following suffixes
+can be used:
+<DL COMPACT><DT id="81"><DD>
+<DL COMPACT>
+<DT id="82">`b'<DD>
+for 512-byte blocks (this is the default if no suffix is used)
+<DT id="83">`c'<DD>
+for bytes
+<DT id="84">`w'<DD>
+for two-byte words
+<DT id="85">`k'<DD>
+for kibibytes (KiB, units of 1024 bytes)
+<DT id="86">`M'<DD>
+for mebibytes (MiB, units of 1024 * 1024 = 1048576 bytes)
+<DT id="87">`G'<DD>
+for gibibytes (GiB, units of 1024 * 1024 * 1024 = 1073741824 bytes)
+</DL>
+</DL>
+
+<DT id="88"><DD>
+The size is simply the st_size member of the struct stat populated by
+the lstat (or stat) system call, rounded up as shown above.
+In other words, it's consistent with the result you get for
+<B>ls -l</B>.
+
+Bear in
+mind that the `%k' and `%b' format specifiers of
+<B>-printf</B>
+
+handle sparse files
+differently.  The `b' suffix always denotes 512-byte blocks and never
+1024-byte blocks, which is different to the behaviour of
+<B>-ls</B>.
+
+<DT id="89"><DD>
+The + and - prefixes signify greater than and less than, as usual;
+i.e., an exact size of <I>n</I> units does not match.
+Bear in mind that the size is rounded up to the next unit.
+Therefore
+<B>-size -1M</B>
+
+is not equivalent to
+<B>-size -1048576c.</B>
+
+The former only matches empty files, the latter matches files from 0 to
+1,048,575 bytes.
+<DT id="90">-true<DD>
+Always true.
+<P>
+<DT id="91">-type <I>c</I><DD>
+File is of type
+<I>c</I>:
+
+<DL COMPACT><DT id="92"><DD>
+<DL COMPACT>
+<DT id="93">b<DD>
+block (buffered) special
+<DT id="94">c<DD>
+character (unbuffered) special
+<DT id="95">d<DD>
+directory
+<DT id="96">p<DD>
+named pipe (FIFO)
+<DT id="97">f<DD>
+regular file
+<DT id="98">l<DD>
+symbolic link; this is never true if the
+<B>-L</B>
+
+option or the
+<B>-follow</B>
+
+option is in effect, unless the symbolic link is broken.  If you want
+to search for symbolic links when
+<B>-L</B>
+
+is in effect, use
+<B>-xtype</B>.
+
+<DT id="99">s<DD>
+socket
+<DT id="100">D<DD>
+door (Solaris)
+</DL>
+</DL>
+
+<DT id="101"><DD>
+To search for more than one type at once, you can supply the combined list of
+type letters separated by a comma `,' (GNU extension).
+<DT id="102">-uid <I>n</I><DD>
+File's numeric user ID is
+<I>n</I>.
+
+<P>
+<DT id="103">-used <I>n</I><DD>
+File was last accessed <I>n</I> days after its status was last changed.
+<P>
+<DT id="104">-user <I>uname</I><DD>
+File is owned by user <I>uname</I> (numeric user ID allowed).
+<P>
+<DT id="105">-wholename <I>pattern</I><DD>
+See -path.  This alternative is less portable than
+<B>-path</B>.
+
+<P>
+<DT id="106">-writable<DD>
+Matches files which are writable by the current user.  This takes into
+account access control lists and other permissions artefacts which the
+<B>-perm</B>
+
+test ignores.  This test makes use of the
+<B><A HREF="/cgi-bin/man/man2html?2+access">access</A></B>(2)
+
+system call, and so can be fooled by NFS servers which do UID
+mapping (or root-squashing), since many systems implement
+<B><A HREF="/cgi-bin/man/man2html?2+access">access</A></B>(2)
+
+in the client's kernel and so cannot make use of the UID mapping
+information held on the server.
+<P>
+<DT id="107">-xtype <I>c</I><DD>
+The same as
+<B>-type</B>
+
+unless the file is a symbolic link.  For symbolic
+links: if the
+<B>-H</B>
+
+or
+<B>-P</B>
+
+option was specified, true if the file is a
+link to a file of type
+<I>c</I>;
+
+if the
+<B>-L</B>
+
+option has been given, true
+if <I>c</I> is `l'.  In other words, for symbolic links,
+<B>-xtype</B>
+
+checks the type of the file that
+<B>-type</B>
+
+does not check.
+<DT id="108">-context <I>pattern</I><DD>
+(SELinux only) Security context of the file matches glob
+<I>pattern</I>.
+
+<P>
+</DL>
+<A NAME="lbAJ">&nbsp;</A>
+<H3>ACTIONS</H3>
+
+<DL COMPACT>
+<DT id="109">-delete<DD>
+Delete files; true if removal succeeded.  If the removal failed, an
+error message is issued.
+If
+<B>-delete</B>
+
+fails,
+<B>find</B>'s
+
+exit status will be nonzero
+(when it eventually exits).
+Use of
+<B>-delete</B>
+
+automatically turns on the
+`<B>-depth</B>'
+
+option.
+<P>
+<B>Warnings</B>:
+
+Don't forget that the find command line is
+evaluated as an expression, so putting
+<B>-delete</B>
+
+first will make
+<B>find</B>
+
+try to delete everything below the starting points you specified.
+When testing a
+<B>find</B>
+
+command line that you later intend to use with
+<B>-delete</B>,
+
+you should explicitly specify
+<B>-depth</B>
+
+in order to avoid later surprises.  Because
+<B>-delete</B>
+
+implies
+<B>-depth</B>,
+
+you cannot usefully use
+<B>-prune</B>
+
+and
+<B>-delete</B>
+
+together.
+<P>
+Together with the
+<B>-ignore_readdir_race</B>
+
+option,
+<B>find</B>
+
+will ignore errors of the
+<B>-delete</B>
+
+action in the case the file has disappeared since the parent directory was
+read: it will not output an error diagnostic, and the return code of the
+<B>-delete</B>
+
+action will be true.
+<P>
+<DT id="110">-exec <I>command</I> ;<DD>
+Execute
+<I>command</I>;
+
+true if 0 status is returned.  All following
+arguments to
+<B>find</B>
+
+are taken to be arguments to the command until an argument consisting
+of `;' is encountered.  The string `{}' is replaced by the current
+file name being processed everywhere it occurs in the arguments to the
+command, not just in arguments where it is alone, as in some versions
+of
+<B>find</B>.
+
+Both of these constructions might need to be escaped (with a `\') or
+quoted to protect them from expansion by the shell.  See the
+<B>EXAMPLES</B>
+
+section for examples of the use of the
+<B>-exec</B>
+
+option.  The specified
+command is run once for each matched file.
+The command is executed in the starting directory.
+There are unavoidable security problems surrounding use of the
+<B>-exec</B>
+
+action;
+you should use the
+<B>-execdir</B>
+
+option instead.
+<P>
+<DT id="111">-exec <I>command</I> {} +<DD>
+This variant of the
+<B>-exec</B>
+
+action runs the specified command on the
+selected files, but the command line is built by appending each
+selected file name at the end; the total number of invocations of the
+command will be much less than the number of matched files.  The
+command line is built in much the same way that
+<B>xargs</B>
+
+builds its command lines.  Only one instance of `{}' is allowed within
+the command, and (when
+<B>find</B>
+
+is being invoked from a shell) it should be quoted (for
+example, '{}') to protect it from interpretation by shells.  The
+command is executed in the starting directory.  If any invocation
+with the `+' form returns a non-zero value as exit status, then
+<B>find</B>
+
+returns a non-zero exit status.  If
+<B>find</B>
+
+encounters an error, this can sometimes cause an
+immediate exit, so some pending commands may not be run
+at all.  This variant of
+<B>-exec</B>
+
+always returns true.
+<P>
+<DT id="112">-execdir <I>command</I> ;<DD>
+<DT id="113">-execdir <I>command</I> {} +<DD>
+Like
+<B>-exec</B>,
+
+but the specified command is run from the subdirectory
+containing the matched file, which is not normally the directory in
+which you started
+<B>find</B>.
+
+As with -exec, the {} should be quoted if find is being invoked from
+a shell.
+This a much more secure method for invoking commands, as it avoids
+race conditions during resolution of the paths to the matched files.
+As with the
+<B>-exec</B>
+
+action, the `+' form of
+<B>-execdir</B>
+
+will build a
+command line to process more than one matched file, but any given
+invocation of
+<I>command</I>
+
+will only list files that exist in the same subdirectory.  If you use
+this option, you must ensure that your
+<B>$PATH</B>
+
+environment variable does not reference `.';
+otherwise, an attacker can run any commands they like by leaving an
+appropriately-named file in a directory in which you will run
+<B>-execdir</B>.
+
+The same applies to having entries in
+<B>$PATH</B>
+
+which are empty or which are not absolute directory names.  If
+any invocation with the `+' form returns a non-zero value as exit status,
+then
+<B>find</B>
+
+returns a non-zero exit status.  If
+<B>find</B>
+
+encounters an error, this can sometimes cause an
+immediate exit, so some pending commands may not be run
+at all.
+The result of the action depends on whether the
+<B>+</B>
+
+or the
+<B>;</B>
+
+variant is being used;
+<B>-execdir</B>
+
+<I>command</I>
+
+<B>{} +</B>
+
+always returns true, while
+<B>-execdir</B>
+
+<I>command</I>
+
+<B>{} ;</B>
+
+returns true only if
+<I>command</I>
+
+returns 0.
+<P>
+<P>
+<DT id="114">-fls <I>file</I><DD>
+True; like
+<B>-ls</B>
+
+but write to <I>file</I> like
+<B>-fprint</B>.
+
+The output file is always created, even if the predicate is never
+matched.
+See the
+<B>UNUSUAL FILENAMES</B>
+
+section for information about how unusual characters in filenames are handled.
+<P>
+<DT id="115">-fprint <I>file</I><DD>
+True; print the full file name into file
+<I>file</I>.
+
+If <I>file</I>
+does not exist when <B>find</B> is run, it is created; if it does
+exist, it is truncated.  The file names `/dev/stdout' and
+`/dev/stderr' are handled specially; they refer to the standard
+output and standard error output, respectively.
+The output file is always created, even if the predicate is never matched.
+See the
+<B>UNUSUAL FILENAMES</B>
+
+section for information about how unusual characters in filenames are handled.
+<P>
+<DT id="116">-fprint0 <I>file</I><DD>
+True; like
+<B>-print0</B>
+
+but write to <I>file</I> like
+<B>-fprint</B>.
+
+The output file is always created, even if the predicate is never matched.
+See the
+<B>UNUSUAL FILENAMES</B>
+
+section for information about how unusual characters in filenames are handled.
+<P>
+<DT id="117">-fprintf <I>file</I> <I>format</I><DD>
+True; like
+<B>-printf</B>
+
+but write to <I>file</I> like
+<B>-fprint</B>.
+
+The output file is always created, even if the predicate is never matched.
+See the
+<B>UNUSUAL FILENAMES</B>
+
+section for information about how unusual characters in filenames are handled.
+<P>
+<DT id="118">-ls<DD>
+True; list current file in
+<B>ls -dils</B>
+
+format on standard output.
+The block counts are of 1&nbsp;KB blocks, unless the environment variable
+POSIXLY_CORRECT is set, in which case 512-byte blocks are used.
+See the
+<B>UNUSUAL FILENAMES</B>
+
+section for information about how unusual characters in filenames are handled.
+<P>
+<DT id="119">-ok <I>command</I> ;<DD>
+Like
+<B>-exec</B>
+
+but ask the user first.  If the user agrees, run the command.  Otherwise
+just return false.  If the command is run, its standard input is redirected
+from
+<B>/dev/null</B>.
+
+<P>
+<DT id="120"><DD>
+The response to the prompt is matched against a pair of regular
+expressions to determine if it is an affirmative or negative
+response.  This regular expression is obtained from the system if the
+`POSIXLY_CORRECT' environment variable is set, or otherwise from
+<B>find</B>'s
+
+message translations.  If the system has no suitable
+definition,
+<B>find</B>'s
+
+own definition will be used.
+In either case, the interpretation of the regular expression itself
+will be affected by the environment variables 'LC_CTYPE'
+(character classes) and 'LC_COLLATE' (character ranges and equivalence
+classes).
+<P>
+<P>
+<P>
+<DT id="121">-okdir <I>command</I> ;<DD>
+Like
+<B>-execdir</B>
+
+but ask the user first in the same way as for
+<B>-ok</B>.
+
+If the user does not agree, just return false.
+If the command is run, its standard input is redirected from
+<B>/dev/null</B>.
+
+<P>
+<DT id="122">-print<DD>
+True; print the full file name on the standard output, followed by a
+newline.
+If you are piping the output of
+<B>find</B>
+
+into another program and there is the faintest possibility that the files
+which you are searching for might contain a newline, then you should
+seriously consider using the
+<B>-print0</B>
+
+option instead of
+<B>-print</B>.
+
+See the
+<B>UNUSUAL FILENAMES</B>
+
+section for information about how unusual characters in filenames are handled.
+<P>
+<DT id="123">-print0<DD>
+True; print the full file name on the standard output, followed by a
+null character (instead of the newline character that
+<B>-print</B>
+
+uses).
+This allows file names that contain newlines or other types of white
+space to be correctly interpreted by programs that process the
+<B>find</B> output.  This option corresponds to the
+<B>-0</B>
+
+option of
+<B>xargs</B>.
+
+<P>
+<DT id="124">-printf <I>format</I><DD>
+True; print <I>format</I> on the standard output, interpreting `\'
+escapes and `%' directives.  Field widths and precisions can be
+specified as with the `printf' C function.  Please note that many of
+the fields are printed as %s rather than %d, and this may mean that
+flags don't work as you might expect.  This also means that the `-'
+flag does work (it forces fields to be left-aligned).  Unlike
+<B>-print</B>,
+
+<B>-printf</B>
+
+does not add a newline at the end of the string.  The escapes
+and directives are:
+<DL COMPACT><DT id="125"><DD>
+<DL COMPACT>
+<DT id="126">\a<DD>
+Alarm bell.
+<DT id="127">\b<DD>
+Backspace.
+<DT id="128">\c<DD>
+Stop printing from this format immediately and flush the output.
+<DT id="129">\f<DD>
+Form feed.
+<DT id="130">\n<DD>
+Newline.
+<DT id="131">\r<DD>
+Carriage return.
+<DT id="132">\t<DD>
+Horizontal tab.
+<DT id="133">\v<DD>
+Vertical tab.
+<DT id="134">\0<DD>
+ASCII NUL.
+<DT id="135">\\<DD>
+A literal backslash (`\').
+<DT id="136">\NNN<DD>
+The character whose ASCII code is NNN (octal).
+</DL>
+<P>
+
+A `\' character followed by any other character is treated as an
+ordinary character, so they both are printed.
+<DL COMPACT>
+<DT id="137">%%<DD>
+A literal percent sign.
+<DT id="138">%a<DD>
+File's last access time in the format returned by the C `ctime' function.
+<DT id="139">%A<I>k</I><DD>
+File's last access time in the format specified by
+<I>k</I>,
+
+which is either `@' or a directive for the C `strftime' function.
+The possible values for <I>k</I> are listed below;
+some of them might not be available on all systems,
+due to differences in `strftime' between systems.
+<DL COMPACT><DT id="140"><DD>
+<DL COMPACT>
+<DT id="141">@<DD>
+seconds since Jan. 1, 1970, 00:00 GMT, with fractional part.
+</DL>
+<P>
+
+Time fields:
+<DL COMPACT>
+<DT id="142">H<DD>
+hour (00..23)
+<DT id="143">I<DD>
+hour (01..12)
+<DT id="144">k<DD>
+hour ( 0..23)
+<DT id="145">l<DD>
+hour ( 1..12)
+<DT id="146">M<DD>
+minute (00..59)
+<DT id="147">p<DD>
+locale's AM or PM
+<DT id="148">r<DD>
+time, 12-hour (hh:mm:ss [AP]M)
+<DT id="149">S<DD>
+Second (00.00 .. 61.00).  There is a fractional part.
+<DT id="150">T<DD>
+time, 24-hour (hh:mm:ss.xxxxxxxxxx)
+<DT id="151">+<DD>
+Date and time, separated by `+', for example
+`2004-04-28+22:22:05.0'.  This is a GNU extension.  The time is
+given in the current timezone (which may be affected by setting the TZ
+environment variable).  The seconds field includes a fractional part.
+<DT id="152">X<DD>
+locale's time representation (H:M:S).  The seconds field includes a
+fractional part.
+<DT id="153">Z<DD>
+time zone (e.g., EDT), or nothing if no time zone is determinable
+</DL>
+<P>
+
+Date fields:
+<DL COMPACT>
+<DT id="154">a<DD>
+locale's abbreviated weekday name (Sun..Sat)
+<DT id="155">A<DD>
+locale's full weekday name, variable length (Sunday..Saturday)
+<DT id="156">b<DD>
+locale's abbreviated month name (Jan..Dec)
+<DT id="157">B<DD>
+locale's full month name, variable length (January..December)
+<DT id="158">c<DD>
+locale's date and time (Sat Nov 04 12:02:33 EST 1989).  The format is
+the same as for
+<B><A HREF="/cgi-bin/man/man2html?3+ctime">ctime</A></B>(3)
+
+and so to preserve compatibility with that format, there is no fractional part
+in the seconds field.
+<DT id="159">d<DD>
+day of month (01..31)
+<DT id="160">D<DD>
+date (mm/dd/yy)
+<DT id="161">h<DD>
+same as b
+<DT id="162">j<DD>
+day of year (001..366)
+<DT id="163">m<DD>
+month (01..12)
+<DT id="164">U<DD>
+week number of year with Sunday as first day of week (00..53)
+<DT id="165">w<DD>
+day of week (0..6)
+<DT id="166">W<DD>
+week number of year with Monday as first day of week (00..53)
+<DT id="167">x<DD>
+locale's date representation (mm/dd/yy)
+<DT id="168">y<DD>
+last two digits of year (00..99)
+<DT id="169">Y<DD>
+year (1970...)
+</DL>
+</DL>
+
+<DT id="170">%b<DD>
+The amount of disk space used for this file in 512-byte blocks.  Since disk
+space is allocated in multiples of the filesystem block size this is usually
+greater than %s/512, but it can also be smaller if the file is a sparse file.
+<DT id="171">%c<DD>
+File's last status change time in the format returned by the C `ctime'
+function.
+<DT id="172">%C<I>k</I><DD>
+File's last status change time in the format specified by
+<I>k</I>,
+
+which is the same as for %A.
+<DT id="173">%d<DD>
+File's depth in the directory tree; 0 means the file is a starting-point.
+<DT id="174">%D<DD>
+The device number on which the file exists (the st_dev field of struct
+stat), in decimal.
+<DT id="175">%f<DD>
+File's name with any leading directories removed (only the last element).
+<DT id="176">%F<DD>
+Type of the filesystem the file is on; this value can be used for
+-fstype.
+<DT id="177">%g<DD>
+File's group name, or numeric group ID if the group has no name.
+<DT id="178">%G<DD>
+File's numeric group ID.
+<DT id="179">%h<DD>
+Leading directories of file's name (all but the last element).
+If the file name contains no slashes (since it is in the current
+directory) the %h specifier expands to `.'.
+<DT id="180">%H<DD>
+Starting-point under which file was found.
+<DT id="181">%i<DD>
+File's inode number (in decimal).
+<DT id="182">%k<DD>
+The amount of disk space used for this file in 1&nbsp;KB blocks.
+Since disk space is allocated in multiples of the filesystem block
+size this is usually greater than %s/1024,
+but it can also be smaller if the file is a sparse file.
+<DT id="183">%l<DD>
+Object of symbolic link (empty string if file is not a symbolic link).
+<DT id="184">%m<DD>
+File's permission bits (in octal).  This option uses the `traditional'
+numbers which most Unix implementations use, but if your particular
+implementation uses an unusual ordering of octal permissions bits, you
+will see a difference between the actual value of the file's mode and
+the output of %m.
+Normally you will want to have a leading zero on this number,
+and to do this, you should use the
+<B>#</B>
+
+flag (as in, for example, `%#m').
+<DT id="185">%M<DD>
+File's permissions (in symbolic form, as for
+<B>ls</B>).
+
+This directive is supported in findutils 4.2.5 and later.
+<DT id="186">%n<DD>
+Number of hard links to file.
+<DT id="187">%p<DD>
+File's name.
+<DT id="188">%P<DD>
+File's name with the name of the starting-point under which
+it was found removed.
+<DT id="189">%s<DD>
+File's size in bytes.
+<DT id="190">%S<DD>
+File's sparseness.  This is calculated as (BLOCKSIZE*st_blocks /
+st_size).  The exact value you will get for an ordinary file of a
+certain length is system-dependent.  However, normally sparse files
+will have values less than 1.0, and files which use indirect blocks
+may have a value which is greater than 1.0.  In general the number of
+blocks used by a file is file system dependent.
+The value used for BLOCKSIZE is system-dependent, but is usually 512
+bytes.
+If the file size is zero, the value printed is undefined.
+On systems which lack support for st_blocks,
+a file's sparseness is assumed to be 1.0.
+<DT id="191">%t<DD>
+File's last modification time in the format returned by the C `ctime'
+function.
+<DT id="192">%T<I>k</I><DD>
+File's last modification time in the format specified by
+<I>k</I>,
+
+which is the same as for %A.
+<DT id="193">%u<DD>
+File's user name, or numeric user ID if the user has no name.
+<DT id="194">%U<DD>
+File's numeric user ID.
+<DT id="195">%y<DD>
+File's type (like in
+<B>ls -l</B>),
+
+U=unknown type (shouldn't happen)
+<DT id="196">%Y<DD>
+File's type (like %y), plus follow symlinks: `L'=loop, `N'=nonexistent, `?' for
+any other error when determining the type of the symlink target.
+<DT id="197">%Z<DD>
+(SELinux only) file's security context.
+<DT id="198">%{ %[ %(<DD>
+Reserved for future use.
+</DL>
+<P>
+
+A `%' character followed by any other character is discarded, but the
+other character is printed (don't rely on this, as further format
+characters may be introduced).  A `%' at the end of the format
+argument causes undefined behaviour since there is no following
+character.  In some locales, it may hide your door keys, while in
+others it may remove the final page from the novel you are reading.
+<P>
+The %m and %d directives support the
+<B>#</B>
+
+,
+<B>0</B>
+
+and
+<B>+</B>
+
+flags, but the other directives do not, even if they
+print numbers.  Numeric directives that do not support these flags
+include
+<B>G</B>,
+
+<B>U</B>,
+
+<B>b</B>,
+
+<B>D</B>,
+
+<B>k</B>
+
+and
+<B>n</B>.
+
+The `-' format flag is supported and changes the alignment of a field
+from right-justified (which is the default) to left-justified.
+<P>
+
+See the
+<B>UNUSUAL FILENAMES</B>
+
+section for information about how unusual characters in filenames are handled.
+<P>
+<P>
+</DL>
+
+<DT id="199">-prune<DD>
+True; if the file is a directory, do not descend into it.  If
+<B>-depth</B>
+
+is given, then
+<B>-prune</B>
+
+has no effect.  Because
+<B>-delete</B>
+
+implies
+<B>-depth</B>,
+
+you cannot usefully use
+<B>-prune</B>
+
+and
+<B>-delete</B>
+
+together.
+<BR>&nbsp;&nbsp;For&nbsp;example,&nbsp;to&nbsp;skip&nbsp;the
+directory `src/emacs' and all files and directories under it, and
+print the names of the other files found, do something like this:
+<BR>
+
+
+find . -path ./src/emacs -prune -o -print
+<BR>
+
+
+<P>
+<P>
+<DT id="200">-quit<DD>
+Exit immediately.  No child processes will be left running, but no more
+paths specified on the command line will be processed.  For example,
+<B>find /tmp/foo /tmp/bar -print -quit</B>
+
+will print only
+<B>/tmp/foo</B>.
+
+Any command lines which have been built up with
+<B>-execdir ... {} +</B>
+
+will be invoked before
+<B>find</B>
+
+exits.
+The exit status may or may not be zero,
+depending on whether an error has already occurred.
+<P>
+</DL>
+<A NAME="lbAK">&nbsp;</A>
+<H3>OPERATORS</H3>
+
+<P>
+
+Listed in order of decreasing precedence:
+<P>
+<DL COMPACT>
+<DT id="201">( <I>expr</I> )<DD>
+Force precedence.  Since parentheses are special to the shell, you
+will normally need to quote them.  Many of the examples in this manual
+page use backslashes for this purpose: `\(...\)' instead of `(...)'.
+<P>
+<DT id="202">! <I>expr</I><DD>
+True if <I>expr</I> is false.  This character will also usually need
+protection from interpretation by the shell.
+<P>
+<DT id="203">-not <I>expr</I><DD>
+Same as !
+<I>expr</I>,
+
+but not POSIX compliant.
+<P>
+<DT id="204"><I>expr1 expr2</I><DD>
+Two expressions in a row are taken to be joined with an
+implied
+<B>-a</B>;
+
+<I>expr2</I> is not evaluated if <I>expr1</I> is false.
+<P>
+<DT id="205"><I>expr1</I> -a <I>expr2</I><DD>
+Same as
+<I>expr1 expr2</I>.
+
+<P>
+<DT id="206"><I>expr1</I> -and <I>expr2</I><DD>
+Same as
+<I>expr1 expr2</I>,
+
+but not POSIX compliant.
+<P>
+<DT id="207"><I>expr1</I> -o <I>expr2</I><DD>
+Or; <I>expr2</I> is not evaluated if <I>expr1</I> is true.
+<P>
+<DT id="208"><I>expr1</I> -or <I>expr2</I><DD>
+Same as <I>expr1</I>
+<B>-o</B>
+
+<I>expr2</I>,
+
+but not POSIX compliant.
+<P>
+<DT id="209"><I>expr1</I> , <I>expr2</I><DD>
+List; both <I>expr1</I> and <I>expr2</I> are always evaluated.  The
+value of <I>expr1</I> is discarded; the value of the list is the value
+of
+<I>expr2</I>.
+
+The comma operator can be useful for searching for
+several different types of thing, but traversing the filesystem
+hierarchy only once.  The
+<B>-fprintf</B>
+
+action can be used to list the various matched items into several
+different output files.
+</DL>
+<P>
+
+Please note that
+<B>-a</B>
+
+when specified implicitly (for example by two tests appearing without
+an explicit operator between them) or explicitly has higher precedence
+than
+<B>-o</B>.
+
+This means that
+<B>find . -name afile -o -name bfile -print</B>
+
+will never print
+<I>afile</I>.
+
+<P>
+<P>
+<A NAME="lbAL">&nbsp;</A>
+<H2>UNUSUAL FILENAMES</H2>
+
+Many of the actions of
+<B>find</B>
+
+result in the printing of data which is under the control of other
+users.  This includes file names, sizes, modification times and so
+forth.  File names are a potential problem since they can contain any
+character except `\0' and `/'.  Unusual characters in file names can
+do unexpected and often undesirable things to your terminal (for
+example, changing the settings of your function keys on some
+terminals).  Unusual characters are handled differently by various
+actions, as described below.
+<P>
+<DL COMPACT>
+<DT id="210">-print0, -fprint0<DD>
+Always print the exact filename, unchanged, even if the output is
+going to a terminal.
+<P>
+<DT id="211">-ls, -fls<DD>
+Unusual characters are always escaped.  White space, backslash, and
+double quote characters are printed using C-style escaping (for
+example `\f', `\&quot;').  Other unusual characters are printed using an
+octal escape.  Other printable characters (for
+<B>-ls</B>
+
+and
+<B>-fls</B>
+
+these are the characters between octal 041 and 0176) are printed as-is.
+<P>
+<DT id="212">-printf, -fprintf<DD>
+If the output is not going to a terminal, it is printed as-is.
+Otherwise, the result depends on which directive is in use.  The
+directives %D, %F, %g, %G, %H, %Y, and %y expand to values which are
+not under control of files' owners, and so are printed as-is.  The
+directives %a, %b, %c, %d, %i, %k, %m, %M, %n, %s, %t, %u and %U have
+values which are under the control of files' owners but which cannot
+be used to send arbitrary data to the terminal, and so these are
+printed as-is.  The directives %f, %h, %l, %p and %P are quoted.  This
+quoting is performed in the same way as for GNU
+<B>ls</B>.
+
+This is not the same quoting mechanism as the one used for
+<B>-ls</B>
+
+and
+<B>-fls</B>.
+
+If you are able to decide what format to use for the output of
+<B>find</B>
+
+then it is normally better to use `\0' as a terminator
+than to use newline, as file names can contain white space and newline
+characters.  The setting of the `LC_CTYPE' environment
+variable is used to determine which characters need to be quoted.
+<P>
+<DT id="213">-print, -fprint<DD>
+Quoting is handled in the same way as for
+<B>-printf</B>
+
+and
+<B>-fprintf</B>.
+
+If you are using
+<B>find</B>
+
+in a script or in a situation where the matched files might have
+arbitrary names, you should consider using
+<B>-print0</B>
+
+instead of
+<B>-print</B>.
+
+</DL>
+<P>
+
+The
+<B>-ok</B>
+
+and
+<B>-okdir</B>
+
+actions print the current filename as-is.  This may change in a future release.
+<P>
+<A NAME="lbAM">&nbsp;</A>
+<H2>STANDARDS CONFORMANCE</H2>
+
+For closest compliance to the POSIX standard, you should set the
+POSIXLY_CORRECT environment variable.  The following options are
+specified in the POSIX standard (IEEE Std 1003.1-2008, 2016 Edition):
+<P>
+<DL COMPACT>
+<DT id="214"><B>-H</B><DD>
+This option is supported.
+<P>
+<DT id="215"><B>-L</B><DD>
+This option is supported.
+<P>
+<DT id="216"><B>-name</B><DD>
+This option is supported, but POSIX conformance depends on the
+POSIX conformance of the system's
+<B><A HREF="/cgi-bin/man/man2html?3+fnmatch">fnmatch</A></B>(3)
+
+library function.  As of findutils-4.2.2, shell metacharacters
+(`*', `?' or `[]' for example) will match a leading `.', because
+IEEE PASC interpretation 126 requires this.
+This is a change from previous versions of findutils.
+<P>
+<DT id="217"><B>-type</B><DD>
+Supported.
+POSIX specifies `b', `c', `d', `l', `p', `f' and `s'.
+GNU find also supports `D', representing a Door, where the OS provides these.
+Furthermore, GNU find allows multiple types to be specified at once in a
+comma-separated list.
+<P>
+<DT id="218"><B>-ok</B><DD>
+Supported.
+Interpretation of the response is according to the `yes' and `no'
+patterns selected by setting the `LC_MESSAGES' environment variable.
+When the `POSIXLY_CORRECT' environment variable is set, these patterns
+are taken system's definition of a positive (yes) or negative (no)
+response.  See the system's
+documentation for <B><A HREF="/cgi-bin/man/man2html?3+nl_langinfo">nl_langinfo</A></B>(3), in particular YESEXPR and
+NOEXPR.
+When `POSIXLY_CORRECT' is not set, the patterns are instead taken from
+<B>find</B>'s
+
+own message catalogue.
+<P>
+<DT id="219"><B>-newer</B><DD>
+Supported.  If the file specified is a symbolic link, it is always
+dereferenced.  This is a change from previous behaviour, which used to
+take the relevant time from the symbolic link; see the HISTORY section
+below.
+<P>
+<DT id="220"><B>-perm</B><DD>
+Supported.  If the POSIXLY_CORRECT environment variable is not set,
+some mode arguments (for example +a+x) which are not valid in POSIX
+are supported for backward-compatibility.
+<P>
+<DT id="221">Other primaries<DD>
+The primaries
+<B>-atime</B>,
+
+<B>-ctime</B>,
+
+<B>-depth</B>,
+
+<B>-exec</B>,
+
+<B>-group</B>,
+
+<B>-links</B>,
+
+<B>-mtime</B>,
+
+<B>-nogroup</B>,
+
+<B>-nouser</B>,
+
+<B>-ok</B>,
+
+<B>-path</B>,
+
+<B>-print</B>,
+
+<B>-prune</B>,
+
+<B>-size</B>,
+
+<B>-user</B>
+
+and
+<B>-xdev</B>
+
+are all supported.
+<P>
+</DL>
+<P>
+
+The POSIX standard specifies parentheses `(', `)', negation `!' and the
+`and' and `or' operators (
+<B>-a</B>,
+
+<B>-o</B>).
+
+<P>
+
+All other options, predicates, expressions and so forth are extensions
+beyond the POSIX standard.  Many of these extensions are not unique to
+GNU find, however.
+<P>
+
+The POSIX standard requires that
+<B>find</B>
+
+detects loops:
+<DL COMPACT>
+<DT id="222"><DD>
+The
+<B>find</B>
+
+utility shall detect infinite loops; that is, entering a
+previously visited directory that is an ancestor of the last file
+encountered.  When it detects an infinite loop, find shall write a
+diagnostic message to standard error and shall either recover its
+position in the hierarchy or terminate.
+</DL>
+<P>
+
+GNU
+<B>find</B>
+
+complies with these requirements.  The link count of
+directories which contain entries which are hard links to an ancestor
+will often be lower than they otherwise should be.  This can mean that
+GNU find will sometimes optimise away the visiting of a subdirectory
+which is actually a link to an ancestor.  Since
+<B>find</B>
+
+does not actually enter such a subdirectory, it is allowed to avoid
+emitting a diagnostic message.  Although this behaviour may be
+somewhat confusing, it is unlikely that anybody actually depends on
+this behaviour.  If the leaf optimisation has been turned off with
+<B>-noleaf</B>,
+
+the directory entry will always be examined and the diagnostic message
+will be issued where it is appropriate.  Symbolic links cannot be used
+to create filesystem cycles as such, but if the
+<B>-L</B>
+
+option or the
+<B>-follow</B>
+
+option is in use, a diagnostic message is issued when
+<B>find</B>
+
+encounters a loop of symbolic links.  As with loops containing hard
+links, the leaf optimisation will often mean that
+<B>find</B>
+
+knows that it doesn't need to call
+<I>stat()</I>
+
+or
+<I>chdir()</I>
+
+on the symbolic link, so this diagnostic is frequently not necessary.
+<P>
+
+The
+<B>-d</B>
+
+option is supported for compatibility with various BSD systems,
+but you should use the POSIX-compliant option
+<B>-depth</B>
+
+instead.
+<P>
+
+The POSIXLY_CORRECT environment variable does not affect the behaviour
+of the
+<B>-regex</B>
+
+or
+<B>-iregex</B>
+
+tests because those tests aren't specified in the POSIX standard.
+<A NAME="lbAN">&nbsp;</A>
+<H2>ENVIRONMENT VARIABLES</H2>
+
+<P>
+<DL COMPACT>
+<DT id="223">LANG<DD>
+Provides a default value for the internationalization variables that
+are unset or null.
+<P>
+<DT id="224">LC_ALL<DD>
+If set to a non-empty string value, override the values of all the
+other internationalization variables.
+<P>
+<DT id="225">LC_COLLATE<DD>
+The POSIX standard specifies that this variable affects the pattern
+matching to be used for the
+<B>-name</B>
+
+option.
+GNU find uses the
+<B><A HREF="/cgi-bin/man/man2html?3+fnmatch">fnmatch</A></B>(3)
+
+library function, and so support for `LC_COLLATE' depends on the
+system library.
+This variable also affects the interpretation of the response to
+<B>-ok</B>;
+
+while the `LC_MESSAGES' variable selects the actual pattern used to
+interpret the response to
+<B>-ok</B>,
+
+the interpretation of any bracket expressions in the pattern will be
+affected by `LC_COLLATE'.
+<P>
+<DT id="226">LC_CTYPE<DD>
+This variable affects the treatment of character classes used in
+regular expressions and also with
+the
+<B>-name</B>
+
+test, if the system's
+<B><A HREF="/cgi-bin/man/man2html?3+fnmatch">fnmatch</A></B>(3)
+
+library function supports this.  This variable also affects the
+interpretation of any character classes in the regular expressions
+used to interpret the response to the prompt issued by
+<B>-ok</B>.
+
+The `LC_CTYPE' environment variable will
+also affect which characters are considered to be unprintable when
+filenames are printed; see the section UNUSUAL FILENAMES.
+<P>
+<DT id="227">LC_MESSAGES<DD>
+Determines the locale to be used for internationalised messages.  If
+the `POSIXLY_CORRECT' environment variable is set, this also
+determines the interpretation of the response to the prompt made by the
+<B>-ok</B>
+
+action.
+<P>
+<DT id="228">NLSPATH<DD>
+Determines the location of the internationalisation message catalogues.
+<P>
+<DT id="229">PATH<DD>
+Affects the directories which are searched to find the executables
+invoked by
+<B>-exec</B>,
+
+<B>-execdir</B>,
+
+<B>-ok</B>
+
+and
+<B>-okdir</B>.
+
+<P>
+<DT id="230">POSIXLY_CORRECT<DD>
+Determines the block size used by
+<B>-ls</B>
+
+and
+<B>-fls</B>.
+
+If
+<B>POSIXLY_CORRECT</B>
+
+is set, blocks are units of 512 bytes.  Otherwise they are units of 1024 bytes.
+<DT id="231"><DD>
+Setting this variable also turns off
+warning messages (that is, implies
+<B>-nowarn</B>)
+
+by default, because POSIX requires that apart from
+the output for
+<B>-ok</B>,
+
+all messages printed on stderr are diagnostics and must result in a
+non-zero exit status.
+<DT id="232"><DD>
+When POSIXLY_CORRECT is not set,
+<B>-perm</B>
+
++zzz
+is treated just like
+<B>-perm</B>
+
+/zzz
+if
++zzz is not a valid symbolic mode.  When POSIXLY_CORRECT is set, such
+constructs are treated as an error.
+<DT id="233"><DD>
+When POSIXLY_CORRECT is set, the response to the prompt made by the
+<B>-ok</B>
+
+action is interpreted according to the system's message catalogue, as
+opposed to according to
+<B>find</B>'s
+
+own message translations.
+<P>
+<DT id="234">TZ<DD>
+Affects the time zone used for some of the time-related format
+directives of
+<B>-printf</B>
+
+and
+<B>-fprintf</B>.
+
+</DL>
+<A NAME="lbAO">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+<PRE>
+<B>find /tmp -name core -type f -print | xargs /bin/rm -f</B>
+
+</PRE>
+
+Find files named
+<B>core</B>
+
+in or below the directory
+<B>/tmp</B>
+
+and delete them.  Note that this will work incorrectly if there are
+any filenames containing newlines, single or double quotes, or spaces.
+<P>
+
+<B>find /tmp -name core -type f -print0 | xargs -0 /bin/rm -f</B>
+
+<P>
+
+Find files named
+<B>core</B>
+
+in or below the directory
+<B>/tmp</B>
+
+and delete them, processing filenames in such a way that file or
+directory names containing single or double quotes, spaces or newlines
+are correctly handled.  The
+<B>-name</B>
+
+test comes before the
+<B>-type</B>
+
+test in order to avoid having to call
+<B><A HREF="/cgi-bin/man/man2html?2+stat">stat</A>(2)</B>
+
+on every file.
+<P>
+<P>
+
+<PRE>
+<B>find . -type f -exec file '{}' \;</B>
+
+</PRE>
+
+Runs `file' on every file in or below the current directory.  Notice
+that the braces are enclosed in single quote marks to protect them
+from interpretation as shell script punctuation.  The semicolon is
+similarly protected by the use of a backslash, though single quotes
+could have been used in that case also.
+<P>
+<P>
+
+<PRE>
+<B>find / \( -perm -4000 -fprintf /root/suid.txt '%#m %u %p\n' \) , \</B>
+<B>\( -size +100M -fprintf /root/big.txt  '%-10s %p\n' \)</B>
+
+</PRE>
+
+Traverse the filesystem just once, listing setuid files and
+directories into
+<B>/root/suid.txt</B>
+
+and large files into
+<B>/root/big.txt</B>.
+
+<P>
+<P>
+
+<PRE>
+<B>find $HOME  -mtime 0</B>
+
+</PRE>
+
+Search for files in your home directory which have been modified in
+the last twenty-four hours.  This command works this way because the
+time since each file was last modified is divided by 24 hours and any
+remainder is discarded.  That means that to match
+<B>-mtime</B>
+
+<B>0</B>,
+
+a file will have to have a modification in the past which is less than
+24 hours ago.
+<P>
+<P>
+
+<PRE>
+<B>find /sbin /usr/sbin -executable \! -readable -print</B>
+
+</PRE>
+
+Search for files which are executable but not readable.
+<P>
+<P>
+
+<PRE>
+<B>find . -perm 664</B>
+
+</PRE>
+
+Search for files which have read and write permission for their owner,
+and group, but which other users can read but not write to.  Files
+which meet these criteria but have other permissions bits set (for
+example if someone can execute the file) will not be matched.
+<P>
+<P>
+
+<PRE>
+<B>find . -perm -664</B>
+
+</PRE>
+
+Search for files which have read and write permission for their owner
+and group, and which other users can read, without regard to the
+presence of any extra permission bits (for example the executable
+bit).  This will match a file which has mode 0777, for example.
+<P>
+<P>
+
+<PRE>
+<B>find . -perm /222</B>
+
+</PRE>
+
+Search for files which are writable by somebody (their owner, or
+their group, or anybody else).
+<P>
+<P>
+
+<PRE>
+<B>find . -perm /220</B>
+<B>find . -perm /u+w,g+w</B>
+<B>find . -perm /u=w,g=w</B>
+
+</PRE>
+
+All three of these commands do the same thing, but the first one uses
+the octal representation of the file mode, and the other two use the
+symbolic form.  These commands all search for files which are
+writable by either their owner or their group.  The files don't have
+to be writable by both the owner and group to be matched; either will
+do.
+<P>
+<P>
+
+<PRE>
+<B>find . -perm -220</B>
+<B>find . -perm -g+w,u+w</B>
+
+</PRE>
+
+Both these commands do the same thing; search for files which are
+writable by both their owner and their group.
+<P>
+<P>
+
+<PRE>
+<B>find . -perm -444 -perm /222 \! -perm /111</B>
+<B>find . -perm -a+r -perm /a+w \! -perm /a+x</B>
+
+</PRE>
+
+These two commands both search for files that are readable for
+everybody (
+<B>-perm -444</B>
+
+or
+<B>-perm -a+r</B>),
+
+have at least one write bit
+set (
+<B>-perm /222</B>
+
+or
+<B>-perm /a+w</B>)
+
+but are not executable for anybody (
+<B>! -perm /111</B>
+
+and
+<B>! -perm /a+x</B>
+
+respectively).
+<P>
+<P>
+
+<PRE>
+<B>cd /source-dir</B>
+<B>find . -name .snapshot -prune -o \( \! -name '*~' -print0 \)|</B>
+<B>cpio -pmd0   /dest-dir</B>
+
+</PRE>
+
+This command copies the contents of
+<B>/source-dir</B>
+
+to
+<B>/dest-dir</B>,
+
+but omits files and directories named
+<B>.snapshot</B>
+
+(and anything in them).  It also omits files or directories whose name
+ends in
+<B>~</B>,
+
+but not their contents.  The construct
+<B>-prune -o \( ... -print0 \)</B>
+
+is quite common.  The idea here is that the expression before
+<B>-prune</B>
+
+matches things which are to be pruned.  However, the
+<B>-prune</B>
+
+action itself returns true, so the following
+<B>-o</B>
+
+ensures that the right hand side is evaluated only for those
+directories which didn't get pruned (the contents of the pruned
+directories are not even visited, so their contents are irrelevant).
+The expression on the right hand side of the
+<B>-o</B>
+
+is in parentheses only for clarity.  It emphasises that the
+<B>-print0</B>
+
+action takes place only for things that didn't have
+<B>-prune</B>
+
+applied to them.  Because the default `and' condition between tests
+binds more tightly than
+<B>-o</B>,
+
+this is the default anyway, but the parentheses help to show
+what is going on.
+<P>
+<P>
+
+<PRE>
+<B>find repo/ \( -exec test -d '{}'/.svn \; -or \</B>
+<B>-exec test -d {}/.git \; -or -exec test -d {}/CVS \; \) \</B>
+<B>-print -prune</B>
+</PRE>
+
+<P>
+Given the following directory of projects and their associated SCM
+administrative directories, perform an efficient search for the
+projects' roots:
+<P>
+<PRE>
+<B>repo/project1/CVS</B>
+<B>repo/gnu/project2/.svn</B>
+<B>repo/gnu/project3/.svn</B>
+<B>repo/gnu/project3/src/.svn</B>
+<B>repo/project4/.git</B>
+
+</PRE>
+
+In this example,
+<B>-prune</B>
+
+prevents unnecessary descent into directories that have already been
+discovered (for example we do not search project3/src because we
+already found project3/.svn), but ensures sibling directories
+(project2 and project3) are found.
+<P>
+<P>
+
+<PRE>
+<B>find /tmp -type f,d,l</B>
+</PRE>
+
+<P>
+Search for files, directories, and symbolic links in the directory
+<B>/tmp</B>
+
+passing these types as a comma-separated list (GNU extension),
+which is otherwise equivalent to the longer, yet more portable:
+<P>
+<PRE>
+<B>find /tmp \( -type f -o -type d -o -type l \)</B>
+</PRE>
+
+<P>
+<A NAME="lbAP">&nbsp;</A>
+<H2>EXIT STATUS</H2>
+
+<P>
+
+<B>find</B>
+
+exits with status 0 if all files are processed successfully, greater
+than 0 if errors occur.
+This is deliberately a very broad description,
+but if the return value is non-zero,
+you should not rely on the correctness of the results of
+<B>find</B>.
+
+<P>
+When some error occurs,
+<B>find</B>
+
+may stop immediately, without completing all the actions specified.
+For example, some starting points may not have been examined or some
+pending program invocations for
+<B>-exec ... {} +</B>
+
+or
+<B>-execdir ... {} +</B>
+
+may not have been performed.
+<P>
+<P>
+<A NAME="lbAQ">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?1+locate">locate</A></B>(1), <B><A HREF="/cgi-bin/man/man2html?5+locatedb">locatedb</A></B>(5), <B><A HREF="/cgi-bin/man/man2html?1+updatedb">updatedb</A></B>(1), <B><A HREF="/cgi-bin/man/man2html?1+xargs">xargs</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?1+chmod">chmod</A></B>(1), <B><A HREF="/cgi-bin/man/man2html?3+fnmatch">fnmatch</A></B>(3), <B><A HREF="/cgi-bin/man/man2html?7+regex">regex</A></B>(7), <B><A HREF="/cgi-bin/man/man2html?2+stat">stat</A></B>(2),
+<B><A HREF="/cgi-bin/man/man2html?2+lstat">lstat</A></B>(2), <B><A HREF="/cgi-bin/man/man2html?1+ls">ls</A></B>(1), <B><A HREF="/cgi-bin/man/man2html?3+printf">printf</A></B>(3), <B><A HREF="/cgi-bin/man/man2html?3+strftime">strftime</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+ctime">ctime</A></B>(3)
+<P>
+The full documentation for
+<B>find</B>
+
+is maintained as a Texinfo manual.  If the
+<B>info</B>
+
+and
+<B>find</B>
+
+programs are properly installed at your site, the command
+<B>info find</B>
+
+should give you access to the complete manual.
+<P>
+<A NAME="lbAR">&nbsp;</A>
+<H2>HISTORY</H2>
+
+As of findutils-4.2.2, shell metacharacters (`*', `?' or `[]' for
+example) used in filename patterns will match a leading `.', because
+IEEE POSIX interpretation 126 requires this.
+<P>
+
+As of findutils-4.3.3,
+<B>-perm /000</B>
+
+now matches all files instead of none.
+<P>
+
+Nanosecond-resolution
+timestamps were implemented in findutils-4.3.3.
+<P>
+
+As of findutils-4.3.11, the
+<B>-delete</B>
+
+action sets
+<B>find</B>'s
+
+exit status to a nonzero value when it fails.
+However,
+<B>find</B>
+
+will not exit immediately.  Previously,
+<B>find</B>'s
+
+exit status was unaffected by the failure of
+<B>-delete</B>.
+
+<TABLE>
+<TR VALIGN=top><TD>Feature</TD><TD>Added in</TD><TD>Also occurs in<BR></TD></TR>
+<TR VALIGN=top><TD>-newerXY</TD><TD>4.3.3</TD><TD>BSD<BR></TD></TR>
+<TR VALIGN=top><TD>-D</TD><TD>4.3.1</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD>-O</TD><TD>4.3.1</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD>-readable</TD><TD>4.3.0</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD>-writable</TD><TD>4.3.0</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD>-executable</TD><TD>4.3.0</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD>-regextype</TD><TD>4.2.24</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD>-exec ... +</TD><TD>4.2.12</TD><TD>POSIX<BR></TD></TR>
+<TR VALIGN=top><TD>-execdir</TD><TD>4.2.12</TD><TD>BSD<BR></TD></TR>
+<TR VALIGN=top><TD>-okdir</TD><TD>4.2.12</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD>-samefile</TD><TD>4.2.11</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD>-H</TD><TD>4.2.5</TD><TD>POSIX<BR></TD></TR>
+<TR VALIGN=top><TD>-L</TD><TD>4.2.5</TD><TD>POSIX<BR></TD></TR>
+<TR VALIGN=top><TD>-P</TD><TD>4.2.5</TD><TD>BSD<BR></TD></TR>
+<TR VALIGN=top><TD>-delete</TD><TD>4.2.3</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD>-quit</TD><TD>4.2.3</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD>-d</TD><TD>4.2.3</TD><TD>BSD<BR></TD></TR>
+<TR VALIGN=top><TD>-wholename</TD><TD>4.2.0</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD>-iwholename</TD><TD>4.2.0</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD>-ignore_readdir_race</TD><TD>4.2.0</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD>-fls</TD><TD>4.0</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD>-ilname</TD><TD>3.8</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD>-iname</TD><TD>3.8</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD>-ipath</TD><TD>3.8</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD>-iregex</TD><TD>3.8</TD><TD><BR></TD></TR>
+</TABLE>
+
+<P>
+
+The syntax
+.B -perm +MODE
+was removed in findutils-4.5.12, in favour of
+.B -perm
+<B>/MODE</B>.
+
+The
+<B>+MODE</B>
+
+syntax had been deprecated since findutils-4.2.21
+which was released in 2005.
+<P>
+
+<A NAME="lbAS">&nbsp;</A>
+<H2>NON-BUGS</H2>
+
+<A NAME="lbAT">&nbsp;</A>
+<H3>Operator precedence surprises</H3>
+
+The command
+<B>find . -name afile -o -name bfile -print</B>
+
+will never print
+<I>afile</I>
+
+because this is actually equivalent to
+<B>find . -name afile -o \( -name bfile -a -print \)</B>.
+
+Remember that the precedence of
+<B>-a</B>
+
+is higher than that of
+<B>-o</B>
+
+and when there is no operator specified between tests,
+<B>-a</B>
+
+is assumed.
+<A NAME="lbAU">&nbsp;</A>
+<H3>"paths must precede expression" error message</H3>
+
+<PRE>
+<B>$ find . -name *.c -print</B>
+find: paths must precede expression
+find: possible unquoted pattern after predicate `-name'?
+</PRE>
+
+<P>
+
+This happens when the shell could expand the pattern
+<I>*.c</I>
+
+to more than one file name existing in the current directory,
+and passing the resulting file names in the command line to
+<B>find</B>
+
+like this:
+<PRE>
+<B>find . -name frcode.c locate.c word_io.c -print</B>
+</PRE>
+
+That command is of course not going to work, because the
+<B>-name</B>
+
+predicate allows exactly only one pattern as argument.  Instead of doing things
+this way, you should enclose the pattern in quotes or escape the wildcard, thus
+allowing
+<B>find</B>
+
+to use the pattern with the wildcard during the search for file name matching
+instead of file names expanded by the parent shell:
+<PRE>
+<B>$ find . -name '*.c' -print</B>
+<B>$ find . -name \*.c -print</B>
+</PRE>
+
+<P>
+<A NAME="lbAV">&nbsp;</A>
+<H2>COPYRIGHT</H2>
+
+Copyright &#169; 1990-2019 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later &lt;<A HREF="https://gnu.org/licenses/gpl.html">https://gnu.org/licenses/gpl.html</A>&gt;.
+<BR>
+
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+<P>
+<A NAME="lbAW">&nbsp;</A>
+<H2>BUGS</H2>
+
+<P>
+
+There are security problems inherent in the behaviour that the POSIX
+standard specifies for
+<B>find</B>,
+
+which therefore cannot be fixed.  For example, the
+<B>-exec</B>
+
+action is
+inherently insecure, and
+<B>-execdir</B>
+
+should be used instead.
+Please see <B>Finding Files</B> for more information.
+<P>
+
+The environment variable
+<B>LC_COLLATE</B>
+
+has no effect on the
+<B>-ok</B>
+
+action.
+<P>
+
+The best way to report a bug is to use the form at
+<A HREF="https://savannah.gnu.org/bugs/?group=findutils.">https://savannah.gnu.org/bugs/?group=findutils.</A>
+The reason for this is that you will then be able to track progress in
+fixing the problem.
+Other comments about <B><A HREF="/cgi-bin/man/man2html?1+find">find</A></B>(1) and about the findutils package in
+general can be sent to the
+<I>bug-findutils</I>
+
+mailing list.
+To join the list, send email to
+<I><A HREF="mailto:bug-findutils-request@gnu.org">bug-findutils-request@gnu.org</A></I>.
+
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="235"><A HREF="#lbAB">NAME</A><DD>
+<DT id="236"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="237"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="238"><A HREF="#lbAE">OPTIONS</A><DD>
+<DT id="239"><A HREF="#lbAF">EXPRESSION</A><DD>
+<DL>
+<DT id="240"><A HREF="#lbAG">POSITIONAL OPTIONS</A><DD>
+<DT id="241"><A HREF="#lbAH">GLOBAL OPTIONS</A><DD>
+<DT id="242"><A HREF="#lbAI">TESTS</A><DD>
+<DT id="243"><A HREF="#lbAJ">ACTIONS</A><DD>
+<DT id="244"><A HREF="#lbAK">OPERATORS</A><DD>
+</DL>
+<DT id="245"><A HREF="#lbAL">UNUSUAL FILENAMES</A><DD>
+<DT id="246"><A HREF="#lbAM">STANDARDS CONFORMANCE</A><DD>
+<DT id="247"><A HREF="#lbAN">ENVIRONMENT VARIABLES</A><DD>
+<DT id="248"><A HREF="#lbAO">EXAMPLES</A><DD>
+<DT id="249"><A HREF="#lbAP">EXIT STATUS</A><DD>
+<DT id="250"><A HREF="#lbAQ">SEE ALSO</A><DD>
+<DT id="251"><A HREF="#lbAR">HISTORY</A><DD>
+<DT id="252"><A HREF="#lbAS">NON-BUGS</A><DD>
+<DL>
+<DT id="253"><A HREF="#lbAT">Operator precedence surprises</A><DD>
+<DT id="254"><A HREF="#lbAU">"paths must precede expression" error message</A><DD>
+</DL>
+<DT id="255"><A HREF="#lbAV">COPYRIGHT</A><DD>
+<DT id="256"><A HREF="#lbAW">BUGS</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:12 GMT, March 31, 2021
+</BODY>
+</HTML>

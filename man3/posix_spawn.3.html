@@ -1,0 +1,1106 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of POSIX_SPAWN</TITLE>
+</HEAD><BODY>
+<H1>POSIX_SPAWN</H1>
+Section: Linux Programmer's Manual (3)<BR>Updated: 2019-03-06<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+posix_spawn, posix_spawnp - spawn a process
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<PRE>
+<B>#include &lt;<A HREF="file:///usr/include/spawn.h">spawn.h</A>&gt;</B>
+
+<B>int posix_spawn(pid_t *</B><I>pid</I><B>, const char *</B><I>path</I><B>,</B>
+<B>                const posix_spawn_file_actions_t *</B><I>file_actions</I><B>,</B>
+<B>                const posix_spawnattr_t *</B><I>attrp</I><B>,</B>
+<B>                char *const </B><I>argv[]</I><B>, char *const </B><I>envp[]</I><B>);</B>
+
+<B>int posix_spawnp(pid_t *</B><I>pid</I><B>, const char *</B><I>file</I><B>,</B>
+<B>                const posix_spawn_file_actions_t *</B><I>file_actions</I><B>,</B>
+<B>                const posix_spawnattr_t *</B><I>attrp</I><B>,</B>
+<B>                char *const </B><I>argv[]</I><B>, char *const </B><I>envp[]</I><B>);</B>
+</PRE>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+The
+<B>posix_spawn</B>()
+
+and
+<B>posix_spawnp</B>()
+
+functions are used to create a new child process that executes
+a specified file.
+These functions were specified by POSIX to provide a standardized method
+of creating new processes on machines that lack the capability
+to support the
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2)
+
+system call.
+These machines are generally small, embedded systems lacking MMU support.
+<P>
+
+The
+<B>posix_spawn</B>()
+
+and
+<B>posix_spawnp</B>()
+
+functions provide the functionality of a combined
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2)
+
+and
+<B><A HREF="/cgi-bin/man/man2html?3+exec">exec</A></B>(3),
+
+with some optional housekeeping steps in the child process before the
+<B><A HREF="/cgi-bin/man/man2html?3+exec">exec</A></B>(3).
+
+These functions are not meant to replace the
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2)
+
+and
+<B><A HREF="/cgi-bin/man/man2html?2+execve">execve</A></B>(2)
+
+system calls.
+In fact, they provide only a subset of the functionality
+that can be achieved by using the system calls.
+<P>
+
+The only difference between
+<B>posix_spawn</B>()
+
+and
+<B>posix_spawnp</B>()
+
+is the manner in which they specify the file to be executed by
+the child process.
+With
+<B>posix_spawn</B>(),
+
+the executable file is specified as a pathname
+(which can be absolute or relative).
+With
+<B>posix_spawnp</B>(),
+
+the executable file is specified as a simple filename;
+the system searches for this file in the list of directories specified by
+<B>PATH</B>
+
+(in the same way as for
+<B><A HREF="/cgi-bin/man/man2html?3+execvp">execvp</A></B>(3)).
+
+For the remainder of this page, the discussion is phrased in terms of
+<B>posix_spawn</B>(),
+
+with the understanding that
+<B>posix_spawnp</B>()
+
+differs only on the point just described.
+<P>
+
+The remaining arguments to these two functions are as follows:
+<DL COMPACT>
+<DT id="1">*<DD>
+The
+<I>pid</I>
+
+argument points to a buffer that is used to return the process ID
+of the new child process.
+<DT id="2">*<DD>
+The
+<I>file_actions</I>
+
+argument points to a
+<I>spawn file actions object</I>
+
+that specifies file-related actions to be performed in the child
+between the
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2)
+
+and
+<B><A HREF="/cgi-bin/man/man2html?3+exec">exec</A></B>(3)
+
+steps.
+This object is initialized and populated before the
+<B>posix_spawn</B>()
+
+call using
+<B><A HREF="/cgi-bin/man/man2html?3+posix_spawn_file_actions_init">posix_spawn_file_actions_init</A></B>(3)
+
+and the
+<B>posix_spawn_file_actions_*</B>()
+
+functions.
+<DT id="3">*<DD>
+The
+<I>attrp</I>
+
+argument points to an
+<I>attributes objects</I>
+
+that specifies various attributes of the created child process.
+This object is initialized and populated before the
+<B>posix_spawn</B>()
+
+call using
+<B><A HREF="/cgi-bin/man/man2html?3+posix_spawnattr_init">posix_spawnattr_init</A></B>(3)
+
+and the
+<B>posix_spawnattr_*</B>()
+
+functions.
+<DT id="4">*<DD>
+The
+<I>argv</I>
+
+and
+<I>envp</I>
+
+arguments specify the argument list and environment for the program
+that is executed in the child process, as for
+<B><A HREF="/cgi-bin/man/man2html?2+execve">execve</A></B>(2).
+
+</DL>
+<P>
+
+Below, the functions are described in terms of a three-step process: the
+<B>fork</B>()
+
+step, the
+pre-<B>exec</B>()
+
+step (executed in the child),
+and the
+<B>exec</B>()
+
+step (executed in the child).
+<A NAME="lbAE">&nbsp;</A>
+<H3>fork() step</H3>
+
+The
+<B>posix_spawn</B>()
+
+function commences by calling
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2),
+
+or possibly
+<B><A HREF="/cgi-bin/man/man2html?2+vfork">vfork</A></B>(2)
+
+(see below).
+<P>
+
+The PID of the new child process is placed in
+<I>*pid</I>.
+
+The
+<B>posix_spawn</B>()
+
+function then returns control to the parent process.
+<P>
+
+Subsequently, the parent can use one of the system calls described in
+<B><A HREF="/cgi-bin/man/man2html?2+wait">wait</A></B>(2)
+
+to check the status of the child process.
+If the child fails in any of the housekeeping steps described below,
+or fails to execute the desired file,
+it exits with a status of 127.
+<P>
+
+The child process is created using
+<B><A HREF="/cgi-bin/man/man2html?2+vfork">vfork</A></B>(2)
+
+instead of
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2)
+
+when either of the following is true:
+<DL COMPACT>
+<DT id="5">*<DD>
+the
+<I>spawn-flags</I>
+
+element of the attributes object pointed to by
+<I>attrp</I>
+
+contains the GNU-specific flag
+<B>POSIX_SPAWN_USEVFORK</B>;
+
+or
+<DT id="6">*<DD>
+<I>file_actions</I>
+
+is NULL and the
+<I>spawn-flags</I>
+
+element of the attributes object pointed to by
+<I>attrp</I>
+
+does <I>not</I> contain
+<B>POSIX_SPAWN_SETSIGMASK</B>,
+
+<B>POSIX_SPAWN_SETSIGDEF</B>,
+
+<B>POSIX_SPAWN_SETSCHEDPARAM</B>,
+
+<B>POSIX_SPAWN_SETSCHEDULER</B>,
+
+<B>POSIX_SPAWN_SETPGROUP</B>,
+
+or
+<B>POSIX_SPAWN_RESETIDS</B>.
+
+</DL>
+<P>
+
+In other words,
+<B><A HREF="/cgi-bin/man/man2html?2+vfork">vfork</A></B>(2)
+
+is used if the caller requests it,
+or if there is no cleanup expected in the child before it
+<B><A HREF="/cgi-bin/man/man2html?3+exec">exec</A></B>(3)s
+
+the requested file.
+<P>
+
+<A NAME="lbAF">&nbsp;</A>
+<H3>pre-exec() step: housekeeping</H3>
+
+In between the
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2)
+
+and the
+<B><A HREF="/cgi-bin/man/man2html?3+exec">exec</A></B>(3),
+
+a child process may need to perform a set of housekeeping actions.
+The
+<B>posix_spawn</B>()
+
+and
+<B>posix_spawnp</B>()
+
+functions support a small, well-defined set of system tasks that the child
+process can accomplish before it executes the executable file.
+These operations are controlled by the attributes object pointed to by
+<I>attrp</I>
+
+and the file actions object pointed to by
+<I>file_actions</I>.
+
+In the child, processing is done in the following sequence:
+<DL COMPACT>
+<DT id="7">1.<DD>
+Process attribute actions: signal mask, signal default handlers,
+scheduling algorithm and parameters,
+process group, and effective user and group IDs
+are changed as specified by the attributes object pointed to by
+<I>attrp</I>.
+
+<DT id="8">2.<DD>
+File actions, as specified in the
+<I>file_actions</I>
+
+argument,
+are performed in the order that they were specified using calls to the
+<B>posix_spawn_file_actions_add*</B>()
+
+functions.
+<DT id="9">3.<DD>
+File descriptors with the
+<B>FD_CLOEXEC</B>
+
+flag set are closed.
+</DL>
+<P>
+
+All process attributes in the child,
+other than those affected by attributes specified in the
+object pointed to by
+<I>attrp</I>
+
+and the file actions in the object pointed to by
+<I>file_actions</I>,
+
+will be affected as though the child was created with
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2)
+
+and it executed the program with
+<B><A HREF="/cgi-bin/man/man2html?2+execve">execve</A></B>(2).
+
+<P>
+
+The process attributes actions are defined by the attributes object
+pointed to by
+<I>attrp</I>.
+
+The
+<I>spawn-flags</I>
+
+attribute (set using
+<B><A HREF="/cgi-bin/man/man2html?3+posix_spawnattr_setflags">posix_spawnattr_setflags</A></B>(3))
+
+controls the general actions that occur,
+and other attributes in the object specify values
+to be used during those actions.
+<P>
+
+The effects of the flags that may be specified in
+<I>spawn-flags</I>
+
+are as follows:
+<DL COMPACT>
+<DT id="10"><B>POSIX_SPAWN_SETSIGMASK</B>
+
+<DD>
+Set the signal mask to the signal set specified in the
+<I>spawn-sigmask</I>
+
+attribute
+
+
+
+of the object pointed to by
+<I>attrp</I>.
+
+If the
+<B>POSIX_SPAWN_SETSIGMASK</B>
+
+flag is not set, then the child inherits the parent's signal mask.
+<DT id="11"><B>POSIX_SPAWN_SETSIGDEF</B>
+
+<DD>
+Reset the disposition of all signals in the set specified in the
+<I>spawn-sigdefault</I>
+
+attribute
+
+
+
+of the object pointed to by
+<I>attrp</I>
+
+to the default.
+For the treatment of the dispositions of signals not specified in the
+<I>spawn-sigdefault</I>
+
+attribute, or the treatment when
+<B>POSIX_SPAWN_SETSIGDEF</B>
+
+is not specified, see
+<B><A HREF="/cgi-bin/man/man2html?2+execve">execve</A></B>(2).
+
+<DT id="12"><B>POSIX_SPAWN_SETSCHEDPARAM</B>
+
+<DD>
+
+If this flag is set, and the
+<B>POSIX_SPAWN_SETSCHEDULER</B>
+
+flag is not set, then set the scheduling parameters
+to the parameters specified in the
+<I>spawn-schedparam</I>
+
+attribute
+
+
+
+of the object pointed to by
+<I>attrp</I>.
+
+<DT id="13"><B>POSIX_SPAWN_SETSCHEDULER</B>
+
+<DD>
+Set the scheduling policy algorithm and parameters of the child,
+as follows:
+<DL COMPACT><DT id="14"><DD>
+<DL COMPACT>
+<DT id="15">*<DD>
+The scheduling policy is set to the value specified in the
+<I>spawn-schedpolicy</I>
+
+attribute
+
+
+
+of the object pointed to by
+<I>attrp</I>.
+
+<DT id="16">*<DD>
+The scheduling parameters are set to the value specified in the
+<I>spawn-schedparam</I>
+
+attribute
+
+
+
+of the object pointed to by
+<I>attrp</I>
+
+(but see BUGS).
+</DL>
+<P>
+
+If the
+<B>POSIX_SPAWN_SETSCHEDPARAM</B>
+
+and
+<B>POSIX_SPAWN_SETSCHEDPOLICY</B>
+
+flags are not specified,
+the child inherits the corresponding scheduling attributes from the parent.
+</DL>
+
+<DT id="17"><B>POSIX_SPAWN_RESETIDS</B>
+
+<DD>
+If this flag is set,
+reset the effective UID and GID to the
+real UID and GID of the parent process.
+If this flag is not set,
+then the child retains the effective UID and GID of the parent.
+In either case, if the set-user-ID and set-group-ID permission
+bits are enabled on the executable file, their effect will override
+the setting of the effective UID and GID (se
+<B><A HREF="/cgi-bin/man/man2html?2+execve">execve</A></B>(2)).
+
+<DT id="18"><B>POSIX_SPAWN_SETPGROUP</B>
+
+<DD>
+Set the process group to the value specified in the
+<I>spawn-pgroup</I>
+
+attribute
+
+
+
+of the object pointed to by
+<I>attrp</I>.
+
+If the
+<I>spawn-pgroup</I>
+
+attribute has the value 0,
+the child's process group ID is made the same as its process ID.
+If the
+<B>POSIX_SPAWN_SETPGROUP</B>
+
+flag is not set, the child inherits the parent's process group ID.
+</DL>
+<P>
+
+If
+<I>attrp</I>
+
+is NULL, then the default behaviors described above for each flag apply.
+
+
+
+
+
+
+
+<P>
+
+The
+<I>file_actions</I>
+
+argument specifies a sequence of file operations
+that are performed in the child process after
+the general processing described above, and before it performs the
+<B><A HREF="/cgi-bin/man/man2html?3+exec">exec</A></B>(3).
+
+If
+<I>file_actions</I>
+
+is NULL, then no special action is taken, and standard
+<B><A HREF="/cgi-bin/man/man2html?3+exec">exec</A></B>(3)
+
+semantics apply--file descriptors open before the exec
+remain open in the new process,
+except those for which the
+<B>FD_CLOEXEC</B>
+
+flag has been set.
+File locks remain in place.
+<P>
+
+If
+<I>file_actions</I>
+
+is not NULL, then it contains an ordered set of requests to
+<B><A HREF="/cgi-bin/man/man2html?2+open">open</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+close">close</A></B>(2),
+
+and
+<B><A HREF="/cgi-bin/man/man2html?2+dup2">dup2</A></B>(2)
+
+files.
+These requests are added to the
+<I>file_actions</I>
+
+by
+<B><A HREF="/cgi-bin/man/man2html?3+posix_spawn_file_actions_addopen">posix_spawn_file_actions_addopen</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+posix_spawn_file_actions_addclose">posix_spawn_file_actions_addclose</A></B>(3),
+
+and
+<B><A HREF="/cgi-bin/man/man2html?3+posix_spawn_file_actions_adddup2">posix_spawn_file_actions_adddup2</A></B>(3).
+
+The requested operations are performed in the order they were added to
+<I>file_actions</I>.
+
+
+
+
+
+
+
+
+
+
+
+
+<P>
+
+If any of the housekeeping actions fails
+(due to bogus values being passed or other reasons why signal handling,
+process scheduling, process group ID functions,
+and file descriptor operations might fail),
+the child process exits with exit value 127.
+<A NAME="lbAG">&nbsp;</A>
+<H3>exec() step</H3>
+
+Once the child has successfully forked and performed
+all requested pre-exec steps,
+the child runs the requested executable.
+<P>
+
+The child process takes its environment from the
+<I>envp</I>
+
+argument, which is interpreted as if it had been passed to
+<B><A HREF="/cgi-bin/man/man2html?2+execve">execve</A></B>(2).
+
+The arguments to the created process come from the
+<I>argv</I>
+
+argument, which is processed as for
+<B><A HREF="/cgi-bin/man/man2html?2+execve">execve</A></B>(2).
+
+<A NAME="lbAH">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+Upon successful completion,
+<B>posix_spawn</B>()
+
+and
+<B>posix_spawnp</B>()
+
+place the PID of the child process in
+<I>pid</I>,
+
+and return 0.
+If there is an error before or during the
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2),
+
+then no child is created,
+the contents of
+<I>*pid</I>
+
+are unspecified,
+and these functions return an error number as described below.
+<P>
+
+Even when these functions return a success status,
+the child process may still fail for a plethora of reasons related to its
+pre-<B>exec</B>() initialization.
+In addition, the
+<B><A HREF="/cgi-bin/man/man2html?3+exec">exec</A></B>(3)
+
+may fail.
+In all of these cases, the child process will exit with the exit value of 127.
+<A NAME="lbAI">&nbsp;</A>
+<H2>ERRORS</H2>
+
+The
+<B>posix_spawn</B>()
+
+and
+<B>posix_spawnp</B>()
+
+functions fail only in the case where the underlying
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2)
+
+or
+<B><A HREF="/cgi-bin/man/man2html?2+vfork">vfork</A></B>(2)
+
+call fails;  in these cases, these functions return an error number,
+which will be one of the errors described for
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2)
+
+or
+<B><A HREF="/cgi-bin/man/man2html?2+vfork">vfork</A></B>(2).
+
+<P>
+
+In addition, these functions fail if:
+<DL COMPACT>
+<DT id="19"><B>ENOSYS</B>
+
+<DD>
+Function not supported on this system.
+</DL>
+<A NAME="lbAJ">&nbsp;</A>
+<H2>VERSIONS</H2>
+
+The
+<B>posix_spawn</B>()
+
+and
+<B>posix_spawnp</B>()
+
+functions are available since glibc 2.2.
+<A NAME="lbAK">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+<P>
+
+POSIX.1-2001, POSIX.1-2008.
+
+
+
+
+
+
+
+<A NAME="lbAL">&nbsp;</A>
+<H2>NOTES</H2>
+
+The housekeeping activities in the child are controlled by
+the objects pointed to by
+<I>attrp</I>
+
+(for non-file actions) and
+<I>file_actions</I>
+
+In POSIX parlance, the
+<I>posix_spawnattr_t</I>
+
+and
+<I>posix_spawn_file_actions_t</I>
+
+data types are referred to as objects,
+and their elements are not specified by name.
+Portable programs should initialize these objects using
+only the POSIX-specified functions.
+(In other words,
+although these objects may be implemented as structures containing fields,
+portable programs must avoid dependence on such implementation details.)
+<P>
+
+According to POSIX, it unspecified whether fork handlers established with
+<B><A HREF="/cgi-bin/man/man2html?3+pthread_atfork">pthread_atfork</A></B>(3)
+
+are called when
+<B>posix_spawn</B>()
+
+is invoked.
+On glibc,
+
+fork handlers are called only if the child is created using
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2).
+
+<P>
+
+There is no &quot;posix_fspawn&quot; function (i.e., a function that is to
+<B>posix_spawn</B>()
+
+as
+<B><A HREF="/cgi-bin/man/man2html?3+fexecve">fexecve</A></B>(3)
+
+is to
+<B><A HREF="/cgi-bin/man/man2html?2+execve">execve</A></B>(2)).
+
+However, this functionality can be obtained by specifying the
+<I>path</I>
+
+argument as one of the files in the caller's
+<I>/proc/self/fd</I>
+
+directory.
+<A NAME="lbAM">&nbsp;</A>
+<H2>BUGS</H2>
+
+POSIX.1 says that when
+<B>POSIX_SPAWN_SETSCHEDULER</B>
+
+is specified in
+<I>spawn-flags</I>,
+
+then the
+<B>POSIX_SPAWN_SETSCHEDPARAM</B>
+
+(if present) is ignored.
+However, before glibc 2.14, calls to
+<B>posix_spawn</B>()
+
+failed with an error if
+
+<B>POSIX_SPAWN_SETSCHEDULER</B>
+
+was specified without also specifying
+<B>POSIX_SPAWN_SETSCHEDPARAM</B>.
+
+<A NAME="lbAN">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+The program below demonstrates the use of various functions in the
+POSIX spawn API.
+The program accepts command-line attributes that can be used
+to create file actions and attributes objects.
+The remaining command-line arguments are used as the executable name
+and command-line arguments of the program that is executed in the child.
+<P>
+
+In the first run, the
+<B><A HREF="/cgi-bin/man/man2html?1+date">date</A></B>(1)
+
+command is executed in the child, and the
+<B>posix_spawn</B>()
+
+call employs no file actions or attributes objects.
+<P>
+
+
+
+$ <B>./a.out date</B>
+PID of child: 7634
+Tue Feb  1 19:47:50 CEST 2011
+Child status: exited, status=0
+
+
+<P>
+
+In the next run, the
+<I>-c</I>
+
+command-line option is used to create a file actions object that closes
+standard output in the child.
+Consequently,
+<B><A HREF="/cgi-bin/man/man2html?1+date">date</A></B>(1)
+
+fails when trying to perform output and exits with a status of 1.
+<P>
+
+
+
+$ <B>./a.out -c date</B>
+PID of child: 7636
+date: write error: Bad file descriptor
+Child status: exited, status=1
+
+
+<P>
+
+In the next run, the
+<I>-s</I>
+
+command-line option is used to create an attributes object that
+specifies that all (blockable) signals in the child should be blocked.
+Consequently, trying to kill child with the default signal sent by
+<B><A HREF="/cgi-bin/man/man2html?1+kill">kill</A></B>(1)
+
+(i.e.,
+<B>SIGTERM</B>)
+
+fails, because that signal is blocked.
+Therefore, to kill the child,
+<B>SIGKILL</B>
+
+is necessary
+(<B>SIGKILL</B>
+
+can't be blocked).
+<P>
+
+
+
+$ <B>./a.out -s sleep 60 &amp;</B>
+[1] 7637
+$ PID of child: 7638
+<P>
+$ <B>kill 7638</B>
+$ <B>kill -KILL 7638</B>
+$ Child status: killed by signal 9
+[1]+  Done                    ./a.out -s sleep 60
+
+
+<P>
+
+When we try to execute a nonexistent command in the child, the
+<B><A HREF="/cgi-bin/man/man2html?3+exec">exec</A></B>(3)
+
+fails and the child exits with a status of 127.
+<P>
+
+
+
+$ <B>./a.out xxxxx
+PID of child: 10190
+Child status: exited, status=127
+
+
+</B><A NAME="lbAO">&nbsp;</A>
+<H3>Program source</H3>
+
+
+
+#include &lt;<A HREF="file:///usr/include/spawn.h">spawn.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/unistd.h">unistd.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdlib.h">stdlib.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/string.h">string.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/wait.h">wait.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/errno.h">errno.h</A>&gt;
+<P>
+#define errExit(msg)    do { perror(msg); \
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);&nbsp;}&nbsp;while&nbsp;(0)
+<P>
+#define errExitEN(en, msg) \
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;do&nbsp;{&nbsp;errno&nbsp;=&nbsp;en;&nbsp;perror(msg);&nbsp;\
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);&nbsp;}&nbsp;while&nbsp;(0)
+<P>
+char **environ;
+<P>
+int
+main(int argc, char *argv[])
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;pid_t&nbsp;child_pid;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;s,&nbsp;opt,&nbsp;status;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;sigset_t&nbsp;mask;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;posix_spawnattr_t&nbsp;attr;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;posix_spawnattr_t&nbsp;*attrp;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;posix_spawn_file_actions_t&nbsp;file_actions;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;posix_spawn_file_actions_t&nbsp;*file_actionsp;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Parse&nbsp;command-line&nbsp;options,&nbsp;which&nbsp;can&nbsp;be&nbsp;used&nbsp;to&nbsp;specify&nbsp;an
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;attributes&nbsp;object&nbsp;and&nbsp;file&nbsp;actions&nbsp;object&nbsp;for&nbsp;the&nbsp;child.&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;attrp&nbsp;=&nbsp;NULL;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;file_actionsp&nbsp;=&nbsp;NULL;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;while&nbsp;((opt&nbsp;=&nbsp;getopt(argc,&nbsp;argv,&nbsp;&quot;sc&quot;))&nbsp;!=&nbsp;-1)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;switch&nbsp;(opt)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;case&nbsp;'c':&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;-c:&nbsp;close&nbsp;standard&nbsp;output&nbsp;in&nbsp;child&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Create&nbsp;a&nbsp;file&nbsp;actions&nbsp;object&nbsp;and&nbsp;add&nbsp;a&nbsp;&quot;close&quot;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;action&nbsp;to&nbsp;it&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;s&nbsp;=&nbsp;posix_spawn_file_actions_init(&amp;file_actions);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(s&nbsp;!=&nbsp;0)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errExitEN(s,&nbsp;&quot;posix_spawn_file_actions_init&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;s&nbsp;=&nbsp;posix_spawn_file_actions_addclose(&amp;file_actions,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STDOUT_FILENO);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(s&nbsp;!=&nbsp;0)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errExitEN(s,&nbsp;&quot;posix_spawn_file_actions_addclose&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;file_actionsp&nbsp;=&nbsp;&amp;file_actions;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;break;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;case&nbsp;'s':&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;-s:&nbsp;block&nbsp;all&nbsp;signals&nbsp;in&nbsp;child&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Create&nbsp;an&nbsp;attributes&nbsp;object&nbsp;and&nbsp;add&nbsp;a&nbsp;&quot;set&nbsp;signal&nbsp;mask&quot;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;action&nbsp;to&nbsp;it&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;s&nbsp;=&nbsp;posix_spawnattr_init(&amp;attr);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(s&nbsp;!=&nbsp;0)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errExitEN(s,&nbsp;&quot;posix_spawnattr_init&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;s&nbsp;=&nbsp;posix_spawnattr_setflags(&amp;attr,&nbsp;POSIX_SPAWN_SETSIGMASK);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(s&nbsp;!=&nbsp;0)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errExitEN(s,&nbsp;&quot;posix_spawnattr_setflags&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sigfillset(&amp;mask);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;s&nbsp;=&nbsp;posix_spawnattr_setsigmask(&amp;attr,&nbsp;&amp;mask);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(s&nbsp;!=&nbsp;0)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errExitEN(s,&nbsp;&quot;posix_spawnattr_setsigmask&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;attrp&nbsp;=&nbsp;&amp;attr;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;break;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Spawn&nbsp;the&nbsp;child.&nbsp;The&nbsp;name&nbsp;of&nbsp;the&nbsp;program&nbsp;to&nbsp;execute&nbsp;and&nbsp;the
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;command-line&nbsp;arguments&nbsp;are&nbsp;taken&nbsp;from&nbsp;the&nbsp;command-line&nbsp;arguments
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;of&nbsp;this&nbsp;program.&nbsp;The&nbsp;environment&nbsp;of&nbsp;the&nbsp;program&nbsp;execed&nbsp;in&nbsp;the
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;child&nbsp;is&nbsp;made&nbsp;the&nbsp;same&nbsp;as&nbsp;the&nbsp;parent's&nbsp;environment.&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;s&nbsp;=&nbsp;posix_spawnp(&amp;child_pid,&nbsp;argv[optind],&nbsp;file_actionsp,&nbsp;attrp,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&amp;argv[optind],&nbsp;environ);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(s&nbsp;!=&nbsp;0)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errExitEN(s,&nbsp;&quot;posix_spawn&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Destroy&nbsp;any&nbsp;objects&nbsp;that&nbsp;we&nbsp;created&nbsp;earlier&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(attrp&nbsp;!=&nbsp;NULL)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;s&nbsp;=&nbsp;posix_spawnattr_destroy(attrp);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(s&nbsp;!=&nbsp;0)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errExitEN(s,&nbsp;&quot;posix_spawnattr_destroy&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(file_actionsp&nbsp;!=&nbsp;NULL)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;s&nbsp;=&nbsp;posix_spawn_file_actions_destroy(file_actionsp);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(s&nbsp;!=&nbsp;0)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errExitEN(s,&nbsp;&quot;posix_spawn_file_actions_destroy&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;PID&nbsp;of&nbsp;child:&nbsp;%ld\n&quot;,&nbsp;(long)&nbsp;child_pid);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Monitor&nbsp;status&nbsp;of&nbsp;the&nbsp;child&nbsp;until&nbsp;it&nbsp;terminates&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;do&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;s&nbsp;=&nbsp;waitpid(child_pid,&nbsp;&amp;status,&nbsp;WUNTRACED&nbsp;|&nbsp;WCONTINUED);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(s&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errExit(&quot;waitpid&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;Child&nbsp;status:&nbsp;&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(WIFEXITED(status))&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;exited,&nbsp;status=%d\n&quot;,&nbsp;WEXITSTATUS(status));
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;else&nbsp;if&nbsp;(WIFSIGNALED(status))&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;killed&nbsp;by&nbsp;signal&nbsp;%d\n&quot;,&nbsp;WTERMSIG(status));
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;else&nbsp;if&nbsp;(WIFSTOPPED(status))&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;stopped&nbsp;by&nbsp;signal&nbsp;%d\n&quot;,&nbsp;WSTOPSIG(status));
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;else&nbsp;if&nbsp;(WIFCONTINUED(status))&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;continued\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;while&nbsp;(!WIFEXITED(status)&nbsp;&amp;&amp;&nbsp;!WIFSIGNALED(status));
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_SUCCESS);
+}
+
+<A NAME="lbAP">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+
+<B><A HREF="/cgi-bin/man/man2html?2+close">close</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+dup2">dup2</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+execl">execl</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+execlp">execlp</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+open">open</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+sched_setparam">sched_setparam</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+sched_setscheduler">sched_setscheduler</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+setpgid">setpgid</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+setuid">setuid</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+sigaction">sigaction</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+sigprocmask">sigprocmask</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?3+posix_spawn_file_actions_addclose">posix_spawn_file_actions_addclose</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+posix_spawn_file_actions_adddup2">posix_spawn_file_actions_adddup2</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+posix_spawn_file_actions_addopen">posix_spawn_file_actions_addopen</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+posix_spawn_file_actions_destroy">posix_spawn_file_actions_destroy</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+posix_spawn_file_actions_init">posix_spawn_file_actions_init</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+posix_spawnattr_destroy">posix_spawnattr_destroy</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+posix_spawnattr_getflags">posix_spawnattr_getflags</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+posix_spawnattr_getpgroup">posix_spawnattr_getpgroup</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+posix_spawnattr_getschedparam">posix_spawnattr_getschedparam</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+posix_spawnattr_getschedpolicy">posix_spawnattr_getschedpolicy</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+posix_spawnattr_getsigdefault">posix_spawnattr_getsigdefault</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+posix_spawnattr_getsigmask">posix_spawnattr_getsigmask</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+posix_spawnattr_init">posix_spawnattr_init</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+posix_spawnattr_setflags">posix_spawnattr_setflags</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+posix_spawnattr_setpgroup">posix_spawnattr_setpgroup</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+posix_spawnattr_setschedparam">posix_spawnattr_setschedparam</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+posix_spawnattr_setschedpolicy">posix_spawnattr_setschedpolicy</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+posix_spawnattr_setsigdefault">posix_spawnattr_setsigdefault</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+posix_spawnattr_setsigmask">posix_spawnattr_setsigmask</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+pthread_atfork">pthread_atfork</A></B>(3),
+
+<I>&lt;<A HREF="file:///usr/include/spawn.h">spawn.h</A>&gt;</I>,
+
+Base Definitions volume of POSIX.1-2001,
+<I><A HREF="http://www.opengroup.org/unix/online.html">http://www.opengroup.org/unix/online.html</A></I>
+
+<A NAME="lbAQ">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="20"><A HREF="#lbAB">NAME</A><DD>
+<DT id="21"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="22"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DL>
+<DT id="23"><A HREF="#lbAE">fork() step</A><DD>
+<DT id="24"><A HREF="#lbAF">pre-exec() step: housekeeping</A><DD>
+<DT id="25"><A HREF="#lbAG">exec() step</A><DD>
+</DL>
+<DT id="26"><A HREF="#lbAH">RETURN VALUE</A><DD>
+<DT id="27"><A HREF="#lbAI">ERRORS</A><DD>
+<DT id="28"><A HREF="#lbAJ">VERSIONS</A><DD>
+<DT id="29"><A HREF="#lbAK">CONFORMING TO</A><DD>
+<DT id="30"><A HREF="#lbAL">NOTES</A><DD>
+<DT id="31"><A HREF="#lbAM">BUGS</A><DD>
+<DT id="32"><A HREF="#lbAN">EXAMPLE</A><DD>
+<DL>
+<DT id="33"><A HREF="#lbAO">Program source</A><DD>
+</DL>
+<DT id="34"><A HREF="#lbAP">SEE ALSO</A><DD>
+<DT id="35"><A HREF="#lbAQ">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:52 GMT, March 31, 2021
+</BODY>
+</HTML>

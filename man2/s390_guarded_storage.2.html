@@ -1,0 +1,258 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of S390_GUARDED_STORAGE</TITLE>
+</HEAD><BODY>
+<H1>S390_GUARDED_STORAGE</H1>
+Section: System Calls (2)<BR>Updated: 2019-03-06<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+s390_guarded_storage - operations with z/Architecture guarded storage facility
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<PRE>
+<B>#include &lt;<A HREF="file:///usr/include/asm/guarded_storage.h">asm/guarded_storage.h</A>&gt;</B>
+
+<B>int s390_guarded_storage(int </B><I>command</I><B>, struct gs_cb *</B><I>gs_cb</I><B>);</B>
+</PRE>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+The
+<B>s390_guarded_storage</B>()
+
+system call enables the use of the Guarded Storage Facility
+(a z/Architecture-specific feature) for user-space processes.
+<P>
+
+
+
+
+
+The guarded storage facility is a hardware feature that allows marking up to
+64 memory regions (as of z14) as guarded;
+reading a pointer with a newly introduced &quot;Load Guarded&quot; (LGG)
+or &quot;Load Logical and Shift Guarded&quot; (LLGFSG) instructions will cause
+a range check on the loaded value and invoke a (previously set up)
+user-space handler if one of the guarded regions is affected.
+<P>
+
+The
+
+<I>command</I>
+
+argument indicates which function to perform.
+The following commands are supported:
+<DL COMPACT>
+<DT id="1"><B>GS_ENABLE</B>
+
+<DD>
+Enable the guarded storage facility for the calling task.
+The initial content of the guarded storage control block will be all zeros.
+After enablement, user-space code can use the &quot;Load Guarded Storage
+Controls&quot; (LGSC) instruction (or the
+<B>load_gs_cb</B>()
+
+function wrapper provided in the
+<I>asm/guarded_storage.h</I>
+
+header) to load an arbitrary control block.
+While a task is enabled, the kernel will save and restore the calling content
+of the guarded storage registers on context switch.
+<DT id="2"><B>GS_DISABLE</B>
+
+<DD>
+Disables the use of the guarded storage facility for the calling task.
+The kernel will cease to save and restore the content of the guarded storage
+registers, the task-specific content of these registers is lost.
+<DT id="3"><B>GS_SET_BC_CB</B>
+
+<DD>
+Set a broadcast guarded storage control block to the one provided in the
+<I>gs_cb</I>
+
+argument.
+This is called per thread and associates a specific guarded storage control
+block with the calling task.
+This control block will be used in the broadcast command
+<B>GS_BROADCAST</B>.
+
+<DT id="4"><B>GS_CLEAR_BC_CB</B>
+
+<DD>
+Clears the broadcast guarded storage control block.
+The guarded storage control block will no longer have the association
+established by the
+<B>GS_SET_BC_CB</B>
+
+command.
+<DT id="5"><B>GS_BROADCAST</B>
+
+<DD>
+Sends a broadcast to all thread siblings of the calling task.
+Every sibling that has established a broadcast guarded storage control block
+will load this control block and will be enabled for guarded storage.
+The broadcast guarded storage control block is consumed; a second broadcast
+without a refresh of the stored control block with
+<B>GS_SET_BC_CB</B>
+
+will not have any effect.
+</DL>
+<P>
+
+The
+<I>gs_cb</I>
+
+argument specifies the address of a guarded storage control block structure
+and is currently used only by the
+<B>GS_SET_BC_CB</B>
+
+command; all other aforementioned commands ignore this argument.
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+On success, the return value of
+<B>s390_guarded_storage</B>()
+
+is 0.
+<P>
+
+On error, -1 is returned, and
+<I>errno</I>
+
+is set appropriately.
+<A NAME="lbAF">&nbsp;</A>
+<H2>ERRORS</H2>
+
+<DL COMPACT>
+<DT id="6"><B>EFAULT</B>
+
+<DD>
+<I>command</I>
+
+was
+<B>GS_SET_BC_CB</B>
+
+and the copying of the guarded storage control block structure pointed by the
+<I>gs_cb</I>
+
+argument has failed.
+<DT id="7"><B>EINVAL</B>
+
+<DD>
+The value provided in the
+<I>command</I>
+
+argument was not valid.
+<DT id="8"><B>ENOMEM</B>
+
+<DD>
+<I>command</I>
+
+was one of
+<B>GS_ENABLE</B> or <B>GS_SET_BC_CB</B>,
+
+and the allocation of a new guarded storage control block has failed.
+<DT id="9"><B>EOPNOTSUPP</B>
+
+<DD>
+The guarded storage facility is not supported by the hardware.
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H2>VERSIONS</H2>
+
+
+This system call is available since Linux 4.12.
+<A NAME="lbAH">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+This Linux-specific system call is available only on the s390 architecture.
+<P>
+
+The guarded storage facility is available beginning with System z14.
+<A NAME="lbAI">&nbsp;</A>
+<H2>NOTES</H2>
+
+Glibc does not provide a wrapper for this system call, use
+<B><A HREF="/cgi-bin/man/man2html?2+syscall">syscall</A></B>(2)
+
+to call it.
+<P>
+
+The description of the guarded storage facility along with related
+instructions and Guarded Storage Control Block and
+Guarded Storage Event Parameter List structure layouts
+is available in &quot;z/Architecture Principles of Operations&quot;
+beginning from the twelfth edition.
+<P>
+
+The
+<I>gs_cb</I>
+
+structure has a field
+<I>gsepla</I>
+
+(Guarded Storage Event Parameter List Address), which is a user-space pointer
+to a Guarded Storage Event Parameter List structure
+(that contains the address
+of the aforementioned event handler in the
+<I>gseha</I>
+
+field), and its layout is available as a
+<B>gs_epl</B>
+
+structure type definition in the
+<I>asm/guarded_storage.h</I>
+
+header.
+
+
+
+
+
+<P>
+
+<A NAME="lbAJ">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?2+syscall">syscall</A></B>(2)
+
+<A NAME="lbAK">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="10"><A HREF="#lbAB">NAME</A><DD>
+<DT id="11"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="12"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="13"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DT id="14"><A HREF="#lbAF">ERRORS</A><DD>
+<DT id="15"><A HREF="#lbAG">VERSIONS</A><DD>
+<DT id="16"><A HREF="#lbAH">CONFORMING TO</A><DD>
+<DT id="17"><A HREF="#lbAI">NOTES</A><DD>
+<DT id="18"><A HREF="#lbAJ">SEE ALSO</A><DD>
+<DT id="19"><A HREF="#lbAK">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:34 GMT, March 31, 2021
+</BODY>
+</HTML>

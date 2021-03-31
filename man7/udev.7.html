@@ -1,0 +1,791 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of UDEV</TITLE>
+</HEAD><BODY>
+<H1>UDEV</H1>
+Section: udev (7)<BR>Updated: <BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+udev - Dynamic device management
+<A NAME="lbAC">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+udev supplies the system software with device events, manages permissions of device nodes and may create additional symlinks in the
+/dev
+directory, or renames network interfaces. The kernel usually just assigns unpredictable device names based on the order of discovery. Meaningful symlinks or network device names provide a way to reliably identify devices based on their properties or current configuration.
+<P>
+
+The udev daemon,
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-udevd.service">systemd-udevd.service</A></B>(8), receives device uevents directly from the kernel whenever a device is added or removed from the system, or it changes its state. When udev receives a device event, it matches its configured set of rules against various device attributes to identify the device. Rules that match may provide additional device information to be stored in the udev database or to be used to create meaningful symlink names.
+<P>
+
+All device information udev processes is stored in the udev database and sent out to possible event subscribers. Access to all stored data and the event sources is provided by the library libudev.
+<A NAME="lbAD">&nbsp;</A>
+<H2>RULES FILES</H2>
+
+<P>
+
+The udev rules are read from the files located in the system rules directories
+/lib/udev/rules.d
+and
+/usr/local/lib/udev/rules.d, the volatile runtime directory
+/run/udev/rules.d
+and the local administration directory
+/etc/udev/rules.d. All rules files are collectively sorted and processed in lexical order, regardless of the directories in which they live. However, files with identical filenames replace each other. Files in
+/etc
+have the highest priority, files in
+/run
+take precedence over files with the same name under
+/usr. This can be used to override a system-supplied rules file with a local file if needed; a symlink in
+/etc
+with the same name as a rules file in
+/lib, pointing to
+/dev/null, disables the rules file entirely. Rule files must have the extension
+.rules; other extensions are ignored.
+<P>
+
+Every line in the rules file contains at least one key-value pair. Except for empty lines or lines beginning with
+&quot;#&quot;, which are ignored. There are two kinds of keys: match and assignment. If all match keys match against their values, the rule gets applied and the assignment keys get the specified values assigned.
+<P>
+
+A matching rule may rename a network interface, add symlinks pointing to the device node, or run a specified program as part of the event handling.
+<P>
+
+A rule consists of a comma-separated list of one or more key-value pairs. Each key has a distinct operation, depending on the used operator. Valid operators are:
+<P>
+
+&quot;==&quot;
+<DL COMPACT><DT id="1"><DD>
+Compare for equality.
+</DL>
+
+<P>
+
+&quot;!=&quot;
+<DL COMPACT><DT id="2"><DD>
+Compare for inequality.
+</DL>
+
+<P>
+
+&quot;=&quot;
+<DL COMPACT><DT id="3"><DD>
+Assign a value to a key. Keys that represent a list are reset and only this single value is assigned.
+</DL>
+
+<P>
+
+&quot;+=&quot;
+<DL COMPACT><DT id="4"><DD>
+Add the value to a key that holds a list of entries.
+</DL>
+
+<P>
+
+&quot;-=&quot;
+<DL COMPACT><DT id="5"><DD>
+Remove the value from a key that holds a list of entries.
+</DL>
+
+<P>
+
+&quot;:=&quot;
+<DL COMPACT><DT id="6"><DD>
+Assign a value to a key finally; disallow any later changes.
+</DL>
+
+<P>
+
+The following key names can be used to match against device properties. Some of the keys also match against properties of the parent devices in sysfs, not only the device that has generated the event. If multiple keys that match a parent device are specified in a single rule, all these keys must match at one and the same parent device.
+<P>
+
+<I>ACTION</I>
+<DL COMPACT><DT id="7"><DD>
+Match the name of the event action.
+</DL>
+
+<P>
+
+<I>DEVPATH</I>
+<DL COMPACT><DT id="8"><DD>
+Match the devpath of the event device.
+</DL>
+
+<P>
+
+<I>KERNEL</I>
+<DL COMPACT><DT id="9"><DD>
+Match the name of the event device.
+</DL>
+
+<P>
+
+<I>NAME</I>
+<DL COMPACT><DT id="10"><DD>
+Match the name of a network interface. It can be used once the NAME key has been set in one of the preceding rules.
+</DL>
+
+<P>
+
+<I>SYMLINK</I>
+<DL COMPACT><DT id="11"><DD>
+Match the name of a symlink targeting the node. It can be used once a SYMLINK key has been set in one of the preceding rules. There may be multiple symlinks; only one needs to match.
+</DL>
+
+<P>
+
+<I>SUBSYSTEM</I>
+<DL COMPACT><DT id="12"><DD>
+Match the subsystem of the event device.
+</DL>
+
+<P>
+
+<I>DRIVER</I>
+<DL COMPACT><DT id="13"><DD>
+Match the driver name of the event device. Only set this key for devices which are bound to a driver at the time the event is generated.
+</DL>
+
+<P>
+
+<I>ATTR{</I><I>filename</I><I>}</I>
+<DL COMPACT><DT id="14"><DD>
+Match sysfs attribute values of the event device. Trailing whitespace in the attribute values is ignored unless the specified match value itself contains trailing whitespace.
+</DL>
+
+<P>
+
+<I>SYSCTL{</I><I>kernel parameter</I><I>}</I>
+<DL COMPACT><DT id="15"><DD>
+Match a kernel parameter value.
+</DL>
+
+<P>
+
+<I>KERNELS</I>
+<DL COMPACT><DT id="16"><DD>
+Search the devpath upwards for a matching device name.
+</DL>
+
+<P>
+
+<I>SUBSYSTEMS</I>
+<DL COMPACT><DT id="17"><DD>
+Search the devpath upwards for a matching device subsystem name.
+</DL>
+
+<P>
+
+<I>DRIVERS</I>
+<DL COMPACT><DT id="18"><DD>
+Search the devpath upwards for a matching device driver name.
+</DL>
+
+<P>
+
+<I>ATTRS{</I><I>filename</I><I>}</I>
+<DL COMPACT><DT id="19"><DD>
+Search the devpath upwards for a device with matching sysfs attribute values. If multiple
+<I>ATTRS</I>
+matches are specified, all of them must match on the same device. Trailing whitespace in the attribute values is ignored unless the specified match value itself contains trailing whitespace.
+</DL>
+
+<P>
+
+<I>TAGS</I>
+<DL COMPACT><DT id="20"><DD>
+Search the devpath upwards for a device with matching tag.
+</DL>
+
+<P>
+
+<I>ENV{</I><I>key</I><I>}</I>
+<DL COMPACT><DT id="21"><DD>
+Match against a device property value.
+</DL>
+
+<P>
+
+<I>CONST{</I><I>key</I><I>}</I>
+<DL COMPACT><DT id="22"><DD>
+Match against a system-wide constant. Supported keys are:
+<P>
+
+&quot;arch&quot;
+<DL COMPACT><DT id="23"><DD>
+System's architecture. See
+<B>ConditionArchitecture=</B>
+in
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.unit">systemd.unit</A></B>(5)
+for possible values.
+</DL>
+
+<P>
+
+&quot;virt&quot;
+<DL COMPACT><DT id="24"><DD>
+System's virtualization environment. See
+<B><A HREF="/cgi-bin/man/man2html?1+systemd-detect-virt">systemd-detect-virt</A></B>(1)
+for possible values.
+</DL>
+
+<P>
+Unknown keys will never match.
+</DL>
+
+<P>
+
+<I>TAG</I>
+<DL COMPACT><DT id="25"><DD>
+Match against a device tag.
+</DL>
+
+<P>
+
+<I>TEST{</I><I>octal mode mask</I><I>}</I>
+<DL COMPACT><DT id="26"><DD>
+Test the existence of a file. An octal mode mask can be specified if needed.
+</DL>
+
+<P>
+
+<I>PROGRAM</I>
+<DL COMPACT><DT id="27"><DD>
+Execute a program to determine whether there is a match; the key is true if the program returns successfully. The device properties are made available to the executed program in the environment. The program's standard output is available in the
+<I>RESULT</I>
+key.
+<P>
+This can only be used for very short-running foreground tasks. For details, see
+<I>RUN</I>.
+</DL>
+
+<P>
+
+<I>RESULT</I>
+<DL COMPACT><DT id="28"><DD>
+Match the returned string of the last
+<I>PROGRAM</I>
+call. This key can be used in the same or in any later rule after a
+<I>PROGRAM</I>
+call.
+</DL>
+
+<P>
+
+Most of the fields support shell glob pattern matching and alternate patterns. The following special characters are supported:
+<P>
+
+&quot;*&quot;
+<DL COMPACT><DT id="29"><DD>
+Matches zero or more characters.
+</DL>
+
+<P>
+
+&quot;?&quot;
+<DL COMPACT><DT id="30"><DD>
+Matches any single character.
+</DL>
+
+<P>
+
+&quot;[]&quot;
+<DL COMPACT><DT id="31"><DD>
+Matches any single character specified within the brackets. For example, the pattern string
+&quot;tty[SR]&quot;
+would match either
+&quot;ttyS&quot;
+or
+&quot;ttyR&quot;. Ranges are also supported via the
+&quot;-&quot;
+character. For example, to match on the range of all digits, the pattern
+&quot;[0-9]&quot;
+could be used. If the first character following the
+&quot;[&quot;
+is a
+&quot;!&quot;, any characters not enclosed are matched.
+</DL>
+
+<P>
+
+&quot;|&quot;
+<DL COMPACT><DT id="32"><DD>
+Separates alternative patterns. For example, the pattern string
+&quot;abc|x*&quot;
+would match either
+&quot;abc&quot;
+or
+&quot;x*&quot;.
+</DL>
+
+<P>
+
+The following keys can get values assigned:
+<P>
+
+<I>NAME</I>
+<DL COMPACT><DT id="33"><DD>
+The name to use for a network interface. See
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.link">systemd.link</A></B>(5)
+for a higher-level mechanism for setting the interface name. The name of a device node cannot be changed by udev, only additional symlinks can be created.
+</DL>
+
+<P>
+
+<I>SYMLINK</I>
+<DL COMPACT><DT id="34"><DD>
+The name of a symlink targeting the node. Every matching rule adds this value to the list of symlinks to be created.
+<P>
+The set of characters to name a symlink is limited. Allowed characters are
+&quot;0-9A-Za-z#+-.:=@_/&quot;, valid UTF-8 character sequences, and
+&quot;\x00&quot;
+hex encoding. All other characters are replaced by a
+&quot;_&quot;
+character.
+<P>
+Multiple symlinks may be specified by separating the names by the space character. In case multiple devices claim the same name, the link always points to the device with the highest link_priority. If the current device goes away, the links are re-evaluated and the device with the next highest link_priority becomes the owner of the link. If no link_priority is specified, the order of the devices (and which one of them owns the link) is undefined.
+<P>
+Symlink names must never conflict with the kernel's default device node names, as that would result in unpredictable behavior.
+</DL>
+
+<P>
+
+<I>OWNER</I>, <I>GROUP</I>, <I>MODE</I>
+<DL COMPACT><DT id="35"><DD>
+The permissions for the device node. Every specified value overrides the compiled-in default value.
+</DL>
+
+<P>
+
+<I>SECLABEL{</I><I>module</I><I>}</I>
+<DL COMPACT><DT id="36"><DD>
+Applies the specified Linux Security Module label to the device node.
+</DL>
+
+<P>
+
+<I>ATTR{</I><I>key</I><I>}</I>
+<DL COMPACT><DT id="37"><DD>
+The value that should be written to a sysfs attribute of the event device.
+</DL>
+
+<P>
+
+<I>SYSCTL{</I><I>kernel parameter</I><I>}</I>
+<DL COMPACT><DT id="38"><DD>
+The value that should be written to kernel parameter.
+</DL>
+
+<P>
+
+<I>ENV{</I><I>key</I><I>}</I>
+<DL COMPACT><DT id="39"><DD>
+Set a device property value. Property names with a leading
+&quot;.&quot;
+are neither stored in the database nor exported to events or external tools (run by, for example, the
+<I>PROGRAM</I>
+match key).
+</DL>
+
+<P>
+
+<I>TAG</I>
+<DL COMPACT><DT id="40"><DD>
+Attach a tag to a device. This is used to filter events for users of libudev's monitor functionality, or to enumerate a group of tagged devices. The implementation can only work efficiently if only a few tags are attached to a device. It is only meant to be used in contexts with specific device filter requirements, and not as a general-purpose flag. Excessive use might result in inefficient event handling.
+</DL>
+
+<P>
+
+<I>RUN{</I><I>type</I><I>}</I>
+<DL COMPACT><DT id="41"><DD>
+Add a program to the list of programs to be executed after processing all the rules for a specific event, depending on
+&quot;type&quot;:
+<P>
+
+&quot;program&quot;
+<DL COMPACT><DT id="42"><DD>
+Execute an external program specified as the assigned value. If no absolute path is given, the program is expected to live in
+/lib/udev; otherwise, the absolute path must be specified.
+<P>
+This is the default if no
+<I>type</I>
+is specified.
+</DL>
+
+<P>
+
+&quot;builtin&quot;
+<DL COMPACT><DT id="43"><DD>
+As
+<I>program</I>, but use one of the built-in programs rather than an external one.
+</DL>
+
+<P>
+The program name and following arguments are separated by spaces. Single quotes can be used to specify arguments with spaces.
+<P>
+This can only be used for very short-running foreground tasks. Running an event process for a long period of time may block all further events for this or a dependent device.
+<P>
+Starting daemons or other long-running processes is not appropriate for udev; the forked processes, detached or not, will be unconditionally killed after the event handling has finished.
+<P>
+Note that running programs that access the network or mount/unmount filesystems is not allowed inside of udev rules, due to the default sandbox that is enforced on
+systemd-udevd.service.
+<P>
+Please also note that
+&quot;:=&quot;
+and
+&quot;=&quot;
+are clearing both, program and builtin commands.
+<P>
+In order to activate long-running processes from udev rules, provide a service unit, and pull it in from a udev device using the
+<I>SYSTEMD_WANTS</I>
+device property. See
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.device">systemd.device</A></B>(5)
+for details.
+</DL>
+
+<P>
+
+<I>LABEL</I>
+<DL COMPACT><DT id="44"><DD>
+A named label to which a
+<I>GOTO</I>
+may jump.
+</DL>
+
+<P>
+
+<I>GOTO</I>
+<DL COMPACT><DT id="45"><DD>
+Jumps to the next
+<I>LABEL</I>
+with a matching name.
+</DL>
+
+<P>
+
+<I>IMPORT{</I><I>type</I><I>}</I>
+<DL COMPACT><DT id="46"><DD>
+Import a set of variables as device properties, depending on
+&quot;type&quot;:
+<P>
+
+&quot;program&quot;
+<DL COMPACT><DT id="47"><DD>
+Execute an external program specified as the assigned value and, if it returns successfully, import its output, which must be in environment key format. Path specification, command/argument separation, and quoting work like in
+<I>RUN</I>.
+</DL>
+
+<P>
+
+&quot;builtin&quot;
+<DL COMPACT><DT id="48"><DD>
+Similar to
+&quot;program&quot;, but use one of the built-in programs rather than an external one.
+</DL>
+
+<P>
+
+&quot;file&quot;
+<DL COMPACT><DT id="49"><DD>
+Import a text file specified as the assigned value, the content of which must be in environment key format.
+</DL>
+
+<P>
+
+&quot;db&quot;
+<DL COMPACT><DT id="50"><DD>
+Import a single property specified as the assigned value from the current device database. This works only if the database is already populated by an earlier event.
+</DL>
+
+<P>
+
+&quot;cmdline&quot;
+<DL COMPACT><DT id="51"><DD>
+Import a single property from the kernel command line. For simple flags the value of the property is set to
+&quot;1&quot;.
+</DL>
+
+<P>
+
+&quot;parent&quot;
+<DL COMPACT><DT id="52"><DD>
+Import the stored keys from the parent device by reading the database entry of the parent device. The value assigned to
+<B>IMPORT{parent}</B>
+is used as a filter of key names to import (with the same shell glob pattern matching used for comparisons).
+</DL>
+
+<P>
+This can only be used for very short-running foreground tasks. For details see
+<B>RUN</B>.
+</DL>
+
+<P>
+
+<I>OPTIONS</I>
+<DL COMPACT><DT id="53"><DD>
+Rule and device options:
+<P>
+
+<B>link_priority=</B><B></B><I>value</I>
+<DL COMPACT><DT id="54"><DD>
+Specify the priority of the created symlinks. Devices with higher priorities overwrite existing symlinks of other devices. The default is 0.
+</DL>
+
+<P>
+
+<B>string_escape=</B><B></B><I>none|replace</I>
+<DL COMPACT><DT id="55"><DD>
+Usually, control and other possibly unsafe characters are replaced in strings used for device naming. The mode of replacement can be specified with this option.
+</DL>
+
+<P>
+
+<B>static_node=</B>
+<DL COMPACT><DT id="56"><DD>
+Apply the permissions specified in this rule to the static device node with the specified name. Also, for every tag specified in this rule, create a symlink in the directory
+/run/udev/static_node-tags/<I>tag</I>
+pointing at the static device node with the specified name. Static device node creation is performed by systemd-tmpfiles before systemd-udevd is started. The static nodes might not have a corresponding kernel device; they are used to trigger automatic kernel module loading when they are accessed.
+</DL>
+
+<P>
+
+<B>watch</B>
+<DL COMPACT><DT id="57"><DD>
+Watch the device node with inotify; when the node is closed after being opened for writing, a change uevent is synthesized.
+</DL>
+
+<P>
+
+<B>nowatch</B>
+<DL COMPACT><DT id="58"><DD>
+Disable the watching of a device node with inotify.
+</DL>
+
+<P>
+
+<B>db_persist</B>
+<DL COMPACT><DT id="59"><DD>
+Set the flag (sticky bit) on the udev database entry of the event device. Device properties are then kept in the database even when
+<B>udevadm info --cleanup-db</B>
+is called. This option can be useful in certain cases (e.g. Device Mapper devices) for persisting device state on the transition from initramfs.
+</DL>
+
+</DL>
+
+<P>
+
+The
+<I>NAME</I>,
+<I>SYMLINK</I>,
+<I>PROGRAM</I>,
+<I>OWNER</I>,
+<I>GROUP</I>,
+<I>MODE</I>,
+<I>SECLABEL</I>, and
+<I>RUN</I>
+fields support simple string substitutions. The
+<I>RUN</I>
+substitutions are performed after all rules have been processed, right before the program is executed, allowing for the use of device properties set by earlier matching rules. For all other fields, substitutions are performed while the individual rule is being processed. The available substitutions are:
+<P>
+
+<B>$kernel</B>, <B>%k</B>
+<DL COMPACT><DT id="60"><DD>
+The kernel name for this device.
+</DL>
+
+<P>
+
+<B>$number</B>, <B>%n</B>
+<DL COMPACT><DT id="61"><DD>
+The kernel number for this device. For example,
+&quot;sda3&quot;
+has kernel number
+&quot;3&quot;.
+</DL>
+
+<P>
+
+<B>$devpath</B>, <B>%p</B>
+<DL COMPACT><DT id="62"><DD>
+The devpath of the device.
+</DL>
+
+<P>
+
+<B>$id</B>, <B>%b</B>
+<DL COMPACT><DT id="63"><DD>
+The name of the device matched while searching the devpath upwards for
+<B>SUBSYSTEMS</B>,
+<B>KERNELS</B>,
+<B>DRIVERS</B>, and
+<B>ATTRS</B>.
+</DL>
+
+<P>
+
+<B>$driver</B>
+<DL COMPACT><DT id="64"><DD>
+The driver name of the device matched while searching the devpath upwards for
+<B>SUBSYSTEMS</B>,
+<B>KERNELS</B>,
+<B>DRIVERS</B>, and
+<B>ATTRS</B>.
+</DL>
+
+<P>
+
+<B>$attr{</B><B></B><I>file</I><B>}</B>, <B>%s{</B><B></B><I>file</I><B>}</B>
+<DL COMPACT><DT id="65"><DD>
+The value of a sysfs attribute found at the device where all keys of the rule have matched. If the matching device does not have such an attribute, and a previous
+<B>KERNELS</B>,
+<B>SUBSYSTEMS</B>,
+<B>DRIVERS</B>, or
+<B>ATTRS</B>
+test selected a parent device, then the attribute from that parent device is used.
+<P>
+If the attribute is a symlink, the last element of the symlink target is returned as the value.
+</DL>
+
+<P>
+
+<B>$env{</B><B></B><I>key</I><B>}</B>, <B>%E{</B><B></B><I>key</I><B>}</B>
+<DL COMPACT><DT id="66"><DD>
+A device property value.
+</DL>
+
+<P>
+
+<B>$major</B>, <B>%M</B>
+<DL COMPACT><DT id="67"><DD>
+The kernel major number for the device.
+</DL>
+
+<P>
+
+<B>$minor</B>, <B>%m</B>
+<DL COMPACT><DT id="68"><DD>
+The kernel minor number for the device.
+</DL>
+
+<P>
+
+<B>$result</B>, <B>%c</B>
+<DL COMPACT><DT id="69"><DD>
+The string returned by the external program requested with
+<I>PROGRAM</I>. A single part of the string, separated by a space character, may be selected by specifying the part number as an attribute:
+&quot;%c{N}&quot;. If the number is followed by the
+&quot;+&quot;
+character, this part plus all remaining parts of the result string are substituted:
+&quot;%c{N+}&quot;.
+</DL>
+
+<P>
+
+<B>$parent</B>, <B>%P</B>
+<DL COMPACT><DT id="70"><DD>
+The node name of the parent device.
+</DL>
+
+<P>
+
+<B>$name</B>
+<DL COMPACT><DT id="71"><DD>
+The current name of the device. If not changed by a rule, it is the name of the kernel device.
+</DL>
+
+<P>
+
+<B>$links</B>
+<DL COMPACT><DT id="72"><DD>
+A space-separated list of the current symlinks. The value is only set during a remove event or if an earlier rule assigned a value.
+</DL>
+
+<P>
+
+<B>$root</B>, <B>%r</B>
+<DL COMPACT><DT id="73"><DD>
+The udev_root value.
+</DL>
+
+<P>
+
+<B>$sys</B>, <B>%S</B>
+<DL COMPACT><DT id="74"><DD>
+The sysfs mount point.
+</DL>
+
+<P>
+
+<B>$devnode</B>, <B>%N</B>
+<DL COMPACT><DT id="75"><DD>
+The name of the device node.
+</DL>
+
+<P>
+
+<B>%%</B>
+<DL COMPACT><DT id="76"><DD>
+The
+&quot;%&quot;
+character itself.
+</DL>
+
+<P>
+
+<B>$$</B>
+<DL COMPACT><DT id="77"><DD>
+The
+&quot;$&quot;
+character itself.
+</DL>
+
+<A NAME="lbAE">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-udevd.service">systemd-udevd.service</A></B>(8),
+<B><A HREF="/cgi-bin/man/man2html?8+udevadm">udevadm</A></B>(8),
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.link">systemd.link</A></B>(5)
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="78"><A HREF="#lbAB">NAME</A><DD>
+<DT id="79"><A HREF="#lbAC">DESCRIPTION</A><DD>
+<DT id="80"><A HREF="#lbAD">RULES FILES</A><DD>
+<DT id="81"><A HREF="#lbAE">SEE ALSO</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:10 GMT, March 31, 2021
+</BODY>
+</HTML>

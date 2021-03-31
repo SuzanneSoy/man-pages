@@ -1,0 +1,200 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SD_UID_GET_STATE</TITLE>
+</HEAD><BODY>
+<H1>SD_UID_GET_STATE</H1>
+Section: sd_uid_get_state (3)<BR>Updated: <BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+sd_uid_get_state, sd_uid_is_on_seat, sd_uid_get_sessions, sd_uid_get_seats, sd_uid_get_display - Determine login state of a specific Unix user ID
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+<B>
+</B><PRE>
+#include &lt;<A HREF="file:///usr/include/systemd/sd-login.h">systemd/sd-login.h</A>&gt;
+</PRE>
+
+
+<DL COMPACT>
+<DT id="1">
+<B>int sd_uid_get_state(uid_t&nbsp;</B><I>uid</I><B>, char&nbsp;**</B><I>state</I><B>);</B>
+
+<DT id="2">
+<B>int sd_uid_is_on_seat(uid_t&nbsp;</B><I>uid</I><B>, int&nbsp;</B><I>require_active</I><B>, const&nbsp;char&nbsp;*</B><I>seat</I><B>);</B>
+
+<DT id="3">
+<B>int sd_uid_get_sessions(uid_t&nbsp;</B><I>uid</I><B>, int&nbsp;</B><I>require_active</I><B>, char&nbsp;***</B><I>sessions</I><B>);</B>
+
+<DT id="4">
+<B>int sd_uid_get_seats(uid_t&nbsp;</B><I>uid</I><B>, int&nbsp;</B><I>require_active</I><B>, char&nbsp;***</B><I>seats</I><B>);</B>
+
+<DT id="5">
+<B>int sd_uid_get_display(uid_t&nbsp;</B><I>uid</I><B>, char&nbsp;**</B><I>session</I><B>);</B>
+
+</DL>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+<B>sd_uid_get_state()</B>
+<DD>may be used to determine the login state of a specific Unix user identifier. The following states are currently known:
+&quot;offline&quot;
+(user not logged in at all),
+&quot;lingering&quot;
+(user not logged in, but some user services running),
+&quot;online&quot;
+(user logged in, but not active, i.e. has no session in the foreground),
+&quot;active&quot;
+(user logged in, and has at least one active session, i.e. one session in the foreground),
+&quot;closing&quot;
+(user not logged in, and not lingering, but some processes are still around). In the future additional states might be defined, client code should be written to be robust in regards to additional state strings being returned. The returned string needs to be freed with the libc
+<B><A HREF="/cgi-bin/man/man2html?3+free">free</A></B>(3)
+call after use.
+<P>
+
+<B>sd_uid_is_on_seat()</B>
+may be used to determine whether a specific user is logged in or active on a specific seat. Accepts a Unix user identifier and a seat identifier string as parameters. The
+<I>require_active</I>
+parameter is a boolean value. If non-zero (true), this function will test if the user is active (i.e. has a session that is in the foreground and accepting user input) on the specified seat, otherwise (false) only if the user is logged in (and possibly inactive) on the specified seat.
+<P>
+
+<B>sd_uid_get_sessions()</B>
+may be used to determine the current sessions of the specified user. Accepts a Unix user identifier as parameter. The
+<I>require_active</I>
+parameter controls whether the returned list shall consist of only those sessions where the user is currently active (&gt; 0), where the user is currently online but possibly inactive (= 0), or logged in at all but possibly closing the session (&lt; 0). The call returns a
+<B>NULL</B>
+terminated string array of session identifiers in
+<I>sessions</I>
+which needs to be freed by the caller with the libc
+<B><A HREF="/cgi-bin/man/man2html?3+free">free</A></B>(3)
+call after use, including all the strings referenced. If the string array parameter is passed as
+<B>NULL</B>, the array will not be filled in, but the return code still indicates the number of current sessions. Note that instead of an empty array
+<B>NULL</B>
+may be returned and should be considered equivalent to an empty array.
+<P>
+
+Similarly,
+<B>sd_uid_get_seats()</B>
+may be used to determine the list of seats on which the user currently has sessions. Similar semantics apply, however note that the user may have multiple sessions on the same seat as well as sessions with no attached seat and hence the number of entries in the returned array may differ from the one returned by
+<B>sd_uid_get_sessions()</B>.
+<P>
+
+<B>sd_uid_get_display()</B>
+returns the name of the &quot;primary&quot; session of a user. If the user has graphical sessions, it will be the oldest graphical session. Otherwise, it will be the oldest open session.
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+<P>
+
+On success,
+<B>sd_uid_get_state()</B>
+returns 0 or a positive integer. If the test succeeds,
+<B>sd_uid_is_on_seat()</B>
+returns a positive integer; if it fails, 0.
+<B>sd_uid_get_sessions()</B>
+and
+<B>sd_uid_get_seats()</B>
+return the number of entries in the returned arrays.
+<B>sd_uid_get_display()</B>
+returns a non-negative code on success. On failure, these calls return a negative errno-style error code.
+<A NAME="lbAF">&nbsp;</A>
+<H3>Errors</H3>
+
+<P>
+
+Returned errors may indicate the following problems:
+<P>
+
+<B>-ENODATA</B>
+<DL COMPACT><DT id="6"><DD>
+The given field is not specified for the described user.
+</DL>
+
+<P>
+
+<B>-ENXIO</B>
+<DL COMPACT><DT id="7"><DD>
+The specified seat is unknown.
+</DL>
+
+<P>
+
+<B>-EINVAL</B>
+<DL COMPACT><DT id="8"><DD>
+An input parameter was invalid (out of range, or NULL, where that is not accepted). This is also returned if the passed user ID is
+<B>0xFFFF</B>
+or
+<B>0xFFFFFFFF</B>, which are undefined on Linux.
+</DL>
+
+<P>
+
+<B>-ENOMEM</B>
+<DL COMPACT><DT id="9"><DD>
+Memory allocation failed.
+</DL>
+
+<A NAME="lbAG">&nbsp;</A>
+<H2>NOTES</H2>
+
+<P>
+
+These APIs are implemented as a shared library, which can be compiled and linked to with the
+<B>libsystemd</B>&nbsp;<B><A HREF="/cgi-bin/man/man2html?1+pkg-config">pkg-config</A></B>(1)
+file.
+<A NAME="lbAH">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?3+sd-login">sd-login</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_pid_get_owner_uid">sd_pid_get_owner_uid</A></B>(3)
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="10"><A HREF="#lbAB">NAME</A><DD>
+<DT id="11"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="12"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="13"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DL>
+<DT id="14"><A HREF="#lbAF">Errors</A><DD>
+</DL>
+<DT id="15"><A HREF="#lbAG">NOTES</A><DD>
+<DT id="16"><A HREF="#lbAH">SEE ALSO</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:56 GMT, March 31, 2021
+</BODY>
+</HTML>

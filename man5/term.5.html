@@ -1,0 +1,472 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of term</TITLE>
+</HEAD><BODY>
+<H1>term</H1>
+Section: File Formats (5)<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+term - format of compiled term file.
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<B>term</B>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<A NAME="lbAE">&nbsp;</A>
+<H3>STORAGE LOCATION</H3>
+
+Compiled terminfo descriptions are placed under the directory <B>/etc/terminfo</B>.
+Two configurations are supported (when building the <B>ncurses</B> libraries):
+<DL COMPACT>
+<DT id="1"><B>directory tree</B>
+
+<DD>
+A two-level scheme is used to avoid a linear search
+of a huge <FONT SIZE="-1">UNIX</FONT> system directory: <B>/etc/terminfo/c/name</B> where
+<I>name</I>
+
+is the name of the terminal, and
+<I>c</I>
+
+is the first character of
+<I>name</I>.
+
+Thus,
+<I>act4</I>
+
+can be found in the file <B>/etc/terminfo/a/act4</B>.
+Synonyms for the same terminal are implemented by multiple
+links to the same compiled file.
+<DT id="2"><B>hashed database</B>
+
+<DD>
+Using Berkeley database, two types of records are stored:
+the terminfo data in the same format as stored in a directory tree with
+the terminfo's primary name as a key,
+and records containing only aliases pointing to the primary name.
+<DT id="3"><DD>
+If built to write hashed databases,
+<B>ncurses</B> can still read terminfo databases organized as a directory tree,
+but cannot write entries into the directory tree.
+It can write (or rewrite) entries in the hashed database.
+<DT id="4"><DD>
+<B>ncurses</B> distinguishes the two cases in the TERMINFO and TERMINFO_DIRS
+environment variable by assuming a directory tree for entries that
+correspond to an existing directory,
+and hashed database otherwise.
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H3>LEGACY STORAGE FORMAT</H3>
+
+The format has been chosen so that it will be the same on all hardware.
+An 8 or more bit byte is assumed, but no assumptions about byte ordering
+or sign extension are made.
+<P>
+
+The compiled file is created with the <B>tic</B> program,
+and read by the routine <B><A HREF="/cgi-bin/man/man2html?3X+setupterm">setupterm</A></B>(3X).
+The file is divided into six parts:
+the header,
+terminal names,
+boolean flags,
+numbers,
+strings,
+and
+string table.
+<P>
+
+The header section begins the file.
+This section contains six short integers in the format
+described below.
+These integers are
+<DL COMPACT><DT id="5"><DD>
+<DL COMPACT>
+<DT id="6">(1) the magic number (octal 0432);<DD>
+<DT id="7">(2) the size, in bytes, of the names section;<DD>
+<DT id="8">(3) the number of bytes in the boolean section;<DD>
+<DT id="9">(4) the number of short integers in the numbers section;<DD>
+<DT id="10">(5) the number of offsets (short integers) in the strings section;<DD>
+<DT id="11">(6) the size, in bytes, of the string table.<DD>
+</DL>
+</DL>
+
+<P>
+
+Short integers are stored in two 8-bit bytes.
+The first byte contains the least significant 8 bits of the value,
+and the second byte contains the most significant 8 bits.
+(Thus, the value represented is 256*second+first.)
+The value -1 is represented by the two bytes 0377, 0377; other negative
+values are illegal.
+This value generally
+means that the corresponding capability is missing from this terminal.
+Note that this format corresponds to the hardware of the <FONT SIZE="-1">VAX</FONT>
+and <FONT SIZE="-1">PDP</FONT>-11 (that is, little-endian machines).
+Machines where this does not correspond to the hardware must read the
+integers as two bytes and compute the little-endian value.
+<P>
+
+The terminal names section comes next.
+It contains the first line of the terminfo description,
+listing the various names for the terminal,
+separated by the ``|'' character.
+The section is terminated with an <FONT SIZE="-1">ASCII NUL</FONT> character.
+<P>
+
+The boolean flags have one byte for each flag.
+This byte is either 0 or 1 as the flag is present or absent.
+The capabilities are in the same order as the file &lt;<A HREF="file:///usr/include/term.h">term.h</A>&gt;.
+<P>
+
+Between the boolean section and the number section,
+a null byte will be inserted, if necessary,
+to ensure that the number section begins on an even byte (this is a
+relic of the PDP-11's word-addressed architecture, originally
+designed in to avoid IOT traps induced by addressing a word on an
+odd byte boundary).
+All short integers are aligned on a short word boundary.
+<P>
+
+The numbers section is similar to the flags section.
+Each capability takes up two bytes,
+and is stored as a little-endian short integer.
+If the value represented is -1, the capability is taken to be missing.
+<P>
+
+The strings section is also similar.
+Each capability is stored as a short integer, in the format above.
+A value of -1 means the capability is missing.
+Otherwise, the value is taken as an offset from the beginning
+of the string table.
+Special characters in ^X or \c notation are stored in their
+interpreted form, not the printing representation.
+Padding information $&lt;nn&gt; and parameter information %x are
+stored intact in uninterpreted form.
+<P>
+
+The final section is the string table.
+It contains all the values of string capabilities referenced in
+the string section.
+Each string is null terminated.
+<A NAME="lbAG">&nbsp;</A>
+<H3>EXTENDED STORAGE FORMAT</H3>
+
+The previous section describes the conventional terminfo binary format.
+With some minor variations of the offsets (see PORTABILITY),
+the same binary format is used in all modern UNIX systems.
+Each system uses a predefined set of boolean, number or string capabilities.
+<P>
+
+The <B>ncurses</B> libraries and applications support
+extended terminfo binary format,
+allowing users to define capabilities which are loaded at runtime.
+This
+extension is made possible by using the fact that the other implementations
+stop reading the terminfo data when they have reached the end of the size given
+in the header.
+<B>ncurses</B> checks the size,
+and if it exceeds that due to the predefined data,
+continues to parse according to its own scheme.
+<P>
+
+First, it reads the extended header (5 short integers):
+<DL COMPACT><DT id="12"><DD>
+<DL COMPACT>
+<DT id="13">(1)<DD>
+count of extended boolean capabilities
+<DT id="14">(2)<DD>
+count of extended numeric capabilities
+<DT id="15">(3)<DD>
+count of extended string capabilities
+<DT id="16">(4)<DD>
+count of the items in extended string table
+<DT id="17">(5)<DD>
+size of the extended string table in bytes
+</DL>
+</DL>
+
+<P>
+
+The count- and size-values for the extended string table
+include the extended capability <I>names</I> as well as
+extended capability <I>values</I>.
+<P>
+
+Using the counts and sizes, <B>ncurses</B> allocates arrays and reads data
+for the extended capabilities in the same order as the header information.
+<P>
+
+The extended string table contains values for string capabilities.
+After the end of these values, it contains the names for each of
+the extended capabilities in order, e.g., booleans, then numbers and
+finally strings.
+<P>
+
+Applications which manipulate terminal data can use the definitions
+described in <B><A HREF="/cgi-bin/man/man2html?3X+term_variables">term_variables</A></B>(3X) which associate the long capability
+names with members of a <B>TERMTYPE</B> structure.
+<A NAME="lbAH">&nbsp;</A>
+<H3>EXTENDED NUMBER FORMAT</H3>
+
+<P>
+
+On occasion, 16-bit signed integers are not large enough.
+With <B>ncurses</B> 6.1, a new format was introduced by making a few changes
+to the legacy format:
+
+<BR>&nbsp;.IP&nbsp;&bull;&nbsp;4
+
+
+a different magic number (octal 01036)
+
+<BR>&nbsp;.IP&nbsp;&bull;&nbsp;4
+
+
+changing the type for the <I>number</I> array from signed 16-bit integers
+to signed 32-bit integers.
+<P>
+
+To maintain compatibility, the library presents the same data structures
+to direct users of the <B>TERMTYPE</B> structure as in previous formats.
+However, that cannot provide callers with the extended numbers.
+The library uses a similar but hidden data structure <B>TERMTYPE2</B>
+to provide data for the terminfo functions.
+<A NAME="lbAI">&nbsp;</A>
+<H2>PORTABILITY</H2>
+
+<A NAME="lbAJ">&nbsp;</A>
+<H3>setupterm</H3>
+
+<P>
+
+Note that it is possible for
+<B>setupterm</B>
+
+to expect a different set of capabilities
+than are actually present in the file.
+Either the database may have been updated since
+<B>setupterm</B>
+
+has been recompiled
+(resulting in extra unrecognized entries in the file)
+or the program may have been recompiled more recently
+than the database was updated
+(resulting in missing entries).
+The routine
+<B>setupterm</B>
+
+must be prepared for both possibilities -
+this is why the numbers and sizes are included.
+Also, new capabilities must always be added at the end of the lists
+of boolean, number, and string capabilities.
+<A NAME="lbAK">&nbsp;</A>
+<H3>Binary format</H3>
+
+<P>
+
+X/Open Curses does not specify a format for the terminfo database.
+UNIX System V curses used a directory-tree of binary files,
+one per terminal description.
+<P>
+
+Despite the consistent use of little-endian for numbers and the otherwise
+self-describing format, it is not wise to count on portability of binary
+terminfo entries between commercial UNIX versions.
+The problem is that there
+are at least three versions of terminfo (under HP-UX, AIX, and OSF/1) which
+diverged from System V terminfo after SVr1, and have added extension
+capabilities to the string table that (in the binary format) collide with
+System V and XSI Curses extensions.
+See <B><A HREF="/cgi-bin/man/man2html?5+terminfo">terminfo</A></B>(5) for detailed
+discussion of terminfo source compatibility issues.
+<P>
+
+This implementation is by default compatible with the binary
+terminfo format used by Solaris curses,
+except in a few less-used details
+where it was found that the latter did not match X/Open Curses.
+The format used by the other Unix versions
+can be matched by building ncurses
+with different configuration options.
+<A NAME="lbAL">&nbsp;</A>
+<H3>Magic codes</H3>
+
+<P>
+
+The magic number in a binary terminfo file is the first 16-bits (two bytes).
+Besides making it more reliable for the library to check that a file
+is terminfo,
+utilities such as <B>file</B> also use that to tell what the file-format is.
+System V defined more than one magic number,
+with 0433, 0435 as screen-dumps (see <B><A HREF="/cgi-bin/man/man2html?5+scr_dump">scr_dump</A></B>(5)).
+This implementation uses 01036 as a continuation of that sequence,
+but with a different high-order byte to avoid confusion.
+<A NAME="lbAM">&nbsp;</A>
+<H3>The TERMTYPE structure</H3>
+
+<P>
+
+Direct access to the <B>TERMTYPE</B> structure is provided for legacy
+applications.
+Portable applications should use the <B>tigetflag</B> and related functions
+described in <B><A HREF="/cgi-bin/man/man2html?3X+curs_terminfo">curs_terminfo</A></B>(3X) for reading terminal capabilities.
+<A NAME="lbAN">&nbsp;</A>
+<H3>Mixed-case terminal names</H3>
+
+<P>
+
+A small number of terminal descriptions use uppercase characters in
+their names.
+If the underlying filesystem ignores the difference between
+uppercase and lowercase,
+<B>ncurses</B> represents the ``first character''
+of the terminal name used as
+the intermediate level of a directory tree in (two-character) hexadecimal form.
+<A NAME="lbAO">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+As an example, here is a description for the Lear-Siegler
+ADM-3, a popular though rather stupid early terminal:
+
+<BR>&nbsp;.sp
+
+<BR>&nbsp;.in&nbsp;+4
+
+<PRE>
+adm3a|lsi adm3a,
+        am,
+        cols#80, lines#24,
+        bel=^G, clear=&nbsp;32$&lt;1&gt;, cr=^M, cub1=^H, cud1=^J,
+        cuf1=^L, cup=\E=%p1%{32}%+%c%p2%{32}%+%c, cuu1=^K,
+        home=^^, ind=^J,
+
+ .sp .in +4
+and a hexadecimal dump of the compiled terminal description:
+
+ .sp .in +4<FONT SIZE="-2">0000  1a 01 10 00 02 00 03 00  82 00 31 00 61 64 6d 33  ........ ..1.adm3
+0010  61 7c 6c 73 69 20 61 64  6d 33 61 00 00 01 50 00  a|lsi ad m3a...P.
+0020  ff ff 18 00 ff ff 00 00  02 00 ff ff ff ff 04 00  ........ ........
+0030  ff ff ff ff ff ff ff ff  0a 00 25 00 27 00 ff ff  ........ ..%.'...
+0040  29 00 ff ff ff ff 2b 00  ff ff 2d 00 ff ff ff ff  ).....+. ..-.....
+0050  ff ff ff ff ff ff ff ff  ff ff ff ff ff ff ff ff  ........ ........
+0060  ff ff ff ff ff ff ff ff  ff ff ff ff ff ff ff ff  ........ ........
+0070  ff ff ff ff ff ff ff ff  ff ff ff ff ff ff ff ff  ........ ........
+0080  ff ff ff ff ff ff ff ff  ff ff ff ff ff ff ff ff  ........ ........
+0090  ff ff ff ff ff ff ff ff  ff ff ff ff ff ff ff ff  ........ ........
+00a0  ff ff ff ff ff ff ff ff  ff ff ff ff ff ff ff ff  ........ ........
+00b0  ff ff ff ff ff ff ff ff  ff ff ff ff ff ff ff ff  ........ ........
+00c0  ff ff ff ff ff ff ff ff  ff ff ff ff ff ff ff ff  ........ ........
+00d0  ff ff ff ff ff ff ff ff  ff ff ff ff ff ff ff ff  ........ ........
+00e0  ff ff ff ff ff ff ff ff  ff ff ff ff ff ff ff ff  ........ ........
+00f0  ff ff ff ff ff ff ff ff  ff ff ff ff ff ff ff ff  ........ ........
+0100  ff ff ff ff ff ff ff ff  ff ff ff ff ff ff ff ff  ........ ........
+0110  ff ff ff ff ff ff ff ff  ff ff ff ff ff ff ff ff  ........ ........
+0120  ff ff ff ff ff ff 2f 00  07 00 0d 00 1a 24 3c 31  ....../. .....$&lt;1
+0130  3e 00 1b 3d 25 70 31 25  7b 33 32 7d 25 2b 25 63  &gt;..=%p1% {32}%+%c
+0140  25 70 32 25 7b 33 32 7d  25 2b 25 63 00 0a 00 1e  %p2%{32} %+%c....
+0150  00 08 00 0c 00 0b 00 0a  00                       ........ .</FONT>
+
+</PRE>
+
+
+<BR>&nbsp;.in&nbsp;-4
+
+
+<P>
+<A NAME="lbAP">&nbsp;</A>
+<H2>LIMITS</H2>
+
+Some limitations:
+
+<BR>&nbsp;.IP&nbsp;&bull;&nbsp;4
+
+
+total compiled entries cannot exceed 4096 bytes in the legacy format.
+
+<BR>&nbsp;.IP&nbsp;&bull;&nbsp;4
+
+
+total compiled entries cannot exceed 32768 bytes in the extended format.
+
+<BR>&nbsp;.IP&nbsp;&bull;&nbsp;4
+
+
+the name field cannot exceed 128 bytes.
+<A NAME="lbAQ">&nbsp;</A>
+<H2>FILES</H2>
+
+/etc/terminfo/*/*<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>compiled terminal capability data base<BR>
+<A NAME="lbAR">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B>ncurses</B>(3NCURSES), <B><A HREF="/cgi-bin/man/man2html?5+terminfo">terminfo</A></B>(5).
+<A NAME="lbAS">&nbsp;</A>
+<H2>AUTHORS</H2>
+
+Thomas E. Dickey
+<BR>
+
+extended terminfo format for ncurses 5.0
+<BR>
+
+hashed database support for ncurses 5.6
+<BR>
+
+extended number support for ncurses 6.1
+<P>
+Eric S. Raymond
+<BR>
+
+documented legacy terminfo format, e.g., from pcurses.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="18"><A HREF="#lbAB">NAME</A><DD>
+<DT id="19"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="20"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DL>
+<DT id="21"><A HREF="#lbAE">STORAGE LOCATION</A><DD>
+<DT id="22"><A HREF="#lbAF">LEGACY STORAGE FORMAT</A><DD>
+<DT id="23"><A HREF="#lbAG">EXTENDED STORAGE FORMAT</A><DD>
+<DT id="24"><A HREF="#lbAH">EXTENDED NUMBER FORMAT</A><DD>
+</DL>
+<DT id="25"><A HREF="#lbAI">PORTABILITY</A><DD>
+<DL>
+<DT id="26"><A HREF="#lbAJ">setupterm</A><DD>
+<DT id="27"><A HREF="#lbAK">Binary format</A><DD>
+<DT id="28"><A HREF="#lbAL">Magic codes</A><DD>
+<DT id="29"><A HREF="#lbAM">The TERMTYPE structure</A><DD>
+<DT id="30"><A HREF="#lbAN">Mixed-case terminal names</A><DD>
+</DL>
+<DT id="31"><A HREF="#lbAO">EXAMPLE</A><DD>
+<DT id="32"><A HREF="#lbAP">LIMITS</A><DD>
+<DT id="33"><A HREF="#lbAQ">FILES</A><DD>
+<DT id="34"><A HREF="#lbAR">SEE ALSO</A><DD>
+<DT id="35"><A HREF="#lbAS">AUTHORS</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:06 GMT, March 31, 2021
+</BODY>
+</HTML>

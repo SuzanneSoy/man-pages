@@ -1,0 +1,633 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of HTTP::Daemon</TITLE>
+</HEAD><BODY>
+<H1>HTTP::Daemon</H1>
+Section: User Contributed Perl Documentation (3pm)<BR>Updated: 2019-09-22<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+HTTP::Daemon - A simple http server class
+<A NAME="lbAC">&nbsp;</A>
+<H2>VERSION</H2>
+
+
+
+version 6.06
+<A NAME="lbAD">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+
+
+
+
+<PRE>
+  use HTTP::Daemon;
+  use HTTP::Status;
+
+  my $d = HTTP::Daemon-&gt;new || die;
+  print &quot;Please contact me at: &lt;URL:&quot;, $d-&gt;url, &quot;&gt;\n&quot;;
+  while (my $c = $d-&gt;accept) {
+      while (my $r = $c-&gt;get_request) {
+          if ($r-&gt;method eq 'GET' and $r-&gt;uri-&gt;path eq &quot;/xyzzy&quot;) {
+              # remember, this is *not* recommended practice :-)
+              $c-&gt;send_file_response(&quot;/etc/passwd&quot;);
+          }
+          else {
+              $c-&gt;send_error(RC_FORBIDDEN)
+          }
+      }
+      $c-&gt;close;
+      undef($c);
+  }
+
+</PRE>
+
+
+<A NAME="lbAE">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+
+Instances of the <TT>&quot;HTTP::Daemon&quot;</TT> class are <FONT SIZE="-1">HTTP/1.1</FONT> servers that
+listen on a socket for incoming requests. The <TT>&quot;HTTP::Daemon&quot;</TT> is a
+subclass of <TT>&quot;IO::Socket::IP&quot;</TT>, so you can perform socket operations
+directly on it too.
+<P>
+
+The <B>accept()</B> method will return when a connection from a client is
+available.  The returned value will be an <TT>&quot;HTTP::Daemon::ClientConn&quot;</TT>
+object which is another <TT>&quot;IO::Socket::IP&quot;</TT> subclass.  Calling the
+<B>get_request()</B> method on this object will read data from the client and
+return an <TT>&quot;HTTP::Request&quot;</TT> object.  The ClientConn object also provide
+methods to send back various responses.
+<P>
+
+This <FONT SIZE="-1">HTTP</FONT> daemon does not <B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2) for you.  Your application, i.e. the
+user of the <TT>&quot;HTTP::Daemon&quot;</TT> is responsible for forking if that is
+desirable.  Also note that the user is responsible for generating
+responses that conform to the <FONT SIZE="-1">HTTP/1.1</FONT> protocol.
+<P>
+
+The following methods of <TT>&quot;HTTP::Daemon&quot;</TT> are new (or enhanced) relative
+to the <TT>&quot;IO::Socket::IP&quot;</TT> base class:
+<DL COMPACT>
+<DT id="1">$d = HTTP::Daemon-&gt;new<DD>
+
+
+
+
+
+<DT id="2">$d = HTTP::Daemon-&gt;new( %opts )<DD>
+
+
+
+
+
+The constructor method takes the same arguments as the
+<TT>&quot;IO::Socket::IP&quot;</TT> constructor, but unlike its base class it can also
+be called without any arguments.  The daemon will then set up a listen
+queue of 5 connections and allocate some random port number.
+
+
+<P>
+
+
+A server that wants to bind to some specific address on the standard
+<FONT SIZE="-1">HTTP</FONT> port will be constructed like this:
+
+
+<P>
+
+
+
+
+<PRE>
+  $d = HTTP::Daemon-&gt;new(
+           LocalAddr =&gt; '<A HREF="http://www.thisplace.com">www.thisplace.com</A>',
+           LocalPort =&gt; 80,
+       );
+
+</PRE>
+
+
+
+
+<P>
+
+
+See IO::Socket::IP for a description of other arguments that can
+be used configure the daemon during construction.
+<DT id="3">$c = $d-&gt;accept<DD>
+
+
+
+
+
+<DT id="4">$c = $d-&gt;accept( $pkg )<DD>
+
+
+
+
+<DT id="5">($c, $peer_addr) = $d-&gt;accept<DD>
+
+
+
+
+
+This method works the same the one provided by the base class, but it
+returns an <TT>&quot;HTTP::Daemon::ClientConn&quot;</TT> reference by default.  If a
+package name is provided as argument, then the returned object will be
+blessed into the given class.  It is probably a good idea to make that
+class a subclass of <TT>&quot;HTTP::Daemon::ClientConn&quot;</TT>.
+
+
+<P>
+
+
+The accept method will return <TT>&quot;undef&quot;</TT> if timeouts have been enabled
+and no connection is made within the given time.  The <B>timeout()</B> method
+is described in IO::Socket::IP.
+
+
+<P>
+
+
+In list context both the client object and the peer address will be
+returned; see the description of the accept method IO::Socket for
+details.
+<DT id="6">$d-&gt;url<DD>
+
+
+
+
+Returns a <FONT SIZE="-1">URL</FONT> string that can be used to access the server root.
+<DT id="7">$d-&gt;product_tokens<DD>
+
+
+
+
+Returns the name that this server will use to identify itself.  This
+is the string that is sent with the <TT>&quot;Server&quot;</TT> response header.  The
+main reason to have this method is that subclasses can override it if
+they want to use another product name.
+
+
+<P>
+
+
+The default is the string ``libwww-perl-daemon/#.##'' where ``#.##'' is
+replaced with the version number of this module.
+</DL>
+<P>
+
+The <TT>&quot;HTTP::Daemon::ClientConn&quot;</TT> is a <TT>&quot;IO::Socket::IP&quot;</TT>
+subclass. Instances of this class are returned by the <B>accept()</B> method
+of <TT>&quot;HTTP::Daemon&quot;</TT>.  The following methods are provided:
+<DL COMPACT>
+<DT id="8">$c-&gt;get_request<DD>
+
+
+
+
+
+<DT id="9">$c-&gt;get_request( $headers_only )<DD>
+
+
+
+
+
+This method reads data from the client and turns it into an
+<TT>&quot;HTTP::Request&quot;</TT> object which is returned.  It returns <TT>&quot;undef&quot;</TT>
+if reading fails.  If it fails, then the <TT>&quot;HTTP::Daemon::ClientConn&quot;</TT>
+object ($c) should be discarded, and you should not try call this
+method again on it.  The <TT>$c</TT>-&gt;reason method might give you some
+information about why <TT>$c</TT>-&gt;get_request failed.
+
+
+<P>
+
+
+The <B>get_request()</B> method will normally not return until the whole
+request has been received from the client.  This might not be what you
+want if the request is an upload of a large file (and with chunked
+transfer encoding <FONT SIZE="-1">HTTP</FONT> can even support infinite request messages -
+uploading live audio for instance).  If you pass a <FONT SIZE="-1">TRUE</FONT> value as the
+<TT>$headers_only</TT> argument, then <B>get_request()</B> will return immediately
+after parsing the request headers and you are responsible for reading
+the rest of the request content.  If you are going to call
+<TT>$c</TT>-&gt;get_request again on the same connection you better read the
+correct number of bytes.
+<DT id="10">$c-&gt;read_buffer<DD>
+
+
+
+
+
+<DT id="11">$c-&gt;read_buffer( $new_value )<DD>
+
+
+
+
+
+Bytes read by <TT>$c</TT>-&gt;get_request, but not used are placed in the <I>read
+buffer</I>.  The next time <TT>$c</TT>-&gt;get_request is called it will consume the
+bytes in this buffer before reading more data from the network
+connection itself.  The read buffer is invalid after <TT>$c</TT>-&gt;get_request
+has failed.
+
+
+<P>
+
+
+If you handle the reading of the request content yourself you need to
+empty this buffer before you read more and you need to place
+unconsumed bytes here.  You also need this buffer if you implement
+services like <I>101 Switching Protocols</I>.
+
+
+<P>
+
+
+This method always returns the old buffer content and can optionally
+replace the buffer content if you pass it an argument.
+<DT id="12">$c-&gt;reason<DD>
+
+
+
+
+When <TT>$c</TT>-&gt;get_request returns <TT>&quot;undef&quot;</TT> you can obtain a short string
+describing why it happened by calling <TT>$c</TT>-&gt;reason.
+<DT id="13">$c-&gt;proto_ge( $proto )<DD>
+
+
+
+
+Return <FONT SIZE="-1">TRUE</FONT> if the client announced a protocol with version number
+greater or equal to the given argument.  The <TT>$proto</TT> argument can be a
+string like ``<FONT SIZE="-1">HTTP/1.1''</FONT> or just ``1.1''.
+<DT id="14">$c-&gt;antique_client<DD>
+
+
+
+
+Return <FONT SIZE="-1">TRUE</FONT> if the client speaks the <FONT SIZE="-1">HTTP/0.9</FONT> protocol.  No status
+code and no headers should be returned to such a client.  This should
+be the same as !$c-&gt;proto_ge(``<FONT SIZE="-1">HTTP/1.0''</FONT>).
+<DT id="15">$c-&gt;head_request<DD>
+
+
+
+
+Return <FONT SIZE="-1">TRUE</FONT> if the last request was a <TT>&quot;HEAD&quot;</TT> request.  No content
+body must be generated for these requests.
+<DT id="16">$c-&gt;force_last_request<DD>
+
+
+
+
+Make sure that <TT>$c</TT>-&gt;get_request will not try to read more requests off
+this connection.  If you generate a response that is not self
+delimiting, then you should signal this fact by calling this method.
+
+
+<P>
+
+
+This attribute is turned on automatically if the client announces
+protocol <FONT SIZE="-1">HTTP/1.0</FONT> or worse and does not include a ``Connection:
+Keep-Alive'' header.  It is also turned on automatically when <FONT SIZE="-1">HTTP/1.1</FONT>
+or better clients send the ``Connection: close'' request header.
+<DT id="17">$c-&gt;send_status_line<DD>
+
+
+
+
+
+<DT id="18">$c-&gt;send_status_line( $code )<DD>
+
+
+
+
+<DT id="19">$c-&gt;send_status_line( $code, $mess )<DD>
+
+
+
+
+<DT id="20">$c-&gt;send_status_line( $code, $mess, $proto )<DD>
+
+
+
+
+
+Send the status line back to the client.  If <TT>$code</TT> is omitted 200 is
+assumed.  If <TT>$mess</TT> is omitted, then a message corresponding to <TT>$code</TT>
+is inserted.  If <TT>$proto</TT> is missing the content of the
+<TT>$HTTP::Daemon::PROTO</TT> variable is used.
+<DT id="21">$c-&gt;send_crlf<DD>
+
+
+
+
+Send the <FONT SIZE="-1">CRLF</FONT> sequence to the client.
+<DT id="22">$c-&gt;send_basic_header<DD>
+
+
+
+
+
+<DT id="23">$c-&gt;send_basic_header( $code )<DD>
+
+
+
+
+<DT id="24">$c-&gt;send_basic_header( $code, $mess )<DD>
+
+
+
+
+<DT id="25">$c-&gt;send_basic_header( $code, $mess, $proto )<DD>
+
+
+
+
+
+Send the status line and the ``Date:'' and ``Server:'' headers back to
+the client.  This header is assumed to be continued and does not end
+with an empty <FONT SIZE="-1">CRLF</FONT> line.
+
+
+<P>
+
+
+See the description of <B>send_status_line()</B> for the description of the
+accepted arguments.
+<DT id="26">$c-&gt;send_header( $field, $value )<DD>
+
+
+
+
+
+<DT id="27">$c-&gt;send_header( $field1, $value1, $field2, $value2, ... )<DD>
+
+
+
+
+
+Send one or more header lines.
+<DT id="28">$c-&gt;send_response( $res )<DD>
+
+
+
+
+Write a <TT>&quot;HTTP::Response&quot;</TT> object to the
+client as a response.  We try hard to make sure that the response is
+self delimiting so that the connection can stay persistent for further
+request/response exchanges.
+
+
+<P>
+
+
+The content attribute of the <TT>&quot;HTTP::Response&quot;</TT> object can be a normal
+string or a subroutine reference.  If it is a subroutine, then
+whatever this callback routine returns is written back to the
+client as the response content.  The routine will be called until it
+return an undefined or empty value.  If the client is <FONT SIZE="-1">HTTP/1.1</FONT> aware
+then we will use chunked transfer encoding for the response.
+<DT id="29">$c-&gt;send_redirect( $loc )<DD>
+
+
+
+
+
+<DT id="30">$c-&gt;send_redirect( $loc, $code )<DD>
+
+
+
+
+<DT id="31">$c-&gt;send_redirect( $loc, $code, $entity_body )<DD>
+
+
+
+
+
+Send a redirect response back to the client.  The location ($loc) can
+be an absolute or relative <FONT SIZE="-1">URL.</FONT> The <TT>$code</TT> must be one the redirect
+status codes, and defaults to ``301 Moved Permanently''
+<DT id="32">$c-&gt;send_error<DD>
+
+
+
+
+
+<DT id="33">$c-&gt;send_error( $code )<DD>
+
+
+
+
+<DT id="34">$c-&gt;send_error( $code, $error_message )<DD>
+
+
+
+
+
+Send an error response back to the client.  If the <TT>$code</TT> is missing a
+``Bad Request'' error is reported.  The <TT>$error_message</TT> is a string that
+is incorporated in the body of the <FONT SIZE="-1">HTML</FONT> entity body.
+<DT id="35">$c-&gt;send_file_response( $filename )<DD>
+
+
+
+
+Send back a response with the specified <TT>$filename</TT> as content.  If the
+file is a directory we try to generate an <FONT SIZE="-1">HTML</FONT> index of it.
+<DT id="36">$c-&gt;send_file( $filename )<DD>
+
+
+
+
+
+<DT id="37">$c-&gt;send_file( $fd )<DD>
+
+
+
+
+
+Copy the file to the client.  The file can be a string (which
+will be interpreted as a filename) or a reference to an <TT>&quot;IO::Handle&quot;</TT>
+or glob.
+<DT id="38">$c-&gt;daemon<DD>
+
+
+
+
+Return a reference to the corresponding <TT>&quot;HTTP::Daemon&quot;</TT> object.
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+
+<FONT SIZE="-1">RFC 2616</FONT>
+<P>
+
+IO::Socket::IP, IO::Socket
+<A NAME="lbAG">&nbsp;</A>
+<H2>SUPPORT</H2>
+
+
+
+bugs may be submitted through &lt;<A HREF="https://github.com/libwww-perl/HTTP-Daemon/issues">https://github.com/libwww-perl/HTTP-Daemon/issues</A>&gt;.
+<P>
+
+There is also a mailing list available for users of this distribution, at
+&lt;mailto:<A HREF="mailto:libwww@perl.org">libwww@perl.org</A>&gt;.
+<P>
+
+There is also an irc channel available for users of this distribution, at
+<TT>&quot;#lwp&quot;</TT> on <TT>&quot;irc.perl.org&quot;</TT> &lt;<A HREF="irc://irc.perl.org/#lwp">irc://irc.perl.org/#lwp</A>&gt;.
+<A NAME="lbAH">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+
+
+Gisle Aas &lt;<A HREF="mailto:gisle@activestate.com">gisle@activestate.com</A>&gt;
+<A NAME="lbAI">&nbsp;</A>
+<H2>CONTRIBUTORS</H2>
+
+
+
+<DL COMPACT>
+<DT id="39">&bull;<DD>
+Ville Skytta. &lt;<A HREF="mailto:ville.skytta@iki.fi">ville.skytta@iki.fi</A>&gt;
+<DT id="40">&bull;<DD>
+Olaf Alders &lt;<A HREF="mailto:olaf@wundersolutions.com">olaf@wundersolutions.com</A>&gt;
+<DT id="41">&bull;<DD>
+Mark Stosberg &lt;<A HREF="mailto:MARKSTOS@cpan.org">MARKSTOS@cpan.org</A>&gt;
+<DT id="42">&bull;<DD>
+Karen Etheridge &lt;<A HREF="mailto:ether@cpan.org">ether@cpan.org</A>&gt;
+<DT id="43">&bull;<DD>
+Chase Whitener &lt;<A HREF="mailto:capoeirab@cpan.org">capoeirab@cpan.org</A>&gt;
+<DT id="44">&bull;<DD>
+Slaven Rezic &lt;<A HREF="mailto:slaven@rezic.de">slaven@rezic.de</A>&gt;
+<DT id="45">&bull;<DD>
+Zefram &lt;<A HREF="mailto:zefram@fysh.org">zefram@fysh.org</A>&gt;
+<DT id="46">&bull;<DD>
+Alexey Tourbin &lt;<A HREF="mailto:at@altlinux.ru">at@altlinux.ru</A>&gt;
+<DT id="47">&bull;<DD>
+Bron Gondwana &lt;<A HREF="mailto:brong@fastmail.fm">brong@fastmail.fm</A>&gt;
+<DT id="48">&bull;<DD>
+Petr PisaX &lt;<A HREF="mailto:ppisar@redhat.com">ppisar@redhat.com</A>&gt;
+<DT id="49">&bull;<DD>
+Mike Schilli &lt;<A HREF="mailto:mschilli@yahoo-inc.com">mschilli@yahoo-inc.com</A>&gt;
+<DT id="50">&bull;<DD>
+Tom Hukins &lt;<A HREF="mailto:tom@eborcom.com">tom@eborcom.com</A>&gt;
+<DT id="51">&bull;<DD>
+Ian Kilgore &lt;<A HREF="mailto:iank@cpan.org">iank@cpan.org</A>&gt;
+<DT id="52">&bull;<DD>
+Jacob J &lt;<A HREF="mailto:waif@chaos2.org">waif@chaos2.org</A>&gt;
+<DT id="53">&bull;<DD>
+Ondrej Hanak &lt;<A HREF="mailto:ondrej.hanak@ubs.com">ondrej.hanak@ubs.com</A>&gt;
+<DT id="54">&bull;<DD>
+Perlover &lt;<A HREF="mailto:perlover@perlover.com">perlover@perlover.com</A>&gt;
+<DT id="55">&bull;<DD>
+Peter Rabbitson &lt;<A HREF="mailto:ribasushi@cpan.org">ribasushi@cpan.org</A>&gt;
+<DT id="56">&bull;<DD>
+Robert Stone &lt;<A HREF="mailto:talby@trap.mtview.ca.us">talby@trap.mtview.ca.us</A>&gt;
+<DT id="57">&bull;<DD>
+Rolf Grossmann &lt;<A HREF="mailto:rg@progtech.net">rg@progtech.net</A>&gt;
+<DT id="58">&bull;<DD>
+Sean M. Burke &lt;<A HREF="mailto:sburke@cpan.org">sburke@cpan.org</A>&gt;
+<DT id="59">&bull;<DD>
+Spiros Denaxas &lt;<A HREF="mailto:s.denaxas@gmail.com">s.denaxas@gmail.com</A>&gt;
+<DT id="60">&bull;<DD>
+Steve Hay &lt;<A HREF="mailto:SteveHay@planit.com">SteveHay@planit.com</A>&gt;
+<DT id="61">&bull;<DD>
+Todd Lipcon &lt;<A HREF="mailto:todd@amiestreet.com">todd@amiestreet.com</A>&gt;
+<DT id="62">&bull;<DD>
+Tony Finch &lt;<A HREF="mailto:dot@dotat.at">dot@dotat.at</A>&gt;
+<DT id="63">&bull;<DD>
+Toru Yamaguchi &lt;<A HREF="mailto:zigorou@cpan.org">zigorou@cpan.org</A>&gt;
+<DT id="64">&bull;<DD>
+Yuri Karaban &lt;<A HREF="mailto:tech@askold.net">tech@askold.net</A>&gt;
+<DT id="65">&bull;<DD>
+amire80 &lt;<A HREF="mailto:amir.aharoni@gmail.com">amir.aharoni@gmail.com</A>&gt;
+<DT id="66">&bull;<DD>
+jefflee &lt;<A HREF="mailto:shaohua@gmail.com">shaohua@gmail.com</A>&gt;
+<DT id="67">&bull;<DD>
+john9art &lt;<A HREF="mailto:john9art@yahoo.com">john9art@yahoo.com</A>&gt;
+<DT id="68">&bull;<DD>
+murphy &lt;<A HREF="mailto:murphy@genome.chop.edu">murphy@genome.chop.edu</A>&gt;
+<DT id="69">&bull;<DD>
+phrstbrn &lt;<A HREF="mailto:phrstbrn@gmail.com">phrstbrn@gmail.com</A>&gt;
+<DT id="70">&bull;<DD>
+ruff &lt;<A HREF="mailto:ruff@ukrpost.net">ruff@ukrpost.net</A>&gt;
+<DT id="71">&bull;<DD>
+Adam Kennedy &lt;<A HREF="mailto:adamk@cpan.org">adamk@cpan.org</A>&gt;
+<DT id="72">&bull;<DD>
+sasao &lt;<A HREF="mailto:sasao@yugen.org">sasao@yugen.org</A>&gt;
+<DT id="73">&bull;<DD>
+Adam Sjogren &lt;<A HREF="mailto:asjo@koldfront.dk">asjo@koldfront.dk</A>&gt;
+<DT id="74">&bull;<DD>
+Alex Kapranoff &lt;<A HREF="mailto:ka@nadoby.ru">ka@nadoby.ru</A>&gt;
+<DT id="75">&bull;<DD>
+Andreas J. Koenig &lt;<A HREF="mailto:andreas.koenig@anima.de">andreas.koenig@anima.de</A>&gt;
+<DT id="76">&bull;<DD>
+Bill Mann &lt;<A HREF="mailto:wfmann@alum.mit.edu">wfmann@alum.mit.edu</A>&gt;
+<DT id="77">&bull;<DD>
+<FONT SIZE="-1">DAVIDRW</FONT> &lt;<A HREF="mailto:davidrw@cpan.org">davidrw@cpan.org</A>&gt;
+<DT id="78">&bull;<DD>
+Daniel Hedlund &lt;<A HREF="mailto:Daniel.Hedlund@eprize.com">Daniel.Hedlund@eprize.com</A>&gt;
+<DT id="79">&bull;<DD>
+David E. Wheeler &lt;<A HREF="mailto:david@justatheory.com">david@justatheory.com</A>&gt;
+<DT id="80">&bull;<DD>
+<FONT SIZE="-1">FWILES</FONT> &lt;<A HREF="mailto:FWILES@cpan.org">FWILES@cpan.org</A>&gt;
+<DT id="81">&bull;<DD>
+Father Chrysostomos &lt;<A HREF="mailto:sprout@cpan.org">sprout@cpan.org</A>&gt;
+<DT id="82">&bull;<DD>
+Gavin Peters &lt;<A HREF="mailto:gpeters@deepsky.com">gpeters@deepsky.com</A>&gt;
+<DT id="83">&bull;<DD>
+Graeme Thompson &lt;<A HREF="mailto:Graeme.Thompson@mobilecohesion.com">Graeme.Thompson@mobilecohesion.com</A>&gt;
+<DT id="84">&bull;<DD>
+Hans-H. Froehlich &lt;<A HREF="mailto:hfroehlich@co-de-co.de">hfroehlich@co-de-co.de</A>&gt;
+</DL>
+<A NAME="lbAJ">&nbsp;</A>
+<H2>COPYRIGHT AND LICENCE</H2>
+
+
+
+This software is copyright (c) 1995 by Gisle Aas.
+<P>
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="85"><A HREF="#lbAB">NAME</A><DD>
+<DT id="86"><A HREF="#lbAC">VERSION</A><DD>
+<DT id="87"><A HREF="#lbAD">SYNOPSIS</A><DD>
+<DT id="88"><A HREF="#lbAE">DESCRIPTION</A><DD>
+<DT id="89"><A HREF="#lbAF">SEE ALSO</A><DD>
+<DT id="90"><A HREF="#lbAG">SUPPORT</A><DD>
+<DT id="91"><A HREF="#lbAH">AUTHOR</A><DD>
+<DT id="92"><A HREF="#lbAI">CONTRIBUTORS</A><DD>
+<DT id="93"><A HREF="#lbAJ">COPYRIGHT AND LICENCE</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:45 GMT, March 31, 2021
+</BODY>
+</HTML>

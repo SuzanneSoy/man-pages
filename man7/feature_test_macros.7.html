@@ -1,0 +1,1219 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of FEATURE_TEST_MACROS</TITLE>
+</HEAD><BODY>
+<H1>FEATURE_TEST_MACROS</H1>
+Section: Linux Programmer's Manual (7)<BR>Updated: 2019-03-06<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+feature_test_macros - feature test macros
+<A NAME="lbAC">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+Feature test macros allow the programmer to control the definitions that
+are exposed by system header files when a program is compiled.
+<P>
+
+<B>NOTE:</B>
+
+In order to be effective, a feature test macro
+<I>must be defined before including any header files</I>.
+
+This can be done either in the compilation command
+(<I>cc -DMACRO=value</I>)
+
+or by defining the macro within the source code before
+including any headers.
+The requirement that the macro must be defined before including any
+header file exists because header files may freely include one another.
+Thus, for example, in the following lines, defining the
+<B>_GNU_SOURCE</B>
+
+macro may have no effect because the header
+<I>&lt;<A HREF="file:///usr/include/abc.h">abc.h</A>&gt;</I>
+
+itself includes
+<I>&lt;<A HREF="file:///usr/include/xyz.h">xyz.h</A>&gt;</I>
+
+(POSIX explicitly allows this):
+<P>
+
+
+
+#include &lt;<A HREF="file:///usr/include/abc.h">abc.h</A>&gt;
+#define _GNU_SOURCE
+#include &lt;<A HREF="file:///usr/include/xys.h">xys.h</A>&gt;
+
+
+<P>
+
+Some feature test macros are useful for creating portable applications,
+by preventing nonstandard definitions from being exposed.
+Other macros can be used to expose nonstandard definitions that
+are not exposed by default.
+<P>
+
+The precise effects of each of the feature test macros described below
+can be ascertained by inspecting the
+<I>&lt;<A HREF="file:///usr/include/features.h">features.h</A>&gt;</I>
+
+header file.
+<B>Note</B>:
+
+applications do
+<I>not</I>
+
+need to directly include
+<I>&lt;<A HREF="file:///usr/include/features.h">features.h</A>&gt;</I>;
+
+indeed, doing so is actively discouraged.
+See NOTES.
+<A NAME="lbAD">&nbsp;</A>
+<H3>Specification of feature test macro requirements in manual pages</H3>
+
+When a function requires that a feature test macro is defined,
+the manual page SYNOPSIS typically includes a note of the following form
+(this example from the
+<B><A HREF="/cgi-bin/man/man2html?2+acct">acct</A></B>(2)
+
+manual page):
+<P>
+
+<DL COMPACT><DT id="1"><DD>
+<B>#include &lt;<A HREF="file:///usr/include/unistd.h">unistd.h</A>&gt;</B>
+
+<P>
+
+<B>int acct(const char *</B><I>filename</I><B>);</B>
+
+<P>
+
+
+
+Feature Test Macro Requirements for glibc (see
+<B><A HREF="/cgi-bin/man/man2html?7+feature_test_macros">feature_test_macros</A></B>(7)):
+
+
+
+<P>
+
+<B>acct</B>():
+
+_BSD_SOURCE || (_XOPEN_SOURCE &amp;&amp; _XOPEN_SOURCE&nbsp;&lt;&nbsp;500)
+</DL>
+
+<P>
+
+The
+<B>||</B>
+
+means that in order to obtain the declaration of
+<B><A HREF="/cgi-bin/man/man2html?2+acct">acct</A></B>(2)
+
+from
+<I>&lt;<A HREF="file:///usr/include/unistd.h">unistd.h</A>&gt;</I>,
+
+<I>either</I>
+
+of the following macro
+definitions must be made before including any header files:
+<P>
+
+
+
+#define _BSD_SOURCE
+#define _XOPEN_SOURCE        /* or any value &lt; 500 */
+
+
+<P>
+
+Alternatively, equivalent definitions can be included in the
+compilation command:
+<P>
+
+
+
+cc -D_BSD_SOURCE
+cc -D_XOPEN_SOURCE           # Or any value &lt; 500
+
+
+<P>
+
+Note that, as described below,
+<B>some feature test macros are defined by default</B>,
+
+so that it may not always be necessary to
+explicitly specify the feature test macro(s) shown in the
+SYNOPSIS.
+<P>
+
+In a few cases, manual pages use a shorthand for expressing the
+feature test macro requirements (this example from
+<B><A HREF="/cgi-bin/man/man2html?2+readahead">readahead</A></B>(2)):
+
+<P>
+
+
+
+<B>#define _GNU_SOURCE</B>
+
+<B>#include &lt;<A HREF="file:///usr/include/fcntl.h">fcntl.h</A>&gt;</B>
+
+<P>
+
+<B>ssize_t readahead(int </B><I>fd</I><B>, off64_t *</B><I>offset</I><B>, size_t </B><I>count</I><B>);</B>
+
+
+
+<P>
+
+This format is employed in cases where only a single
+feature test macro can be used to expose the function
+declaration, and that macro is not defined by default.
+<A NAME="lbAE">&nbsp;</A>
+<H3>Feature test macros understood by glibc</H3>
+
+The paragraphs below explain how feature test macros are handled
+in Linux glibc 2.<I>x</I>,
+<I>x</I>
+
+&gt; 0.
+<P>
+
+First, though a summary of a few details for the impatient:
+<DL COMPACT>
+<DT id="2">*<DD>
+The macros that you most likely need to use in modern source code are
+<B>_POSIX_C_SOURCE</B>
+
+(for definitions from various versions of POSIX.1),
+<B>_XOPEN_SOURCE</B>
+
+(for definitions from various versions of SUS),
+<B>_GNU_SOURCE</B>
+
+(for GNU and/or Linux specific stuff), and
+<B>_DEFAULT_SOURCE</B>
+
+(to get definitions that would normally be provided by default).
+<DT id="3">*<DD>
+Certain macros are defined with default values.
+Thus, although one or more macros may be indicated as being
+required in the SYNOPSIS of a man page,
+it may not be necessary to define them explicitly.
+Full details of the defaults are given later in this man page.
+<DT id="4">*<DD>
+Defining
+<B>_XOPEN_SOURCE</B>
+
+with a value of 600 or greater produces the same effects as defining
+<B>_POSIX_C_SOURCE</B>
+
+with a value of 200112L or greater.
+Where one sees
+<DT id="5"><DD>
+
+
+_POSIX_C_SOURCE &gt;= 200112L
+
+
+<DT id="6"><DD>
+in the feature test macro requirements in the SYNOPSIS of a man page,
+it is implicit that the following has the same effect:
+<DT id="7"><DD>
+
+
+_XOPEN_SOURCE &gt;= 600
+
+
+<DT id="8">*<DD>
+Defining
+<B>_XOPEN_SOURCE</B>
+
+with a value of 700 or greater produces the same effects as defining
+<B>_POSIX_C_SOURCE</B>
+
+with a value of 200809L or greater.
+Where one sees
+<DT id="9"><DD>
+
+
+_POSIX_C_SOURCE &gt;= 200809L
+
+
+<DT id="10"><DD>
+in the feature test macro requirements in the SYNOPSIS of a man page,
+it is implicit that the following has the same effect:
+<DT id="11"><DD>
+
+
+_XOPEN_SOURCE &gt;= 700
+
+
+
+
+
+</DL>
+<P>
+
+Linux glibc understands the following feature test macros:
+<DL COMPACT>
+<DT id="12"><B>__STRICT_ANSI__</B>
+
+<DD>
+ISO Standard C.
+This macro is implicitly defined by
+<B><A HREF="/cgi-bin/man/man2html?1+gcc">gcc</A></B>(1)
+
+when invoked with, for example, the
+<I>-std=c99</I>
+
+or
+<I>-ansi</I>
+
+flag.
+<DT id="13"><B>_POSIX_C_SOURCE</B>
+
+<DD>
+Defining this macro causes header files to expose definitions as follows:
+<DL COMPACT><DT id="14"><DD>
+<DL COMPACT>
+<DT id="15">&bull;<DD>
+The value 1 exposes definitions conforming to POSIX.1-1990 and
+ISO C (1990).
+<DT id="16">&bull;<DD>
+The value 2 or greater additionally exposes
+definitions for POSIX.2-1992.
+<DT id="17">&bull;<DD>
+The value 199309L or greater additionally exposes
+definitions for POSIX.1b (real-time extensions).
+
+<DT id="18">&bull;<DD>
+The value 199506L or greater additionally exposes
+definitions for POSIX.1c (threads).
+<DT id="19">&bull;<DD>
+(Since glibc 2.3.3)
+The value 200112L or greater additionally exposes definitions corresponding
+to the POSIX.1-2001 base specification (excluding the XSI extension).
+This value also causes C95 (since glibc 2.12) and
+C99 (since glibc 2.10) features to be exposed
+(in other words, the equivalent of defining
+<B>_ISOC99_SOURCE</B>).
+
+<DT id="20">&bull;<DD>
+(Since glibc 2.10)
+The value 200809L or greater additionally exposes definitions corresponding
+to the POSIX.1-2008 base specification (excluding the XSI extension).
+</DL>
+</DL>
+
+<DT id="21"><B>_POSIX_SOURCE</B>
+
+<DD>
+Defining this obsolete macro with any value is equivalent to defining
+<B>_POSIX_C_SOURCE</B>
+
+with the value 1.
+<DT id="22"><DD>
+Since this macro is obsolete,
+its usage is generally not documented when discussing
+feature test macro requirements in the man pages.
+<DT id="23"><B>_XOPEN_SOURCE</B>
+
+<DD>
+Defining this macro causes header files to expose definitions as follows:
+<DL COMPACT><DT id="24"><DD>
+<DL COMPACT>
+<DT id="25">&bull;<DD>
+Defining with any value exposes
+definitions conforming to POSIX.1, POSIX.2, and XPG4.
+<DT id="26">&bull;<DD>
+The value 500 or greater additionally exposes
+definitions for SUSv2 (UNIX 98).
+<DT id="27">&bull;<DD>
+(Since glibc 2.2) The value 600 or greater additionally exposes
+definitions for SUSv3 (UNIX 03; i.e., the POSIX.1-2001 base specification
+plus the XSI extension) and C99 definitions.
+<DT id="28">&bull;<DD>
+(Since glibc 2.10) The value 700 or greater additionally exposes
+definitions for SUSv4 (i.e., the POSIX.1-2008 base specification
+plus the XSI extension).
+</DL>
+</DL>
+
+<DT id="29"><DD>
+If
+<B>__STRICT_ANSI__</B>
+
+is not defined, or
+<B>_XOPEN_SOURCE</B>
+
+is defined with a value greater than or equal to 500
+<I>and</I>
+
+neither
+<B>_POSIX_SOURCE</B>
+
+nor
+<B>_POSIX_C_SOURCE</B>
+
+is explicitly defined, then
+the following macros are implicitly defined:
+<DL COMPACT><DT id="30"><DD>
+<DL COMPACT>
+<DT id="31">&bull;<DD>
+<B>_POSIX_SOURCE</B>
+
+is defined with the value 1.
+<DT id="32">&bull;<DD>
+<B>_POSIX_C_SOURCE</B>
+
+is defined, according to the value of
+<B>_XOPEN_SOURCE</B>:
+
+<DL COMPACT><DT id="33"><DD>
+<DL COMPACT>
+<DT id="34"><B>_XOPEN_SOURCE</B> &lt; 500
+
+<DD>
+<B>_POSIX_C_SOURCE</B>
+
+is defined with the value 2.
+<DT id="35">500 &lt;= <B>_XOPEN_SOURCE</B> &lt; 600
+
+<DD>
+<B>_POSIX_C_SOURCE</B>
+
+is defined with the value 199506L.
+<DT id="36">600 &lt;= <B>_XOPEN_SOURCE</B> &lt; 700
+
+<DD>
+<B>_POSIX_C_SOURCE</B>
+
+is defined with the value 200112L.
+<DT id="37">700 &lt;= <B>_XOPEN_SOURCE</B> (since glibc 2.10)
+
+<DD>
+<B>_POSIX_C_SOURCE</B>
+
+is defined with the value 200809L.
+</DL>
+</DL>
+
+</DL>
+</DL>
+
+<DT id="38"><DD>
+In addition, defining
+<B>_XOPEN_SOURCE</B>
+
+with a value of 500 or greater produces the same effects as defining
+<B>_XOPEN_SOURCE_EXTENDED</B>.
+
+<DT id="39"><B>_XOPEN_SOURCE_EXTENDED</B>
+
+<DD>
+If this macro is defined,
+<I>and</I>
+
+<B>_XOPEN_SOURCE</B>
+
+is defined, then expose definitions corresponding to the XPG4v2
+(SUSv1) UNIX extensions (UNIX 95).
+Defining
+<B>_XOPEN_SOURCE</B>
+
+with a value of 500 or more also produces the same effect as defining
+<B>_XOPEN_SOURCE_EXTENDED</B>.
+
+Use of
+<B>_XOPEN_SOURCE_EXTENDED</B>
+
+in new source code should be avoided.
+<DT id="40"><DD>
+Since defining
+<B>_XOPEN_SOURCE</B>
+
+with a value of 500 or more has the same effect as defining
+<B>_XOPEN_SOURCE_EXTENDED</B>,
+
+the latter (obsolete) feature test macro is generally not described in the
+SYNOPSIS in man pages.
+<DT id="41"><B>_ISOC99_SOURCE</B> (since glibc 2.1.3)
+
+<DD>
+Exposes declarations consistent with the ISO C99 standard.
+<DT id="42"><DD>
+Earlier glibc 2.1.x versions recognized an equivalent macro named
+<B>_ISOC9X_SOURCE</B>
+
+(because the C99 standard had not then been finalized).
+Although the use of this macro is obsolete, glibc continues
+to recognize it for backward compatibility.
+<DT id="43"><DD>
+Defining
+<B>_ISOC99_SOURCE</B>
+
+also exposes ISO C (1990) Amendment 1 (&quot;C95&quot;) definitions.
+(The primary change in C95 was support for international character sets.)
+<DT id="44"><DD>
+Invoking the C compiler with the option
+<I>-std=c99</I>
+
+produces the same effects as defining this macro.
+<DT id="45"><B>_ISOC11_SOURCE</B> (since glibc 2.16)
+
+<DD>
+Exposes declarations consistent with the ISO C11 standard.
+Defining this macro also enables C99 and C95 features (like
+<B>_ISOC99_SOURCE</B>).
+
+<DT id="46"><DD>
+Invoking the C compiler with the option
+<I>-std=c11</I>
+
+produces the same effects as defining this macro.
+<DT id="47"><B>_LARGEFILE64_SOURCE</B>
+
+<DD>
+Expose definitions for the alternative API specified by the
+LFS (Large File Summit) as a &quot;transitional extension&quot; to the
+Single UNIX Specification.
+(See
+
+
+The alternative API consists of a set of new objects
+(i.e., functions and types) whose names are suffixed with &quot;64&quot;
+(e.g.,
+<I>off64_t</I>
+
+versus
+<I>off_t</I>,
+
+<B>lseek64</B>()
+
+versus
+<B>lseek</B>(),
+
+etc.).
+New programs should not employ this macro; instead
+<I>_FILE_OFFSET_BITS=64</I>
+
+should be employed.
+<DT id="48"><B>_LARGEFILE_SOURCE</B>
+
+<DD>
+This macro was historically used to expose certain functions (specifically
+<B><A HREF="/cgi-bin/man/man2html?3+fseeko">fseeko</A></B>(3)
+
+and
+<B><A HREF="/cgi-bin/man/man2html?3+ftello">ftello</A></B>(3))
+
+that address limitations of earlier APIs
+(<B><A HREF="/cgi-bin/man/man2html?3+fseek">fseek</A></B>(3)
+
+and
+<B><A HREF="/cgi-bin/man/man2html?3+ftell">ftell</A></B>(3))
+
+that use
+<I>long int</I>
+
+for file offsets.
+This macro is implicitly defined if
+<B>_XOPEN_SOURCE</B>
+
+is defined with a value greater than or equal to 500.
+New programs should not employ this macro;
+defining
+<B>_XOPEN_SOURCE</B>
+
+as just described or defining
+<B>_FILE_OFFSET_BITS</B>
+
+with the value 64 is the preferred mechanism to achieve the same result.
+<DT id="49"><B>_FILE_OFFSET_BITS</B>
+
+<DD>
+Defining this macro with the value 64
+automatically converts references to 32-bit functions and data types
+related to file I/O and filesystem operations into references to
+their 64-bit counterparts.
+This is useful for performing I/O on large files (&gt; 2 Gigabytes)
+on 32-bit systems.
+(Defining this macro permits correctly written programs to use
+large files with only a recompilation being required.)
+<DT id="50"><DD>
+64-bit systems naturally permit file sizes greater than 2 Gigabytes,
+and on those systems this macro has no effect.
+<DT id="51"><B>_BSD_SOURCE</B> (deprecated since glibc 2.20)
+
+<DD>
+Defining this macro with any value causes header files to expose
+BSD-derived definitions.
+<DT id="52"><DD>
+In glibc versions up to and including 2.18,
+defining this macro also causes BSD definitions to be preferred in
+some situations where standards conflict, unless one or more of
+<B>_SVID_SOURCE</B>,
+
+<B>_POSIX_SOURCE</B>,
+
+<B>_POSIX_C_SOURCE</B>,
+
+<B>_XOPEN_SOURCE</B>,
+
+<B>_XOPEN_SOURCE_EXTENDED</B>,
+
+or
+<B>_GNU_SOURCE</B>
+
+is defined, in which case BSD definitions are disfavored.
+Since glibc 2.19,
+<B>_BSD_SOURCE</B>
+
+no longer causes BSD definitions to be preferred in case of conflicts.
+<DT id="53"><DD>
+Since glibc 2.20, this macro is deprecated.
+
+
+
+It now has the same effect as defining
+<B>_DEFAULT_SOURCE</B>,
+
+but generates a compile-time warning (unless
+<B>_DEFAULT_SOURCE</B>
+
+
+is also defined).
+Use
+<B>_DEFAULT_SOURCE</B>
+
+instead.
+To allow code that requires
+<B>_BSD_SOURCE</B>
+
+in glibc 2.19 and earlier and
+<B>_DEFAULT_SOURCE</B>
+
+in glibc 2.20 and later to compile without warnings, define
+<I>both</I>
+
+<B>_BSD_SOURCE</B>
+
+and
+<B>_DEFAULT_SOURCE</B>.
+
+<DT id="54"><B>_SVID_SOURCE</B> (deprecated since glibc 2.20)
+
+<DD>
+Defining this macro with any value causes header files to expose
+System V-derived definitions.
+(SVID == System V Interface Definition; see
+<B><A HREF="/cgi-bin/man/man2html?7+standards">standards</A></B>(7).)
+
+<DT id="55"><DD>
+Since glibc 2.20, this macro is deprecated in the same fashion as
+<B>_BSD_SOURCE</B>.
+
+<DT id="56"><B>_DEFAULT_SOURCE</B> (since glibc 2.19)
+
+<DD>
+This macro can be defined to ensure that the &quot;default&quot;
+definitions are provided even when the defaults would otherwise
+be disabled,
+as happens when individual macros are explicitly defined,
+or the compiler is invoked in one of its &quot;standard&quot; modes (e.g.,
+<I>cc&nbsp;-std=c99</I>).
+
+Defining
+<B>_DEFAULT_SOURCE</B>
+
+without defining other individual macros
+or invoking the compiler in one of its &quot;standard&quot; modes has no effect.
+<DT id="57"><DD>
+The &quot;default&quot; definitions comprise those required by POSIX.1-2008 and ISO C99,
+as well as various definitions originally derived from BSD and System V.
+On glibc 2.19 and earlier, these defaults were approximately equivalent
+to explicitly defining the following:
+<DT id="58"><DD>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;cc&nbsp;-D_BSD_SOURCE&nbsp;-D_SVID_SOURCE&nbsp;-D_POSIX_C_SOURCE=200809
+<DT id="59"><B>_ATFILE_SOURCE</B> (since glibc 2.4)
+
+<DD>
+Defining this macro with any value causes header files to expose
+declarations of a range of functions with the suffix &quot;at&quot;;
+see
+<B><A HREF="/cgi-bin/man/man2html?2+openat">openat</A></B>(2).
+
+Since glibc 2.10, this macro is also implicitly defined if
+<B>_POSIX_C_SOURCE</B>
+
+is defined with a value greater than or equal to 200809L.
+<DT id="60"><B>_GNU_SOURCE</B>
+
+<DD>
+Defining this macro (with any value) implicitly defines
+<B>_ATFILE_SOURCE</B>,
+
+<B>_LARGEFILE64_SOURCE</B>,
+
+<B>_ISOC99_SOURCE</B>,
+
+<B>_XOPEN_SOURCE_EXTENDED</B>,
+
+<B>_POSIX_SOURCE</B>,
+
+<B>_POSIX_C_SOURCE</B>
+
+with the value 200809L
+(200112L in glibc versions before 2.10;
+199506L in glibc versions before 2.5;
+199309L in glibc versions before 2.1)
+and
+<B>_XOPEN_SOURCE</B>
+
+with the value 700
+(600 in glibc versions before 2.10;
+500 in glibc versions before 2.2).
+In addition, various GNU-specific extensions are also exposed.
+<DT id="61"><DD>
+Since glibc 2.19, defining
+<B>_GNU_SOURCE</B>
+
+also has the effect of implicitly defining
+<B>_DEFAULT_SOURCE</B>.
+
+In glibc versions before 2.20, defining
+<B>_GNU_SOURCE</B>
+
+also had the effect of implicitly defining
+<B>_BSD_SOURCE</B>
+
+and
+<B>_SVID_SOURCE</B>.
+
+<DT id="62"><B>_REENTRANT</B>
+
+<DD>
+Historically, on various C libraries
+it was necessary to define this macro in all
+multithreaded code.
+
+
+
+
+(Some C libraries may still require this.)
+In glibc,
+this macro also exposed definitions of certain reentrant functions.
+<DT id="63"><DD>
+However, glibc has been thread-safe by default for many years;
+since glibc 2.3, the only effect of defining
+<B>_REENTRANT</B>
+
+has been to enable one or two of the same declarations that
+are also enabled by defining
+<B>_POSIX_C_SOURCE</B>
+
+with a value of 199606L or greater.
+<DT id="64"><DD>
+<B>_REENTRANT</B>
+
+is now obsolete.
+In glibc 2.25 and later, defining
+<B>_REENTRANT</B>
+
+is equivalent to defining
+<B>_POSIX_C_SOURCE</B>
+
+with the value 199606L.
+If a higher POSIX conformance level is
+selected by any other means (such as
+<B>_POSIX_C_SOURCE</B>
+
+itself,
+<B>_XOPEN_SOURCE</B>,
+
+<B>_DEFAULT_SOURCE</B>,
+
+or
+<B>_GNU_SOURCE</B>),
+
+then defining
+<B>_REENTRANT</B>
+
+has no effect.
+<DT id="65"><DD>
+This macro is automatically defined if one compiles with
+<I>cc&nbsp;-pthread</I>.
+
+<DT id="66"><B>_THREAD_SAFE</B>
+
+<DD>
+Synonym for the (deprecated)
+<B>_REENTRANT</B>,
+
+provided for compatibility with some other implementations.
+<DT id="67"><B>_FORTIFY_SOURCE</B> (since glibc 2.3.4)
+
+<DD>
+
+
+
+
+
+
+Defining this macro causes some lightweight checks to be performed
+to detect some buffer overflow errors when employing
+various string and memory manipulation functions (for example,
+<B><A HREF="/cgi-bin/man/man2html?3+memcpy">memcpy</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+memset">memset</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+stpcpy">stpcpy</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+strcpy">strcpy</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+strncpy">strncpy</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+strcat">strcat</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+strncat">strncat</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+sprintf">sprintf</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+snprintf">snprintf</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+vsprintf">vsprintf</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+vsnprintf">vsnprintf</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+gets">gets</A></B>(3),
+
+and wide character variants thereof).
+For some functions, argument consistency is checked;
+for example, a check is made that
+<B><A HREF="/cgi-bin/man/man2html?2+open">open</A></B>(2)
+
+has been supplied with a
+<I>mode</I>
+
+argument when the specified flags include
+<B>O_CREAT</B>.
+
+Not all problems are detected, just some common cases.
+
+<DT id="68"><DD>
+If
+<B>_FORTIFY_SOURCE</B>
+
+is set to 1, with compiler optimization level 1
+(<I>gcc&nbsp;-O1</I>)
+
+and above, checks that shouldn't change the behavior of
+conforming programs are performed.
+With
+<B>_FORTIFY_SOURCE</B>
+
+set to 2, some more checking is added, but
+some conforming programs might fail.
+
+
+
+
+
+
+
+
+
+
+
+
+<DT id="69"><DD>
+Some of the checks can be performed at compile time
+(via macros logic implemented in header files),
+and result in compiler warnings;
+other checks take place at run time,
+and result in a run-time error if the check fails.
+<DT id="70"><DD>
+Use of this macro requires compiler support, available with
+<B><A HREF="/cgi-bin/man/man2html?1+gcc">gcc</A></B>(1)
+
+since version 4.0.
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H3>Default definitions, implicit definitions, and combining definitions</H3>
+
+<P>
+
+If no feature test macros are explicitly defined,
+then the following feature test macros are defined by default:
+<B>_BSD_SOURCE</B>
+
+(in glibc 2.19 and earlier),
+<B>_SVID_SOURCE</B>
+
+(in glibc 2.19 and earlier),
+<B>_DEFAULT_SOURCE</B>
+
+(since glibc 2.19),
+<B>_POSIX_SOURCE</B>,
+
+and
+<B>_POSIX_C_SOURCE</B>=200809L
+
+(200112L in glibc versions before 2.10;
+199506L in glibc versions before 2.4;
+199309L in glibc versions before 2.1).
+<P>
+
+If any of
+<B>__STRICT_ANSI__</B>,
+
+<B>_ISOC99_SOURCE</B>,
+
+<B>_POSIX_SOURCE</B>,
+
+<B>_POSIX_C_SOURCE</B>,
+
+<B>_XOPEN_SOURCE</B>,
+
+<B>_XOPEN_SOURCE_EXTENDED</B>,
+
+<B>_BSD_SOURCE</B>
+
+(in glibc 2.19 and earlier),
+or
+<B>_SVID_SOURCE</B>
+
+(in glibc 2.19 and earlier)
+is explicitly defined, then
+<B>_BSD_SOURCE</B>,
+
+<B>_SVID_SOURCE</B>,
+
+and
+<B>_DEFAULT_SOURCE</B>
+
+are not defined by default.
+<P>
+
+If
+<B>_POSIX_SOURCE</B>
+
+and
+<B>_POSIX_C_SOURCE</B>
+
+are not explicitly defined,
+and either
+<B>__STRICT_ANSI__</B>
+
+is not defined or
+<B>_XOPEN_SOURCE</B>
+
+is defined with a value of 500 or more, then
+<DL COMPACT>
+<DT id="71">*<DD>
+<B>_POSIX_SOURCE</B>
+
+is defined with the value 1; and
+<DT id="72">*<DD>
+<B>_POSIX_C_SOURCE</B>
+
+is defined with one of the following values:
+<DL COMPACT><DT id="73"><DD>
+<DL COMPACT>
+<DT id="74">&bull;<DD>
+2,
+if
+<B>_XOPEN_SOURCE</B>
+
+is defined with a value less than 500;
+<DT id="75">&bull;<DD>
+199506L,
+if
+<B>_XOPEN_SOURCE</B>
+
+is defined with a value greater than or equal to 500 and less than 600;
+or
+<DT id="76">&bull;<DD>
+(since glibc 2.4) 200112L,
+if
+<B>_XOPEN_SOURCE</B>
+
+is defined with a value greater than or equal to 600 and less than 700.
+<DT id="77">&bull;<DD>
+(Since glibc 2.10)
+200809L,
+if
+<B>_XOPEN_SOURCE</B>
+
+is defined with a value greater than or equal to 700.
+<DT id="78">&bull;<DD>
+Older versions of glibc do not know about the values
+200112L and 200809L for
+<B>_POSIX_C_SOURCE</B>,
+
+and the setting of this macro will depend on the glibc version.
+<DT id="79">&bull;<DD>
+If
+<B>_XOPEN_SOURCE</B>
+
+is undefined, then the setting of
+<B>_POSIX_C_SOURCE</B>
+
+depends on the glibc version:
+199506L, in glibc versions before 2.4;
+200112L, in glibc 2.4 to 2.9; and
+200809L, since glibc 2.10.
+</DL>
+</DL>
+
+</DL>
+<P>
+
+Multiple macros can be defined; the results are additive.
+<A NAME="lbAG">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+POSIX.1 specifies
+<B>_POSIX_C_SOURCE</B>,
+
+<B>_POSIX_SOURCE</B>,
+
+and
+<B>_XOPEN_SOURCE</B>.
+
+<P>
+
+<B>_XOPEN_SOURCE_EXTENDED</B>
+
+was specified by XPG4v2 (aka SUSv1), but is not present in SUSv2 and later.
+<B>_FILE_OFFSET_BITS</B>
+
+is not specified by any standard,
+but is employed on some other implementations.
+<P>
+
+<B>_BSD_SOURCE</B>,
+
+<B>_SVID_SOURCE</B>,
+
+<B>_DEFAULT_SOURCE</B>,
+
+<B>_ATFILE_SOURCE</B>,
+
+<B>_GNU_SOURCE</B>,
+
+<B>_FORTIFY_SOURCE</B>,
+
+<B>_REENTRANT</B>,
+
+and
+<B>_THREAD_SAFE</B>
+
+are specific to Linux (glibc).
+<A NAME="lbAH">&nbsp;</A>
+<H2>NOTES</H2>
+
+<I>&lt;<A HREF="file:///usr/include/features.h">features.h</A>&gt;</I>
+
+is a Linux/glibc-specific header file.
+Other systems have an analogous file, but typically with a different name.
+This header file is automatically included by other header files as
+required: it is not necessary to explicitly include it in order to
+employ feature test macros.
+<P>
+
+According to which of the above feature test macros are defined,
+<I>&lt;<A HREF="file:///usr/include/features.h">features.h</A>&gt;</I>
+
+internally defines various other macros that are checked by
+other glibc header files.
+These macros have names prefixed by two underscores (e.g.,
+<B>__USE_MISC</B>).
+
+Programs should
+<I>never</I>
+
+define these macros directly:
+instead, the appropriate feature test macro(s) from the
+list above should be employed.
+<A NAME="lbAI">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+The program below can be used to explore how the various
+feature test macros are set depending on the glibc version
+and what feature test macros are explicitly set.
+The following shell session, on a system with glibc 2.10,
+shows some examples of what we would see:
+<P>
+
+
+
+$ <B>cc ftm.c</B>
+$ <B>./a.out</B>
+_POSIX_SOURCE defined
+_POSIX_C_SOURCE defined: 200809L
+_BSD_SOURCE defined
+_SVID_SOURCE defined
+_ATFILE_SOURCE defined
+$ <B>cc -D_XOPEN_SOURCE=500 ftm.c</B>
+$ <B>./a.out</B>
+_POSIX_SOURCE defined
+_POSIX_C_SOURCE defined: 199506L
+_XOPEN_SOURCE defined: 500
+$ <B>cc -D_GNU_SOURCE ftm.c</B>
+$ <B>./a.out</B>
+_POSIX_SOURCE defined
+_POSIX_C_SOURCE defined: 200809L
+_ISOC99_SOURCE defined
+_XOPEN_SOURCE defined: 700
+_XOPEN_SOURCE_EXTENDED defined
+_LARGEFILE64_SOURCE defined
+_BSD_SOURCE defined
+_SVID_SOURCE defined
+_ATFILE_SOURCE defined
+_GNU_SOURCE defined
+
+
+<A NAME="lbAJ">&nbsp;</A>
+<H3>Program source</H3>
+
+
+
+/* ftm.c */
+<P>
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/unistd.h">unistd.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdlib.h">stdlib.h</A>&gt;
+<P>
+int
+main(int argc, char *argv[])
+{
+#ifdef _POSIX_SOURCE
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;_POSIX_SOURCE&nbsp;defined\n&quot;);
+#endif
+<P>
+#ifdef _POSIX_C_SOURCE
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;_POSIX_C_SOURCE&nbsp;defined:&nbsp;%ldL\n&quot;,&nbsp;(long)&nbsp;_POSIX_C_SOURCE);
+#endif
+<P>
+#ifdef _ISOC99_SOURCE
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;_ISOC99_SOURCE&nbsp;defined\n&quot;);
+#endif
+<P>
+#ifdef _ISOC11_SOURCE
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;_ISOC11_SOURCE&nbsp;defined\n&quot;);
+#endif
+<P>
+#ifdef _XOPEN_SOURCE
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;_XOPEN_SOURCE&nbsp;defined:&nbsp;%d\n&quot;,&nbsp;_XOPEN_SOURCE);
+#endif
+<P>
+#ifdef _XOPEN_SOURCE_EXTENDED
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;_XOPEN_SOURCE_EXTENDED&nbsp;defined\n&quot;);
+#endif
+<P>
+#ifdef _LARGEFILE64_SOURCE
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;_LARGEFILE64_SOURCE&nbsp;defined\n&quot;);
+#endif
+<P>
+#ifdef _FILE_OFFSET_BITS
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;_FILE_OFFSET_BITS&nbsp;defined:&nbsp;%d\n&quot;,&nbsp;_FILE_OFFSET_BITS);
+#endif
+<P>
+#ifdef _BSD_SOURCE
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;_BSD_SOURCE&nbsp;defined\n&quot;);
+#endif
+<P>
+#ifdef _SVID_SOURCE
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;_SVID_SOURCE&nbsp;defined\n&quot;);
+#endif
+<P>
+#ifdef _DEFAULT_SOURCE
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;_DEFAULT_SOURCE&nbsp;defined\n&quot;);
+#endif
+<P>
+#ifdef _ATFILE_SOURCE
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;_ATFILE_SOURCE&nbsp;defined\n&quot;);
+#endif
+<P>
+#ifdef _GNU_SOURCE
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;_GNU_SOURCE&nbsp;defined\n&quot;);
+#endif
+<P>
+#ifdef _REENTRANT
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;_REENTRANT&nbsp;defined\n&quot;);
+#endif
+<P>
+#ifdef _THREAD_SAFE
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;_THREAD_SAFE&nbsp;defined\n&quot;);
+#endif
+<P>
+#ifdef _FORTIFY_SOURCE
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;_FORTIFY_SOURCE&nbsp;defined\n&quot;);
+#endif
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_SUCCESS);
+}
+
+<A NAME="lbAK">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?7+libc">libc</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+standards">standards</A></B>(7)
+
+<P>
+
+The section &quot;Feature Test Macros&quot; under
+<I>info libc</I>.
+
+
+<P>
+
+<I>/usr/include/features.h</I>
+
+<A NAME="lbAL">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="80"><A HREF="#lbAB">NAME</A><DD>
+<DT id="81"><A HREF="#lbAC">DESCRIPTION</A><DD>
+<DL>
+<DT id="82"><A HREF="#lbAD">Specification of feature test macro requirements in manual pages</A><DD>
+<DT id="83"><A HREF="#lbAE">Feature test macros understood by glibc</A><DD>
+<DT id="84"><A HREF="#lbAF">Default definitions, implicit definitions, and combining definitions</A><DD>
+</DL>
+<DT id="85"><A HREF="#lbAG">CONFORMING TO</A><DD>
+<DT id="86"><A HREF="#lbAH">NOTES</A><DD>
+<DT id="87"><A HREF="#lbAI">EXAMPLE</A><DD>
+<DL>
+<DT id="88"><A HREF="#lbAJ">Program source</A><DD>
+</DL>
+<DT id="89"><A HREF="#lbAK">SEE ALSO</A><DD>
+<DT id="90"><A HREF="#lbAL">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:08 GMT, March 31, 2021
+</BODY>
+</HTML>

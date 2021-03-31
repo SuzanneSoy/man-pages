@@ -1,0 +1,772 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of FANOTIFY_MARK</TITLE>
+</HEAD><BODY>
+<H1>FANOTIFY_MARK</H1>
+Section: Linux Programmer's Manual (2)<BR>Updated: 2019-08-02<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+fanotify_mark - add, remove, or modify an fanotify mark on a filesystem
+object
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<PRE>
+<B>#include &lt;<A HREF="file:///usr/include/sys/fanotify.h">sys/fanotify.h</A>&gt;</B>
+
+<B>int fanotify_mark(int </B><I>fanotify_fd</I><B>, unsigned int </B><I>flags</I><B>,</B>
+<B>                  uint64_t </B><I>mask</I><B>, int </B><I>dirfd</I><B>, const char *</B><I>pathname</I><B>);</B>
+</PRE>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+For an overview of the fanotify API, see
+<B><A HREF="/cgi-bin/man/man2html?7+fanotify">fanotify</A></B>(7).
+
+<P>
+
+<B>fanotify_mark</B>()
+
+adds, removes, or modifies an fanotify mark on a filesystem object.
+The caller must have read permission on the filesystem object that
+is to be marked.
+<P>
+
+The
+<I>fanotify_fd</I>
+
+argument is a file descriptor returned by
+<B><A HREF="/cgi-bin/man/man2html?2+fanotify_init">fanotify_init</A></B>(2).
+
+<P>
+
+<I>flags</I>
+
+is a bit mask describing the modification to perform.
+It must include exactly one of the following values:
+<DL COMPACT>
+<DT id="1"><B>FAN_MARK_ADD</B>
+
+<DD>
+The events in
+<I>mask</I>
+
+will be added to the mark mask (or to the ignore mask).
+<I>mask</I>
+
+must be nonempty or the error
+<B>EINVAL</B>
+
+will occur.
+<DT id="2"><B>FAN_MARK_REMOVE</B>
+
+<DD>
+The events in argument
+<I>mask</I>
+
+will be removed from the mark mask (or from the ignore mask).
+<I>mask</I>
+
+must be nonempty or the error
+<B>EINVAL</B>
+
+will occur.
+<DT id="3"><B>FAN_MARK_FLUSH</B>
+
+<DD>
+Remove either all marks for filesystems, all marks for mounts, or all
+marks for directories and files from the fanotify group.
+If
+<I>flags</I>
+
+contains
+<B>FAN_MARK_MOUNT</B>,
+
+all marks for mounts are removed from the group.
+If
+<I>flags</I>
+
+contains
+<B>FAN_MARK_FILESYSTEM</B>,
+
+all marks for filesystems are removed from the group.
+Otherwise, all marks for directories and files are removed.
+No flag other than and at most one of the flags
+<B>FAN_MARK_MOUNT</B>
+
+or
+<B>FAN_MARK_FILESYSTEM</B>
+
+can be used in conjunction with
+<B>FAN_MARK_FLUSH</B>.
+
+<I>mask</I>
+
+is ignored.
+</DL>
+<P>
+
+If none of the values above is specified, or more than one is specified,
+the call fails with the error
+<B>EINVAL</B>.
+
+<P>
+
+In addition,
+zero or more of the following values may be ORed into
+<I>flags</I>:
+
+<DL COMPACT>
+<DT id="4"><B>FAN_MARK_DONT_FOLLOW</B>
+
+<DD>
+If
+<I>pathname</I>
+
+is a symbolic link, mark the link itself, rather than the file to which it
+refers.
+(By default,
+<B>fanotify_mark</B>()
+
+dereferences
+<I>pathname</I>
+
+if it is a symbolic link.)
+<DT id="5"><B>FAN_MARK_ONLYDIR</B>
+
+<DD>
+If the filesystem object to be marked is not a directory, the error
+<B>ENOTDIR</B>
+
+shall be raised.
+<DT id="6"><B>FAN_MARK_MOUNT</B>
+
+<DD>
+Mark the mount point specified by
+<I>pathname</I>.
+
+If
+<I>pathname</I>
+
+is not itself a mount point, the mount point containing
+<I>pathname</I>
+
+will be marked.
+All directories, subdirectories, and the contained files of the mount point
+will be monitored.
+This value cannot be used if the
+<I>fanotify_fd</I>
+
+file descriptor has been initialized with the flag
+<B>FAN_REPORT_FID</B>
+
+or if any of the new directory modification events are provided as a
+<I>mask</I>.
+
+Attempting to do so will result in the error
+<B>EINVAL</B>
+
+being returned.
+<DT id="7"><B>FAN_MARK_FILESYSTEM</B> (since Linux 4.20)
+
+<DD>
+
+Mark the filesystem specified by
+<I>pathname</I>.
+
+The filesystem containing
+<I>pathname</I>
+
+will be marked.
+All the contained files and directories of the filesystem from any mount
+point will be monitored.
+<DT id="8"><B>FAN_MARK_IGNORED_MASK</B>
+
+<DD>
+The events in
+<I>mask</I>
+
+shall be added to or removed from the ignore mask.
+<DT id="9"><B>FAN_MARK_IGNORED_SURV_MODIFY</B>
+
+<DD>
+The ignore mask shall survive modify events.
+If this flag is not set,
+the ignore mask is cleared when a modify event occurs
+for the ignored file or directory.
+</DL>
+<P>
+
+<I>mask</I>
+
+defines which events shall be listened for (or which shall be ignored).
+It is a bit mask composed of the following values:
+<DL COMPACT>
+<DT id="10"><B>FAN_ACCESS</B>
+
+<DD>
+Create an event when a file or directory (but see BUGS) is accessed (read).
+<DT id="11"><B>FAN_MODIFY</B>
+
+<DD>
+Create an event when a file is modified (write).
+<DT id="12"><B>FAN_CLOSE_WRITE</B>
+
+<DD>
+Create an event when a writable file is closed.
+<DT id="13"><B>FAN_CLOSE_NOWRITE</B>
+
+<DD>
+Create an event when a read-only file or directory is closed.
+<DT id="14"><B>FAN_OPEN</B>
+
+<DD>
+Create an event when a file or directory is opened.
+<DT id="15"><B>FAN_OPEN_EXEC</B> (since Linux 5.0)
+
+<DD>
+
+Create an event when a file is opened with the intent to be executed.
+See NOTES for additional details.
+<DT id="16"><B>FAN_ATTRIB</B> (since Linux 5.1)
+
+<DD>
+
+Create an event when the metadata for a file or directory has changed.
+<DT id="17"><B>FAN_CREATE</B> (since Linux 5.1)
+
+<DD>
+
+Create an event when a file or directory has been created in a marked
+parent directory.
+<DT id="18"><B>FAN_DELETE</B> (since Linux 5.1)
+
+<DD>
+
+Create an event when a file or directory has been deleted in a marked
+parent directory.
+<DT id="19"><B>FAN_DELETE_SELF</B> (since Linux 5.1)
+
+<DD>
+
+Create an event when a marked file or directory itself is deleted.
+<DT id="20"><B>FAN_MOVED_FROM</B> (since Linux 5.1)
+
+<DD>
+
+Create an event when a file or directory has been moved from a marked
+parent directory.
+<DT id="21"><B>FAN_MOVED_TO</B> (since Linux 5.1)
+
+<DD>
+
+Create an event when a file or directory has been moved to a marked parent
+directory.
+<DT id="22"><B>FAN_MOVE_SELF</B> (since Linux 5.1)
+
+<DD>
+
+Create an event when a marked file or directory itself has been moved.
+<DT id="23"><B>FAN_Q_OVERFLOW</B>
+
+<DD>
+Create an event when an overflow of the event queue occurs.
+The size of the event queue is limited to 16384 entries if
+<B>FAN_UNLIMITED_QUEUE</B>
+
+is not set in
+<B><A HREF="/cgi-bin/man/man2html?2+fanotify_init">fanotify_init</A></B>(2).
+
+<DT id="24"><B>FAN_OPEN_PERM</B>
+
+<DD>
+Create an event when a permission to open a file or directory is requested.
+An fanotify file descriptor created with
+<B>FAN_CLASS_PRE_CONTENT</B>
+
+or
+<B>FAN_CLASS_CONTENT</B>
+
+is required.
+<DT id="25"><B>FAN_OPEN_EXEC_PERM</B> (since Linux 5.0)
+
+<DD>
+
+Create an event when a permission to open a file for execution is
+requested.
+An fanotify file descriptor created with
+<B>FAN_CLASS_PRE_CONTENT</B>
+
+or
+<B>FAN_CLASS_CONTENT</B>
+
+is required.
+See NOTES for additional details.
+<DT id="26"><B>FAN_ACCESS_PERM</B>
+
+<DD>
+Create an event when a permission to read a file or directory is requested.
+An fanotify file descriptor created with
+<B>FAN_CLASS_PRE_CONTENT</B>
+
+or
+<B>FAN_CLASS_CONTENT</B>
+
+is required.
+<DT id="27"><B>FAN_ONDIR</B>
+
+<DD>
+Create events for directories---for example, when
+<B><A HREF="/cgi-bin/man/man2html?3+opendir">opendir</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+readdir">readdir</A></B>(3)
+
+(but see BUGS), and
+<B><A HREF="/cgi-bin/man/man2html?3+closedir">closedir</A></B>(3)
+
+are called.
+Without this flag, only events for files are created.
+The
+<B>FAN_ONDIR</B>
+
+flag is reported in an event mask only if the
+<I>fanotify_fd</I>
+
+file descriptor has been initialized with the flag
+<B>FAN_REPORT_FID</B>.
+
+In the context of directory entry events, such as
+<B>FAN_CREATE</B>,
+
+<B>FAN_DELETE</B>,
+
+<B>FAN_MOVED_FROM</B>,
+
+and
+<B>FAN_MOVED_TO</B>
+
+for example, specifying the flag
+<B>FAN_ONDIR</B>
+
+is required in order to create events when subdirectory entries are
+modified (i.e.,
+<B><A HREF="/cgi-bin/man/man2html?2+mkdir">mkdir</A></B>(2)/
+
+<B><A HREF="/cgi-bin/man/man2html?2+rmdir">rmdir</A></B>(2)).
+
+Subdirectory entry modification events will never be merged with
+nonsubdirectory entry modification events.
+This flag is never reported individually within an event and is always
+supplied in conjunction with another event type.
+<DT id="28"><B>FAN_EVENT_ON_CHILD</B>
+
+<DD>
+Events for the immediate children of marked directories shall be created.
+The flag has no effect when marking mounts and filesystems.
+Note that events are not generated for children of the subdirectories
+of marked directories.
+To monitor complete directory trees it is necessary to mark the relevant
+mount.
+</DL>
+<P>
+
+The following composed values are defined:
+<DL COMPACT>
+<DT id="29"><B>FAN_CLOSE</B>
+
+<DD>
+A file is closed
+(<B>FAN_CLOSE_WRITE</B>|<B>FAN_CLOSE_NOWRITE</B>).
+
+<DT id="30"><B>FAN_MOVE</B>
+
+<DD>
+A file or directory has been moved
+(<B>FAN_MOVED_FROM</B>|<B>FAN_MOVED_TO</B>).
+
+</DL>
+<P>
+
+The filesystem object to be marked is determined by the file descriptor
+<I>dirfd</I>
+
+and the pathname specified in
+<I>pathname</I>:
+
+<DL COMPACT>
+<DT id="31">*<DD>
+If
+<I>pathname</I>
+
+is NULL,
+<I>dirfd</I>
+
+defines the filesystem object to be marked.
+<DT id="32">*<DD>
+If
+<I>pathname</I>
+
+is NULL, and
+<I>dirfd</I>
+
+takes the special value
+<B>AT_FDCWD</B>,
+
+the current working directory is to be marked.
+<DT id="33">*<DD>
+If
+<I>pathname</I>
+
+is absolute, it defines the filesystem object to be marked, and
+<I>dirfd</I>
+
+is ignored.
+<DT id="34">*<DD>
+If
+<I>pathname</I>
+
+is relative, and
+<I>dirfd</I>
+
+does not have the value
+<B>AT_FDCWD</B>,
+
+then the filesystem object to be marked is determined by interpreting
+<I>pathname</I>
+
+relative the directory referred to by
+<I>dirfd</I>.
+
+<DT id="35">*<DD>
+If
+<I>pathname</I>
+
+is relative, and
+<I>dirfd</I>
+
+has the value
+<B>AT_FDCWD</B>,
+
+then the filesystem object to be marked is determined by interpreting
+<I>pathname</I>
+
+relative the current working directory.
+</DL>
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+On success,
+<B>fanotify_mark</B>()
+
+returns 0.
+On error, -1 is returned, and
+<I>errno</I>
+
+is set to indicate the error.
+<A NAME="lbAF">&nbsp;</A>
+<H2>ERRORS</H2>
+
+<DL COMPACT>
+<DT id="36"><B>EBADF</B>
+
+<DD>
+An invalid file descriptor was passed in
+<I>fanotify_fd</I>.
+
+<DT id="37"><B>EINVAL</B>
+
+<DD>
+An invalid value was passed in
+<I>flags</I>
+
+or
+<I>mask</I>,
+
+or
+<I>fanotify_fd</I>
+
+was not an fanotify file descriptor.
+<DT id="38"><B>EINVAL</B>
+
+<DD>
+The fanotify file descriptor was opened with
+<B>FAN_CLASS_NOTIF</B>
+
+or
+<B>FAN_REPORT_FID</B>
+
+and mask contains a flag for permission events
+(<B>FAN_OPEN_PERM</B>
+
+or
+<B>FAN_ACCESS_PERM</B>).
+
+<DT id="39"><B>ENODEV</B>
+
+<DD>
+The filesystem object indicated by
+<I>pathname</I>
+
+is not associated with a filesystem that supports
+<I>fsid</I>
+
+(e.g.,
+<B><A HREF="/cgi-bin/man/man2html?5+tmpfs">tmpfs</A></B>(5)).
+
+This error can be returned only when an fanotify file descriptor returned
+by
+<B><A HREF="/cgi-bin/man/man2html?2+fanotify_init">fanotify_init</A></B>(2)
+
+has been created with
+<B>FAN_REPORT_FID</B>.
+
+<DT id="40"><B>ENOENT</B>
+
+<DD>
+The filesystem object indicated by
+<I>dirfd</I>
+
+and
+<I>pathname</I>
+
+does not exist.
+This error also occurs when trying to remove a mark from an object
+which is not marked.
+<DT id="41"><B>ENOMEM</B>
+
+<DD>
+The necessary memory could not be allocated.
+<DT id="42"><B>ENOSPC</B>
+
+<DD>
+The number of marks exceeds the limit of 8192 and the
+<B>FAN_UNLIMITED_MARKS</B>
+
+flag was not specified when the fanotify file descriptor was created with
+<B><A HREF="/cgi-bin/man/man2html?2+fanotify_init">fanotify_init</A></B>(2).
+
+<DT id="43"><B>ENOSYS</B>
+
+<DD>
+This kernel does not implement
+<B>fanotify_mark</B>().
+
+The fanotify API is available only if the kernel was configured with
+<B>CONFIG_FANOTIFY</B>.
+
+<DT id="44"><B>ENOTDIR</B>
+
+<DD>
+<I>flags</I>
+
+contains
+<B>FAN_MARK_ONLYDIR</B>,
+
+and
+<I>dirfd</I>
+
+and
+<I>pathname</I>
+
+do not specify a directory.
+<DT id="45"><B>EOPNOTSUPP</B>
+
+<DD>
+The object indicated by
+<I>pathname</I>
+
+is associated with a filesystem that does not support the encoding of file
+handles.
+This error can be returned only when an fanotify file descriptor returned
+by
+<B><A HREF="/cgi-bin/man/man2html?2+fanotify_init">fanotify_init</A></B>(2)
+
+has been created with
+<B>FAN_REPORT_FID</B>.
+
+<DT id="46"><B>EXDEV</B>
+
+<DD>
+The filesystem object indicated by
+<I>pathname</I>
+
+resides within a filesystem subvolume (e.g.,
+<B><A HREF="/cgi-bin/man/man2html?5+btrfs">btrfs</A></B>(5))
+
+which uses a different
+<I>fsid</I>
+
+than its root superblock.
+This error can be returned only when an fanotify file descriptor returned
+by
+<B><A HREF="/cgi-bin/man/man2html?2+fanotify_init">fanotify_init</A></B>(2)
+
+has been created with
+<B>FAN_REPORT_FID</B>.
+
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H2>VERSIONS</H2>
+
+<B>fanotify_mark</B>()
+
+was introduced in version 2.6.36 of the Linux kernel and enabled in version
+2.6.37.
+<A NAME="lbAH">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+This system call is Linux-specific.
+<A NAME="lbAI">&nbsp;</A>
+<H2>NOTES</H2>
+
+<A NAME="lbAJ">&nbsp;</A>
+<H3>FAN_OPEN_EXEC and FAN_OPEN_EXEC_PERM</H3>
+
+When using either
+<B>FAN_OPEN_EXEC</B>
+
+or
+<B>FAN_OPEN_EXEC_PERM</B>
+
+within the
+<I>mask</I>,
+
+events of these types will be returned only when the direct execution of a
+program occurs.
+More specifically, this means that events of these types will be generated
+for files that are opened using
+<B><A HREF="/cgi-bin/man/man2html?2+execve">execve</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+execveat">execveat</A></B>(2),
+
+or
+<B><A HREF="/cgi-bin/man/man2html?2+uselib">uselib</A></B>(2).
+
+Events of these types will not be raised in the situation where an
+interpreter is passed (or reads) a script file for interpretation.
+<P>
+
+Additionally, if a mark has also been placed on the Linux dynamic
+linker, a user should also expect to receive an event for it when
+an ELF object has been successfully opened using
+<B><A HREF="/cgi-bin/man/man2html?2+execve">execve</A></B>(2)
+
+or
+<B><A HREF="/cgi-bin/man/man2html?2+execveat">execveat</A></B>(2).
+
+<P>
+
+For example, if the following ELF binary were to be invoked and a
+<B>FAN_OPEN_EXEC</B>
+
+mark has been placed on /:
+<P>
+
+
+
+$ /bin/echo foo
+
+
+<P>
+
+The listening application in this case would receive
+<B>FAN_OPEN_EXEC</B>
+
+events for both the ELF binary and interpreter, respectively:
+<P>
+
+
+
+/bin/echo
+/lib64/ld-linux-x86-64.so.2
+
+
+<A NAME="lbAK">&nbsp;</A>
+<H2>BUGS</H2>
+
+The following bugs were present in Linux kernels before version 3.16:
+<DL COMPACT>
+<DT id="47">*<DD>
+
+If
+<I>flags</I>
+
+contains
+<B>FAN_MARK_FLUSH</B>,
+
+<I>dirfd</I>
+
+and
+<I>pathname</I>
+
+must specify a valid filesystem object, even though this object is not used.
+<DT id="48">*<DD>
+
+<B><A HREF="/cgi-bin/man/man2html?2+readdir">readdir</A></B>(2)
+
+does not generate a
+<B>FAN_ACCESS</B>
+
+event.
+<DT id="49">*<DD>
+
+If
+<B>fanotify_mark</B>()
+
+is called with
+<B>FAN_MARK_FLUSH</B>,
+
+<I>flags</I>
+
+is not checked for invalid values.
+</DL>
+<A NAME="lbAL">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?2+fanotify_init">fanotify_init</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?7+fanotify">fanotify</A></B>(7)
+
+<A NAME="lbAM">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="50"><A HREF="#lbAB">NAME</A><DD>
+<DT id="51"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="52"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="53"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DT id="54"><A HREF="#lbAF">ERRORS</A><DD>
+<DT id="55"><A HREF="#lbAG">VERSIONS</A><DD>
+<DT id="56"><A HREF="#lbAH">CONFORMING TO</A><DD>
+<DT id="57"><A HREF="#lbAI">NOTES</A><DD>
+<DL>
+<DT id="58"><A HREF="#lbAJ">FAN_OPEN_EXEC and FAN_OPEN_EXEC_PERM</A><DD>
+</DL>
+<DT id="59"><A HREF="#lbAK">BUGS</A><DD>
+<DT id="60"><A HREF="#lbAL">SEE ALSO</A><DD>
+<DT id="61"><A HREF="#lbAM">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:32 GMT, March 31, 2021
+</BODY>
+</HTML>

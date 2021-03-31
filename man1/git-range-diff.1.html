@@ -1,0 +1,376 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of GIT-RANGE-DIFF</TITLE>
+</HEAD><BODY>
+<H1>GIT-RANGE-DIFF</H1>
+Section: Git Manual (1)<BR>Updated: 03/04/2021<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+git-range-diff - Compare two commit ranges (e.g. two versions of a branch)
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+<PRE>
+<I>git range-diff</I> [--color=[&lt;when&gt;]] [--no-color] [&lt;diff-options&gt;]
+        [--no-dual-color] [--creation-factor=&lt;factor&gt;]
+        ( &lt;range1&gt; &lt;range2&gt; | &lt;rev1&gt;...&lt;rev2&gt; | &lt;base&gt; &lt;rev1&gt; &lt;rev2&gt; )
+</PRE>
+
+<P>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+This command shows the differences between two versions of a patch series, or more generally, two commit ranges (ignoring merge commits).
+<P>
+To that end, it first finds pairs of commits from both commit ranges that correspond with each other. Two commits are said to correspond when the diff between their patches (i.e. the author information, the commit message and the commit diff) is reasonably small compared to the patches' size. See ``Algorithm`` below for details.
+<P>
+Finally, the list of matching commits is shown in the order of the second commit range, with unmatched commits being inserted just after all of their ancestors have been shown.
+<A NAME="lbAE">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<P>
+
+--no-dual-color
+<DL COMPACT><DT id="1"><DD>
+When the commit diffs differ, 'git range-diff` recreates the original diffs' coloring, and adds outer -/+ diff markers with the
+<B>background</B>
+being red/green to make it easier to see e.g. when there was a change in what exact lines were added.
+<P>
+Additionally, the commit diff lines that are only present in the first commit range are shown &quot;dimmed&quot; (this can be overridden using the
+<B>color.diff.&lt;slot&gt;</B>
+config setting where
+<B>&lt;slot&gt;</B>
+is one of
+<B>contextDimmed</B>,
+<B>oldDimmed</B>
+and
+<B>newDimmed</B>), and the commit diff lines that are only present in the second commit range are shown in bold (which can be overridden using the config settings
+<B>color.diff.&lt;slot&gt;</B>
+with
+<B>&lt;slot&gt;</B>
+being one of
+<B>contextBold</B>,
+<B>oldBold</B>
+or
+<B>newBold</B>).
+<P>
+This is known to
+<B>range-diff</B>
+as &quot;dual coloring&quot;. Use
+<B>--no-dual-color</B>
+to revert to color all lines according to the outer diff markers (and completely ignore the inner diff when it comes to color).
+</DL>
+
+<P>
+
+--creation-factor=&lt;percent&gt;
+<DL COMPACT><DT id="2"><DD>
+Set the creation/deletion cost fudge factor to
+<B>&lt;percent&gt;</B>. Defaults to 60. Try a larger value if
+<B>git range-diff</B>
+erroneously considers a large change a total rewrite (deletion of one commit and addition of another), and a smaller one in the reverse case. See the ``Algorithm`` section below for an explanation why this is needed.
+</DL>
+
+<P>
+
+--[no-]notes[=&lt;ref&gt;]
+<DL COMPACT><DT id="3"><DD>
+This flag is passed to the
+<B>git log</B>
+program (see
+<B><A HREF="/cgi-bin/man/man2html?1+git-log">git-log</A></B>(1)) that generates the patches.
+</DL>
+
+<P>
+
+&lt;range1&gt; &lt;range2&gt;
+<DL COMPACT><DT id="4"><DD>
+Compare the commits specified by the two ranges, where
+<B>&lt;range1&gt;</B>
+is considered an older version of
+<B>&lt;range2&gt;</B>.
+</DL>
+
+<P>
+
+&lt;rev1&gt;...&lt;rev2&gt;
+<DL COMPACT><DT id="5"><DD>
+Equivalent to passing
+<B>&lt;rev2&gt;..&lt;rev1&gt;</B>
+and
+<B>&lt;rev1&gt;..&lt;rev2&gt;</B>.
+</DL>
+
+<P>
+
+&lt;base&gt; &lt;rev1&gt; &lt;rev2&gt;
+<DL COMPACT><DT id="6"><DD>
+Equivalent to passing
+<B>&lt;base&gt;..&lt;rev1&gt;</B>
+and
+<B>&lt;base&gt;..&lt;rev2&gt;</B>. Note that
+<B>&lt;base&gt;</B>
+does not need to be the exact branch point of the branches. Example: after rebasing a branch
+<B>my-topic</B>,
+<B>git range-diff my-topic@{u} my-topic@{1} my-topic</B>
+would show the differences introduced by the rebase.
+</DL>
+
+<P>
+<B>git range-diff</B> also accepts the regular diff options (see <B><A HREF="/cgi-bin/man/man2html?1+git-diff">git-diff</A></B>(1)), most notably the <B>--color=[&lt;when&gt;]</B> and <B>--no-color</B> options. These options are used when generating the &quot;diff between patches&quot;, i.e. to compare the author, commit message and diff of corresponding old/new commits. There is currently no means to tweak most of the diff options passed to <B>git log</B> when generating those patches.
+<A NAME="lbAF">&nbsp;</A>
+<H2>OUTPUT STABILITY</H2>
+
+<P>
+The output of the <B>range-diff</B> command is subject to change. It is intended to be human-readable porcelain output, not something that can be used across versions of Git to get a textually stable <B>range-diff</B> (as opposed to something like the <B>--stable</B> option to <B><A HREF="/cgi-bin/man/man2html?1+git-patch-id">git-patch-id</A></B>(1)). There's also no equivalent of <B><A HREF="/cgi-bin/man/man2html?1+git-apply">git-apply</A></B>(1) for <B>range-diff</B>, the output is not intended to be machine-readable.
+<P>
+This is particularly true when passing in diff options. Currently some options like <B>--stat</B> can, as an emergent effect, produce output that's quite useless in the context of <B>range-diff</B>. Future versions of <B>range-diff</B> may learn to interpret such options in a manner specific to <B>range-diff</B> (e.g. for <B>--stat</B> producing human-readable output which summarizes how the diffstat changed).
+<A NAME="lbAG">&nbsp;</A>
+<H2>CONFIGURATION</H2>
+
+<P>
+This command uses the <B>diff.color.*</B> and <B>pager.range-diff</B> settings (the latter is on by default). See <B><A HREF="/cgi-bin/man/man2html?1+git-config">git-config</A></B>(1).
+<A NAME="lbAH">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+<P>
+When a rebase required merge conflicts to be resolved, compare the changes introduced by the rebase directly afterwards using:
+<P>
+<DL COMPACT><DT id="7"><DD>
+
+
+
+<PRE>
+$ git range-diff @{u} @{1} @
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+A typical output of <B>git range-diff</B> would look like this:
+<P>
+<DL COMPACT><DT id="8"><DD>
+
+
+
+<PRE>
+-:  ------- &gt; 1:  0ddba11 Prepare for the inevitable!
+1:  c0debee = 2:  cab005e Add a helpful message at the start
+2:  f00dbal ! 3:  decafe1 Describe a bug
+    @@ -1,3 +1,3 @@
+     Author: A U Thor &lt;<A HREF="mailto:author@example.com">author@example.com</A>&gt;
+
+    -TODO: Describe a bug
+    +Describe a bug
+    @@ -324,5 +324,6
+      This is expected.
+
+    -+What is unexpected is that it will also crash.
+    ++Unexpectedly, it also crashes. This is a bug, and the jury is
+    ++still out there how to fix it best. See ticket #314 for details.
+
+      Contact
+3:  bedead &lt; -:  ------- TO-UNDO
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+In this example, there are 3 old and 3 new commits, where the developer removed the 3rd, added a new one before the first two, and modified the commit message of the 2nd commit as well its diff.
+<P>
+When the output goes to a terminal, it is color-coded by default, just like regular <B>git diff</B>'s output. In addition, the first line (adding a commit) is green, the last line (deleting a commit) is red, the second line (with a perfect match) is yellow like the commit header of <B>git show</B>'s output, and the third line colors the old commit red, the new one green and the rest like <B>git show</B>'s commit header.
+<P>
+A naive color-coded diff of diffs is actually a bit hard to read, though, as it colors the entire lines red or green. The line that added &quot;What is unexpected&quot; in the old commit, for example, is completely red, even if the intent of the old commit was to add something.
+<P>
+To help with that, <B>range</B> uses the <B>--dual-color</B> mode by default. In this mode, the diff of diffs will retain the original diff colors, and prefix the lines with -/+ markers that have their <B>background</B> red or green, to make it more obvious that they describe how the diff itself changed.
+<A NAME="lbAI">&nbsp;</A>
+<H2>ALGORITHM</H2>
+
+<P>
+The general idea is this: we generate a cost matrix between the commits in both commit ranges, then solve the least-cost assignment.
+<P>
+The cost matrix is populated thusly: for each pair of commits, both diffs are generated and the &quot;diff of diffs&quot; is generated, with 3 context lines, then the number of lines in that diff is used as cost.
+<P>
+To avoid false positives (e.g. when a patch has been removed, and an unrelated patch has been added between two iterations of the same patch series), the cost matrix is extended to allow for that, by adding fixed-cost entries for wholesale deletes/adds.
+<P>
+Example: Let commits <B>1--2</B> be the first iteration of a patch series and <B>A--C</B> the second iteration. Let's assume that <B>A</B> is a cherry-pick of <B>2,</B> and <B>C</B> is a cherry-pick of <B>1</B> but with a small modification (say, a fixed typo). Visualize the commits as a bipartite graph:
+<P>
+<DL COMPACT><DT id="9"><DD>
+
+
+
+<PRE>
+    1            A
+
+    2            B
+
+                 C
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+We are looking for a &quot;best&quot; explanation of the new series in terms of the old one. We can represent an &quot;explanation&quot; as an edge in the graph:
+<P>
+<DL COMPACT><DT id="10"><DD>
+
+
+
+<PRE>
+    1            A
+               /
+    2 --------'  B
+
+                 C
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+This explanation comes for &quot;free&quot; because there was no change. Similarly <B>C</B> could be explained using <B>1</B>, but that comes at some cost c&gt;0 because of the modification:
+<P>
+<DL COMPACT><DT id="11"><DD>
+
+
+
+<PRE>
+    1 ----.      A
+          |    /
+    2 ----+---'  B
+          |
+          `----- C
+          c&gt;0
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+In mathematical terms, what we are looking for is some sort of a minimum cost bipartite matching; '1` is matched to <B>C</B> at some cost, etc. The underlying graph is in fact a complete bipartite graph; the cost we associate with every edge is the size of the diff between the two commits' patches. To explain also new commits, we introduce dummy nodes on both sides:
+<P>
+<DL COMPACT><DT id="12"><DD>
+
+
+
+<PRE>
+    1 ----.      A
+          |    /
+    2 ----+---'  B
+          |
+    o     `----- C
+          c&gt;0
+    o            o
+
+    o            o
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+The cost of an edge <B>o--C</B> is the size of <B>C</B>'s diff, modified by a fudge factor that should be smaller than 100%. The cost of an edge <B>o--o</B> is free. The fudge factor is necessary because even if <B>1</B> and <B>C</B> have nothing in common, they may still share a few empty lines and such, possibly making the assignment <B>1--C</B>, <B>o--o</B> slightly cheaper than <B>1--o</B>, <B>o--C</B> even if <B>1</B> and <B>C</B> have nothing in common. With the fudge factor we require a much larger common part to consider patches as corresponding.
+<P>
+The overall time needed to compute this algorithm is the time needed to compute n+m commit diffs and then n*m diffs of patches, plus the time needed to compute the least-cost assignment between n and m diffs. Git uses an implementation of the Jonker-Volgenant algorithm to solve the assignment problem, which has cubic runtime complexity. The matching found in this case will look like this:
+<P>
+<DL COMPACT><DT id="13"><DD>
+
+
+
+<PRE>
+    1 ----.      A
+          |    /
+    2 ----+---'  B
+       .--+-----'
+    o -'  `----- C
+          c&gt;0
+    o ---------- o
+
+    o ---------- o
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<A NAME="lbAJ">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+<B><A HREF="/cgi-bin/man/man2html?1+git-log">git-log</A></B>(1)
+<A NAME="lbAK">&nbsp;</A>
+<H2>GIT</H2>
+
+<P>
+Part of the <B><A HREF="/cgi-bin/man/man2html?1+git">git</A></B>(1) suite
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="14"><A HREF="#lbAB">NAME</A><DD>
+<DT id="15"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="16"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="17"><A HREF="#lbAE">OPTIONS</A><DD>
+<DT id="18"><A HREF="#lbAF">OUTPUT STABILITY</A><DD>
+<DT id="19"><A HREF="#lbAG">CONFIGURATION</A><DD>
+<DT id="20"><A HREF="#lbAH">EXAMPLES</A><DD>
+<DT id="21"><A HREF="#lbAI">ALGORITHM</A><DD>
+<DT id="22"><A HREF="#lbAJ">SEE ALSO</A><DD>
+<DT id="23"><A HREF="#lbAK">GIT</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:14 GMT, March 31, 2021
+</BODY>
+</HTML>

@@ -1,0 +1,206 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SD_JOURNAL_ADD_MATCH</TITLE>
+</HEAD><BODY>
+<H1>SD_JOURNAL_ADD_MATCH</H1>
+Section: sd_journal_add_match (3)<BR>Updated: <BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+sd_journal_add_match, sd_journal_add_disjunction, sd_journal_add_conjunction, sd_journal_flush_matches - Add or remove entry matches
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+<B>
+</B><PRE>
+#include &lt;<A HREF="file:///usr/include/systemd/sd-journal.h">systemd/sd-journal.h</A>&gt;
+</PRE>
+
+
+<DL COMPACT>
+<DT id="1">
+<B>int sd_journal_add_match(sd_journal&nbsp;*</B><I>j</I><B>, const&nbsp;void&nbsp;*</B><I>data</I><B>, size_t&nbsp;</B><I>size</I><B>);</B>
+
+<DT id="2">
+<B>int sd_journal_add_disjunction(sd_journal&nbsp;*</B><I>j</I><B>);</B>
+
+<DT id="3">
+<B>int sd_journal_add_conjunction(sd_journal&nbsp;*</B><I>j</I><B>);</B>
+
+<DT id="4">
+<B>void sd_journal_flush_matches(sd_journal&nbsp;*</B><I>j</I><B>);</B>
+
+</DL>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+<B>sd_journal_add_match()</B>
+<DD>adds a match by which to filter the entries of the journal file. Matches applied with this call will filter what can be iterated through and read from the journal file via calls like
+<B><A HREF="/cgi-bin/man/man2html?3+sd_journal_next">sd_journal_next</A></B>(3)
+and
+<B><A HREF="/cgi-bin/man/man2html?3+sd_journal_get_data">sd_journal_get_data</A></B>(3). Parameter
+<I>data</I>
+must be of the form
+&quot;<I>FIELD</I>=<I>value</I>&quot;, where the
+<I>FIELD</I>
+part is a short uppercase string consisting only of 0-9, A-Z and the underscore; it may not begin with two underscores or be the empty string. The
+<I>value</I>
+part may be anything, including binary. Parameter
+<I>size</I>
+specifies the number of bytes in
+<I>data</I>
+(i.e. the length of
+<I>FIELD</I>, plus one, plus the length of
+<I>value</I>). Parameter
+<I>size</I>
+may also be specified as
+<B>0</B>, in which case
+<I>data</I>
+must be a
+<B>NUL</B>-terminated string, and the bytes before the terminating zero are used as the match.
+<P>
+
+If a match is applied, only entries with this field set will be iterated. Multiple matches may be active at the same time: If they apply to different fields, only entries with both fields set like this will be iterated. If they apply to the same fields, only entries where the field takes one of the specified values will be iterated. Well known fields are documented in
+<B><A HREF="/cgi-bin/man/man2html?7+systemd.journal-fields">systemd.journal-fields</A></B>(7). Whenever a new match is added the current entry position is reset, and
+<B><A HREF="/cgi-bin/man/man2html?3+sd_journal_next">sd_journal_next</A></B>(3)
+(or a similar call) needs to be called before entries can be read again.
+<P>
+
+<B>sd_journal_add_disjunction()</B>
+may be used to insert a disjunction (i.e. logical OR) in the match list. If this call is invoked, all previously added matches since the last invocation of
+<B>sd_journal_add_disjunction()</B>
+or
+<B>sd_journal_add_conjunction()</B>
+are combined in an OR with all matches added afterwards, until
+<B>sd_journal_add_disjunction()</B>
+or
+<B>sd_journal_add_conjunction()</B>
+is invoked again to begin the next OR or AND term.
+<P>
+
+<B>sd_journal_add_conjunction()</B>
+may be used to insert a conjunction (i.e. logical AND) in the match list. If this call is invoked, all previously added matches since the last invocation of
+<B>sd_journal_add_conjunction()</B>
+are combined in an AND with all matches added afterwards, until
+<B>sd_journal_add_conjunction()</B>
+is invoked again to begin the next AND term. The combination of
+<B>sd_journal_add_match()</B>,
+<B>sd_journal_add_disjunction()</B>
+and
+<B>sd_journal_add_conjunction()</B>
+may be used to build complex search terms, even though full logical expressions are not available. Note that
+<B>sd_journal_add_conjunction()</B>
+operates one level 'higher' than
+<B>sd_journal_add_disjunction()</B>. It is hence possible to build an expression of AND terms, consisting of OR terms, consisting of AND terms, consisting of OR terms of matches (the latter OR expression is implicitly created for matches with the same field name, see above).
+<P>
+
+<B>sd_journal_flush_matches()</B>
+may be used to flush all matches, disjunction and conjunction terms again. After this call all filtering is removed and all entries in the journal will be iterated again.
+<P>
+
+Note that filtering via matches only applies to the way the journal is read, it has no effect on storage on disk.
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+<P>
+
+<B>sd_journal_add_match()</B>,
+<B>sd_journal_add_disjunction()</B>
+and
+<B>sd_journal_add_conjunction()</B>
+return 0 on success or a negative errno-style error code.
+<B>sd_journal_flush_matches()</B>
+returns nothing.
+<A NAME="lbAF">&nbsp;</A>
+<H2>NOTES</H2>
+
+<P>
+
+These APIs are implemented as a shared library, which can be compiled and linked to with the
+<B>libsystemd</B>&nbsp;<B><A HREF="/cgi-bin/man/man2html?1+pkg-config">pkg-config</A></B>(1)
+file.
+<A NAME="lbAG">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+<P>
+
+The following example adds matches to a journal context object to iterate only through messages generated by the Avahi service at the four error log levels, plus all messages of the message ID 03bb1dab98ab4ecfbf6fff2738bdd964 coming from any service (this example lacks the necessary error checking):
+<P>
+<DL COMPACT><DT id="5"><DD>
+
+
+
+<PRE>
+...
+int add_matches(sd_journal *j) {
+  sd_journal_add_match(j, &quot;_SYSTEMD_UNIT=avahi-daemon.service&quot;, 0);
+  sd_journal_add_match(j, &quot;PRIORITY=0&quot;, 0);
+  sd_journal_add_match(j, &quot;PRIORITY=1&quot;, 0);
+  sd_journal_add_match(j, &quot;PRIORITY=2&quot;, 0);
+  sd_journal_add_match(j, &quot;PRIORITY=3&quot;, 0);
+  sd_journal_add_disjunction(j);
+  sd_journal_add_match(j, &quot;MESSAGE_ID=03bb1dab98ab4ecfbf6fff2738bdd964&quot;, 0);
+}
+</PRE>
+
+</DL>
+
+
+
+
+<A NAME="lbAH">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?3+sd-journal">sd-journal</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_journal_open">sd_journal_open</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_journal_next">sd_journal_next</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_journal_get_data">sd_journal_get_data</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?7+systemd.journal-fields">systemd.journal-fields</A></B>(7)
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="6"><A HREF="#lbAB">NAME</A><DD>
+<DT id="7"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="8"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="9"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DT id="10"><A HREF="#lbAF">NOTES</A><DD>
+<DT id="11"><A HREF="#lbAG">EXAMPLES</A><DD>
+<DT id="12"><A HREF="#lbAH">SEE ALSO</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:55 GMT, March 31, 2021
+</BODY>
+</HTML>

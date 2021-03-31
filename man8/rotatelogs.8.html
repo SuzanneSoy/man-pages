@@ -1,0 +1,357 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of ROTATELOGS</TITLE>
+</HEAD><BODY>
+<H1>ROTATELOGS</H1>
+Section: rotatelogs (8)<BR>Updated: 2018-07-06<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<P>
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+rotatelogs - Piped logging program to rotate Apache logs
+<P>
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<BR>&nbsp;
+<P>
+
+<B>rotatelogs</B> [ -<B>l</B> ] [ -<B>L</B> <I>linkname</I> ] [ -<B>p</B> <I>program</I> ] [ -<B>f</B> ] [ -<B>D</B> ] [ -<B>t</B> ] [ -<B>v</B> ] [ -<B>e</B> ] [ -<B>c</B> ] [ -<B>n</B> <I>number-of-files</I> ] <I>logfile</I> <I>rotationtime</I>|<I>filesize</I>(B|K|M|G) [ <I>offset</I> ]
+<BR>&nbsp;
+<P>
+<A NAME="lbAD">&nbsp;</A>
+<H2>SUMMARY</H2>
+
+<BR>&nbsp;
+<P>
+
+<B>rotatelogs</B> is a simple program for use in conjunction with Apache's piped logfile feature. It supports rotation based on a time interval or maximum size of the log.
+<BR>&nbsp;
+<P>
+<A NAME="lbAE">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<BR>&nbsp;
+<BR>&nbsp;
+<DL COMPACT>
+<DT id="1"><B>-l</B><DD>
+Causes the use of local time rather than GMT as the base for the interval or for <B><A HREF="/cgi-bin/man/man2html?3+strftime">strftime</A>(3)</B> formatting with size-based rotation.  
+<DT id="2"><B>-L</B> <I>linkname</I><DD>
+Causes a hard link to be made from the current logfile to the specified link name. This can be used to watch the log continuously across rotations using a command like <B>tail -F linkname</B>.  
+<DT id="3"><B>-p</B> <I>program</I><DD>
+If given, <B>rotatelogs</B> will execute the specified program every time a new log file is opened. The filename of the newly opened file is passed as the first argument to the program. If executing after a rotation, the old log file is passed as the second argument. <B>rotatelogs</B> does not wait for the specified program to terminate before continuing to operate, and will not log any error code returned on termination. The spawned program uses the same stdin, stdout, and stderr as rotatelogs itself, and also inherits the environment.  
+<DT id="4"><B>-f</B><DD>
+Causes the logfile to be opened immediately, as soon as <B>rotatelogs</B> starts, instead of waiting for the first logfile entry to be read (for non-busy sites, there may be a substantial delay between when the server is started and when the first request is handled, meaning that the associated logfile does not &quot;exist&quot; until then, which causes problems from some automated logging tools)  
+<DT id="5"><B>-D</B><DD>
+Creates the parent directories of the path that the log file will be placed in if they do not already exist. This allows <B><A HREF="/cgi-bin/man/man2html?3+strftime">strftime</A>(3)</B> formatting to be used in the path and not just the filename.  
+<DT id="6"><B>-t</B><DD>
+Causes the logfile to be truncated instead of rotated. This is useful when a log is processed in real time by a command like tail, and there is no need for archived data. No suffix will be added to the filename, however format strings containing '%' characters will be respected.  
+<DT id="7"><B>-v</B><DD>
+Produce verbose output on STDERR. The output contains the result of the configuration parsing, and all file open and close actions.  
+<DT id="8"><B>-e</B><DD>
+Echo logs through to stdout. Useful when logs need to be further processed in real time by a further tool in the chain.  
+<DT id="9"><B>-c</B><DD>
+Create log file for each interval, even if empty.  
+<DT id="10"><B>-n </B><I>number-of-files</I><DD>
+Use a circular list of filenames without timestamps. With -n 3, the series of log files opened would be &quot;logfile&quot;, &quot;logfile.1&quot;, &quot;logfile.2&quot;, then overwriting &quot;logfile&quot;. Available in 2.4.5 and later.  
+<DT id="11"><B></B><I>logfile</I><DD>
+</DL>
+<P>
+
+<DL COMPACT>
+<DT id="12"><B></B><I>rotationtime</I><DD>
+The time between log file rotations in seconds. The rotation occurs at the beginning of this interval. For example, if the rotation time is 3600, the log file will be rotated at the beginning of every hour; if the rotation time is 86400, the log file will be rotated every night at midnight. (If no data is logged during an interval, no file will be created.)  
+<DT id="13"><B></B><I>filesize</I>(B|K|M|G)<DD>
+The maximum file size in followed by exactly one of the letters <B>B</B> (Bytes), <B>K</B> (KBytes), <B>M</B> (MBytes) or <B>G</B> (GBytes). .PP When time and size are specified, the size must be given after the time. Rotation will occur whenever either time or size limits are reached.  
+<DT id="14"><B></B><I>offset</I><DD>
+The number of minutes offset from UTC. If omitted, zero is assumed and UTC is used. For example, to use local time in the zone UTC -5 hours, specify a value of <B>-300</B> for this argument. In most cases, <B>-l</B> should be used instead of specifying an offset.  
+<BR>&nbsp;
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+<BR>&nbsp;
+<PRE>
+
+     CustomLog &quot;|bin/rotatelogs /var/log/logfile 86400&quot; common
+
+</PRE>
+
+<BR>&nbsp;
+<P>
+
+This creates the files /var/log/logfile.nnnn where nnnn is the system time at which the log nominally starts (this time will always be a multiple of the rotation time, so you can synchronize cron scripts with it). At the end of each rotation time (here after 24 hours) a new log is started.
+<BR>&nbsp;
+<PRE>
+
+     CustomLog &quot;|bin/rotatelogs -l /var/log/logfile.%Y.%m.%d 86400&quot; common
+
+</PRE>
+
+<BR>&nbsp;
+<P>
+
+This creates the files /var/log/logfile.yyyy.mm.dd where yyyy is the year, mm is the month, and dd is the day of the month. Logging will switch to a new file every day at midnight, local time.
+<BR>&nbsp;
+<PRE>
+
+     CustomLog &quot;|bin/rotatelogs /var/log/logfile 5M&quot; common
+
+</PRE>
+
+<BR>&nbsp;
+<P>
+
+This configuration will rotate the logfile whenever it reaches a size of 5 megabytes.
+<BR>&nbsp;
+<PRE>
+
+     ErrorLog &quot;|bin/rotatelogs /var/log/errorlog.%Y-%m-%d-%H_%M_%S 5M&quot;
+
+</PRE>
+
+<BR>&nbsp;
+<P>
+
+This configuration will rotate the error logfile whenever it reaches a size of 5 megabytes, and the suffix to the logfile name will be created of the form <B>errorlog.YYYY-mm-dd-HH_MM_SS</B>.
+<BR>&nbsp;
+<PRE>
+
+     CustomLog &quot;|bin/rotatelogs -t /var/log/logfile 86400&quot; common
+
+</PRE>
+
+<BR>&nbsp;
+<P>
+
+This creates the file /var/log/logfile, truncating the file at startup and then truncating the file once per day. It is expected in this scenario that a separate process (such as tail) would process the file in real time.
+<BR>&nbsp;
+<A NAME="lbAG">&nbsp;</A>
+<H2>PORTABILITY</H2>
+
+<BR>&nbsp;
+<P>
+
+The following logfile format string substitutions should be supported by all <B><A HREF="/cgi-bin/man/man2html?3+strftime">strftime</A>(3)</B> implementations, see the <B><A HREF="/cgi-bin/man/man2html?3+strftime">strftime</A>(3)</B> man page for library-specific extensions.
+<BR>&nbsp;&nbsp;
+
+<BR>
+
+
+
+
+<DL COMPACT>
+<DT id="15">&bull; <FONT SIZE="-1"><B>%A</B></FONT> - full weekday name (localized)<DD>
+
+<BR>&nbsp;
+
+<BR>
+
+
+
+
+<DT id="16">&bull; <FONT SIZE="-1"><B>%a</B></FONT> - 3-character weekday name (localized)<DD>
+
+<BR>&nbsp;
+
+<BR>
+
+
+
+
+<DT id="17">&bull; <FONT SIZE="-1"><B>%B</B></FONT> - full month name (localized)<DD>
+
+<BR>&nbsp;
+
+<BR>
+
+
+
+
+<DT id="18">&bull; <FONT SIZE="-1"><B>%b</B></FONT> - 3-character month name (localized)<DD>
+
+<BR>&nbsp;
+
+<BR>
+
+
+
+
+<DT id="19">&bull; <FONT SIZE="-1"><B>%c</B></FONT> - date and time (localized)<DD>
+
+<BR>&nbsp;
+
+<BR>
+
+
+
+
+<DT id="20">&bull; <FONT SIZE="-1"><B>%d</B></FONT> - 2-digit day of month<DD>
+
+<BR>&nbsp;
+
+<BR>
+
+
+
+
+<DT id="21">&bull; <FONT SIZE="-1"><B>%H</B></FONT> - 2-digit hour (24 hour clock)<DD>
+
+<BR>&nbsp;
+
+<BR>
+
+
+
+
+<DT id="22">&bull; <FONT SIZE="-1"><B>%I</B></FONT> - 2-digit hour (12 hour clock)<DD>
+
+<BR>&nbsp;
+
+<BR>
+
+
+
+
+<DT id="23">&bull; <FONT SIZE="-1"><B>%j</B></FONT> - 3-digit day of year<DD>
+
+<BR>&nbsp;
+
+<BR>
+
+
+
+
+<DT id="24">&bull; <FONT SIZE="-1"><B>%M</B></FONT> - 2-digit minute<DD>
+
+<BR>&nbsp;
+
+<BR>
+
+
+
+
+<DT id="25">&bull; <FONT SIZE="-1"><B>%m</B></FONT> - 2-digit month<DD>
+
+<BR>&nbsp;
+
+<BR>
+
+
+
+
+<DT id="26">&bull; <FONT SIZE="-1"><B>%p</B></FONT> - am/pm of 12 hour clock (localized)<DD>
+
+<BR>&nbsp;
+
+<BR>
+
+
+
+
+<DT id="27">&bull; <FONT SIZE="-1"><B>%S</B></FONT> - 2-digit second<DD>
+
+<BR>&nbsp;
+
+<BR>
+
+
+
+
+<DT id="28">&bull; <FONT SIZE="-1"><B>%U</B></FONT> - 2-digit week of year (Sunday first day of week)<DD>
+
+<BR>&nbsp;
+
+<BR>
+
+
+
+
+<DT id="29">&bull; <FONT SIZE="-1"><B>%W</B></FONT> - 2-digit week of year (Monday first day of week)<DD>
+
+<BR>&nbsp;
+
+<BR>
+
+
+
+
+<DT id="30">&bull; <FONT SIZE="-1"><B>%w</B></FONT> - 1-digit weekday (Sunday first day of week)<DD>
+
+<BR>&nbsp;
+
+<BR>
+
+
+
+
+<DT id="31">&bull; <FONT SIZE="-1"><B>%X</B></FONT> - time (localized)<DD>
+
+<BR>&nbsp;
+
+<BR>
+
+
+
+
+<DT id="32">&bull; <FONT SIZE="-1"><B>%x</B></FONT> - date (localized)<DD>
+
+<BR>&nbsp;
+
+<BR>
+
+
+
+
+<DT id="33">&bull; <FONT SIZE="-1"><B>%Y</B></FONT> - 4-digit year<DD>
+
+<BR>&nbsp;
+
+<BR>
+
+
+
+
+<DT id="34">&bull; <FONT SIZE="-1"><B>%y</B></FONT> - 2-digit year<DD>
+
+<BR>&nbsp;
+
+<BR>
+
+
+
+
+<DT id="35">&bull; <FONT SIZE="-1"><B>%Z</B></FONT> - time zone name<DD>
+
+<BR>&nbsp;
+
+<BR>
+
+
+
+
+<DT id="36">&bull; <FONT SIZE="-1"><B>%%</B></FONT> - literal `%'<DD>
+
+<BR>&nbsp;&nbsp;
+<P>
+</DL>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="37"><A HREF="#lbAB">NAME</A><DD>
+<DT id="38"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="39"><A HREF="#lbAD">SUMMARY</A><DD>
+<DT id="40"><A HREF="#lbAE">OPTIONS</A><DD>
+<DT id="41"><A HREF="#lbAF">EXAMPLES</A><DD>
+<DT id="42"><A HREF="#lbAG">PORTABILITY</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:15 GMT, March 31, 2021
+</BODY>
+</HTML>

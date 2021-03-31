@@ -1,0 +1,2124 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of netplan</TITLE>
+</HEAD><BODY>
+<H1>netplan</H1>
+Section:  (5)<BR>Updated: <BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+<P>
+
+netplan - YAML network configuration abstraction for various backends
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+
+netplan [ COMMAND | help ]
+<A NAME="lbAD">&nbsp;</A>
+<H2>COMMANDS</H2>
+
+<P>
+
+See netplan help for a list of available commands on this
+system.
+<A NAME="lbAE">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<A NAME="lbAF">&nbsp;</A>
+<H3>Introduction</H3>
+
+<P>
+
+Distribution installers, cloud instantiation, image builds for
+particular devices, or any other way to deploy an operating system put
+its desired network configuration into YAML configuration file(s).
+During early boot, the netplan "network renderer" runs which
+reads /{lib,etc,run}/netplan/*.yaml and writes configuration
+to /run to hand off control of devices to the specified
+networking daemon.
+<DL COMPACT>
+<DT id="1">&bull;<DD>
+Configured devices get handled by systemd-networkd by default, unless
+explicitly marked as managed by a specific renderer (NetworkManager)
+<DT id="2">&bull;<DD>
+Devices not covered by the network config do not get touched at all.
+<DT id="3">&bull;<DD>
+Usable in initramfs (few dependencies and fast)
+<DT id="4">&bull;<DD>
+No persistent generated config, only original YAML config
+<DT id="5">&bull;<DD>
+Parser supports multiple config files to allow applications like libvirt
+or lxd to package up expected network config (virbr0,
+lxdbr0), or to change the global default policy to use
+NetworkManager for everything.
+<DT id="6">&bull;<DD>
+Retains the flexibility to change backends/policy later or adjust to
+removing NetworkManager, as generated configuration is ephemeral.
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H3>General structure</H3>
+
+<P>
+
+netplan's configuration files use the
+YAML (<A HREF="http://yaml.org/spec/1.1/current.html)">http://yaml.org/spec/1.1/current.html)</A> format.
+All /{lib,etc,run}/netplan/*.yaml are considered.
+Lexicographically later files (regardless of in which directory they
+are) amend (new mapping keys) or override (same mapping keys) previous
+ones.
+A file in /run/netplan completely shadows a file with same
+name in /etc/netplan, and a file in either of those
+directories shadows a file with the same name in /lib/netplan.
+<P>
+
+The top-level node in a netplan configuration file is a
+network: mapping that contains version: 2 (the YAML
+currently being used by curtin, MaaS, etc.
+is version 1), and then device definitions grouped by their type, such
+as ethernets:, modems:, wifis:, or
+bridges:.
+These are the types that our renderer can understand and are supported
+by our backends.
+<P>
+
+Each type block contains device definitions as a map where the keys
+(called "configuration IDs") are defined as below.
+<A NAME="lbAH">&nbsp;</A>
+<H3>Device configuration IDs</H3>
+
+<P>
+
+The key names below the per-device-type definition maps (like
+ethernets:) are called "ID"s.
+They must be unique throughout the entire set of configuration files.
+Their primary purpose is to serve as anchor names for composite devices,
+for example to enumerate the members of a bridge that is currently being
+defined.
+<P>
+
+(Since 0.97) If an interface is defined with an ID in a configuration
+file; it will be brought up by the applicable renderer.
+To not have netplan touch an interface at all, it should be completely
+omitted from the netplan configuration files.
+<P>
+
+There are two physically/structurally different classes of device
+definitions, and the ID field has a different interpretation for each:
+<DL COMPACT>
+<DT id="7"><B>Physical devices</B>
+
+<DD>
+(Examples: ethernet, modem, wifi) These can dynamically come and go
+between reboots and even during runtime (hotplugging).
+In the generic case, they can be selected by match: rules on
+desired properties, such as name/name pattern, MAC address, driver, or
+device paths.
+In general these will match any number of devices (unless they refer to
+properties which are unique such as the full path or MAC address), so
+without further knowledge about the hardware these will always be
+considered as a group.
+<DL COMPACT><DT id="8"><DD>
+<P>
+
+It is valid to specify no match rules at all, in which case the ID field
+is simply the interface name to be matched.
+This is mostly useful if you want to keep simple cases simple, and
+it's how network device configuration has been done for a long time.
+<P>
+
+If there are match: rules, then the ID field is a purely
+opaque name which is only being used for references from definitions of
+compound devices in the config.
+</DL>
+
+<DT id="9"><B>Virtual devices</B>
+
+<DD>
+(Examples: veth, bridge, bond) These are fully under the control of the
+config file(s) and the network stack.
+I.
+e.
+these devices are being created instead of matched.
+Thus match: and set-name: are not applicable for
+these, and the ID field is the name of the created virtual device.
+</DL>
+<A NAME="lbAI">&nbsp;</A>
+<H3>Common properties for physical device types</H3>
+
+<DL COMPACT>
+<DT id="10"><B></B>match (mapping)
+
+<DD>
+This selects a subset of available physical devices by various hardware
+properties.
+The following configuration will then apply to all matching devices, as
+soon as they appear.
+All specified properties must match.
+<DL COMPACT><DT id="11"><DD>
+<DL COMPACT>
+<DT id="12"><B></B>name (scalar)
+
+<DD>
+Current interface name.
+Globs are supported, and the primary use case for matching on names, as
+selecting one fixed name can be more easily achieved with having no
+match: at all and just using the ID (see above).
+(NetworkManager: as of v1.14.0)
+<DT id="13"><B></B>macaddress (scalar)
+
+<DD>
+Device's MAC address in the form "XX:XX:XX:XX:XX:XX".
+Globs are not allowed.
+<DT id="14"><B></B>driver (scalar)
+
+<DD>
+Kernel driver name, corresponding to the DRIVER udev property.
+Globs are supported.
+Matching on driver is only supported with networkd.
+</DL>
+<P>
+
+Examples:
+<DL COMPACT>
+<DT id="15">&bull;<DD>
+all cards on second PCI bus:
+<DL COMPACT><DT id="16"><DD>
+<DL COMPACT>
+<DT id="17"><DD>
+<PRE>
+
+ match:
+   name: enp2*
+
+</PRE>
+
+</DL>
+</DL>
+
+<DT id="18">&bull;<DD>
+fixed MAC address:
+<DL COMPACT><DT id="19"><DD>
+<DL COMPACT>
+<DT id="20"><DD>
+<PRE>
+
+ match:
+   macaddress: 11:22:33:AA:BB:FF
+
+</PRE>
+
+</DL>
+</DL>
+
+<DT id="21">&bull;<DD>
+first card of driver ixgbe:
+<DL COMPACT><DT id="22"><DD>
+<DL COMPACT>
+<DT id="23"><DD>
+<PRE>
+
+ match:
+   driver: ixgbe
+   name: en*s0
+
+</PRE>
+
+</DL>
+</DL>
+
+</DL>
+</DL>
+
+<DT id="24"><B></B>set-name (scalar)
+
+<DD>
+When matching on unique properties such as path or MAC, or with
+additional assumptions such as "there will only ever be one wifi
+device", match rules can be written so that they only match one
+device.
+Then this property can be used to give that device a more
+specific/desirable/nicer name than the default from udev's ifnames.
+Any additional device that satisfies the match rules will then fail to
+get renamed and keep the original kernel name (and dmesg will show an
+error).
+<DT id="25"><B></B>wakeonlan (bool)
+
+<DD>
+Enable wake on LAN.
+Off by default.
+<DT id="26"><B></B>emit-lldp (bool) - since 0.99
+
+<DD>
+(networkd backend only) Whether to emit LLDP packets.
+Off by default.
+<DT id="27"><B></B>openvswitch (mapping) - since 0.100
+
+<DD>
+This provides additional configuration for the network device for
+openvswitch.
+If openvswitch is not available on the system, netplan treats the
+presence of openvswitch configuration as an error.
+<DL COMPACT><DT id="28"><DD>
+<P>
+
+Any supported network device that is declared with the
+openvswitch mapping (or any bond/bridge that includes an
+interface with an openvswitch configuration) will be created in
+openvswitch instead of the defined renderer.
+In the case of a vlan definition declared the same way,
+netplan will create a fake VLAN bridge in openvswitch with the requested
+vlan properties.
+<DL COMPACT>
+<DT id="29"><B></B>external-ids (mapping) - since 0.100
+
+<DD>
+Passed-through directly to OpenVSwitch
+<DT id="30"><B></B>other-config (mapping) - since 0.100
+
+<DD>
+Passed-through directly to OpenVSwitch
+<DT id="31"><B></B>lacp (scalar) - since 0.100
+
+<DD>
+Valid for bond interfaces.
+Accepts active, passive or off (the
+default).
+<DT id="32"><B></B>fail-mode (scalar) - since 0.100
+
+<DD>
+Valid for bridge interfaces.
+Accepts secure or standalone (the default).
+<DT id="33"><B></B>mcast-snooping (bool) - since 0.100
+
+<DD>
+Valid for bridge interfaces.
+False by default.
+<DT id="34"><B></B>protocols (sequence of scalars) - since 0.100
+
+<DD>
+Valid for bridge interfaces or the network section.
+List of protocols to be used when negotiating a connection with the
+controller.
+Accepts OpenFlow10, OpenFlow11,
+OpenFlow12, OpenFlow13, OpenFlow14,
+OpenFlow15 and OpenFlow16.
+<DT id="35"><B></B>rstp (bool) - since 0.100
+
+<DD>
+Valid for bridge interfaces.
+False by default.
+<DT id="36"><B></B>controller (mapping) - since 0.100
+
+<DD>
+Valid for bridge interfaces.
+Specify an external OpenFlow controller.
+<DL COMPACT><DT id="37"><DD>
+<DL COMPACT>
+<DT id="38"><B></B>addresses (sequence of scalars)
+
+<DD>
+Set the list of addresses to use for the controller targets.
+The syntax of these addresses is as defined in <A HREF="/cgi-bin/man/man2html?8+ovs-vsctl">ovs-vsctl</A>(8).
+Example: addresses:
+[tcp:127.0.0.1:6653, &quot;ssl:[fe80::1234%eth0]:6653&quot;]
+<DT id="39"><B></B>connection-mode (scalar)
+
+<DD>
+Set the connection mode for the controller.
+Supported options are in-band and out-of-band.
+The default is in-band.
+</DL>
+</DL>
+
+<DT id="40"><B></B>ports (sequence of sequence of scalars) - since 0.100
+
+<DD>
+OpenvSwitch patch ports.
+Each port is declared as a pair of names which can be referenced as
+interfaces in dependent virtual devices (bonds, bridges).
+<DL COMPACT><DT id="41"><DD>
+<P>
+
+Example:
+<DL COMPACT>
+<DT id="42"><DD>
+<PRE>
+
+ openvswitch:
+   ports:
+     - [patch0-1, patch1-0]
+
+</PRE>
+
+</DL>
+</DL>
+
+<DT id="43"><B></B>ssl (mapping) - since 0.100
+
+<DD>
+Valid for global openvswitch settings.
+Options for configuring SSL server endpoint for the switch.
+<DL COMPACT><DT id="44"><DD>
+<DL COMPACT>
+<DT id="45"><B></B>ca-cert (scalar)
+
+<DD>
+Path to a file containing the CA certificate to be used.
+<DT id="46"><B></B>certificate (scalar)
+
+<DD>
+Path to a file containing the server certificate.
+<DT id="47"><B></B>private-key (scalar)
+
+<DD>
+Path to a file containing the private key for the server.
+</DL>
+</DL>
+
+</DL>
+</DL>
+
+</DL>
+<A NAME="lbAJ">&nbsp;</A>
+<H3>Common properties for all device types</H3>
+
+<DL COMPACT>
+<DT id="48"><B></B>renderer (scalar)
+
+<DD>
+Use the given networking backend for this definition.
+Currently supported are networkd and NetworkManager.
+This property can be specified globally in network:, for a
+device type (in e.
+g.
+ethernets:) or for a particular device definition.
+Default is networkd.
+<DL COMPACT><DT id="49"><DD>
+<P>
+
+(Since 0.99) The renderer property has one additional
+acceptable value for vlan objects (i.
+e.
+defined in vlans:): sriov.
+If a vlan is defined with the sriov renderer for an SR-IOV
+Virtual Function interface, this causes netplan to set up a hardware
+VLAN filter for it.
+There can be only one defined per VF.
+</DL>
+
+<DT id="50"><B></B>dhcp4 (bool)
+
+<DD>
+Enable DHCP for IPv4.
+Off by default.
+<DT id="51"><B></B>dhcp6 (bool)
+
+<DD>
+Enable DHCP for IPv6.
+Off by default.
+This covers both stateless DHCP - where the DHCP server supplies
+information like DNS nameservers but not the IP address - and stateful
+DHCP, where the server provides both the address and the other
+information.
+<DL COMPACT><DT id="52"><DD>
+<P>
+
+If you are in an IPv6-only environment with completely stateless
+autoconfiguration (SLAAC with RDNSS), this option can be set to cause
+the interface to be brought up.
+(Setting accept-ra alone is not sufficient.) Autoconfiguration will
+still honour the contents of the router advertisement and only use DHCP
+if requested in the RA.
+<P>
+
+Note that <A HREF="/cgi-bin/man/man2html?8+rdnssd">rdnssd</A>(8) is required to use RDNSS with
+networkd.
+No extra software is required for NetworkManager.
+</DL>
+
+<DT id="53"><B></B>ipv6-mtu (scalar) - since 0.98
+
+<DD>
+Set the IPv6 MTU (only supported with networkd backend).
+Note that needing to set this is an unusual requirement.
+<DL COMPACT><DT id="54"><DD>
+<P>
+
+Requires feature: ipv6-mtu
+</DL>
+
+<DT id="55"><B></B>ipv6-privacy (bool)
+
+<DD>
+Enable IPv6 Privacy Extensions (RFC 4941) for the specified interface,
+and prefer temporary addresses.
+Defaults to false - no privacy extensions.
+There is currently no way to have a private address but prefer the
+public address.
+<DT id="56"><B></B>link-local (sequence of scalars)
+
+<DD>
+Configure the link-local addresses to bring up.
+Valid options are `ipv4' and `ipv6', which respectively allow enabling
+IPv4 and IPv6 link local addressing.
+If this field is not defined, the default is to enable only IPv6
+link-local addresses.
+If the field is defined but configured as an empty set, IPv6 link-local
+addresses are disabled as well as IPv4 link- local addresses.
+<DL COMPACT><DT id="57"><DD>
+<P>
+
+This feature enables or disables link-local addresses for a protocol,
+but the actual implementation differs per backend.
+On networkd, this directly changes the behavior and may add an extra
+address on an interface.
+When using the NetworkManager backend, enabling link-local has no
+effect if the interface also has DHCP enabled.
+<P>
+
+Example to enable only IPv4 link-local: link-local: [ ipv4 ]
+Example to enable all link-local addresses:
+link-local: [ ipv4, ipv6 ] Example to disable all link-local
+addresses: link-local: [ ]
+</DL>
+
+<DT id="58"><B></B>critical (bool)
+
+<DD>
+Designate the connection as "critical to the system", meaning
+that special care will be taken by to not release the assigned IP when
+the daemon is restarted.
+(not recognized by NetworkManager)
+<DT id="59"><B></B>dhcp-identifier (scalar)
+
+<DD>
+When set to `mac'; pass that setting over to systemd-networkd to use
+the device's MAC address as a unique identifier rather than a
+RFC4361-compliant Client ID.
+This has no effect when NetworkManager is used as a renderer.
+<DT id="60"><B></B>dhcp4-overrides (mapping)
+
+<DD>
+(networkd backend only) Overrides default DHCP behavior; see the
+DHCP Overrides section below.
+<DT id="61"><B></B>dhcp6-overrides (mapping)
+
+<DD>
+(networkd backend only) Overrides default DHCP behavior; see the
+DHCP Overrides section below.
+<DT id="62"><B></B>accept-ra (bool)
+
+<DD>
+Accept Router Advertisement that would have the kernel configure IPv6 by
+itself.
+When enabled, accept Router Advertisements.
+When disabled, do not respond to Router Advertisements.
+If unset use the host kernel default setting.
+<DT id="63"><B></B>addresses (sequence of scalars and mappings)
+
+<DD>
+Add static addresses to the interface in addition to the ones received
+through DHCP or RA.
+Each sequence entry is in CIDR notation, i.
+e.
+of the form addr/prefixlen.
+addr is an IPv4 or IPv6 address as recognized by
+<A HREF="/cgi-bin/man/man2html?3+inet_pton">inet_pton</A>(3) and prefixlen the number of
+bits of the subnet.
+<DL COMPACT><DT id="64"><DD>
+<P>
+
+For virtual devices (bridges, bonds, vlan) if there is no address
+configured and DHCP is disabled, the interface may still be brought
+online, but will not be addressable from the network.
+<P>
+
+In addition to the addresses themselves one can specify configuration
+parameters as mappings.
+Current supported options are:
+<DL COMPACT>
+<DT id="65"><B></B>lifetime (scalar) - since 0.100
+
+<DD>
+Default: forever.
+This can be forever or 0 and corresponds to the
+PreferredLifetime option in systemd-networkd's
+Address section.
+Currently supported on the networkd backend only.
+<DT id="66"><B></B>label (scalar) - since 0.100
+
+<DD>
+An IP address label, equivalent to the ip address label
+command.
+Currently supported on the networkd backend only.
+</DL>
+<P>
+
+Example: addresses: [192.168.14.2/24, &quot;2001:1::1/64&quot;]
+<P>
+
+Example:
+<DL COMPACT>
+<DT id="67"><DD>
+<PRE>
+
+ethernets:
+  eth0:
+    addresses:
+      - 10.0.0.15/24:
+          lifetime: 0
+          label: &quot;maas&quot;
+      - &quot;2001:1::1/64&quot;
+
+</PRE>
+
+</DL>
+</DL>
+
+<DT id="68"><B></B>ipv6-address-generation (scalar) - since 0.99
+
+<DD>
+Configure method for creating the address for use with RFC4862 IPv6
+Stateless Address Autoconfiguration (only supported with
+NetworkManager backend).
+Possible values are eui64 or stable-privacy.
+<DT id="69"><B></B>ipv6-address-token (scalar) - since 0.100
+
+<DD>
+Define an IPv6 address token for creating a static interface identifier
+for IPv6 Stateless Address Autoconfiguration.
+This is mutually exclusive with ipv6-address-generation.
+<DT id="70"><B></B>gateway4, gateway6 (scalar)
+
+<DD>
+Set default gateway for IPv4/6, for manual address configuration.
+This requires setting addresses too.
+Gateway IPs must be in a form recognized by
+<A HREF="/cgi-bin/man/man2html?3+inet_pton">inet_pton</A>(3).
+There should only be a single gateway set in your global config, to make
+it unambiguous.
+If you need multiple default routes, please define them via
+routing-policy.
+<DL COMPACT><DT id="71"><DD>
+<P>
+
+Example for IPv4: gateway4: 172.16.0.1 Example for IPv6:
+gateway6: &quot;2001:4::1&quot;
+</DL>
+
+<DT id="72"><B></B>nameservers (mapping)
+
+<DD>
+Set DNS servers and search domains, for manual address configuration.
+There are two supported fields: addresses: is a list of IPv4
+or IPv6 addresses similar to gateway*, and search:
+is a list of search domains.
+<DL COMPACT><DT id="73"><DD>
+<P>
+
+Example:
+<DL COMPACT>
+<DT id="74"><DD>
+<PRE>
+
+ethernets:
+  id0:
+    [...]
+    nameservers:
+      search: [lab, home]
+      addresses: [8.8.8.8, &quot;FEDC::1&quot;]
+
+</PRE>
+
+</DL>
+</DL>
+
+<DT id="75"><B></B>macaddress (scalar)
+
+<DD>
+Set the device's MAC address.
+The MAC address must be in the form "XX:XX:XX:XX:XX:XX".
+<DL COMPACT><DT id="76"><DD>
+<P>
+
+Note: This will not work reliably for devices matched by name
+only and rendered by networkd, due to interactions with device renaming
+in udev.
+Match devices by MAC when setting MAC addresses.
+<P>
+
+Example:
+<DL COMPACT>
+<DT id="77"><DD>
+<PRE>
+
+ethernets:
+  id0:
+    match:
+      macaddress: 52:54:00:6b:3c:58
+    [...]
+    macaddress: 52:54:00:6b:3c:59
+
+</PRE>
+
+</DL>
+</DL>
+
+<DT id="78"><B></B>mtu (scalar)
+
+<DD>
+Set the Maximum Transmission Unit for the interface.
+The default is 1500.
+Valid values depend on your network interface.
+<DL COMPACT><DT id="79"><DD>
+<P>
+
+Note: This will not work reliably for devices matched by name
+only and rendered by networkd, due to interactions with device renaming
+in udev.
+Match devices by MAC when setting MTU.
+</DL>
+
+<DT id="80"><B></B>optional (bool)
+
+<DD>
+An optional device is not required for booting.
+Normally, networkd will wait some time for device to become configured
+before proceeding with booting.
+However, if a device is marked as optional, networkd will not wait for
+it.
+This is only supported by networkd, and the default is false.
+<DL COMPACT><DT id="81"><DD>
+<P>
+
+Example:
+<DL COMPACT>
+<DT id="82"><DD>
+<PRE>
+
+ethernets:
+  eth7:
+    # this is plugged into a test network that is often
+    # down - don't wait for it to come up during boot.
+    dhcp4: true
+    optional: true
+
+</PRE>
+
+</DL>
+</DL>
+
+<DT id="83"><B></B>optional-addresses (sequence of scalars)
+
+<DD>
+Specify types of addresses that are not required for a device to be
+considered online.
+This changes the behavior of backends at boot time to avoid waiting for
+addresses that are marked optional, and thus consider the interface as
+"usable" sooner.
+This does not disable these addresses, which will be brought up anyway.
+<DL COMPACT><DT id="84"><DD>
+<P>
+
+Example:
+<DL COMPACT>
+<DT id="85"><DD>
+<PRE>
+
+ethernets:
+  eth7:
+    dhcp4: true
+    dhcp6: true
+    optional-addresses: [ ipv4-ll, dhcp6 ]
+
+</PRE>
+
+</DL>
+</DL>
+
+<DT id="86"><B></B>routes (sequence of mappings)
+
+<DD>
+Configure static routing for the device; see the Routing
+section below.
+<DT id="87"><B></B>routing-policy (sequence of mappings)
+
+<DD>
+Configure policy routing for the device; see the Routing
+section below.
+</DL>
+<A NAME="lbAK">&nbsp;</A>
+<H3>DHCP Overrides</H3>
+
+<P>
+
+Several DHCP behavior overrides are available.
+Most currently only have any effect when using the networkd
+backend, with the exception of use-routes and
+route-metric.
+<P>
+
+Overrides only have an effect if the corresponding dhcp4 or
+dhcp6 is set to true.
+<P>
+
+If both dhcp4 and dhcp6 are true, the
+networkd backend requires that dhcp4-overrides and
+dhcp6-overrides contain the same keys and values.
+If the values do not match, an error will be shown and the network
+configuration will not be applied.
+<P>
+
+When using the NetworkManager backend, different values may be specified
+for dhcp4-overrides and dhcp6-overrides, and will
+be applied to the DHCP client processes as specified in the netplan
+YAML.
+<DL COMPACT>
+<DT id="88"><B></B>dhcp4-overrides, dhcp6-overrides (mapping)
+
+<DD>
+The dhcp4-overrides and dhcp6-overrides mappings
+override the default DHCP behavior.
+<DL COMPACT><DT id="89"><DD>
+<DL COMPACT>
+<DT id="90"><B></B>use-dns (bool)
+
+<DD>
+Default: true.
+When true, the DNS servers received from the DHCP server will
+be used and take precedence over any statically configured ones.
+Currently only has an effect on the networkd backend.
+<DT id="91"><B></B>use-ntp (bool)
+
+<DD>
+Default: true.
+When true, the NTP servers received from the DHCP server will
+be used by systemd-timesyncd and take precedence over any statically
+configured ones.
+Currently only has an effect on the networkd backend.
+<DT id="92"><B></B>send-hostname (bool)
+
+<DD>
+Default: true.
+When true, the machine's hostname will be sent to the DHCP
+server.
+Currently only has an effect on the networkd backend.
+<DT id="93"><B></B>use-hostname (bool)
+
+<DD>
+Default: true.
+When true, the hostname received from the DHCP server will be
+set as the transient hostname of the system.
+Currently only has an effect on the networkd backend.
+<DT id="94"><B></B>use-mtu (bool)
+
+<DD>
+Default: true.
+When true, the MTU received from the DHCP server will be set
+as the MTU of the network interface.
+When false, the MTU advertised by the DHCP server will be
+ignored.
+Currently only has an effect on the networkd backend.
+<DT id="95"><B></B>hostname (scalar)
+
+<DD>
+Use this value for the hostname which is sent to the DHCP server,
+instead of machine's hostname.
+Currently only has an effect on the networkd backend.
+<DT id="96"><B></B>use-routes (bool)
+
+<DD>
+Default: true.
+When true, the routes received from the DHCP server will be
+installed in the routing table normally.
+When set to false, routes from the DHCP server will be
+ignored: in this case, the user is responsible for adding static routes
+if necessary for correct network operation.
+This allows users to avoid installing a default gateway for interfaces
+configured via DHCP.
+Available for both the networkd and NetworkManager
+backends.
+<DT id="97"><B></B>route-metric (scalar)
+
+<DD>
+Use this value for default metric for automatically-added routes.
+Use this to prioritize routes for devices by setting a lower metric on a
+preferred interface.
+Available for both the networkd and NetworkManager
+backends.
+<DT id="98"><B></B>use-domains (scalar) - since 0.98
+
+<DD>
+Takes a boolean, or the special value "route".
+When true, the domain name received from the DHCP server will be used as
+DNS search domain over this link, similar to the effect of the Domains=
+setting.
+If set to "route", the domain name received from the DHCP server
+will be used for routing DNS queries only, but not for searching,
+similar to the effect of the Domains= setting when the argument is
+prefixed with "~".
+<DL COMPACT><DT id="99"><DD>
+<P>
+
+Requires feature: dhcp-use-domains
+</DL>
+
+</DL>
+</DL>
+
+</DL>
+<A NAME="lbAL">&nbsp;</A>
+<H3>Routing</H3>
+
+<P>
+
+Complex routing is possible with netplan.
+Standard static routes as well as policy routing using routing tables
+are supported via the networkd backend.
+<P>
+
+These options are available for all types of interfaces.
+<DL COMPACT>
+<DT id="100"><B></B>routes (mapping)
+
+<DD>
+The routes block defines standard static routes for an
+interface.
+At least to and via must be specified.
+<DL COMPACT><DT id="101"><DD>
+<P>
+
+For from, to, and via, both IPv4 and IPv6
+addresses are recognized, and must be in the form
+addr/prefixlen or addr.
+<DL COMPACT>
+<DT id="102"><B></B>from (scalar)
+
+<DD>
+Set a source IP address for traffic going through the route.
+(NetworkManager: as of v1.8.0)
+<DT id="103"><B></B>to (scalar)
+
+<DD>
+Destination address for the route.
+<DT id="104"><B></B>via (scalar)
+
+<DD>
+Address to the gateway to use for this route.
+<DT id="105"><B></B>on-link (bool)
+
+<DD>
+When set to "true", specifies that the route is directly
+connected to the interface.
+(NetworkManager: as of v1.12.0 for IPv4 and v1.18.0 for IPv6)
+<DT id="106"><B></B>metric (scalar)
+
+<DD>
+The relative priority of the route.
+Must be a positive integer value.
+<DT id="107"><B></B>type (scalar)
+
+<DD>
+The type of route.
+Valid options are "unicast" (default), "unreachable",
+"blackhole" or "prohibit".
+<DT id="108"><B></B>scope (scalar)
+
+<DD>
+The route scope, how wide-ranging it is to the network.
+Possible values are "global", "link", or "host".
+NetworkManager does not support setting a scope.
+<DT id="109"><B></B>table (scalar)
+
+<DD>
+The table number to use for the route.
+In some scenarios, it may be useful to set routes in a separate routing
+table.
+It may also be used to refer to routing policy rules which also accept a
+table parameter.
+Allowed values are positive integers starting from 1.
+Some values are already in use to refer to specific routing tables: see
+/etc/iproute2/rt_tables.
+(NetworkManager: as of v1.10.0)
+<DT id="110"><B></B>mtu (scalar) - since 0.101
+
+<DD>
+The MTU to be used for the route, in bytes.
+Must be a positive integer value.
+</DL>
+</DL>
+
+<DT id="111"><B></B>routing-policy (mapping)
+
+<DD>
+The routing-policy block defines extra routing policy for a
+network, where traffic may be handled specially based on the source IP,
+firewall marking, etc.
+<DL COMPACT><DT id="112"><DD>
+<P>
+
+For from, to, both IPv4 and IPv6 addresses are
+recognized, and must be in the form addr/prefixlen or
+addr.
+<DL COMPACT>
+<DT id="113"><B></B>from (scalar)
+
+<DD>
+Set a source IP address to match traffic for this policy rule.
+<DT id="114"><B></B>to (scalar)
+
+<DD>
+Match on traffic going to the specified destination.
+<DT id="115"><B></B>table (scalar)
+
+<DD>
+The table number to match for the route.
+In some scenarios, it may be useful to set routes in a separate routing
+table.
+It may also be used to refer to routes which also accept a
+table parameter.
+Allowed values are positive integers starting from 1.
+Some values are already in use to refer to specific routing tables: see
+/etc/iproute2/rt_tables.
+<DT id="116"><B></B>priority (scalar)
+
+<DD>
+Specify a priority for the routing policy rule, to influence the order
+in which routing rules are processed.
+A higher number means lower priority: rules are processed in order by
+increasing priority number.
+<DT id="117"><B></B>mark (scalar)
+
+<DD>
+Have this routing policy rule match on traffic that has been marked by
+the iptables firewall with this value.
+Allowed values are positive integers starting from 1.
+<DT id="118"><B></B>type-of-service (scalar)
+
+<DD>
+Match this policy rule based on the type of service number applied to
+the traffic.
+</DL>
+</DL>
+
+</DL>
+<A NAME="lbAM">&nbsp;</A>
+<H3>Authentication</H3>
+
+<P>
+
+Netplan supports advanced authentication settings for ethernet and wifi
+interfaces, as well as individual wifi networks, by means of the
+auth block.
+<DL COMPACT>
+<DT id="119"><B></B>auth (mapping)
+
+<DD>
+Specifies authentication settings for a device of type
+ethernets:, or an access-points: entry on a
+wifis: device.
+<DL COMPACT><DT id="120"><DD>
+<P>
+
+The auth block supports the following properties:
+<DL COMPACT>
+<DT id="121"><B></B>key-management (scalar)
+
+<DD>
+The supported key management modes are none (no key
+management); psk (WPA with pre-shared key, common for home
+wifi); eap (WPA with EAP, common for enterprise wifi); and
+802.1x (used primarily for wired Ethernet connections).
+<DT id="122"><B></B>password (scalar)
+
+<DD>
+The password string for EAP, or the pre-shared key for WPA-PSK.
+</DL>
+<P>
+
+The following properties can be used if key-management is
+eap or 802.1x:
+<DL COMPACT>
+<DT id="123"><B></B>method (scalar)
+
+<DD>
+The EAP method to use.
+The supported EAP methods are tls (TLS), peap
+(Protected EAP), and ttls (Tunneled TLS).
+<DT id="124"><B></B>identity (scalar)
+
+<DD>
+The identity to use for EAP.
+<DT id="125"><B></B>anonymous-identity (scalar)
+
+<DD>
+The identity to pass over the unencrypted channel if the chosen EAP
+method supports passing a different tunnelled identity.
+<DT id="126"><B></B>ca-certificate (scalar)
+
+<DD>
+Path to a file with one or more trusted certificate authority (CA)
+certificates.
+<DT id="127"><B></B>client-certificate (scalar)
+
+<DD>
+Path to a file containing the certificate to be used by the client
+during authentication.
+<DT id="128"><B></B>client-key (scalar)
+
+<DD>
+Path to a file containing the private key corresponding to
+client-certificate.
+<DT id="129"><B></B>client-key-password (scalar)
+
+<DD>
+Password to use to decrypt the private key specified in
+client-key if it is encrypted.
+<DT id="130"><B></B>phase2-auth (scalar) - since 0.99
+
+<DD>
+Phase 2 authentication mechanism.
+</DL>
+</DL>
+
+</DL>
+<A NAME="lbAN">&nbsp;</A>
+<H3>Properties for device type ethernets:</H3>
+
+<P>
+
+Ethernet device definitions, beyond common ones described above, also
+support some additional properties that can be used for SR-IOV devices.
+<DL COMPACT>
+<DT id="131"><B></B>link (scalar) - since 0.99
+
+<DD>
+(SR-IOV devices only) The link property declares the device
+as a Virtual Function of the selected Physical Function device, as
+identified by the given netplan id.
+</DL>
+<P>
+
+Example:
+<DL COMPACT>
+<DT id="132"><DD>
+<PRE>
+
+ethernets:
+  enp1: {...}
+  enp1s16f1:
+    link: enp1
+
+</PRE>
+
+<DT id="133"><B></B>virtual-function-count (scalar) - since 0.99
+
+<DD>
+(SR-IOV devices only) In certain special cases VFs might need to be
+configured outside of netplan.
+For such configurations virtual-function-count can be
+optionally used to set an explicit number of Virtual Functions for the
+given Physical Function.
+If unset, the default is to create only as many VFs as are defined in
+the netplan configuration.
+This should be used for special cases only.
+<DL COMPACT><DT id="134"><DD>
+<P>
+
+Requires feature: sriov
+</DL>
+
+</DL>
+<A NAME="lbAO">&nbsp;</A>
+<H3>Properties for device type modems:</H3>
+
+<P>
+
+GSM/CDMA modem configuration is only supported for the
+NetworkManager backend.
+systemd-networkd does not support modems.
+<P>
+
+Requires feature: modems
+<DL COMPACT>
+<DT id="135"><B></B>apn (scalar) - since 0.99
+
+<DD>
+Set the carrier APN (Access Point Name).
+This can be omitted if auto-config is enabled.
+<DT id="136"><B></B>auto-config (bool) - since 0.99
+
+<DD>
+Specify whether to try and autoconfigure the modem by doing a lookup of
+the carrier against the Mobile Broadband Provider database.
+This may not work for all carriers.
+<DT id="137"><B></B>device-id (scalar) - since 0.99
+
+<DD>
+Specify the device ID (as given by the WWAN management service) of the
+modem to match.
+This can be found using mmcli.
+<DT id="138"><B></B>network-id (scalar) - since 0.99
+
+<DD>
+Specify the Network ID (GSM LAI format).
+If this is specified, the device will not roam networks.
+<DT id="139"><B></B>number (scalar) - since 0.99
+
+<DD>
+The number to dial to establish the connection to the mobile broadband
+network.
+(Deprecated for GSM)
+<DT id="140"><B></B>password (scalar) - since 0.99
+
+<DD>
+Specify the password used to authenticate with the carrier network.
+This can be omitted if auto-config is enabled.
+<DT id="141"><B></B>pin (scalar) - since 0.99
+
+<DD>
+Specify the SIM PIN to allow it to operate if a PIN is set.
+<DT id="142"><B></B>sim-id (scalar) - since 0.99
+
+<DD>
+Specify the SIM unique identifier (as given by the WWAN management
+service) which this connection applies to.
+If given, the connection will apply to any device also allowed by
+device-id which contains a SIM card matching the given
+identifier.
+<DT id="143"><B></B>sim-operator-id (scalar) - since 0.99
+
+<DD>
+Specify the MCC/MNC string (such as "310260" or "21601")
+which identifies the carrier that this connection should apply to.
+If given, the connection will apply to any device also allowed by
+device-id and sim-id which contains a SIM card
+provisioned by the given operator.
+<DT id="144"><B></B>username (scalar) - since 0.99
+
+<DD>
+Specify the username used to authentiate with the carrier network.
+This can be omitted if auto-config is enabled.
+</DL>
+<A NAME="lbAP">&nbsp;</A>
+<H3>Properties for device type wifis:</H3>
+
+<P>
+
+Note that systemd-networkd does not natively support wifi, so
+you need wpasupplicant installed if you let the networkd
+renderer handle wifi.
+<DL COMPACT>
+<DT id="145"><B></B>access-points (mapping)
+
+<DD>
+This provides pre-configured connections to NetworkManager.
+Note that users can of course select other access points/SSIDs.
+The keys of the mapping are the SSIDs, and the values are mappings with
+the following supported properties:
+<DL COMPACT><DT id="146"><DD>
+<DL COMPACT>
+<DT id="147"><B></B>password (scalar)
+
+<DD>
+Enable WPA2 authentication and set the passphrase for it.
+If neither this nor an auth block are given, the network is
+assumed to be open.
+The setting
+<DL COMPACT><DT id="148"><DD>
+<DL COMPACT>
+<DT id="149"><DD>
+<PRE>
+
+  password: &quot;S3kr1t&quot;
+
+</PRE>
+
+</DL>
+<P>
+
+is equivalent to
+<DL COMPACT>
+<DT id="150"><DD>
+<PRE>
+
+  auth:
+    key-management: psk
+    password: &quot;S3kr1t&quot;
+
+</PRE>
+
+</DL>
+</DL>
+
+<DT id="151"><B></B>mode (scalar)
+
+<DD>
+Possible access point modes are infrastructure (the default),
+ap (create an access point to which other devices can
+connect), and adhoc (peer to peer networks without a central
+access point).
+ap is only supported with NetworkManager.
+<DT id="152"><B></B>bssid (scalar) - since 0.99
+
+<DD>
+If specified, directs the device to only associate with the given access
+point.
+<DT id="153"><B></B>band (scalar) - since 0.99
+
+<DD>
+Possible bands are 5GHz (for 5GHz 802.11a) and
+2.4GHz (for 2.4GHz 802.11), do not restrict the 802.11
+frequency band of the network if unset (the default).
+<DT id="154"><B></B>channel (scalar) - since 0.99
+
+<DD>
+Wireless channel to use for the Wi-Fi connection.
+Because channel numbers overlap between bands, this property takes
+effect only if the band property is also set.
+<DT id="155"><B></B>hidden (bool) - since 0.100
+
+<DD>
+Set to true to change the SSID scan technique for connecting
+to hidden WiFi networks.
+Note this may have slower performance compared to false (the
+default) when connecting to publicly broadcast SSIDs.
+</DL>
+</DL>
+
+<DT id="156"><B></B>wakeonwlan (sequence of scalars) - since 0.99
+
+<DD>
+This enables WakeOnWLan on supported devices.
+Not all drivers support all options.
+May be any combination of any, disconnect,
+magic_pkt, gtk_rekey_failure,
+eap_identity_req, four_way_handshake,
+rfkill_release or tcp (NetworkManager only).
+Or the exclusive default flag (the default).
+</DL>
+<A NAME="lbAQ">&nbsp;</A>
+<H3>Properties for device type bridges:</H3>
+
+<DL COMPACT>
+<DT id="157"><B></B>interfaces (sequence of scalars)
+
+<DD>
+All devices matching this ID list will be added to the bridge.
+This may be an empty list, in which case the bridge will be brought
+online with no member interfaces.
+<DL COMPACT><DT id="158"><DD>
+<P>
+
+Example:
+<DL COMPACT>
+<DT id="159"><DD>
+<PRE>
+
+  ethernets:
+    switchports:
+      match: {name: &quot;enp2*&quot;}
+  [...]
+  bridges:
+    br0:
+      interfaces: [switchports]
+
+</PRE>
+
+</DL>
+</DL>
+
+<DT id="160"><B></B>parameters (mapping)
+
+<DD>
+Customization parameters for special bridging options.
+Time intervals may need to be expressed as a number of seconds or
+milliseconds: the default value type is specified below.
+If necessary, time intervals can be qualified using a time suffix (such
+as "s" for seconds, "ms" for milliseconds) to allow for
+more control over its behavior.
+<DL COMPACT><DT id="161"><DD>
+<DL COMPACT>
+<DT id="162"><B></B>ageing-time (scalar)
+
+<DD>
+Set the period of time to keep a MAC address in the forwarding database
+after a packet is received.
+This maps to the AgeingTimeSec= property when the networkd renderer is
+used.
+If no time suffix is specified, the value will be interpreted as
+seconds.
+<DT id="163"><B></B>priority (scalar)
+
+<DD>
+Set the priority value for the bridge.
+This value should be a number between 0 and 65535.
+Lower values mean higher priority.
+The bridge with the higher priority will be elected as the root bridge.
+<DT id="164"><B></B>port-priority (scalar)
+
+<DD>
+Set the port priority to .
+The priority value is a number between 0 and 63.
+This metric is used in the designated port and root port selection
+algorithms.
+<DT id="165"><B></B>forward-delay (scalar)
+
+<DD>
+Specify the period of time the bridge will remain in Listening and
+Learning states before getting to the Forwarding state.
+This field maps to the ForwardDelaySec= property for the networkd
+renderer.
+If no time suffix is specified, the value will be interpreted as
+seconds.
+<DT id="166"><B></B>hello-time (scalar)
+
+<DD>
+Specify the interval between two hello packets being sent out from the
+root and designated bridges.
+Hello packets communicate information about the network topology.
+When the networkd renderer is used, this maps to the HelloTimeSec=
+property.
+If no time suffix is specified, the value will be interpreted as
+seconds.
+<DT id="167"><B></B>max-age (scalar)
+
+<DD>
+Set the maximum age of a hello packet.
+If the last hello packet is older than that value, the bridge will
+attempt to become the root bridge.
+This maps to the MaxAgeSec= property when the networkd renderer is used.
+If no time suffix is specified, the value will be interpreted as
+seconds.
+<DT id="168"><B></B>path-cost (scalar)
+
+<DD>
+Set the cost of a path on the bridge.
+Faster interfaces should have a lower cost.
+This allows a finer control on the network topology so that the fastest
+paths are available whenever possible.
+<DT id="169"><B></B>stp (bool)
+
+<DD>
+Define whether the bridge should use Spanning Tree Protocol.
+The default value is "true", which means that Spanning Tree
+should be used.
+</DL>
+</DL>
+
+</DL>
+<A NAME="lbAR">&nbsp;</A>
+<H3>Properties for device type bonds:</H3>
+
+<DL COMPACT>
+<DT id="170"><B></B>interfaces (sequence of scalars)
+
+<DD>
+All devices matching this ID list will be added to the bond.
+<DL COMPACT><DT id="171"><DD>
+<P>
+
+Example:
+<DL COMPACT>
+<DT id="172"><DD>
+<PRE>
+
+  ethernets:
+    switchports:
+      match: {name: &quot;enp2*&quot;}
+  [...]
+  bonds:
+    bond0:
+      interfaces: [switchports]
+
+</PRE>
+
+</DL>
+</DL>
+
+<DT id="173"><B></B>parameters (mapping)
+
+<DD>
+Customization parameters for special bonding options.
+Time intervals may need to be expressed as a number of seconds or
+milliseconds: the default value type is specified below.
+If necessary, time intervals can be qualified using a time suffix (such
+as "s" for seconds, "ms" for milliseconds) to allow for
+more control over its behavior.
+<DL COMPACT><DT id="174"><DD>
+<DL COMPACT>
+<DT id="175"><B></B>mode (scalar)
+
+<DD>
+Set the bonding mode used for the interfaces.
+The default is balance-rr (round robin).
+Possible values are balance-rr, active-backup,
+balance-xor, broadcast, 802.3ad,
+balance-tlb, and balance-alb.
+For OpenVSwitch active-backup and the additional modes
+balance-tcp and balance-slb are supported.
+<DT id="176"><B></B>lacp-rate (scalar)
+
+<DD>
+Set the rate at which LACPDUs are transmitted.
+This is only useful in 802.3ad mode.
+Possible values are slow (30 seconds, default), and
+fast (every second).
+<DT id="177"><B></B>mii-monitor-interval (scalar)
+
+<DD>
+Specifies the interval for MII monitoring (verifying if an interface of
+the bond has carrier).
+The default is 0; which disables MII monitoring.
+This is equivalent to the MIIMonitorSec= field for the networkd backend.
+If no time suffix is specified, the value will be interpreted as
+milliseconds.
+<DT id="178"><B></B>min-links (scalar)
+
+<DD>
+The minimum number of links up in a bond to consider the bond interface
+to be up.
+<DT id="179"><B></B>transmit-hash-policy (scalar)
+
+<DD>
+Specifies the transmit hash policy for the selection of slaves.
+This is only useful in balance-xor, 802.3ad and balance-tlb modes.
+Possible values are layer2, layer3+4,
+layer2+3, encap2+3, and encap3+4.
+<DT id="180"><B></B>ad-select (scalar)
+
+<DD>
+Set the aggregation selection mode.
+Possible values are stable, bandwidth, and
+count.
+This option is only used in 802.3ad mode.
+<DT id="181"><B></B>all-slaves-active (bool)
+
+<DD>
+If the bond should drop duplicate frames received on inactive ports, set
+this option to false.
+If they should be delivered, set this option to true.
+The default value is false, and is the desirable behavior in most
+situations.
+<DT id="182"><B></B>arp-interval (scalar)
+
+<DD>
+Set the interval value for how frequently ARP link monitoring should
+happen.
+The default value is 0, which disables ARP monitoring.
+For the networkd backend, this maps to the ARPIntervalSec= property.
+If no time suffix is specified, the value will be interpreted as
+milliseconds.
+<DT id="183"><B></B>arp-ip-targets (sequence of scalars)
+
+<DD>
+IPs of other hosts on the link which should be sent ARP requests in
+order to validate that a slave is up.
+This option is only used when arp-interval is set to a value
+other than 0.
+At least one IP address must be given for ARP link monitoring to
+function.
+Only IPv4 addresses are supported.
+You can specify up to 16 IP addresses.
+The default value is an empty list.
+<DT id="184"><B></B>arp-validate (scalar)
+
+<DD>
+Configure how ARP replies are to be validated when using ARP link
+monitoring.
+Possible values are none, active, backup,
+and all.
+<DT id="185"><B></B>arp-all-targets (scalar)
+
+<DD>
+Specify whether to use any ARP IP target being up as sufficient for a
+slave to be considered up; or if all the targets must be up.
+This is only used for active-backup mode when
+arp-validate is enabled.
+Possible values are any and all.
+<DT id="186"><B></B>up-delay (scalar)
+
+<DD>
+Specify the delay before enabling a link once the link is physically up.
+The default value is 0.
+This maps to the UpDelaySec= property for the networkd renderer.
+This option is only valid for the miimon link monitor.
+If no time suffix is specified, the value will be interpreted as
+milliseconds.
+<DT id="187"><B></B>down-delay (scalar)
+
+<DD>
+Specify the delay before disabling a link once the link has been lost.
+The default value is 0.
+This maps to the DownDelaySec= property for the networkd renderer.
+This option is only valid for the miimon link monitor.
+If no time suffix is specified, the value will be interpreted as
+milliseconds.
+<DT id="188"><B></B>fail-over-mac-policy (scalar)
+
+<DD>
+Set whether to set all slaves to the same MAC address when adding them
+to the bond, or how else the system should handle MAC addresses.
+The possible values are none, active, and
+follow.
+<DT id="189"><B></B>gratuitous-arp (scalar)
+
+<DD>
+Specify how many ARP packets to send after failover.
+Once a link is up on a new slave, a notification is sent and possibly
+repeated if this value is set to a number greater than 1.
+The default value is 1 and valid values are between
+1 and 255.
+This only affects active-backup mode.
+<DL COMPACT><DT id="190"><DD>
+<P>
+
+For historical reasons, the misspelling gratuitious-arp is
+also accepted and has the same function.
+</DL>
+
+<DT id="191"><B></B>packets-per-slave (scalar)
+
+<DD>
+In balance-rr mode, specifies the number of packets to
+transmit on a slave before switching to the next.
+When this value is set to 0, slaves are chosen at random.
+Allowable values are between 0 and 65535.
+The default value is 1.
+This setting is only used in balance-rr mode.
+<DT id="192"><B></B>primary-reselect-policy (scalar)
+
+<DD>
+Set the reselection policy for the primary slave.
+On failure of the active slave, the system will use this policy to
+decide how the new active slave will be chosen and how recovery will be
+handled.
+The possible values are always, better, and
+failure.
+<DT id="193"><B></B>resend-igmp (scalar)
+
+<DD>
+In modes balance-rr, active-backup,
+balance-tlb and balance-alb, a failover can switch
+IGMP traffic from one slave to another.
+<DL COMPACT><DT id="194"><DD>
+<P>
+
+This parameter specifies how many IGMP membership reports are issued on
+a failover event.
+Values range from 0 to 255.
+0 disables sending membership reports.
+Otherwise, the first membership report is sent on failover and
+subsequent reports are sent at 200ms intervals.
+</DL>
+
+<DT id="195"><B></B>learn-packet-interval (scalar)
+
+<DD>
+Specify the interval between sending learning packets to each slave.
+The value range is between 1 and 0x7fffffff.
+The default value is 1.
+This option only affects balance-tlb and
+balance-alb modes.
+Using the networkd renderer, this field maps to the
+LearnPacketIntervalSec= property.
+If no time suffix is specified, the value will be interpreted as
+seconds.
+<DT id="196"><B></B>primary (scalar)
+
+<DD>
+Specify a device to be used as a primary slave, or preferred device to
+use as a slave for the bond (ie.
+the preferred device to send data through), whenever it is available.
+This only affects active-backup, balance-alb, and
+balance-tlb modes.
+</DL>
+</DL>
+
+</DL>
+<A NAME="lbAS">&nbsp;</A>
+<H3>Properties for device type tunnels:</H3>
+
+<P>
+
+Tunnels allow traffic to pass as if it was between systems on the same
+local network, although systems may be far from each other but reachable
+via the Internet.
+They may be used to support IPv6 traffic on a network where the ISP does
+not provide the service, or to extend and "connect" separate
+local networks.
+Please see <A HREF="https://en.wikipedia.org/wiki/Tunneling_protocol">https://en.wikipedia.org/wiki/Tunneling_protocol</A> for more
+general information about tunnels.
+<DL COMPACT>
+<DT id="197"><B></B>mode (scalar)
+
+<DD>
+Defines the tunnel mode.
+Valid options are sit, gre, ip6gre,
+ipip, ipip6, ip6ip6, vti,
+vti6 and wireguard.
+Additionally, the networkd backend also supports
+gretap and ip6gretap modes.
+In addition, the NetworkManager backend supports
+isatap tunnels.
+<DT id="198"><B></B>local (scalar)
+
+<DD>
+Defines the address of the local endpoint of the tunnel.
+<DT id="199"><B></B>remote (scalar)
+
+<DD>
+Defines the address of the remote endpoint of the tunnel.
+<DT id="200"><B></B>key (scalar or mapping)
+
+<DD>
+Define keys to use for the tunnel.
+The key can be a number or a dotted quad (an IPv4 address).
+For wireguard it can be a base64-encoded private key or (as
+of networkd v242+) an absolute path to a file, containing the
+private key (since 0.100).
+It is used for identification of IP transforms.
+This is only required for vti and vti6 when using
+the networkd backend, and for gre or ip6gre tunnels
+when using the NetworkManager backend.
+<DL COMPACT><DT id="201"><DD>
+<P>
+
+This field may be used as a scalar (meaning that a single key is
+specified and to be used for input, output and private key), or as a
+mapping, where you can further specify
+input/output/private.
+<DL COMPACT>
+<DT id="202"><B></B>input (scalar)
+
+<DD>
+The input key for the tunnel
+<DT id="203"><B></B>output (scalar)
+
+<DD>
+The output key for the tunnel
+<DT id="204"><B></B>private (scalar) - since 0.100
+
+<DD>
+A base64-encoded private key required for Wireguard tunnels.
+When the systemd-networkd backend (v242+) is used, this can
+also be an absolute path to a file containing the private key.
+</DL>
+</DL>
+
+<DT id="205"><B></B>keys (scalar or mapping)
+
+<DD>
+Alternate name for the key field.
+See above.
+</DL>
+<P>
+
+Examples:
+<DL COMPACT>
+<DT id="206"><DD>
+<PRE>
+
+tunnels:
+  tun0:
+    mode: gre
+    local: ...
+    remote: ...
+    keys:
+      input: 1234
+      output: 5678
+
+tunnels:
+  tun0:
+    mode: vti6
+    local: ...
+    remote: ...
+    key: 59568549
+
+tunnels:
+  wg0:
+    mode: wireguard
+    addresses: [...]
+    peers:
+      - keys:
+          public: rlbInAj0qV69CysWPQY7KEBnKxpYCpaWqOs/dLevdWc=
+          shared: /path/to/shared.key
+        ...
+    key: mNb7OIIXTdgW4khM7OFlzJ+UPs7lmcWHV7xjPgakMkQ=
+
+tunnels:
+  wg0:
+    mode: wireguard
+    addresses: [...]
+    peers:
+      - keys:
+          public: rlbInAj0qV69CysWPQY7KEBnKxpYCpaWqOs/dLevdWc=
+        ...
+    keys:
+      private: /path/to/priv.key
+
+</PRE>
+
+</DL>
+<P>
+
+Wireguard specific keys:
+<DL COMPACT>
+<DT id="207"><B></B>mark (scalar) - since 0.100
+
+<DD>
+Firewall mark for outgoing WireGuard packets from this interface,
+optional.
+<DT id="208"><B></B>port (scalar) - since 0.100
+
+<DD>
+UDP port to listen at or auto.
+Optional, defaults to auto.
+<DT id="209"><B></B>peers (sequence of mappings) - since 0.100
+
+<DD>
+A list of peers, each having keys documented below.
+</DL>
+<P>
+
+Example:
+<DL COMPACT>
+<DT id="210"><DD>
+<PRE>
+
+tunnels:
+    wg0:
+        mode: wireguard
+        key: /path/to/private.key
+        mark: 42
+        port: 5182
+        peers:
+            - keys:
+                  public: rlbInAj0qV69CysWPQY7KEBnKxpYCpaWqOs/dLevdWc=
+              allowed-ips: [0.0.0.0/0, &quot;2001:fe:ad:de:ad:be:ef:1/24&quot;]
+              keepalive: 23
+              endpoint: 1.2.3.4:5
+            - keys:
+                  public: M9nt4YujIOmNrRmpIRTmYSfMdrpvE7u6WkG8FY8WjG4=
+                  shared: /some/shared.key
+              allowed-ips: [10.10.10.20/24]
+              keepalive: 22
+              endpoint: 5.4.3.2:1
+
+</PRE>
+
+<DT id="211"><B></B>endpoint (scalar) - since 0.100
+
+<DD>
+Remote endpoint IPv4/IPv6 address or a hostname, followed by a colon and
+a port number.
+<DT id="212"><B></B>allowed-ips (sequence of scalars) - since 0.100
+
+<DD>
+A list of IP (v4 or v6) addresses with CIDR masks from which this peer
+is allowed to send incoming traffic and to which outgoing traffic for
+this peer is directed.
+The catch-all 0.0.0.0/0 may be specified for matching all IPv4
+addresses, and ::/0 may be specified for matching all IPv6 addresses.
+<DT id="213"><B></B>keepalive (scalar) - since 0.100
+
+<DD>
+An interval in seconds, between 1 and 65535 inclusive, of how often to
+send an authenticated empty packet to the peer for the purpose of
+keeping a stateful firewall or NAT mapping valid persistently.
+Optional.
+<DT id="214"><B></B>keys (mapping) - since 0.100
+
+<DD>
+Define keys to use for the Wireguard peers.
+<DL COMPACT><DT id="215"><DD>
+<P>
+
+This field can be used as a mapping, where you can further specify the
+public and shared keys.
+<DL COMPACT>
+<DT id="216"><B></B>public (scalar) - since 0.100
+
+<DD>
+A base64-encoded public key, requried for Wireguard peers.
+<DT id="217"><B></B>shared (scalar) - since 0.100
+
+<DD>
+A base64-encoded preshared key.
+Optional for Wireguard peers.
+When the systemd-networkd backend (v242+) is used, this can
+also be an absolute path to a file containing the preshared key.
+</DL>
+</DL>
+
+</DL>
+<A NAME="lbAT">&nbsp;</A>
+<H3>Properties for device type vlans:</H3>
+
+<DL COMPACT>
+<DT id="218"><B></B>id (scalar)
+
+<DD>
+VLAN ID, a number between 0 and 4094.
+<DT id="219"><B></B>link (scalar)
+
+<DD>
+netplan ID of the underlying device definition on which this VLAN gets
+created.
+</DL>
+<P>
+
+Example:
+<DL COMPACT>
+<DT id="220"><DD>
+<PRE>
+
+ethernets:
+  eno1: {...}
+vlans:
+  en-intra:
+    id: 1
+    link: eno1
+    dhcp4: yes
+  en-vpn:
+    id: 2
+    link: eno1
+    addresses: ...
+
+</PRE>
+
+</DL>
+<A NAME="lbAU">&nbsp;</A>
+<H3>Backend-specific configuration parameters</H3>
+
+<P>
+
+In addition to the other fields available to configure interfaces, some
+backends may require to record some of their own parameters in netplan,
+especially if the netplan definitions are generated automatically by the
+consumer of that backend.
+Currently, this is only used with NetworkManager.
+<DL COMPACT>
+<DT id="221"><B></B>networkmanager (mapping) - since 0.99
+
+<DD>
+Keeps the NetworkManager-specific configuration parameters used by the
+daemon to recognize connections.
+<DL COMPACT><DT id="222"><DD>
+<DL COMPACT>
+<DT id="223"><B></B>name (scalar) - since 0.99
+
+<DD>
+Set the display name for the connection.
+<DT id="224"><B></B>uuid (scalar) - since 0.99
+
+<DD>
+Defines the UUID (unique identifier) for this connection, as generated
+by NetworkManager itself.
+<DT id="225"><B></B>stable-id (scalar) - since 0.99
+
+<DD>
+Defines the stable ID (a different form of a connection name) used by
+NetworkManager in case the name of the connection might otherwise
+change, such as when sharing connections between users.
+<DT id="226"><B></B>device (scalar) - since 0.99
+
+<DD>
+Defines the interface name for which this connection applies.
+</DL>
+</DL>
+
+</DL>
+<A NAME="lbAV">&nbsp;</A>
+<H3>Examples</H3>
+
+<P>
+
+Configure an ethernet device with networkd, identified by its name, and
+enable DHCP:
+<DL COMPACT>
+<DT id="227"><DD>
+<PRE>
+
+network:
+  version: 2
+  ethernets:
+    eno1:
+      dhcp4: true
+
+</PRE>
+
+</DL>
+<P>
+
+This is an example of a static-configured interface with multiple IPv4
+addresses and multiple gateways with networkd, with equal route metric
+levels, and static DNS nameservers (Google DNS for this example):
+<DL COMPACT>
+<DT id="228"><DD>
+<PRE>
+
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    eno1:
+      addresses:
+      - 10.0.0.10/24
+      - 11.0.0.11/24
+      nameservers:
+        addresses:
+          - 8.8.8.8
+          - 8.8.4.4
+      routes:
+      - to: 0.0.0.0/0
+        via: 10.0.0.1
+        metric: 100
+      - to: 0.0.0.0/0
+        via: 11.0.0.1
+        metric: 100
+
+</PRE>
+
+</DL>
+<P>
+
+This is a complex example which shows most available features:
+<DL COMPACT>
+<DT id="229"><DD>
+<PRE>
+
+network:
+  version: 2
+  # if specified, can only realistically have that value, as networkd cannot
+  # render wifi/3G.
+  renderer: NetworkManager
+  ethernets:
+    # opaque ID for physical interfaces, only referred to by other stanzas
+    id0:
+      match:
+        macaddress: 00:11:22:33:44:55
+      wakeonlan: true
+      dhcp4: true
+      addresses:
+        - 192.168.14.2/24
+        - 192.168.14.3/24
+        - &quot;2001:1::1/64&quot;
+      gateway4: 192.168.14.1
+      gateway6: &quot;2001:1::2&quot;
+      nameservers:
+        search: [foo.local, bar.local]
+        addresses: [8.8.8.8]
+      routes:
+        - to: 0.0.0.0/0
+          via: 11.0.0.1
+          table: 70
+          on-link: true
+          metric: 3
+      routing-policy:
+        - to: 10.0.0.0/8
+          from: 192.168.14.2/24
+          table: 70
+          priority: 100
+        - to: 20.0.0.0/8
+          from: 192.168.14.3/24
+          table: 70
+          priority: 50
+      # only networkd can render on-link routes and routing policies
+      renderer: networkd
+    lom:
+      match:
+        driver: ixgbe
+      # you are responsible for setting tight enough match rules
+      # that only match one device if you use set-name
+      set-name: lom1
+      dhcp6: true
+    switchports:
+      # all cards on second PCI bus unconfigured by
+      # themselves, will be added to br0 below
+      match:
+        name: enp2*
+      mtu: 1280
+  wifis:
+    all-wlans:
+      # useful on a system where you know there is
+      # only ever going to be one device
+      match: {}
+      access-points:
+        &quot;Joe's home&quot;:
+          # mode defaults to &quot;infrastructure&quot; (client)
+          password: &quot;s3kr1t&quot;
+    # this creates an AP on wlp1s0 using hostapd
+    # no match rules, thus the ID is the interface name
+    wlp1s0:
+      access-points:
+        &quot;guest&quot;:
+           mode: ap
+           # no WPA config implies default of open
+  bridges:
+    # the key name is the name for virtual (created) interfaces
+    # no match: and set-name: allowed
+    br0:
+      # IDs of the components; switchports expands into multiple interfaces
+      interfaces: [wlp1s0, switchports]
+      dhcp4: true
+
+</PRE>
+
+</DL>
+<A NAME="lbAW">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<A HREF="/cgi-bin/man/man2html?8+netplan-generate">netplan-generate</A>(8), <A HREF="/cgi-bin/man/man2html?8+netplan-apply">netplan-apply</A>(8),
+<A HREF="/cgi-bin/man/man2html?8+netplan-try">netplan-try</A>(8), <A HREF="/cgi-bin/man/man2html?8+netplan-get">netplan-get</A>(8),
+<A HREF="/cgi-bin/man/man2html?8+netplan-set">netplan-set</A>(8), <A HREF="/cgi-bin/man/man2html?8+netplan-dbus">netplan-dbus</A>(8),
+<A HREF="/cgi-bin/man/man2html?8+systemd-networkd">systemd-networkd</A>(8), <A HREF="/cgi-bin/man/man2html?8+NetworkManager">NetworkManager</A>(8)
+<A NAME="lbAX">&nbsp;</A>
+<H2>AUTHORS</H2>
+
+Mathieu Trudel-Lapierre (&lt;<A HREF="mailto:cyphermox@ubuntu.com">cyphermox@ubuntu.com</A>&gt;); Martin Pitt (&lt;<A HREF="mailto:martin.pitt@ubuntu.com">martin.pitt@ubuntu.com</A>&gt;).
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="230"><A HREF="#lbAB">NAME</A><DD>
+<DT id="231"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="232"><A HREF="#lbAD">COMMANDS</A><DD>
+<DT id="233"><A HREF="#lbAE">DESCRIPTION</A><DD>
+<DL>
+<DT id="234"><A HREF="#lbAF">Introduction</A><DD>
+<DT id="235"><A HREF="#lbAG">General structure</A><DD>
+<DT id="236"><A HREF="#lbAH">Device configuration IDs</A><DD>
+<DT id="237"><A HREF="#lbAI">Common properties for physical device types</A><DD>
+<DT id="238"><A HREF="#lbAJ">Common properties for all device types</A><DD>
+<DT id="239"><A HREF="#lbAK">DHCP Overrides</A><DD>
+<DT id="240"><A HREF="#lbAL">Routing</A><DD>
+<DT id="241"><A HREF="#lbAM">Authentication</A><DD>
+<DT id="242"><A HREF="#lbAN">Properties for device type ethernets:</A><DD>
+<DT id="243"><A HREF="#lbAO">Properties for device type modems:</A><DD>
+<DT id="244"><A HREF="#lbAP">Properties for device type wifis:</A><DD>
+<DT id="245"><A HREF="#lbAQ">Properties for device type bridges:</A><DD>
+<DT id="246"><A HREF="#lbAR">Properties for device type bonds:</A><DD>
+<DT id="247"><A HREF="#lbAS">Properties for device type tunnels:</A><DD>
+<DT id="248"><A HREF="#lbAT">Properties for device type vlans:</A><DD>
+<DT id="249"><A HREF="#lbAU">Backend-specific configuration parameters</A><DD>
+<DT id="250"><A HREF="#lbAV">Examples</A><DD>
+</DL>
+<DT id="251"><A HREF="#lbAW">SEE ALSO</A><DD>
+<DT id="252"><A HREF="#lbAX">AUTHORS</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:04 GMT, March 31, 2021
+</BODY>
+</HTML>

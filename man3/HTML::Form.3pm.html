@@ -1,0 +1,977 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of HTML::Form</TITLE>
+</HEAD><BODY>
+<H1>HTML::Form</H1>
+Section: User Contributed Perl Documentation (3pm)<BR>Updated: 2020-02-22<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+HTML::Form - Class that represents an HTML form element
+<A NAME="lbAC">&nbsp;</A>
+<H2>VERSION</H2>
+
+
+
+version 6.07
+<A NAME="lbAD">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+
+
+
+
+<PRE>
+ use HTML::Form;
+ $form = HTML::Form-&gt;parse($html, $base_uri);
+ $form-&gt;value(query =&gt; &quot;Perl&quot;);
+
+ use LWP::UserAgent;
+ $ua = LWP::UserAgent-&gt;new;
+ $response = $ua-&gt;request($form-&gt;click);
+
+</PRE>
+
+
+<A NAME="lbAE">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+
+Objects of the <TT>&quot;HTML::Form&quot;</TT> class represents a single <FONT SIZE="-1">HTML</FONT>
+<TT>&quot;&lt;form&gt; ... &lt;/form&gt;&quot;</TT> instance.  A form consists of a
+sequence of inputs that usually have names, and which can take on
+various values.  The state of a form can be tweaked and it can then be
+asked to provide HTTP::Request objects that can be passed to the
+<B>request()</B> method of LWP::UserAgent.
+<P>
+
+The following methods are available:
+<DL COMPACT>
+<DT id="1">@forms = HTML::Form-&gt;parse( $html_document, $base_uri )<DD>
+
+
+
+
+
+<DT id="2">@forms = HTML::Form-&gt;parse( $html_document, base =&gt; $base_uri, %opt )<DD>
+
+
+
+
+<DT id="3">@forms = HTML::Form-&gt;parse( $response, %opt )<DD>
+
+
+
+
+
+The <B>parse()</B> class method will parse an <FONT SIZE="-1">HTML</FONT> document and build up
+<TT>&quot;HTML::Form&quot;</TT> objects for each &lt;form&gt; element found.  If called in scalar
+context only returns the first &lt;form&gt;.  Returns an empty list if there
+are no forms to be found.
+
+
+<P>
+
+
+The required arguments is the <FONT SIZE="-1">HTML</FONT> document to parse ($html_document) and the
+<FONT SIZE="-1">URI</FONT> used to retrieve the document ($base_uri).  The base <FONT SIZE="-1">URI</FONT> is needed to resolve
+relative action URIs.  The provided <FONT SIZE="-1">HTML</FONT> document should be a Unicode string
+(or US-ASCII).
+
+
+<P>
+
+
+By default HTML::Form assumes that the original document was <FONT SIZE="-1">UTF-8</FONT> encoded and
+thus encode forms that don't specify an explicit <I>accept-charset</I> as <FONT SIZE="-1">UTF-8.</FONT>
+The charset assumed can be overridden by providing the <TT>&quot;charset&quot;</TT> option to
+<B>parse()</B>.  It's a good idea to be explicit about this parameter as well, thus
+the recommended simplest invocation becomes:
+
+
+<P>
+
+
+
+
+<PRE>
+    my @forms = HTML::Form-&gt;parse(
+        Encode::decode($encoding, $html_document_bytes),
+        base =&gt; $base_uri,
+        charset =&gt; $encoding,
+    );
+
+</PRE>
+
+
+
+
+<P>
+
+
+If the document was retrieved with <FONT SIZE="-1">LWP</FONT> then the response object provide methods
+to obtain a proper value for <TT>&quot;base&quot;</TT> and <TT>&quot;charset&quot;</TT>:
+
+
+<P>
+
+
+
+
+<PRE>
+    my $ua = LWP::UserAgent-&gt;new;
+    my $response = $ua-&gt;get(&quot;<A HREF="http://www.example.com/form.html">http://www.example.com/form.html</A>&quot;);
+    my @forms = HTML::Form-&gt;parse($response-&gt;decoded_content,
+        base =&gt; $response-&gt;base,
+        charset =&gt; $response-&gt;content_charset,
+    );
+
+</PRE>
+
+
+
+
+<P>
+
+
+In fact, the <B>parse()</B> method can parse from an HTTP::Response object
+directly, so the example above can be more conveniently written as:
+
+
+<P>
+
+
+
+
+<PRE>
+    my $ua = LWP::UserAgent-&gt;new;
+    my $response = $ua-&gt;get(&quot;<A HREF="http://www.example.com/form.html">http://www.example.com/form.html</A>&quot;);
+    my @forms = HTML::Form-&gt;parse($response);
+
+</PRE>
+
+
+
+
+<P>
+
+
+Note that any object that implements a <B>decoded_content()</B>, <B>base()</B> and
+<B>content_charset()</B> method with similar behaviour as HTTP::Response will do.
+
+
+<P>
+
+
+Additional options might be passed in to control how the parse method
+behaves.  The following are all the options currently recognized:
+<DL COMPACT><DT id="4"><DD>
+<DL COMPACT>
+<DT id="5">&quot;base =&gt; $uri&quot;<DD>
+
+
+
+
+This is the <FONT SIZE="-1">URI</FONT> used to retrieve the original document.  This option is not optional ;-)
+<DT id="6">&quot;charset =&gt; $str&quot;<DD>
+
+
+
+
+Specify what charset the original document was encoded in.  This is used as
+the default for accept_charset.  If not provided this defaults to ``<FONT SIZE="-1">UTF-8''.</FONT>
+<DT id="7">&quot;verbose =&gt; $bool&quot;<DD>
+
+
+
+
+Warn (print messages to <FONT SIZE="-1">STDERR</FONT>) about any bad <FONT SIZE="-1">HTML</FONT> form constructs found.
+You can trap these with <TT>$SIG</TT>{__WARN__}.  The default is not to issue warnings.
+<DT id="8">&quot;strict =&gt; $bool&quot;<DD>
+
+
+
+
+Initialize any form objects with the given strict attribute.
+If the strict is turned on the methods that change values of the form will croak if you try
+to set illegal values or modify readonly fields.
+The default is not to be strict.
+</DL>
+</DL>
+
+<DL COMPACT><DT id="9"><DD>
+</DL>
+
+<DT id="10">$form-&gt;push_input( $type, \%attr, $verbose )<DD>
+
+
+
+
+This method adds additional inputs to the form.
+The first argument is the type of input (e.g. hidden, option, etc.).
+The second argument is a reference to a hash of the input attributes.
+The third argument is optional, and will issue warnings about unknown input types.
+
+
+<P>
+
+
+Example:
+
+
+<P>
+
+
+
+
+<PRE>
+    push_input( 'hidden', {
+        name  =&gt; 'NewFormElement',
+        id    =&gt; 'NewFormElementId',
+        value =&gt; 'some value',
+    });
+
+</PRE>
+
+
+<DT id="11">$method = $form-&gt;method<DD>
+
+
+
+
+
+<DT id="12">$form-&gt;method( $new_method )<DD>
+
+
+
+
+
+This method is gets/sets the <I>method</I> name used for the
+HTTP::Request generated.  It is a string like ``<FONT SIZE="-1">GET''</FONT> or ``<FONT SIZE="-1">POST''.</FONT>
+<DT id="13">$action = $form-&gt;action<DD>
+
+
+
+
+
+<DT id="14">$form-&gt;action( $new_action )<DD>
+
+
+
+
+
+This method gets/sets the <FONT SIZE="-1">URI</FONT> which we want to apply the request
+<I>method</I> to.
+<DT id="15">$enctype = $form-&gt;enctype<DD>
+
+
+
+
+
+<DT id="16">$form-&gt;enctype( $new_enctype )<DD>
+
+
+
+
+
+This method gets/sets the encoding type for the form data.  It is a
+string like ``application/x-www-form-urlencoded'' or ``multipart/form-data''.
+<DT id="17">$accept = $form-&gt;accept_charset<DD>
+
+
+
+
+
+<DT id="18">$form-&gt;accept_charset( $new_accept )<DD>
+
+
+
+
+
+This method gets/sets the list of charset encodings that the server processing
+the form accepts. Current implementation supports only one-element lists.
+Default value is ``<FONT SIZE="-1">UNKNOWN''</FONT> which we interpret as a request to use document
+charset as specified by the 'charset' parameter of the <B>parse()</B> method.
+<DT id="19">$value = $form-&gt;attr( $name )<DD>
+
+
+
+
+
+<DT id="20">$form-&gt;attr( $name, $new_value )<DD>
+
+
+
+
+
+This method give access to the original <FONT SIZE="-1">HTML</FONT> attributes of the &lt;form&gt; tag.
+The <TT>$name</TT> should always be passed in lower case.
+
+
+<P>
+
+
+Example:
+
+
+<P>
+
+
+
+
+<PRE>
+   @f = HTML::Form-&gt;parse( $html, $foo );
+   @f = grep $_-&gt;attr(&quot;id&quot;) eq &quot;foo&quot;, @f;
+   die &quot;No form named 'foo' found&quot; unless @f;
+   $foo = shift @f;
+
+</PRE>
+
+
+<DT id="21">$bool = $form-&gt;strict<DD>
+
+
+
+
+
+<DT id="22">$form-&gt;strict( $bool )<DD>
+
+
+
+
+
+Gets/sets the strict attribute of a form.  If the strict is turned on
+the methods that change values of the form will croak if you try to
+set illegal values or modify readonly fields.  The default is not to be strict.
+<DT id="23">@inputs = $form-&gt;inputs<DD>
+
+
+
+
+This method returns the list of inputs in the form.  If called in
+scalar context it returns the number of inputs contained in the form.
+See ``<FONT SIZE="-1">INPUTS''</FONT> for what methods are available for the input objects
+returned.
+<DT id="24">$input = $form-&gt;find_input( $selector )<DD>
+
+
+
+
+
+<DT id="25">$input = $form-&gt;find_input( $selector, $type )<DD>
+
+
+
+
+<DT id="26">$input = $form-&gt;find_input( $selector, $type, $index )<DD>
+
+
+
+
+<DT id="27">@inputs = $form-&gt;find_input( $selector )<DD>
+
+
+
+
+<DT id="28">@inputs = $form-&gt;find_input( $selector, $type )<DD>
+
+
+
+
+
+This method is used to locate specific inputs within the form.  All
+inputs that match the arguments given are returned.  In scalar context
+only the first is returned, or <TT>&quot;undef&quot;</TT> if none match.
+
+
+<P>
+
+
+If <TT>$selector</TT> is not <TT>&quot;undef&quot;</TT>, then the input's name, id, class attribute must
+match.  A selector prefixed with '#' must match the id attribute of the input.
+A selector prefixed with '.' matches the class attribute.  A selector prefixed
+with '^' or with no prefix matches the name attribute.
+
+
+<P>
+
+
+If <TT>$type</TT> is not <TT>&quot;undef&quot;</TT>, then the input must have the specified type.
+The following type names are used: ``text'', ``password'', ``hidden'',
+``textarea'', ``file'', ``image'', ``submit'', ``radio'', ``checkbox'' and ``option''.
+
+
+<P>
+
+
+The <TT>$index</TT> is the sequence number of the input matched where 1 is the
+first.  If combined with <TT>$name</TT> and/or <TT>$type</TT>, then it selects the <I>n</I>th
+input with the given name and/or type.
+<DT id="29">$value = $form-&gt;value( $selector )<DD>
+
+
+
+
+
+<DT id="30">$form-&gt;value( $selector, $new_value )<DD>
+
+
+
+
+
+The <B>value()</B> method can be used to get/set the value of some input.  If
+strict is enabled and no input has the indicated name, then this method will croak.
+
+
+<P>
+
+
+If multiple inputs have the same name, only the first one will be
+affected.
+
+
+<P>
+
+
+The call:
+
+
+<P>
+
+
+
+
+<PRE>
+    $form-&gt;value('foo')
+
+</PRE>
+
+
+
+
+<P>
+
+
+is basically a short-hand for:
+
+
+<P>
+
+
+
+
+<PRE>
+    $form-&gt;find_input('foo')-&gt;value;
+
+</PRE>
+
+
+<DT id="31">@names = $form-&gt;param<DD>
+
+
+
+
+
+<DT id="32">@values = $form-&gt;param( $name )<DD>
+
+
+
+
+<DT id="33">$form-&gt;param( $name, $value, ... )<DD>
+
+
+
+
+<DT id="34">$form-&gt;param( $name, \@values )<DD>
+
+
+
+
+
+Alternative interface to examining and setting the values of the form.
+
+
+<P>
+
+
+If called without arguments then it returns the names of all the
+inputs in the form.  The names will not repeat even if multiple inputs
+have the same name.  In scalar context the number of different names
+is returned.
+
+
+<P>
+
+
+If called with a single argument then it returns the value or values
+of inputs with the given name.  If called in scalar context only the
+first value is returned.  If no input exists with the given name, then
+<TT>&quot;undef&quot;</TT> is returned.
+
+
+<P>
+
+
+If called with 2 or more arguments then it will set values of the
+named inputs.  This form will croak if no inputs have the given name
+or if any of the values provided does not fit.  Values can also be
+provided as a reference to an array.  This form will allow unsetting
+all values with the given name as well.
+
+
+<P>
+
+
+This interface resembles that of the <B>param()</B> function of the <FONT SIZE="-1">CGI</FONT>
+module.
+<DT id="35">$form-&gt;try_others( \&amp;callback )<DD>
+
+
+
+
+This method will iterate over all permutations of unvisited enumerated
+values (&lt;select&gt;, &lt;radio&gt;, &lt;checkbox&gt;) and invoke the callback for
+each.  The callback is passed the <TT>$form</TT> as argument.  The return value
+from the callback is ignored and the <B>try_others()</B> method itself does
+not return anything.
+<DT id="36">$request = $form-&gt;make_request<DD>
+
+
+
+
+Will return an HTTP::Request object that reflects the current setting
+of the form.  You might want to use the <B>click()</B> method instead.
+<DT id="37">$request = $form-&gt;click<DD>
+
+
+
+
+
+<DT id="38">$request = $form-&gt;click( $selector )<DD>
+
+
+
+
+<DT id="39">$request = $form-&gt;click( $x, $y )<DD>
+
+
+
+
+<DT id="40">$request = $form-&gt;click( $selector, $x, $y )<DD>
+
+
+
+
+
+Will ``click'' on the first clickable input (which will be of type
+<TT>&quot;submit&quot;</TT> or <TT>&quot;image&quot;</TT>).  The result of clicking is an HTTP::Request
+object that can then be passed to LWP::UserAgent if you want to
+obtain the server response.
+
+
+<P>
+
+
+If a <TT>$selector</TT> is specified, we will click on the first clickable input
+matching the selector, and the method will croak if no matching clickable
+input is found.  If <TT>$selector</TT> is <I>not</I> specified, then it
+is ok if the form contains no clickable inputs.  In this case the
+<B>click()</B> method returns the same request as the <B>make_request()</B> method
+would do.  See description of the <B>find_input()</B> method above for how
+the <TT>$selector</TT> is specified.
+
+
+<P>
+
+
+If there are multiple clickable inputs with the same name, then there
+is no way to get the <B>click()</B> method of the <TT>&quot;HTML::Form&quot;</TT> to click on
+any but the first.  If you need this you would have to locate the
+input with <B>find_input()</B> and invoke the <B>click()</B> method on the given
+input yourself.
+
+
+<P>
+
+
+A click coordinate pair can also be provided, but this only makes a
+difference if you clicked on an image.  The default coordinate is
+(1,1).  The upper-left corner of the image is (0,0), but some badly
+coded <FONT SIZE="-1">CGI</FONT> scripts are known to not recognize this.  Therefore (1,1) was
+selected as a safer default.
+<DT id="41">@kw = $form-&gt;form<DD>
+
+
+
+
+Returns the current setting as a sequence of key/value pairs.  Note
+that keys might be repeated, which means that some values might be
+lost if the return values are assigned to a hash.
+
+
+<P>
+
+
+In scalar context this method returns the number of key/value pairs
+generated.
+<DT id="42">$form-&gt;dump<DD>
+
+
+
+
+Returns a textual representation of current state of the form.  Mainly
+useful for debugging.  If called in void context, then the dump is
+printed on <FONT SIZE="-1">STDERR.</FONT>
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>INPUTS</H2>
+
+
+
+An <TT>&quot;HTML::Form&quot;</TT> objects contains a sequence of <I>inputs</I>.  References to
+the inputs can be obtained with the <TT>$form</TT>-&gt;inputs or <TT>$form</TT>-&gt;find_input
+methods.
+<P>
+
+Note that there is <I>not</I> a one-to-one correspondence between input
+<I>objects</I> and &lt;input&gt; <I>elements</I> in the <FONT SIZE="-1">HTML</FONT> document.  An
+input object basically represents a name/value pair, so when multiple
+<FONT SIZE="-1">HTML</FONT> elements contribute to the same name/value pair in the submitted
+form they are combined.
+<P>
+
+The input elements that are mapped one-to-one are ``text'', ``textarea'',
+``password'', ``hidden'', ``file'', ``image'', ``submit'' and ``checkbox''.  For
+the ``radio'' and ``option'' inputs the story is not as simple: All
+&lt;input type=``radio''&gt; elements with the same name will
+contribute to the same input radio object.  The number of radio input
+objects will be the same as the number of distinct names used for the
+&lt;input type=``radio''&gt; elements.  For a &lt;select&gt; element
+without the <TT>&quot;multiple&quot;</TT> attribute there will be one input object of
+type of ``option''.  For a &lt;select multiple&gt; element there will
+be one input object for each contained &lt;option&gt; element.  Each
+one of these option objects will have the same name.
+<P>
+
+The following methods are available for the <I>input</I> objects:
+<DL COMPACT>
+<DT id="43">$input-&gt;type<DD>
+
+
+
+
+Returns the type of this input.  The type is one of the following
+strings: ``text'', ``password'', ``hidden'', ``textarea'', ``file'', ``image'', ``submit'',
+``radio'', ``checkbox'' or ``option''.
+<DT id="44">$name = $input-&gt;name<DD>
+
+
+
+
+
+<DT id="45">$input-&gt;name( $new_name )<DD>
+
+
+
+
+
+This method can be used to get/set the current name of the input.
+<DT id="46">$input-&gt;id<DD>
+
+
+
+
+
+<DT id="47">$input-&gt;class<DD>
+
+
+
+
+
+These methods can be used to get/set the current id or class attribute for the input.
+<DT id="48">$input-&gt;selected( $selector )<DD>
+
+
+
+
+Returns <FONT SIZE="-1">TRUE</FONT> if the given selector matched the input.  See the description of
+the <B>find_input()</B> method above for a description of the selector syntax.
+<DT id="49">$value = $input-&gt;value<DD>
+
+
+
+
+
+<DT id="50">$input-&gt;value( $new_value )<DD>
+
+
+
+
+
+This method can be used to get/set the current value of an
+input.
+
+
+<P>
+
+
+If strict is enabled and the input only can take an enumerated list of values,
+then it is an error to try to set it to something else and the method will
+croak if you try.
+
+
+<P>
+
+
+You will also be able to set the value of read-only inputs, but a
+warning will be generated if running under <TT>&quot;perl -w&quot;</TT>.
+<DT id="51">$autocomplete = $input-&gt;autocomplete<DD>
+
+
+
+
+
+<DT id="52">$input-&gt;autocomplete( $new_autocomplete )<DD>
+
+
+
+
+
+This method can be used to get/set the current value (if any) of <TT>&quot;autcomplete&quot;</TT> for the input.
+<DT id="53">$input-&gt;possible_values<DD>
+
+
+
+
+Returns a list of all values that an input can take.  For inputs that
+do not have discrete values, this returns an empty list.
+<DT id="54">$input-&gt;other_possible_values<DD>
+
+
+
+
+Returns a list of all values not tried yet.
+<DT id="55">$input-&gt;value_names<DD>
+
+
+
+
+For some inputs the values can have names that are different from the
+values themselves.  The number of names returned by this method will
+match the number of values reported by <TT>$input</TT>-&gt;possible_values.
+
+
+<P>
+
+
+When setting values using the <B>value()</B> method it is also possible to
+use the value names in place of the value itself.
+<DT id="56">$bool = $input-&gt;readonly<DD>
+
+
+
+
+
+<DT id="57">$input-&gt;readonly( $bool )<DD>
+
+
+
+
+
+This method is used to get/set the value of the readonly attribute.
+You are allowed to modify the value of readonly inputs, but setting
+the value will generate some noise when warnings are enabled.  Hidden
+fields always start out readonly.
+<DT id="58">$bool = $input-&gt;disabled<DD>
+
+
+
+
+
+<DT id="59">$input-&gt;disabled( $bool )<DD>
+
+
+
+
+
+This method is used to get/set the value of the disabled attribute.
+Disabled inputs do not contribute any key/value pairs for the form
+value.
+<DT id="60">$input-&gt;form_name_value<DD>
+
+
+
+
+Returns a (possible empty) list of key/value pairs that should be
+incorporated in the form value from this input.
+<DT id="61">$input-&gt;check<DD>
+
+
+
+
+Some input types represent toggles that can be turned on/off.  This
+includes ``checkbox'' and ``option'' inputs.  Calling this method turns
+this input on without having to know the value name.  If the input is
+already on, then nothing happens.
+
+
+<P>
+
+
+This has the same effect as:
+
+
+<P>
+
+
+
+
+<PRE>
+    $input-&gt;value($input-&gt;possible_values[1]);
+
+</PRE>
+
+
+
+
+<P>
+
+
+The input can be turned off with:
+
+
+<P>
+
+
+
+
+<PRE>
+    $input-&gt;value(undef);
+
+</PRE>
+
+
+<DT id="62">$input-&gt;click($form, $x, $y)<DD>
+
+
+
+
+Some input types (currently ``submit'' buttons and ``images'') can be
+clicked to submit the form.  The <B>click()</B> method returns the
+corresponding HTTP::Request object.
+</DL>
+<P>
+
+If the input is of type <TT>&quot;file&quot;</TT>, then it has these additional methods:
+<DL COMPACT>
+<DT id="63">$input-&gt;file<DD>
+
+
+
+
+This is just an alias for the <B>value()</B> method.  It sets the filename to
+read data from.
+
+
+<P>
+
+
+For security reasons this field will never be initialized from the parsing
+of a form.  This prevents the server from triggering stealth uploads of
+arbitrary files from the client machine.
+<DT id="64">$filename = $input-&gt;filename<DD>
+
+
+
+
+
+<DT id="65">$input-&gt;filename( $new_filename )<DD>
+
+
+
+
+
+This get/sets the filename reported to the server during file upload.
+This attribute defaults to the value reported by the <B>file()</B> method.
+<DT id="66">$content = $input-&gt;content<DD>
+
+
+
+
+
+<DT id="67">$input-&gt;content( $new_content )<DD>
+
+
+
+
+
+This get/sets the file content provided to the server during file
+upload.  This method can be used if you do not want the content to be
+read from an actual file.
+<DT id="68">@headers = $input-&gt;headers<DD>
+
+
+
+
+
+<DT id="69">input-&gt;headers($key =&gt; $value, .... )<DD>
+
+
+
+
+
+This get/set additional header fields describing the file uploaded.
+This can for instance be used to set the <TT>&quot;Content-Type&quot;</TT> reported for
+the file.
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+
+<FONT SIZE="-1">LWP</FONT>, LWP::UserAgent, HTML::Parser
+<A NAME="lbAH">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+
+
+Gisle Aas &lt;<A HREF="mailto:gisle@activestate.com">gisle@activestate.com</A>&gt;
+<A NAME="lbAI">&nbsp;</A>
+<H2>COPYRIGHT AND LICENSE</H2>
+
+
+
+This software is copyright (c) 1998 by Gisle Aas.
+<P>
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="70"><A HREF="#lbAB">NAME</A><DD>
+<DT id="71"><A HREF="#lbAC">VERSION</A><DD>
+<DT id="72"><A HREF="#lbAD">SYNOPSIS</A><DD>
+<DT id="73"><A HREF="#lbAE">DESCRIPTION</A><DD>
+<DT id="74"><A HREF="#lbAF">INPUTS</A><DD>
+<DT id="75"><A HREF="#lbAG">SEE ALSO</A><DD>
+<DT id="76"><A HREF="#lbAH">AUTHOR</A><DD>
+<DT id="77"><A HREF="#lbAI">COPYRIGHT AND LICENSE</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:45 GMT, March 31, 2021
+</BODY>
+</HTML>

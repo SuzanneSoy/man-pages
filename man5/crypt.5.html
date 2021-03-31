@@ -1,0 +1,1146 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of CRYPT</TITLE>
+</HEAD><BODY>
+<H1>CRYPT</H1>
+Section: File Formats (5)<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+<BR>BSD mandoc<BR>
+Openwall Project
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+<B>crypt</B>
+
+ - storage format for hashed passphrases and available hashing methods
+
+<A NAME="lbAC">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+The hashing methods implemented by
+<A HREF="/cgi-bin/man/man2html?3+crypt">crypt</A>(3)
+
+
+are designed only to process user passphrases for storage and authentication;
+they are not suitable for use as general-purpose cryptographic hashes.
+<P>
+
+Passphrase hashing is not a replacement for strong passphrases.
+It is always possible
+for an attacker with access to the hashed passphrases
+to guess and check possible cleartext passphrases.
+However, with a strong hashing method,
+guessing will be too slow for the attacker
+to discover a strong passphrase.
+<P>
+
+All of the hashing methods use a
+``salt''
+
+to perturb the hash function,
+so that the same passphrase may produce many possible hashes.
+Newer methods accept longer salt strings.
+The salt should be chosen at random for each user.
+Salt defeats a number of attacks:
+<OL><P>
+
+<LI>
+
+It is not possible to hash a passphrase once
+and then test it against each account's stored hash;
+the hash calculation must be repeated for each account.
+<LI>
+
+It is not possible to tell whether two accounts use the same passphrase
+without successfully guessing one of the phrases.
+<LI>
+
+Tables of precalculated hashes of commonly used passphrases
+must have an entry for each possible salt,
+which makes them impractically large.
+</OL><P>
+
+<P>
+
+All of the hashing methods are also deliberately engineered to be slow;
+they use many iterations of an underlying cryptographic primitive
+to increase the cost of each guess.
+The newer hashing methods allow the number of iterations to be adjusted,
+using the
+``CPU time cost''
+
+parameter to
+crypt_gensalt3.
+
+
+This makes it possible to keep the hash slow as hardware improves.
+<A NAME="lbAD">&nbsp;</A>
+<H2>FORMAT OF HASHED PASSPHRASES</H2>
+
+All of the hashing methods supported by
+<A HREF="/cgi-bin/man/man2html?3+crypt">crypt</A>(3)
+
+
+produce a hashed passphrase which consists of four components:
+<I>prefix</I>
+
+ 
+<I>options</I>
+
+ 
+<I>salt</I>
+
+ 
+and
+<I>hash</I>
+
+ 
+The prefix controls which hashing method is to be used, and is the
+appropriate string to pass to
+crypt_gensalt3
+
+
+to select that method.
+The contents of
+<I>options</I>
+
+ 
+<I>salt</I>
+
+ 
+and
+<I>hash</I>
+
+are up to the method.
+Depending on the method, the
+<I>prefix</I>
+
+and
+<I>options</I>
+
+components may be empty.
+<P>
+
+The
+Fa setting
+
+argument to
+<A HREF="/cgi-bin/man/man2html?3+crypt">crypt</A>(3)
+
+
+must begin with the first three components of a valid hashed passphrase,
+but anything after that is ignored.
+This makes authentication simple:
+hash the input passphrase using the stored passphrase as the setting,
+and then compare the result to the stored passphrase.
+<P>
+
+Hashed passphrases are always entirely printable ASCII,
+and do not contain any whitespace
+or the characters
+`<B>:</B>
+
+'
+
+ 
+`<B>;</B>
+
+'
+
+ 
+`<B>*</B>
+
+'
+
+ 
+`<B>!</B>
+
+'
+
+ 
+or
+`<B>\</B>
+
+'
+
+ 
+(These characters are used as delimiters and special markers in the
+<A HREF="/cgi-bin/man/man2html?5+passwd">passwd</A>(5)
+
+
+and
+<A HREF="/cgi-bin/man/man2html?5+shadow">shadow</A>(5)
+
+
+files.)
+<P>
+
+The syntax of each component of a hashed passphrase
+is up to the hashing method.
+`<B>$</B>
+
+'
+
+characters usually delimit components,
+and the salt and hash are usually encoded as numerals in base 64.
+The details of this base-64 encoding vary among hashing methods.
+The common
+``base64''
+
+encoding specified by RFC 4648 is usually
+<I>not</I>
+
+used.
+<A NAME="lbAE">&nbsp;</A>
+<H2>AVAILABLE HASHING METHODS</H2>
+
+This is a list of
+<I>all</I>
+
+the hashing methods supported by
+<A HREF="/cgi-bin/man/man2html?3+crypt">crypt</A>(3),
+
+
+in decreasing order of strength.
+Many of the older methods
+are now considered too weak to use for new passphrases.
+The hashed passphrase format is expressed
+with extended regular expressions (see
+<A HREF="/cgi-bin/man/man2html?7+regex">regex</A>(7))
+
+
+and does not show the division into prefix, options, salt, and hash.
+
+<A NAME="lbAF">&nbsp;</A>
+<H3>yescrypt</H3>
+
+yescrypt is a scalable passphrase hashing scheme designed by Solar Designer,
+which is based on Colin Percival's scrypt.
+Recommended for new hashes.
+
+<DL COMPACT>
+<P>
+
+<DT id="1"><B>Prefix</B>
+
+
+<DD>
+
+
+Bf <B>&quot;$y$&quot;</B>
+
+
+
+Ef 
+
+
+<DT id="2"><B>Hashed passphrase format</B>
+
+
+<DD>
+
+Bf -literal
+
+\$y\$[./A-Za-z0-9]+\$[./A-Za-z0-9]{,86}\$[./A-Za-z0-9]{43}
+Ef <DT id="3"><B>Maximum passphrase length</B>
+
+
+<DD>
+
+
+unlimited
+
+
+<DT id="4"><B>Hash size</B>
+
+
+<DD>
+256 bits
+
+<DT id="5"><B>Salt size</B>
+
+
+<DD>
+up to 512 bits
+<DT id="6"><B>CPU time cost parameter</B>
+
+
+<DD>
+1 to 11 (logarithmic)
+</DL>
+<P>
+
+
+<A NAME="lbAG">&nbsp;</A>
+<H3>gost-yescrypt</H3>
+
+gost-yescrypt uses the output from the yescrypt hashing method in place of a
+hmac message.  Thus, the yescrypt crypto properties are superseeded by the
+GOST R 34.11-2012 (Streebog) hash function with a 256 bit digest.
+This hashing method is useful in applications that need modern passphrase
+hashing methods, but require to rely on the cryptographic properties of GOST
+algorithms.
+The GOST R 34.11-2012 (Streebog) hash function has been published by the IETF
+as RFC 6986.
+Recommended for new hashes.
+
+<DL COMPACT>
+<P>
+
+<DT id="7"><B>Prefix</B>
+
+
+<DD>
+
+
+Bf <B>&quot;$gy$&quot;</B>
+
+
+
+Ef 
+
+
+<DT id="8"><B>Hashed passphrase format</B>
+
+
+<DD>
+
+Bf -literal
+
+\$gy\$[./A-Za-z0-9]+\$[./A-Za-z0-9]{,86}\$[./A-Za-z0-9]{43}
+Ef <DT id="9"><B>Maximum passphrase length</B>
+
+
+<DD>
+
+
+unlimited
+
+
+<DT id="10"><B>Hash size</B>
+
+
+<DD>
+256 bits
+
+<DT id="11"><B>Salt size</B>
+
+
+<DD>
+up to 512 bits
+<DT id="12"><B>CPU time cost parameter</B>
+
+
+<DD>
+1 to 11 (logarithmic)
+</DL>
+<P>
+
+
+<A NAME="lbAH">&nbsp;</A>
+<H3>scrypt</H3>
+
+scrypt is a password-based key derivation function created by Colin Percival,
+originally for the Tarsnap online backup service.
+The algorithm was specifically designed to make it costly to perform
+large-scale custom hardware attacks by requiring large amounts of memory.
+In 2016, the scrypt algorithm was published by IETF as RFC 7914.
+
+<DL COMPACT>
+<P>
+
+<DT id="13"><B>Prefix</B>
+
+
+<DD>
+
+
+Bf <B>&quot;$7$&quot;</B>
+
+
+
+Ef 
+
+
+<DT id="14"><B>Hashed passphrase format</B>
+
+
+<DD>
+
+Bf -literal
+
+\$7\$[./A-Za-z0-9]{11,97}\$[./A-Za-z0-9]{43}
+Ef <DT id="15"><B>Maximum passphrase length</B>
+
+
+<DD>
+
+
+unlimited
+
+
+<DT id="16"><B>Hash size</B>
+
+
+<DD>
+256 bits
+
+<DT id="17"><B>Salt size</B>
+
+
+<DD>
+up to 512 bits
+<DT id="18"><B>CPU time cost parameter</B>
+
+
+<DD>
+6 to 11 (logarithmic)
+</DL>
+<P>
+
+
+<A NAME="lbAI">&nbsp;</A>
+<H3>bcrypt</H3>
+
+A hash based on the Blowfish block cipher,
+modified to have an extra-expensive key schedule.
+Originally developed by Niels Provos and David Mazieres for OpenBSD
+and also supported on recent versions of FreeBSD and NetBSD,
+on Solaris 10 and newer, and on several GNU/*/Linux distributions.
+
+<DL COMPACT>
+<P>
+
+<DT id="19"><B>Prefix</B>
+
+
+<DD>
+
+
+Bf <B>&quot;$2b$&quot;</B>
+
+
+
+Ef 
+
+
+<DT id="20"><B>Hashed passphrase format</B>
+
+
+<DD>
+
+Bf -literal
+
+\$2[abxy]\$[0-9]{2}\$[./A-Za-z0-9]{53}
+Ef <DT id="21"><B>Maximum passphrase length</B>
+
+
+<DD>
+
+
+
+72 characters
+
+<DT id="22"><B>Hash size</B>
+
+
+<DD>
+184 bits
+
+<DT id="23"><B>Salt size</B>
+
+
+<DD>
+128 bits
+<DT id="24"><B>CPU time cost parameter</B>
+
+
+<DD>
+4 to 31 (logarithmic)
+</DL>
+<P>
+
+
+<P>
+
+The alternative prefix &quot;$2y$&quot; is equivalent to &quot;$2b$&quot;.
+It exists for historical reasons only.
+The alternative prefixes &quot;$2a$&quot; and &quot;$2x$&quot;
+provide bug-compatibility with crypt_blowfish 1.0.4 and earlier,
+which incorrectly processed characters with the 8th bit set.
+<A NAME="lbAJ">&nbsp;</A>
+<H3>sha512crypt</H3>
+
+A hash based on SHA-2 with 512-bit output,
+originally developed by Ulrich Drepper for GNU libc.
+Supported on Linux but not common elsewhere.
+Acceptable for new hashes.
+The default CPU time cost parameter is 5000,
+which is too low for modern hardware.
+
+<DL COMPACT>
+<P>
+
+<DT id="25"><B>Prefix</B>
+
+
+<DD>
+
+
+Bf <B>&quot;$6$&quot;</B>
+
+
+
+Ef 
+
+
+<DT id="26"><B>Hashed passphrase format</B>
+
+
+<DD>
+
+Bf -literal
+
+\$6\$(rounds=[1-9][0-9]+\$)?[./0-9A-Za-z]{1,16}\$[./0-9A-Za-z]{86}
+Ef <DT id="27"><B>Maximum passphrase length</B>
+
+
+<DD>
+
+
+unlimited
+
+
+<DT id="28"><B>Hash size</B>
+
+
+<DD>
+512 bits
+
+<DT id="29"><B>Salt size</B>
+
+
+<DD>
+6 to 96 bits
+<DT id="30"><B>CPU time cost parameter</B>
+
+
+<DD>
+1000 to 999,999,999
+</DL>
+<P>
+
+
+<A NAME="lbAK">&nbsp;</A>
+<H3>sha256crypt</H3>
+
+A hash based on SHA-2 with 256-bit output,
+originally developed by Ulrich Drepper for GNU libc.
+Supported on Linux but not common elsewhere.
+Acceptable for new hashes.
+The default CPU time cost parameter is 5000,
+which is too low for modern hardware.
+
+<DL COMPACT>
+<P>
+
+<DT id="31"><B>Prefix</B>
+
+
+<DD>
+
+
+Bf <B>&quot;$5$&quot;</B>
+
+
+
+Ef 
+
+
+<DT id="32"><B>Hashed passphrase format</B>
+
+
+<DD>
+
+Bf -literal
+
+\$5\$(rounds=[1-9][0-9]+\$)?[./0-9A-Za-z]{1,16}\$[./0-9A-Za-z]{43}
+Ef <DT id="33"><B>Maximum passphrase length</B>
+
+
+<DD>
+
+
+unlimited
+
+
+<DT id="34"><B>Hash size</B>
+
+
+<DD>
+256 bits
+
+<DT id="35"><B>Salt size</B>
+
+
+<DD>
+6 to 96 bits
+<DT id="36"><B>CPU time cost parameter</B>
+
+
+<DD>
+1000 to 999,999,999
+</DL>
+<P>
+
+
+<A NAME="lbAL">&nbsp;</A>
+<H3>sha1crypt</H3>
+
+A hash based on HMAC-SHA1.
+Originally developed by Simon Gerraty for NetBSD.
+Not as weak as the DES-based hashes below,
+but SHA1 is so cheap on modern hardware
+that it should not be used for new hashes.
+
+<DL COMPACT>
+<P>
+
+<DT id="37"><B>Prefix</B>
+
+
+<DD>
+
+
+Bf <B>&quot;$sha1&quot;</B>
+
+
+
+Ef 
+
+
+<DT id="38"><B>Hashed passphrase format</B>
+
+
+<DD>
+
+Bf -literal
+
+\$sha1\$[1-9][0-9]+\$[./0-9A-Za-z]{1,64}\$[./0-9A-Za-z]{8,64}[./0-9A-Za-z]{32}
+Ef <DT id="39"><B>Maximum passphrase length</B>
+
+
+<DD>
+
+
+unlimited
+
+
+<DT id="40"><B>Hash size</B>
+
+
+<DD>
+160 bits
+
+<DT id="41"><B>Salt size</B>
+
+
+<DD>
+6 to 384 bits
+<DT id="42"><B>CPU time cost parameter</B>
+
+
+<DD>
+4 to 4,294,967,295
+</DL>
+<P>
+
+
+<A NAME="lbAM">&nbsp;</A>
+<H3>SunMD5</H3>
+
+A hash based on the MD5 algorithm,
+with additional cleverness to make precomputation difficult,
+originally developed by Alec David Muffet for Solaris.
+Not adopted elsewhere, to our knowledge.
+Not as weak as the DES-based hashes below,
+but MD5 is so cheap on modern hardware
+that it should not be used for new hashes.
+
+<DL COMPACT>
+<P>
+
+<DT id="43"><B>Prefix</B>
+
+
+<DD>
+
+
+Bf <B>&quot;$md5&quot;</B>
+
+
+
+Ef 
+
+
+<DT id="44"><B>Hashed passphrase format</B>
+
+
+<DD>
+
+Bf -literal
+
+\$md5(,rounds=[1-9][0-9]+)?\$[./0-9A-Za-z]{8}\${1,2}[./0-9A-Za-z]{22}
+Ef <DT id="45"><B>Maximum passphrase length</B>
+
+
+<DD>
+
+
+unlimited
+
+
+<DT id="46"><B>Hash size</B>
+
+
+<DD>
+128 bits
+
+<DT id="47"><B>Salt size</B>
+
+
+<DD>
+48 bits
+<DT id="48"><B>CPU time cost parameter</B>
+
+
+<DD>
+4096 to 4,294,963,199
+</DL>
+<P>
+
+
+<A NAME="lbAN">&nbsp;</A>
+<H3>md5crypt</H3>
+
+A hash based on the MD5 algorithm, originally developed by
+Poul-Henning Kamp for FreeBSD.
+Supported on most free Unixes and newer versions of Solaris.
+Not as weak as the DES-based hashes below,
+but MD5 is so cheap on modern hardware
+that it should not be used for new hashes.
+CPU time cost is not adjustable.
+
+<DL COMPACT>
+<P>
+
+<DT id="49"><B>Prefix</B>
+
+
+<DD>
+
+
+Bf <B>&quot;$1$&quot;</B>
+
+
+
+Ef 
+
+
+<DT id="50"><B>Hashed passphrase format</B>
+
+
+<DD>
+
+Bf -literal
+
+\$1\$[^$]{1,8}\$[./0-9A-Za-z]{22}
+Ef <DT id="51"><B>Maximum passphrase length</B>
+
+
+<DD>
+
+
+unlimited
+
+
+<DT id="52"><B>Hash size</B>
+
+
+<DD>
+128 bits
+
+<DT id="53"><B>Salt size</B>
+
+
+<DD>
+6 to 48 bits
+<DT id="54"><B>CPU time cost parameter</B>
+
+
+<DD>
+1000
+</DL>
+<P>
+
+
+<A NAME="lbAO">&nbsp;</A>
+<H3>bsdicrypt (BSDI extended DES)</H3>
+
+A weak extension of traditional DES,
+which eliminates the length limit,
+increases the salt size,
+and makes the time cost tunable.
+It originates with BSDI
+and is also available on at least NetBSD, OpenBSD, and FreeBSD
+due to the use of David Burren's FreeSec library.
+It is better than bigcrypt and traditional DES,
+but still should not be used for new hashes.
+
+<DL COMPACT>
+<P>
+
+<DT id="55"><B>Prefix</B>
+
+
+<DD>
+
+
+Bf <B>&quot;_&quot;</B>
+
+
+
+Ef 
+
+
+<DT id="56"><B>Hashed passphrase format</B>
+
+
+<DD>
+
+Bf -literal
+
+_[./0-9A-Za-z]{19}
+Ef <DT id="57"><B>Maximum passphrase length</B>
+
+
+<DD>
+
+
+unlimited
+
+(ignores 8th bit)
+<DT id="58"><B>Hash size</B>
+
+
+<DD>
+64 bits
+<DT id="59"><B>Effective key size</B>
+
+
+<DD>
+
+56 bits
+
+
+<DT id="60"><B>Salt size</B>
+
+
+<DD>
+24 bits
+<DT id="61"><B>CPU time cost parameter</B>
+
+
+<DD>
+1 to 16,777,215 (must be odd)
+</DL>
+<P>
+
+
+<A NAME="lbAP">&nbsp;</A>
+<H3>bigcrypt</H3>
+
+A weak extension of traditional DES,
+available on some System V-derived Unixes.
+All it does is raise the length limit from 8 to 128 characters,
+and it does this in a crude way that allows attackers to
+guess chunks of a long passphrase in parallel.
+It should not be used for new hashes.
+
+<DL COMPACT>
+<P>
+
+<DT id="62"><B>Prefix</B>
+
+
+<DD>
+
+
+Bf <B>&quot;&quot;</B>
+
+
+
+Ef (empty string)
+
+
+<DT id="63"><B>Hashed passphrase format</B>
+
+
+<DD>
+
+Bf -literal
+
+[./0-9A-Za-z]{13,178}
+Ef <DT id="64"><B>Maximum passphrase length</B>
+
+
+<DD>
+
+
+
+128 characters
+(ignores 8th bit)
+<DT id="65"><B>Hash size</B>
+
+
+<DD>
+up to 1024 bits
+<DT id="66"><B>Effective key size</B>
+
+
+<DD>
+
+up to 896 bits
+
+
+<DT id="67"><B>Salt size</B>
+
+
+<DD>
+12 bits
+<DT id="68"><B>CPU time cost parameter</B>
+
+
+<DD>
+25
+</DL>
+<P>
+
+
+<A NAME="lbAQ">&nbsp;</A>
+<H3>descrypt (Traditional DES)</H3>
+
+The original hashing method from Unix V7, based on the DES block cipher.
+Because DES is cheap on modern hardware,
+because there are only 4096 possible salts and 2**56 possible hashes,
+and because it truncates passphrases to 8 characters,
+it is feasible to discover
+<I>any</I>
+
+passphrase hashed with this method.
+It should only be used if you absolutely have to generate hashes
+that will work on an old operating system that supports nothing else.
+
+<DL COMPACT>
+<P>
+
+<DT id="69"><B>Prefix</B>
+
+
+<DD>
+
+
+Bf <B>&quot;&quot;</B>
+
+
+
+Ef (empty string)
+
+
+<DT id="70"><B>Hashed passphrase format</B>
+
+
+<DD>
+
+Bf -literal
+
+[./0-9A-Za-z]{13}
+Ef <DT id="71"><B>Maximum passphrase length</B>
+
+
+<DD>
+
+
+
+8 characters
+(ignores 8th bit)
+<DT id="72"><B>Hash size</B>
+
+
+<DD>
+64 bits
+<DT id="73"><B>Effective key size</B>
+
+
+<DD>
+
+56 bits
+
+
+<DT id="74"><B>Salt size</B>
+
+
+<DD>
+12 bits
+<DT id="75"><B>CPU time cost parameter</B>
+
+
+<DD>
+25
+</DL>
+<P>
+
+
+<A NAME="lbAR">&nbsp;</A>
+<H3>NT</H3>
+
+The hashing method used for network authentication
+in some versions of the SMB/CIFS protocol.
+Available, for cross-compatibility's sake, on FreeBSD.
+Based on MD4.
+Has no salt or tunable cost parameter.
+Like traditional DES, it is so weak that
+<I>any</I>
+
+passphrase hashed with this method is guessable.
+It should only be used if you absolutely have to generate hashes
+that will work on an old operating system that supports nothing else.
+
+<DL COMPACT>
+<P>
+
+<DT id="76"><B>Prefix</B>
+
+
+<DD>
+
+
+Bf <B>&quot;$3$&quot;</B>
+
+
+
+Ef 
+
+
+<DT id="77"><B>Hashed passphrase format</B>
+
+
+<DD>
+
+Bf -literal
+
+\$3\$\$[0-9a-f]{32}
+Ef <DT id="78"><B>Maximum passphrase length</B>
+
+
+<DD>
+
+
+unlimited
+
+
+<DT id="79"><B>Hash size</B>
+
+
+<DD>
+256 bits
+
+<DT id="80"><B>Salt size</B>
+
+
+<DD>
+0 bits
+<DT id="81"><B>CPU time cost parameter</B>
+
+
+<DD>
+1
+</DL>
+<P>
+
+
+<A NAME="lbAS">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<A HREF="/cgi-bin/man/man2html?3+crypt">crypt</A>(3),
+
+
+crypt_gensalt3,
+
+
+<A HREF="/cgi-bin/man/man2html?3+getpwent">getpwent</A>(3),
+
+
+<A HREF="/cgi-bin/man/man2html?5+passwd">passwd</A>(5),
+
+
+<A HREF="/cgi-bin/man/man2html?5+shadow">shadow</A>(5),
+
+
+<A HREF="/cgi-bin/man/man2html?8+pam">pam</A>(8)
+
+
+<DL COMPACT><DT id="82"><DD>
+Niels Provos
+David Mazieres
+<I>A Future-Adaptable Password Scheme</I>
+<I>Proceedings of the 1999 USENIX Annual Technical Conference</I>
+June 1999
+
+</DL>
+
+<DL COMPACT><DT id="83"><DD>
+Robert Morris
+Ken Thompson
+<I>Password Security: A Case History</I>
+<I>Communications of the ACM</I>
+22
+11
+1979
+
+</DL>
+
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="84"><A HREF="#lbAB">NAME</A><DD>
+<DT id="85"><A HREF="#lbAC">DESCRIPTION</A><DD>
+<DT id="86"><A HREF="#lbAD">FORMAT OF HASHED PASSPHRASES</A><DD>
+<DT id="87"><A HREF="#lbAE">AVAILABLE HASHING METHODS</A><DD>
+<DL>
+<DT id="88"><A HREF="#lbAF">yescrypt</A><DD>
+<DT id="89"><A HREF="#lbAG">gost-yescrypt</A><DD>
+<DT id="90"><A HREF="#lbAH">scrypt</A><DD>
+<DT id="91"><A HREF="#lbAI">bcrypt</A><DD>
+<DT id="92"><A HREF="#lbAJ">sha512crypt</A><DD>
+<DT id="93"><A HREF="#lbAK">sha256crypt</A><DD>
+<DT id="94"><A HREF="#lbAL">sha1crypt</A><DD>
+<DT id="95"><A HREF="#lbAM">SunMD5</A><DD>
+<DT id="96"><A HREF="#lbAN">md5crypt</A><DD>
+<DT id="97"><A HREF="#lbAO">bsdicrypt (BSDI extended DES)</A><DD>
+<DT id="98"><A HREF="#lbAP">bigcrypt</A><DD>
+<DT id="99"><A HREF="#lbAQ">descrypt (Traditional DES)</A><DD>
+<DT id="100"><A HREF="#lbAR">NT</A><DD>
+</DL>
+<DT id="101"><A HREF="#lbAS">SEE ALSO</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:02 GMT, March 31, 2021
+</BODY>
+</HTML>

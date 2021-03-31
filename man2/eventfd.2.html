@@ -1,0 +1,642 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of EVENTFD</TITLE>
+</HEAD><BODY>
+<H1>EVENTFD</H1>
+Section: Linux Programmer's Manual (2)<BR>Updated: 2019-03-06<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+eventfd - create a file descriptor for event notification
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<B>#include &lt;<A HREF="file:///usr/include/sys/eventfd.h">sys/eventfd.h</A>&gt;</B>
+
+<P>
+
+<B>int eventfd(unsigned int </B><I>initval</I><B>, int </B><I>flags</I><B>);</B>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<B>eventfd</B>()
+
+creates an &quot;eventfd object&quot; that can be used as
+an event wait/notify mechanism by user-space applications,
+and by the kernel to notify user-space applications of events.
+The object contains an unsigned 64-bit integer
+(<I>uint64_t</I>)
+
+counter that is maintained by the kernel.
+This counter is initialized with the value specified in the argument
+<I>initval</I>.
+
+<P>
+
+As its return value,
+<B>eventfd</B>()
+
+returns a new file descriptor that can be used to refer to the
+eventfd object.
+<P>
+
+The following values may be bitwise ORed in
+<I>flags</I>
+
+to change the behavior of
+<B>eventfd</B>():
+
+<DL COMPACT>
+<DT id="1"><B>EFD_CLOEXEC</B> (since Linux 2.6.27)
+
+<DD>
+Set the close-on-exec
+(<B>FD_CLOEXEC</B>)
+
+flag on the new file descriptor.
+See the description of the
+<B>O_CLOEXEC</B>
+
+flag in
+<B><A HREF="/cgi-bin/man/man2html?2+open">open</A></B>(2)
+
+for reasons why this may be useful.
+<DT id="2"><B>EFD_NONBLOCK</B> (since Linux 2.6.27)
+
+<DD>
+Set the
+<B>O_NONBLOCK</B>
+
+file status flag on the open file description (see
+<B><A HREF="/cgi-bin/man/man2html?2+open">open</A></B>(2))
+
+referred to by the new file descriptor.
+Using this flag saves extra calls to
+<B><A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A></B>(2)
+
+to achieve the same result.
+<DT id="3"><B>EFD_SEMAPHORE</B> (since Linux 2.6.30)
+
+<DD>
+Provide semaphore-like semantics for reads from the new file descriptor.
+See below.
+</DL>
+<P>
+
+In Linux up to version 2.6.26, the
+<I>flags</I>
+
+argument is unused, and must be specified as zero.
+<P>
+
+The following operations can be performed on the file descriptor returned by
+<B>eventfd</B>():
+
+<DL COMPACT>
+<DT id="4"><B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)
+
+<DD>
+Each successful
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)
+
+returns an 8-byte integer.
+A
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)
+
+fails with the error
+<B>EINVAL</B>
+
+if the size of the supplied buffer is less than 8 bytes.
+<DT id="5"><DD>
+The value returned by
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)
+
+is in host byte order---that is,
+the native byte order for integers on the host machine.
+<DT id="6"><DD>
+The semantics of
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)
+
+depend on whether the eventfd counter currently has a nonzero value
+and whether the
+<B>EFD_SEMAPHORE</B>
+
+flag was specified when creating the eventfd file descriptor:
+<DL COMPACT><DT id="7"><DD>
+<DL COMPACT>
+<DT id="8">*<DD>
+If
+<B>EFD_SEMAPHORE</B>
+
+was not specified and the eventfd counter has a nonzero value, then a
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)
+
+returns 8 bytes containing that value,
+and the counter's value is reset to zero.
+<DT id="9">*<DD>
+If
+<B>EFD_SEMAPHORE</B>
+
+was specified and the eventfd counter has a nonzero value, then a
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)
+
+returns 8 bytes containing the value 1,
+and the counter's value is decremented by 1.
+<DT id="10">*<DD>
+If the eventfd counter is zero at the time of the call to
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2),
+
+then the call either blocks until the counter becomes nonzero
+(at which time, the
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)
+
+proceeds as described above)
+or fails with the error
+<B>EAGAIN</B>
+
+if the file descriptor has been made nonblocking.
+</DL>
+</DL>
+
+<DT id="11"><B><A HREF="/cgi-bin/man/man2html?2+write">write</A></B>(2)
+
+<DD>
+A
+<B><A HREF="/cgi-bin/man/man2html?2+write">write</A></B>(2)
+
+call adds the 8-byte integer value supplied in its
+buffer to the counter.
+The maximum value that may be stored in the counter is the largest
+unsigned 64-bit value minus 1 (i.e., 0xfffffffffffffffe).
+If the addition would cause the counter's value to exceed
+the maximum, then the
+<B><A HREF="/cgi-bin/man/man2html?2+write">write</A></B>(2)
+
+either blocks until a
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)
+
+is performed on the file descriptor,
+or fails with the error
+<B>EAGAIN</B>
+
+if the file descriptor has been made nonblocking.
+<DT id="12"><DD>
+A
+<B><A HREF="/cgi-bin/man/man2html?2+write">write</A></B>(2)
+
+fails with the error
+<B>EINVAL</B>
+
+if the size of the supplied buffer is less than 8 bytes,
+or if an attempt is made to write the value 0xffffffffffffffff.
+<DT id="13"><B><A HREF="/cgi-bin/man/man2html?2+poll">poll</A></B>(2), <B><A HREF="/cgi-bin/man/man2html?2+select">select</A></B>(2) (and similar)
+
+<DD>
+The returned file descriptor supports
+<B><A HREF="/cgi-bin/man/man2html?2+poll">poll</A></B>(2)
+
+(and analogously
+<B><A HREF="/cgi-bin/man/man2html?7+epoll">epoll</A></B>(7))
+
+and
+<B><A HREF="/cgi-bin/man/man2html?2+select">select</A></B>(2),
+
+as follows:
+<DL COMPACT><DT id="14"><DD>
+<DL COMPACT>
+<DT id="15">*<DD>
+The file descriptor is readable
+(the
+<B><A HREF="/cgi-bin/man/man2html?2+select">select</A></B>(2)
+
+<I>readfds</I>
+
+argument; the
+<B><A HREF="/cgi-bin/man/man2html?2+poll">poll</A></B>(2)
+
+<B>POLLIN</B>
+
+flag)
+if the counter has a value greater than 0.
+<DT id="16">*<DD>
+The file descriptor is writable
+(the
+<B><A HREF="/cgi-bin/man/man2html?2+select">select</A></B>(2)
+
+<I>writefds</I>
+
+argument; the
+<B><A HREF="/cgi-bin/man/man2html?2+poll">poll</A></B>(2)
+
+<B>POLLOUT</B>
+
+flag)
+if it is possible to write a value of at least &quot;1&quot; without blocking.
+<DT id="17">*<DD>
+If an overflow of the counter value was detected,
+then
+<B><A HREF="/cgi-bin/man/man2html?2+select">select</A></B>(2)
+
+indicates the file descriptor as being both readable and writable, and
+<B><A HREF="/cgi-bin/man/man2html?2+poll">poll</A></B>(2)
+
+returns a
+<B>POLLERR</B>
+
+event.
+As noted above,
+<B><A HREF="/cgi-bin/man/man2html?2+write">write</A></B>(2)
+
+can never overflow the counter.
+However an overflow can occur if 2^64
+eventfd &quot;signal posts&quot; were performed by the KAIO
+subsystem (theoretically possible, but practically unlikely).
+If an overflow has occurred, then
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)
+
+will return that maximum
+<I>uint64_t</I>
+
+value (i.e., 0xffffffffffffffff).
+</DL>
+</DL>
+
+<DT id="18"><DD>
+The eventfd file descriptor also supports the other file-descriptor
+multiplexing APIs:
+<B><A HREF="/cgi-bin/man/man2html?2+pselect">pselect</A></B>(2)
+
+and
+<B><A HREF="/cgi-bin/man/man2html?2+ppoll">ppoll</A></B>(2).
+
+<DT id="19"><B><A HREF="/cgi-bin/man/man2html?2+close">close</A></B>(2)
+
+<DD>
+When the file descriptor is no longer required it should be closed.
+When all file descriptors associated with the same eventfd object
+have been closed, the resources for object are freed by the kernel.
+</DL>
+<P>
+
+A copy of the file descriptor created by
+<B>eventfd</B>()
+
+is inherited by the child produced by
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2).
+
+The duplicate file descriptor is associated with the same
+eventfd object.
+File descriptors created by
+<B>eventfd</B>()
+
+are preserved across
+<B><A HREF="/cgi-bin/man/man2html?2+execve">execve</A></B>(2),
+
+unless the close-on-exec flag has been set.
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+On success,
+<B>eventfd</B>()
+
+returns a new eventfd file descriptor.
+On error, -1 is returned and
+<I>errno</I>
+
+is set to indicate the error.
+<A NAME="lbAF">&nbsp;</A>
+<H2>ERRORS</H2>
+
+<DL COMPACT>
+<DT id="20"><B>EINVAL</B>
+
+<DD>
+An unsupported value was specified in
+<I>flags</I>.
+
+<DT id="21"><B>EMFILE</B>
+
+<DD>
+The per-process limit on the number of open file descriptors has been reached.
+<DT id="22"><B>ENFILE</B>
+
+<DD>
+The system-wide limit on the total number of open files has been
+reached.
+<DT id="23"><B>ENODEV</B>
+
+<DD>
+
+
+
+
+
+Could not mount (internal) anonymous inode device.
+<DT id="24"><B>ENOMEM</B>
+
+<DD>
+There was insufficient memory to create a new
+eventfd file descriptor.
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H2>VERSIONS</H2>
+
+<B>eventfd</B>()
+
+is available on Linux since kernel 2.6.22.
+Working support is provided in glibc since version 2.8.
+
+The
+<B>eventfd2</B>()
+
+system call (see NOTES) is available on Linux since kernel 2.6.27.
+Since version 2.9, the glibc
+<B>eventfd</B>()
+
+wrapper will employ the
+<B>eventfd2</B>()
+
+system call, if it is supported by the kernel.
+<A NAME="lbAH">&nbsp;</A>
+<H2>ATTRIBUTES</H2>
+
+For an explanation of the terms used in this section, see
+<B><A HREF="/cgi-bin/man/man2html?7+attributes">attributes</A></B>(7).
+
+<TABLE BORDER>
+<TR VALIGN=top><TD><B>Interface</B></TD><TD><B>Attribute</B></TD><TD><B>Value</B><BR></TD></TR>
+<TR VALIGN=top><TD>
+<B>eventfd</B>()
+
+</TD><TD>Thread safety</TD><TD>MT-Safe<BR></TD></TR>
+</TABLE>
+
+<P>
+<A NAME="lbAI">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+<B>eventfd</B>()
+
+and
+<B>eventfd2</B>()
+
+are Linux-specific.
+<A NAME="lbAJ">&nbsp;</A>
+<H2>NOTES</H2>
+
+Applications can use an eventfd file descriptor instead of a pipe (see
+<B><A HREF="/cgi-bin/man/man2html?2+pipe">pipe</A></B>(2))
+
+in all cases where a pipe is used simply to signal events.
+The kernel overhead of an eventfd file descriptor
+is much lower than that of a pipe,
+and only one file descriptor is
+required (versus the two required for a pipe).
+<P>
+
+When used in the kernel, an eventfd
+file descriptor can provide a bridge from kernel to user space, allowing,
+for example, functionalities like KAIO (kernel AIO)
+
+to signal to a file descriptor that some operation is complete.
+<P>
+
+A key point about an eventfd file descriptor is that it can be
+monitored just like any other file descriptor using
+<B><A HREF="/cgi-bin/man/man2html?2+select">select</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+poll">poll</A></B>(2),
+
+or
+<B><A HREF="/cgi-bin/man/man2html?7+epoll">epoll</A></B>(7).
+
+This means that an application can simultaneously monitor the
+readiness of &quot;traditional&quot; files and the readiness of other
+kernel mechanisms that support the eventfd interface.
+(Without the
+<B>eventfd</B>()
+
+interface, these mechanisms could not be multiplexed via
+<B><A HREF="/cgi-bin/man/man2html?2+select">select</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+poll">poll</A></B>(2),
+
+or
+<B><A HREF="/cgi-bin/man/man2html?7+epoll">epoll</A></B>(7).)
+
+<P>
+
+The current value of an eventfd counter can be viewed
+via the entry for the corresponding file descriptor in the process's
+<I>/proc/[pid]/fdinfo</I>
+
+directory.
+See
+<B><A HREF="/cgi-bin/man/man2html?5+proc">proc</A></B>(5)
+
+for further details.
+
+<A NAME="lbAK">&nbsp;</A>
+<H3>C library/kernel differences</H3>
+
+There are two underlying Linux system calls:
+<B>eventfd</B>()
+
+and the more recent
+<B>eventfd2</B>().
+
+The former system call does not implement a
+<I>flags</I>
+
+argument.
+The latter system call implements the
+<I>flags</I>
+
+values described above.
+The glibc wrapper function will use
+<B>eventfd2</B>()
+
+where it is available.
+<A NAME="lbAL">&nbsp;</A>
+<H3>Additional glibc features</H3>
+
+The GNU C library defines an additional type,
+and two functions that attempt to abstract some of the details of
+reading and writing on an eventfd file descriptor:
+<P>
+
+
+
+typedef uint64_t eventfd_t;
+<P>
+int eventfd_read(int fd, eventfd_t *value);
+int eventfd_write(int fd, eventfd_t value);
+
+
+<P>
+
+The functions perform the read and write operations on an
+eventfd file descriptor,
+returning 0 if the correct number of bytes was transferred,
+or -1 otherwise.
+<A NAME="lbAM">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+<P>
+
+The following program creates an eventfd file descriptor
+and then forks to create a child process.
+While the parent briefly sleeps,
+the child writes each of the integers supplied in the program's
+command-line arguments to the eventfd file descriptor.
+When the parent has finished sleeping,
+it reads from the eventfd file descriptor.
+<P>
+
+The following shell session shows a sample run of the program:
+<P>
+
+
+
+$<B> ./a.out 1 2 4 7 14</B>
+
+Child writing 1 to efd
+Child writing 2 to efd
+Child writing 4 to efd
+Child writing 7 to efd
+Child writing 14 to efd
+Child completed write loop
+Parent about to read
+Parent read 28 (0x1c) from efd
+
+
+<A NAME="lbAN">&nbsp;</A>
+<H3>Program source</H3>
+
+
+
+#include &lt;<A HREF="file:///usr/include/sys/eventfd.h">sys/eventfd.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/unistd.h">unistd.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdlib.h">stdlib.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdint.h">stdint.h</A>&gt;             /* Definition of uint64_t */
+<P>
+#define handle_error(msg) \
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;do&nbsp;{&nbsp;perror(msg);&nbsp;exit(EXIT_FAILURE);&nbsp;}&nbsp;while&nbsp;(0)
+<P>
+int
+main(int argc, char *argv[])
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;efd,&nbsp;j;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;u;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;ssize_t&nbsp;s;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(argc&nbsp;&lt;&nbsp;2)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;Usage:&nbsp;%s&nbsp;&lt;num&gt;...\n&quot;,&nbsp;argv[0]);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;efd&nbsp;=&nbsp;eventfd(0,&nbsp;0);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(efd&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;handle_error(&quot;eventfd&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;switch&nbsp;(fork())&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;case&nbsp;0:
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;(j&nbsp;=&nbsp;1;&nbsp;j&nbsp;&lt;&nbsp;argc;&nbsp;j++)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;Child&nbsp;writing&nbsp;%s&nbsp;to&nbsp;efd\n&quot;,&nbsp;argv[j]);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;u&nbsp;=&nbsp;strtoull(argv[j],&nbsp;NULL,&nbsp;0);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;strtoull()&nbsp;allows&nbsp;various&nbsp;bases&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;s&nbsp;=&nbsp;write(efd,&nbsp;&amp;u,&nbsp;sizeof(uint64_t));
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(s&nbsp;!=&nbsp;sizeof(uint64_t))
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;handle_error(&quot;write&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;Child&nbsp;completed&nbsp;write&nbsp;loop\n&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_SUCCESS);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;default:
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<A HREF="/cgi-bin/man/man2html?2+sleep">sleep</A>(2);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;Parent&nbsp;about&nbsp;to&nbsp;read\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;s&nbsp;=&nbsp;read(efd,&nbsp;&amp;u,&nbsp;sizeof(uint64_t));
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(s&nbsp;!=&nbsp;sizeof(uint64_t))
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;handle_error(&quot;read&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;Parent&nbsp;read&nbsp;%llu&nbsp;(0x%llx)&nbsp;from&nbsp;efd\n&quot;,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(unsigned&nbsp;long&nbsp;long)&nbsp;u,&nbsp;(unsigned&nbsp;long&nbsp;long)&nbsp;u);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_SUCCESS);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;case&nbsp;-1:
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;handle_error(&quot;fork&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+}
+
+<A NAME="lbAO">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?2+futex">futex</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+pipe">pipe</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+poll">poll</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+select">select</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+signalfd">signalfd</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+timerfd_create">timerfd_create</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+write">write</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?7+epoll">epoll</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+sem_overview">sem_overview</A></B>(7)
+
+<A NAME="lbAP">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="25"><A HREF="#lbAB">NAME</A><DD>
+<DT id="26"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="27"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="28"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DT id="29"><A HREF="#lbAF">ERRORS</A><DD>
+<DT id="30"><A HREF="#lbAG">VERSIONS</A><DD>
+<DT id="31"><A HREF="#lbAH">ATTRIBUTES</A><DD>
+<DT id="32"><A HREF="#lbAI">CONFORMING TO</A><DD>
+<DT id="33"><A HREF="#lbAJ">NOTES</A><DD>
+<DL>
+<DT id="34"><A HREF="#lbAK">C library/kernel differences</A><DD>
+<DT id="35"><A HREF="#lbAL">Additional glibc features</A><DD>
+</DL>
+<DT id="36"><A HREF="#lbAM">EXAMPLE</A><DD>
+<DL>
+<DT id="37"><A HREF="#lbAN">Program source</A><DD>
+</DL>
+<DT id="38"><A HREF="#lbAO">SEE ALSO</A><DD>
+<DT id="39"><A HREF="#lbAP">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:32 GMT, March 31, 2021
+</BODY>
+</HTML>

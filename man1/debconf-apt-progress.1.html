@@ -1,0 +1,225 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of DEBCONF-APT-PROGRESS</TITLE>
+</HEAD><BODY>
+<H1>DEBCONF-APT-PROGRESS</H1>
+Section: Debconf (1)<BR>Updated: 2019-08-03<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+debconf-apt-progress - install packages using debconf to display a progress bar
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+
+
+
+
+<PRE>
+ debconf-apt-progress [--] command [args ...]
+ debconf-apt-progress --config
+ debconf-apt-progress --start
+ debconf-apt-progress --from waypoint --to waypoint [--] command [args ...]
+ debconf-apt-progress --stop
+
+</PRE>
+
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+
+<B>debconf-apt-progress</B> installs packages using debconf to display a
+progress bar. The given <I>command</I> should be any command-line apt frontend;
+specifically, it must send progress information to the file descriptor
+selected by the <TT>&quot;APT::Status-Fd&quot;</TT> configuration option, and must keep the
+file descriptors nominated by the <TT>&quot;APT::Keep-Fds&quot;</TT> configuration option open
+when invoking debconf (directly or indirectly), as those file descriptors
+will be used for the debconf passthrough protocol.
+<P>
+
+The arguments to the command you supply should generally include <B>-y</B> (for
+<B>apt-get</B> or <B>aptitude</B>) or similar to avoid the apt frontend prompting
+for input. <B>debconf-apt-progress</B> cannot do this itself because the
+appropriate argument may differ between apt frontends.
+<P>
+
+The <B>--start</B>, <B>--stop</B>, <B>--from</B>, and <B>--to</B> options may be used to
+create a progress bar with multiple segments for different stages of
+installation, provided that the caller is a debconf confmodule. The caller
+may also interact with the progress bar itself using the debconf protocol if
+it so desires.
+<P>
+
+debconf locks its config database when it starts up, which makes it
+unfortunately inconvenient to have one instance of debconf displaying the
+progress bar and another passing through questions from packages being
+installed. If you're using a multiple-segment progress bar, you'll need to
+eval the output of the <B>--config</B> option before starting the debconf
+frontend to work around this. See ``<FONT SIZE="-1">EXAMPLES''</FONT> in the <FONT SIZE="-1">EXAMPLES</FONT> section below.
+<A NAME="lbAE">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+
+
+<DL COMPACT>
+<DT id="1"><B>--config</B><DD>
+
+
+Print environment variables necessary to start up a progress bar frontend.
+<DT id="2"><B>--start</B><DD>
+
+
+Start up a progress bar, running from 0 to 100 by default. Use <B>--from</B> and
+<B>--to</B> to use other endpoints.
+<DT id="3"><B>--from</B> <I>waypoint</I><DD>
+
+
+If used with <B>--start</B>, make the progress bar begin at <I>waypoint</I> rather
+than 0.
+
+
+<P>
+
+
+Otherwise, install packages with their progress bar beginning at this
+``waypoint''. Must be used with <B>--to</B>.
+<DT id="4"><B>--to</B> <I>waypoint</I><DD>
+
+
+If used with <B>--start</B>, make the progress bar end at <I>waypoint</I> rather
+than 100.
+
+
+<P>
+
+
+Otherwise, install packages with their progress bar ending at this
+``waypoint''. Must be used with <B>--from</B>.
+<DT id="5"><B>--stop</B><DD>
+
+
+Stop a running progress bar.
+<DT id="6"><B>--no-progress</B><DD>
+
+
+Avoid starting, stopping, or stepping the progress bar. Progress
+messages from apt, media change events, and debconf questions will still
+be passed through to debconf.
+<DT id="7"><B>--dlwaypoint</B> <I>percentage</I><DD>
+
+
+Specify what percent of the progress bar to use for downloading packages.
+The remainder will be used for installing packages. The default is to use
+15% for downloading and the remaining 85% for installing.
+<DT id="8"><B>--logfile</B> <I>file</I><DD>
+
+
+Send the normal output from apt to the given file.
+<DT id="9"><B>--logstderr</B><DD>
+
+
+Send the normal output from apt to stderr. If you supply neither
+<B>--logfile</B> nor <B>--logstderr</B>, the normal output from apt will be
+discarded.
+<DT id="10"><B>--</B><DD>
+
+
+Terminate options. Since you will normally need to give at least the <B>-y</B>
+argument to the command being run, you will usually need to use <B>--</B> to
+prevent that being interpreted as an option to <B>debconf-apt-progress</B>
+itself.
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+
+
+Install the <FONT SIZE="-1">GNOME</FONT> desktop and an X window system development environment
+within a progress bar:
+<P>
+
+
+
+<PRE>
+ debconf-apt-progress -- aptitude -y install gnome x-window-system-dev
+
+</PRE>
+
+
+<P>
+
+Install the <FONT SIZE="-1">GNOME, KDE,</FONT> and <FONT SIZE="-1">XFCE</FONT> desktops within a single progress bar,
+allocating 45% of the progress bar for each of <FONT SIZE="-1">GNOME</FONT> and <FONT SIZE="-1">KDE</FONT> and the
+remaining 10% for <FONT SIZE="-1">XFCE:</FONT>
+<P>
+
+
+
+<PRE>
+ #! /bin/sh
+ set -e
+ case $1 in
+   '')
+     eval &quot;$(debconf-apt-progress --config)&quot;
+     &quot;$0&quot; debconf
+     ;;
+   debconf)
+     . /usr/share/debconf/confmodule
+     debconf-apt-progress --start
+     debconf-apt-progress --from 0 --to 45 -- apt-get -y install gnome
+     debconf-apt-progress --from 45 --to 90 -- apt-get -y install kde
+     debconf-apt-progress --from 90 --to 100 -- apt-get -y install xfce4
+     debconf-apt-progress --stop
+     ;;
+ esac
+
+</PRE>
+
+
+<A NAME="lbAG">&nbsp;</A>
+<H2>RETURN CODE</H2>
+
+
+
+The exit code of the specified command is returned, unless the user hit the
+cancel button on the progress bar. If the cancel button was hit, a value of
+30 is returned. To avoid ambiguity, if the command returned 30, a value of
+3 will be returned.
+<A NAME="lbAH">&nbsp;</A>
+<H2>AUTHORS</H2>
+
+
+
+Colin Watson &lt;<A HREF="mailto:cjwatson@debian.org">cjwatson@debian.org</A>&gt;
+<P>
+
+Joey Hess &lt;<A HREF="mailto:joeyh@debian.org">joeyh@debian.org</A>&gt;
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="11"><A HREF="#lbAB">NAME</A><DD>
+<DT id="12"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="13"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="14"><A HREF="#lbAE">OPTIONS</A><DD>
+<DT id="15"><A HREF="#lbAF">EXAMPLES</A><DD>
+<DT id="16"><A HREF="#lbAG">RETURN CODE</A><DD>
+<DT id="17"><A HREF="#lbAH">AUTHORS</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:09 GMT, March 31, 2021
+</BODY>
+</HTML>

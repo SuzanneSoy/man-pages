@@ -1,0 +1,871 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of AUTOFS</TITLE>
+</HEAD><BODY>
+<H1>AUTOFS</H1>
+Section: File Formats (5)<BR>Updated: 9 Feb 2014<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+autofs - Format of the automounter maps
+<A NAME="lbAC">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+The automounter maps are FILE, NIS, NISPLUS or LDAP (including LDAP via SSS)
+referred to by the master map of the automounter (see
+<B><A HREF="/cgi-bin/man/man2html?5+auto.master">auto.master</A></B>(5)).
+
+These maps describe how file systems below the mount point of the map
+(given in the master map) are to be mounted.  This page describes the
+<B>sun</B>
+
+map format; if another map format, other than
+<B>amd ,</B>
+
+is specified (e.g. <B>hesiod</B>),
+this documentation does not apply.
+<P>
+Indirect maps, except for the internal hosts map, can be changed on the fly
+and the automouter will recognize those changes on the next operation it
+performs on that map. Direct maps require a HUP signal be sent to the
+daemon to refresh their contents as does the master map.
+<A NAME="lbAD">&nbsp;</A>
+<H2>SUN FORMAT</H2>
+
+This is a description of the text file format.  Other methods of specifying
+these files may exist.  All empty lines or lines beginning with # are
+ignored. The basic format of one line in such maps is:
+<P>
+
+<B>key&nbsp;</B>[<B>-options</B>]&nbsp;<B>location</B>
+
+<DL COMPACT>
+<DT id="1"><B>key</B>
+
+<DD>
+<BR>
+
+For indirect mounts this is the part of the path name between the mount point
+and the path into the filesystem when it is mounted. Usually you can think about the
+key as a sub-directory name below the autofs managed mount point.
+<P>
+For direct mounts this is the full path of each mount point. This map is always
+associated with the /- mount point in the master map. 
+<DT id="2"><B>options</B>
+
+<DD>
+<BR>
+
+Zero or more options may be given.  Options can also be given in the 
+<B>auto.master</B>
+
+file in which case both values are cumulative (this is a difference
+from SunOS).  The options are a list of comma separated options as
+customary for the
+<B><A HREF="/cgi-bin/man/man2html?8+mount">mount</A></B>(8)
+
+command.
+<P>
+There are several special options
+<DL COMPACT><DT id="3"><DD>
+<DL COMPACT>
+<DT id="4"><B>-fstype=</B>
+
+<DD>
+<BR>
+
+is used to specify a filesystem type if the filesystem is not of the default
+NFS type.  This option is processed by the automounter and not by the mount
+command.
+<DT id="5"><B>-strict</B>
+
+<DD>
+<BR>
+
+is used to treat errors when mounting file systems as fatal. This is important when
+multiple file systems should be mounted (`multi-mounts'). If this option
+is given, no file system is mounted at all if at least one file system
+can't be mounted.
+<DT id="6"><B>-use-weight-only</B>
+
+<DD>
+<BR>
+
+is used to make the weight the sole factor in selecting a server when multiple
+servers are present in a map entry.
+<DT id="7"><B>-no-use-weight-only</B>
+
+<DD>
+<BR>
+
+can be used to negate the option if it is present in the master map entry
+for the map but is not wanted for the given mount.
+</DL>
+</DL>
+
+<DT id="8"><B>location</B>
+
+<DD>
+The location specifies from where the file system is to be mounted.  In the
+most cases this will be an NFS volume and the usual notation
+<I>host:pathname</I>
+
+is used to indicate the remote filesystem and path to be mounted.  If
+the filesystem to be mounted begins with a / (such as local
+<I>/dev</I>
+
+entries or smbfs shares) a : needs to be prefixed (e.g. 
+<I>:/dev/sda1</I>).
+
+</DL>
+<A NAME="lbAE">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+Indirect map:
+<P>
+<DL COMPACT><DT id="9"><DD>
+
+
+<PRE>
+kernel    -ro,soft,intr       <A HREF="ftp://ftp.kernel.org">ftp.kernel.org</A>:/pub/linux
+boot      -fstype=ext2        :/dev/hda1
+windoze   -fstype=smbfs       ://windoze/c
+removable -fstype=ext2        :/dev/hdd
+cd        -fstype=iso9660,ro  :/dev/hdc
+floppy    -fstype=auto        :/dev/fd0
+server    -rw,hard,intr       / -ro myserver.me.org:/ \
+                              /usr myserver.me.org:/usr \
+                              /home myserver.me.org:/home
+</PRE>
+
+</DL>
+
+<P>
+In the first line we have a NFS remote mount of the kernel directory on
+<I><A HREF="ftp://ftp.kernel.org">ftp.kernel.org</A></I>.
+
+This is mounted read-only.  The second line mounts an ext2 volume from a
+local ide drive.  The third makes a share exported from a Windows
+machine available for automounting.  The rest should be fairly
+self-explanatory. The last entry (the last three lines) is an example
+of a multi-map (see below).
+<P>
+If you use the automounter for a filesystem without access permissions
+(like <B>vfat</B>), users usually can't write on such a filesystem
+because it is mounted as user <B>root</B>.
+You can solve this problem by passing the option <I>gid=&lt;gid&gt;</I>,
+e.g. <I>gid=floppy</I>. The filesystem is then mounted as group
+<B>floppy</B> instead of <B>root</B>. Then you can add the users
+to this group, and they can write to the filesystem. Here's an
+example entry for an autofs map:
+<P>
+<DL COMPACT><DT id="10"><DD>
+
+
+<PRE>
+floppy-vfat  -fstype=vfat,sync,gid=floppy,umask=002  :/dev/fd0
+</PRE>
+
+</DL>
+
+<P>
+Direct map:
+<P>
+<DL COMPACT><DT id="11"><DD>
+
+
+<PRE>
+/nfs/apps/mozilla             bogus:/usr/local/moxill
+/nfs/data/budgets             tiger:/usr/local/budgets
+/tst/sbin                     bogus:/usr/sbin
+</PRE>
+
+</DL>
+
+<P>
+<A NAME="lbAF">&nbsp;</A>
+<H2>FEATURES</H2>
+
+<A NAME="lbAG">&nbsp;</A>
+<H3>Map Key Substitution</H3>
+
+An &amp; character in the
+<B>location</B>
+
+is expanded to the value of the 
+<B>key</B>
+
+field that matched the line (which probably only makes sense together with
+a wildcard key).
+<A NAME="lbAH">&nbsp;</A>
+<H3>Wildcard Key</H3>
+
+A map key of * denotes a wild-card entry. This entry is consulted
+if the specified key does not exist in the map.  A typical wild-card
+entry looks like this:
+<P>
+<DL COMPACT><DT id="12"><DD>
+
+
+<PRE>
+*         server:/export/home/&amp;
+</PRE>
+
+</DL>
+
+<P>
+The special character '&amp;' will be replaced by the provided key.  So,
+in the example above, a lookup for the key 'foo' would yield a mount
+of server:/export/home/foo.
+<A NAME="lbAI">&nbsp;</A>
+<H3>Variable Substitution</H3>
+
+The following special variables will be substituted in the location
+field of an automounter map entry if prefixed with $ as customary
+from shell scripts (curly braces can be used to separate the field
+name):
+<P>
+<DL COMPACT><DT id="13"><DD>
+
+
+<PRE>
+ARCH           Architecture (uname -m)
+CPU            Processor Type
+HOST           Hostname (uname -n)
+OSNAME         Operating System (uname -s)
+OSREL          Release of OS (uname -r)
+OSVERS         Version of OS (uname -v)
+</PRE>
+
+</DL>
+
+<P>
+autofs provides additional variables that are set based on the
+user requesting the mount:
+<P>
+<DL COMPACT><DT id="14"><DD>
+
+
+<PRE>
+USER           The user login name
+UID            The user login ID
+GROUP          The user group name
+GID            The user group ID
+HOME           The user home directory
+SHOST          Short hostname (domain part removed if present)
+</PRE>
+
+</DL>
+
+<P>
+If a program map is used these standard environment variables will have
+a prefix of &quot;AUTOFS_&quot; to prevent interpreted languages like python from
+being able to load and execute arbitrary code from a user home directory.
+
+<P>
+Additional entries can be defined with the -Dvariable=Value map-option to
+<B><A HREF="/cgi-bin/man/man2html?8+automount">automount</A></B>(8).
+
+<A NAME="lbAJ">&nbsp;</A>
+<H3>Executable Maps</H3>
+
+A map can be marked as executable. A
+<B>program</B>
+
+map will be called with the key as an argument.  It may
+return no lines of output if there's an error, or one or more lines
+containing a map entry (with \ quoting line breaks). The map entry
+corresponds to what would normally follow a map key.
+<P>
+
+An executable map can return an error code to indicate the failure in addition
+to no output at all.  All output sent to stderr is logged into the system
+logs.
+<A NAME="lbAK">&nbsp;</A>
+<H3>Multiple Mounts</H3>
+
+A
+<B>multi-mount map</B>
+
+can be used to name multiple filesystems to mount.  It takes the form:
+<P>
+<DL COMPACT><DT id="15"><DD>
+
+
+<PRE>
+<B>key [ -options ] [[/] location [/relative-mount-point [ -options ] location...]...</B>
+</PRE>
+
+</DL>
+
+<P>
+<P>
+
+This may extend over multiple lines, quoting the line-breaks with `\'.
+If present, the per-mountpoint mount-options are appended to the
+default mount-options. This behaviour may be overridden by the append_options
+configuration setting.
+<A NAME="lbAL">&nbsp;</A>
+<H3>Replicated Server</H3>
+
+A mount location can specify multiple hosts for a location, portentially
+with a different export path for the same file system. Historically these
+different locations are read-only and provide the same replicated file system.
+<P>
+<DL COMPACT><DT id="16"><DD>
+
+
+<PRE>
+Multiple replicated hosts, same path:
+&lt;path&gt; host1,host2,hostn:/path/path
+
+Multiple hosts, some with same path, some with another
+&lt;path&gt; host1,host2:/blah host3:/some/other/path
+
+Multiple replicated hosts, different (potentially) paths:
+&lt;path&gt; host1:/path/pathA host2:/path/pathB
+
+Multiple weighted, replicated hosts same path:
+&lt;path&gt; <A HREF="/cgi-bin/man/man2html?5+host1">host1</A>(5),<A HREF="/cgi-bin/man/man2html?6+host2">host2</A>(6),<A HREF="/cgi-bin/man/man2html?1+host3">host3</A>(1):/path/path
+
+Multiple weighted, replicated hosts different (potentially) paths:
+&lt;path&gt; <A HREF="/cgi-bin/man/man2html?3+host1">host1</A>(3):/path/pathA <A HREF="/cgi-bin/man/man2html?5+host2">host2</A>(5):/path/pathB
+
+Anything else is questionable and unsupported, but these variations will also work:
+&lt;path&gt; <A HREF="/cgi-bin/man/man2html?3+host1">host1</A>(3),host:/blah
+</PRE>
+
+</DL>
+
+<A NAME="lbAM">&nbsp;</A>
+<H2>UNSUPPORTED</H2>
+
+This version of the automounter supports direct maps stored in FILE, NIS, NISPLUS
+and LDAP (including LDAP via SSS) only.
+<P>
+
+<A NAME="lbAN">&nbsp;</A>
+<H2>AMD FORMAT</H2>
+
+This is a description of the text file format. Other methods of specifying
+mount map entries may be required for different map sources.  All empty
+lines or lines beginning with # are ignored. The basic format of one
+line in such maps is:
+<P>
+
+<B>key&nbsp;location-list</B>
+
+<DL COMPACT>
+<DT id="17"><B>key</B>
+
+<DD>
+<BR>
+
+A <B>key</B> is a path (or a single path component alone) that may end
+in the wildcard key, &quot;*&quot;, or the wildcard key alone and must not begin
+with the &quot;/&quot; character.
+<DT id="18"><B>location-list</B>
+
+<DD>
+Following the <B>key</B> is a mount <B>location-list</B>.
+<DT id="19">A <B>location-list</B> list has the following syntax:<DD>
+<DT id="20"><B>location[&nbsp;location[&nbsp;...&nbsp;]]&nbsp;[||&nbsp;location[&nbsp;location[&nbsp;...&nbsp;]]</B>
+
+<DD>
+</DL>
+<P>
+
+A mount <B>location-list</B> can use the cut operator, <B>||</B>, to specify
+locations that should be tried if none of the locations to the left of it
+where selected for a mount attempt.
+<P>
+A mount <B>location</B> consists of an optional colon separated list
+of <B>selectors</B>, followed by a colon separated list of <B>option:=value</B>
+pairs.
+<P>
+The <B>selectors</B> that may be used return a value or boolean result.
+Those that return a value may be to used with the comparison
+operators <B>==</B> and <B>!=</B> and those that return a boolean result
+may be negated with the <B>!</B>.
+<P>
+For a <B>location</B> to be selected for a mount attempt all of its <B>selectors</B>
+must evaluate to true. If a <B>location</B> is selected for a mount attempt
+and succeeds the lookup is completed and returns success. If the mount
+attempt fails the procedure continues with the next <B>location</B> until
+they have all been tried.
+<P>
+In addition, some <B>selectors</B> take no arguments, some one argument
+and others optionally take two arguments.
+<P>
+The <B>selectors</B> that take no arguments are:
+<DL COMPACT><DT id="21"><DD>
+<DL COMPACT>
+<DT id="22"><B>arch</B>
+
+<DD>
+<BR>
+
+The machine architecture which, if not set in the configuration, is
+obtained using <A HREF="/cgi-bin/man/man2html?2+uname">uname</A>(2).
+<DT id="23"><B>karch</B>
+
+<DD>
+<BR>
+
+The machine kernel architecture which, if not set in the configuration,
+is obtained using <A HREF="/cgi-bin/man/man2html?2+uname">uname</A>(2).
+<DT id="24"><B>os</B>
+
+<DD>
+<BR>
+
+The operating system name, if not set in the configuration, is obtained
+using <A HREF="/cgi-bin/man/man2html?2+uname">uname</A>(2).
+<DT id="25"><B>osver</B>
+
+<DD>
+<BR>
+
+The operating system version, if not set in the configuration, is obtained
+using <A HREF="/cgi-bin/man/man2html?2+uname">uname</A>(2).
+<DT id="26"><B>full_os</B>
+
+<DD>
+<BR>
+
+The full operating system name, if not set in the configuration this selector
+has no value.
+<DT id="27"><B>vendor</B>
+
+<DD>
+<BR>
+
+The operating system vendor name, if not set in the configuration this selector
+has the value &quot;unknown&quot;.
+<DT id="28"><B>byte</B>
+
+<DD>
+<BR>
+
+The endianness of the hardware.
+<DT id="29"><B>cluster</B>
+
+<DD>
+<BR>
+
+The name of the local cluster. It has a value only if it is set in the
+configuration.
+<DT id="30"><B>autodir</B>
+
+<DD>
+<BR>
+
+The base path under which external mounts are done if they are needed.
+Most mounts are done in place but some can't be and this is the base
+path under which those mounts will be done.
+<DT id="31"><B>domain</B>
+
+<DD>
+<BR>
+
+The local domain name. It is set to the value of the configuration
+option <B>sub_domain</B>. If sub_domain is not given in the configuration
+it is set to the domain part of the local host name, as given by
+<A HREF="/cgi-bin/man/man2html?2+gethostname">gethostname</A>(2).
+<DT id="32"><B>host</B>
+
+<DD>
+<BR>
+
+The local host name, without the domain part, as given by <A HREF="/cgi-bin/man/man2html?2+gethostname">gethostname</A>(2).
+<DT id="33"><B>hostd</B>
+
+<DD>
+<BR>
+
+The full host name. If <B>sub_domain</B> is given in the configuration
+this is set to the contatenation of <B>host</B> and <B>sub_domain</B> deperated
+by a <B>.</B>. If <B>sub_domain</B> is not set in the configuration the value
+of <B>domain</B> is used instead of <B>sub_domain</B>.
+<DT id="34"><B>uid</B>
+
+<DD>
+<BR>
+
+The numeric value of the uid of the user that first requested the mount. Note
+this is usual the same as that used by amd but can be different within autofs.
+<DT id="35"><B>gid</B>
+
+<DD>
+<BR>
+
+The numeric value of the gid of the user that first requested the mount. Note
+this is usual the same as that used by amd but can be different within autofs.
+<DT id="36"><B>key</B>
+
+<DD>
+<BR>
+
+The string value of the key being looked up.
+<DT id="37"><B>map</B>
+
+<DD>
+<BR>
+
+The string value of the map name used to lookup <B>key</B>s.
+<DT id="38"><B>path</B>
+
+<DD>
+<BR>
+
+The string value of the full path to the mount being requested.
+<DT id="39"><B>dollar</B>
+
+<DD>
+<BR>
+
+Evaluates to the string &quot;$&quot;.
+</DL>
+</DL>
+
+<DL COMPACT>
+<DT id="40">The <B>selectors</B> that take one argument are:<DD>
+<DL COMPACT><DT id="41"><DD>
+<DL COMPACT>
+<DT id="42"><B>in_network(network) ,  network(network) ,  netnumber(network) ,  wire(network)</B>
+
+<DD>
+<BR>
+
+These <B>selectors</B> are all the same. <B>in_network()</B> is the
+preferred usage. The <B>network</B> argument is an address (which may include
+a subnet mask) or network name. The function compares <B>network</B>
+against each interface and returns true if <B>network</B> belongs to
+the network the interface is connected to.
+<DT id="43"><B>xhost(hostname)</B>
+
+<DD>
+<BR>
+
+The <B>xhost()</B> selector compares <B>hostname</B> to the <B>${host}</B>
+and if it doesn't match it attempts to lookup the cannonical name
+of <B>hostname</B> and compares it to {host} as well.
+<DT id="44"><B>exists(filename)</B>
+
+<DD>
+<BR>
+
+Returns true if <B>filename</B> exits as determined by <A HREF="/cgi-bin/man/man2html?2+lstat">lstat</A>(2).
+<DT id="45"><B>true()</B>
+
+<DD>
+<BR>
+
+Evaluates to true, the argument is ignored and may be empty.
+<DT id="46"><B>false()</B>
+
+<DD>
+<BR>
+
+Evaluates to false, the argument is ignored and may be empty.
+</DL>
+</DL>
+
+<DT id="47">The <B>selectors</B> that take up to two arguments are:<DD>
+<DL COMPACT><DT id="48"><DD>
+<DL COMPACT>
+<DT id="49"><B>netgrp(netgroup[,hostname])</B>
+
+<DD>
+<BR>
+
+The <B>netgrp()</B> selector returns true if hostname is a member of
+the netgroup <B>netgroup</B>. If <B>hostname</B> is not given <B>${host}</B>
+is used for the comparison.
+<DT id="50"><B>netgrpd(netgroup[,hostname])</B>
+
+<DD>
+<BR>
+
+The <B>netgrpd()i</B> selector behaves the same as <B>netgrp()</B> except
+that if <B>hostname</B> is not given <B>${hostd}</B>, the fully qualified
+hostname, is used instead of <B>${host}</B>.
+</DL>
+</DL>
+
+<DT id="51">The <B>options</B> that may be used are:<DD>
+<DL COMPACT><DT id="52"><DD>
+<DL COMPACT>
+<DT id="53"><B>type</B>
+
+<DD>
+<BR>
+
+This is the mount filesystem <B>type</B>.
+It can have a value of
+<B>auto</B>, <B>link</B>, <B>linkx</B>, <B>host</B>, <B>lofs</B>, <B>ext2-4</B>, 
+
+<B>xfs</B>, <B>nfs</B>, <B>nfsl</B> or <B>cdfs</B>.
+
+Other types that are not yet implemented or are not available in autofs are
+<B>nfsx</B>, <B>lustre</B>, <B>jfs</B>, <B>program</B>, <B>cachefs</B> and <B>direct</B>.
+
+<DT id="54"><B>maptype</B>
+
+<DD>
+<BR>
+
+The <B>maptype</B> option specifies the type of the map source and can
+have a value of <B>file</B>, <B>nis</B>, <B>nisplus</B>, <B>exec</B>, <B>ldap</B>
+or <B>hesiod</B>. Map sources either not yet implemented or not available in
+autofs are <B>sss</B>, <B>ndbm</B>, <B>passwd</B> and <B>union</B>.
+<DT id="55"><B>fs</B>
+
+<DD>
+<BR>
+
+The option <B>fs</B> is used to specify the local filesystem. The meaning of
+this option (and whether or not it is used) is dependent on the mount
+filesystem <B>type</B>.
+<DT id="56"><B>rhost</B>
+
+<DD>
+<BR>
+
+The remote host name for network mount requests.
+<DT id="57"><B>rfs</B>
+
+<DD>
+<BR>
+
+The remote host filesystem path for network mount requests.
+<DT id="58"><B>dev</B>
+
+<DD>
+<BR>
+
+Must resolve to the device file for local device mount
+requests.
+<DT id="59"><B>sublink</B>
+
+<DD>
+<BR>
+
+The <B>sublink</B> option is used to specify a subdirectory
+within the mount location to which this entry will point.
+<DT id="60"><B>pref</B>
+
+<DD>
+<BR>
+
+The <B>pref</B> option is used to specify a prefix that is
+prepended to the lookup key before looking up the map entry
+key.
+<DT id="61"><B>opts</B>
+
+<DD>
+<BR>
+
+The <B>opts</B> option is used to specify mount options to be
+used for the mount. If a &quot;<B>-</B>&quot; is given it is ignored.
+Options that may be used are dependent on the mount filesystem.
+<DT id="62"><B>addopts</B>
+
+<DD>
+<BR>
+
+The <B>addopts</B> option is used to specify additional mount
+options used in addition to the default mount options for the
+mount location.
+<DT id="63"><B>remopts</B>
+
+<DD>
+<BR>
+
+The <B>addopts</B> option is used to specify mount options used
+instead the options given in <B>opts</B> when the mount location
+is on a remote retwork.
+</DL>
+</DL>
+
+<DT id="64">A number of <B>options</B> aren't available or aren't yet implemented<DD>
+within autofs, these are:
+<DL COMPACT><DT id="65"><DD>
+<DL COMPACT>
+<DT id="66"><B>cache</B>
+
+<DD>
+<BR>
+
+The <B>cache option</B> isn't used by autofs. The map entry cache is
+continually updated and stale entries cleaned on re-load when map
+changes are detected so these configuration entries are not used.
+The <B>regex</B> map key matching is not implemented and may not be
+due to the potential overhead of the full map scans needed on every
+key lookup.
+<DT id="67"><B>cachedir</B>
+
+<DD>
+<BR>
+
+The <B>cachefs</B> filesystem is not available on Linux, a different
+implementation is used for caching network mounted file systems.
+<DT id="68"><B>mount ,  unmount ,  umount</B>
+
+<DD>
+<BR>
+
+These <B>options</B> are used by the amd <B>program</B> mount type which
+is not yet implemented.
+<DT id="69"><B>delay</B>
+
+<DD>
+<BR>
+
+This <B>option</B> is not used by the autofs implementation and is ignored.
+</DL>
+</DL>
+
+
+</DL>
+<A NAME="lbAO">&nbsp;</A>
+<H2>FEATURES</H2>
+
+<A NAME="lbAP">&nbsp;</A>
+<H3>Key Matching</H3>
+
+The amd parser key matching is unusual.
+<P>
+The key string to be looked up is constructed by prepending the prefix, if
+there is one.
+<P>
+The resulting relative path string is matched by first trying the sting
+itself. If no match is found the last component of the key string is
+replaced with the wildcard match character (&quot;*&quot;) and a wildcard match is
+attempted. This process continues until a match is found or until the
+last match, against the wildcard match key alone, fails to match a map
+entry and the key lookup fails.
+<A NAME="lbAQ">&nbsp;</A>
+<H3>Macro Usage</H3>
+
+Macros are used a lot in the autofs amd implementation.
+<P>
+Many of the option values are set as macro variables corresponding to the
+option name during the map entry parse. So they may be used in subsequent
+option values. Beware though, the order in which option values is not
+necessarily left to right so you may get unexpected results.
+
+<A NAME="lbAR">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+Example NFS mount map:
+<P>
+
+Assuming we have the autofs master map entry:
+<P>
+<DL COMPACT><DT id="70"><DD>
+
+
+<PRE>
+/test     file,amd:/etc/amd.test
+</PRE>
+
+</DL>
+
+<P>
+And the following map in /etc/amd.test:
+<P>
+<DL COMPACT><DT id="71"><DD>
+
+
+<PRE>
+/defaults type:=nfs;rhost:=bilbo
+apps      rfs:=/autofs
+util      rhost:=zeus;rfs:=/work/util
+local     rfs:=/shared;sublink:=local
+</PRE>
+
+</DL>
+
+<P>
+In the first line we have an NFS remote mount of the exported directory
+/autofs from host bilbo which would be mounted on /test/apps. Next
+another nfs mount for the exported directory /work/util from host zeus.
+This would be mounted on /test/util.
+<P>
+Finally, we have an example of the use of the <B>sublink</B> option. In
+this case the filesystem bilbo:/shared would be mounted on a path
+external the automount directory (under the directory given by
+configuration option auto_dir) and the path /test/local either
+symlinked or bind mounted (depending on the setting autofs_use_lofs)
+to the &quot;local&quot; subdirectory of the external mount.
+
+<A NAME="lbAS">&nbsp;</A>
+<H2>NOTES</H2>
+
+To be able to use IPv6 within autofs maps the package must be build
+to use the libtirpc library for its RPC communications. This is
+because the glibc RPC implementation doesn't support IPv6 and is
+deprecated so this is not likely to change.
+
+<A NAME="lbAT">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?8+automount">automount</A></B>(8),
+
+<B><A HREF="/cgi-bin/man/man2html?5+auto.master">auto.master</A></B>(5),
+
+<B><A HREF="/cgi-bin/man/man2html?8+autofs">autofs</A></B>(8),
+
+<B><A HREF="/cgi-bin/man/man2html?5+autofs.conf">autofs.conf</A></B>(5),
+
+<B><A HREF="/cgi-bin/man/man2html?8+mount">mount</A></B>(8),
+
+<B><A HREF="/cgi-bin/man/man2html?5+autofs_ldap_auth.conf">autofs_ldap_auth.conf</A></B>(5).
+
+<A NAME="lbAU">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+This manual page was written by Christoph Lameter &lt;<A HREF="mailto:chris@waterf.org">chris@waterf.org</A>&gt;,
+for the Debian GNU/Linux system.  Edited by H. Peter Avian
+&lt;<A HREF="mailto:hpa@transmeta.com">hpa@transmeta.com</A>&gt;, Jeremy Fitzhardinge &lt;<A HREF="mailto:jeremy@goop.org">jeremy@goop.org</A>&gt; and
+Ian Kent &lt;<A HREF="mailto:raven@themaw.net">raven@themaw.net</A>&gt;.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="72"><A HREF="#lbAB">NAME</A><DD>
+<DT id="73"><A HREF="#lbAC">DESCRIPTION</A><DD>
+<DT id="74"><A HREF="#lbAD">SUN FORMAT</A><DD>
+<DT id="75"><A HREF="#lbAE">EXAMPLE</A><DD>
+<DT id="76"><A HREF="#lbAF">FEATURES</A><DD>
+<DL>
+<DT id="77"><A HREF="#lbAG">Map Key Substitution</A><DD>
+<DT id="78"><A HREF="#lbAH">Wildcard Key</A><DD>
+<DT id="79"><A HREF="#lbAI">Variable Substitution</A><DD>
+<DT id="80"><A HREF="#lbAJ">Executable Maps</A><DD>
+<DT id="81"><A HREF="#lbAK">Multiple Mounts</A><DD>
+<DT id="82"><A HREF="#lbAL">Replicated Server</A><DD>
+</DL>
+<DT id="83"><A HREF="#lbAM">UNSUPPORTED</A><DD>
+<DT id="84"><A HREF="#lbAN">AMD FORMAT</A><DD>
+<DT id="85"><A HREF="#lbAO">FEATURES</A><DD>
+<DL>
+<DT id="86"><A HREF="#lbAP">Key Matching</A><DD>
+<DT id="87"><A HREF="#lbAQ">Macro Usage</A><DD>
+</DL>
+<DT id="88"><A HREF="#lbAR">EXAMPLE</A><DD>
+<DT id="89"><A HREF="#lbAS">NOTES</A><DD>
+<DT id="90"><A HREF="#lbAT">SEE ALSO</A><DD>
+<DT id="91"><A HREF="#lbAU">AUTHOR</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:02 GMT, March 31, 2021
+</BODY>
+</HTML>

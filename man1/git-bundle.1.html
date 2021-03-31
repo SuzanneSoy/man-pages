@@ -1,0 +1,387 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of GIT-BUNDLE</TITLE>
+</HEAD><BODY>
+<H1>GIT-BUNDLE</H1>
+Section: Git Manual (1)<BR>Updated: 03/04/2021<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+git-bundle - Move objects and refs by archive
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+<PRE>
+<I>git bundle</I> create [-q | --quiet | --progress | --all-progress] [--all-progress-implied] &lt;file&gt; &lt;git-rev-list-args&gt;
+<I>git bundle</I> verify [-q | --quiet] &lt;file&gt;
+<I>git bundle</I> list-heads &lt;file&gt; [&lt;refname&gt;...]
+<I>git bundle</I> unbundle &lt;file&gt; [&lt;refname&gt;...]
+</PRE>
+
+<P>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+Some workflows require that one or more branches of development on one machine be replicated on another machine, but the two machines cannot be directly connected, and therefore the interactive Git protocols (git, ssh, http) cannot be used.
+<P>
+The <I>git bundle</I> command packages objects and references in an archive at the originating machine, which can then be imported into another repository using <I>git fetch</I>, <I>git pull</I>, or <I>git clone</I>, after moving the archive by some means (e.g., by sneakernet).
+<P>
+As no direct connection between the repositories exists, the user must specify a basis for the bundle that is held by the destination repository: the bundle assumes that all objects in the basis are already in the destination repository.
+<A NAME="lbAE">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<P>
+
+create [options] &lt;file&gt; &lt;git-rev-list-args&gt;
+<DL COMPACT><DT id="1"><DD>
+Used to create a bundle named
+<I>file</I>. This requires the
+<I>&lt;git-rev-list-args&gt;</I>
+arguments to define the bundle contents.
+<I>options</I>
+contains the options specific to the
+<I>git bundle create</I>
+subcommand.
+</DL>
+
+<P>
+
+verify &lt;file&gt;
+<DL COMPACT><DT id="2"><DD>
+Used to check that a bundle file is valid and will apply cleanly to the current repository. This includes checks on the bundle format itself as well as checking that the prerequisite commits exist and are fully linked in the current repository.
+<I>git bundle</I>
+prints a list of missing commits, if any, and exits with a non-zero status.
+</DL>
+
+<P>
+
+list-heads &lt;file&gt;
+<DL COMPACT><DT id="3"><DD>
+Lists the references defined in the bundle. If followed by a list of references, only references matching those given are printed out.
+</DL>
+
+<P>
+
+unbundle &lt;file&gt;
+<DL COMPACT><DT id="4"><DD>
+Passes the objects in the bundle to
+<I>git index-pack</I>
+for storage in the repository, then prints the names of all defined references. If a list of references is given, only references matching those in the list are printed. This command is really plumbing, intended to be called only by
+<I>git fetch</I>.
+</DL>
+
+<P>
+
+&lt;git-rev-list-args&gt;
+<DL COMPACT><DT id="5"><DD>
+A list of arguments, acceptable to
+<I>git rev-parse</I>
+and
+<I>git rev-list</I>
+(and containing a named ref, see SPECIFYING REFERENCES below), that specifies the specific objects and references to transport. For example,
+<B>master~10..master</B>
+causes the current master reference to be packaged along with all objects added since its 10th ancestor commit. There is no explicit limit to the number of references and objects that may be packaged.
+</DL>
+
+<P>
+
+[&lt;refname&gt;...]
+<DL COMPACT><DT id="6"><DD>
+A list of references used to limit the references reported as available. This is principally of use to
+<I>git fetch</I>, which expects to receive only those references asked for and not necessarily everything in the pack (in this case,
+<I>git bundle</I>
+acts like
+<I>git fetch-pack</I>).
+</DL>
+
+<P>
+
+--progress
+<DL COMPACT><DT id="7"><DD>
+Progress status is reported on the standard error stream by default when it is attached to a terminal, unless -q is specified. This flag forces progress status even if the standard error stream is not directed to a terminal.
+</DL>
+
+<P>
+
+--all-progress
+<DL COMPACT><DT id="8"><DD>
+When --stdout is specified then progress report is displayed during the object count and compression phases but inhibited during the write-out phase. The reason is that in some cases the output stream is directly linked to another command which may wish to display progress status of its own as it processes incoming pack data. This flag is like --progress except that it forces progress report for the write-out phase as well even if --stdout is used.
+</DL>
+
+<P>
+
+--all-progress-implied
+<DL COMPACT><DT id="9"><DD>
+This is used to imply --all-progress whenever progress display is activated. Unlike --all-progress this flag doesn't actually force any progress display by itself.
+</DL>
+
+<P>
+
+-q, --quiet
+<DL COMPACT><DT id="10"><DD>
+This flag makes the command not to report its progress on the standard error stream.
+</DL>
+
+<A NAME="lbAF">&nbsp;</A>
+<H2>SPECIFYING REFERENCES</H2>
+
+<P>
+<I>git bundle</I> will only package references that are shown by <I>git show-ref</I>: this includes heads, tags, and remote heads. References such as <B>master~1</B> cannot be packaged, but are perfectly suitable for defining the basis. More than one reference may be packaged, and more than one basis can be specified. The objects packaged are those not contained in the union of the given bases. Each basis can be specified explicitly (e.g. <B>^master~10</B>), or implicitly (e.g. <B>master~10..master</B>, <B>--since=10.days.ago master</B>).
+<P>
+It is very important that the basis used be held by the destination. It is okay to err on the side of caution, causing the bundle file to contain objects already in the destination, as these are ignored when unpacking at the destination.
+<P>
+<B>git clone</B> can use any bundle created without negative refspecs (e.g., <B>new</B>, but not <B>old..new</B>). If you want to match <B>git clone --mirror</B>, which would include your refs such as <B>refs/remotes/*</B>, use <B>--all</B>. If you want to provide the same set of refs that a clone directly from the source repository would get, use <B>--branches --tags</B> for the <B>&lt;git-rev-list-args&gt;</B>.
+<A NAME="lbAG">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+<P>
+Assume you want to transfer the history from a repository R1 on machine A to another repository R2 on machine B. For whatever reason, direct connection between A and B is not allowed, but we can move data from A to B via some mechanism (CD, email, etc.). We want to update R2 with development made on the branch master in R1.
+<P>
+To bootstrap the process, you can first create a bundle that does not have any basis. You can use a tag to remember up to what commit you last processed, in order to make it easy to later update the other repository with an incremental bundle:
+<P>
+<DL COMPACT><DT id="11"><DD>
+
+
+
+<PRE>
+machineA$ cd R1
+machineA$ git bundle create file.bundle master
+machineA$ git tag -f lastR2bundle master
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+Then you transfer file.bundle to the target machine B. Because this bundle does not require any existing object to be extracted, you can create a new repository on machine B by cloning from it:
+<P>
+<DL COMPACT><DT id="12"><DD>
+
+
+
+<PRE>
+machineB$ git clone -b master /home/me/tmp/file.bundle R2
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+This will define a remote called &quot;origin&quot; in the resulting repository that lets you fetch and pull from the bundle. The $GIT_DIR/config file in R2 will have an entry like this:
+<P>
+<DL COMPACT><DT id="13"><DD>
+
+
+
+<PRE>
+[remote &quot;origin&quot;]
+    url = /home/me/tmp/file.bundle
+    fetch = refs/heads/*:refs/remotes/origin/*
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+To update the resulting mine.git repository, you can fetch or pull after replacing the bundle stored at /home/me/tmp/file.bundle with incremental updates.
+<P>
+After working some more in the original repository, you can create an incremental bundle to update the other repository:
+<P>
+<DL COMPACT><DT id="14"><DD>
+
+
+
+<PRE>
+machineA$ cd R1
+machineA$ git bundle create file.bundle lastR2bundle..master
+machineA$ git tag -f lastR2bundle master
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+You then transfer the bundle to the other machine to replace /home/me/tmp/file.bundle, and pull from it.
+<P>
+<DL COMPACT><DT id="15"><DD>
+
+
+
+<PRE>
+machineB$ cd R2
+machineB$ git pull
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+If you know up to what commit the intended recipient repository should have the necessary objects, you can use that knowledge to specify the basis, giving a cut-off point to limit the revisions and objects that go in the resulting bundle. The previous example used the lastR2bundle tag for this purpose, but you can use any other options that you would give to the <B><A HREF="/cgi-bin/man/man2html?1+git-log">git-log</A></B>(1) command. Here are more examples:
+<P>
+You can use a tag that is present in both:
+<P>
+<DL COMPACT><DT id="16"><DD>
+
+
+
+<PRE>
+$ git bundle create mybundle v1.0.0..master
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+You can use a basis based on time:
+<P>
+<DL COMPACT><DT id="17"><DD>
+
+
+
+<PRE>
+$ git bundle create mybundle --since=10.days master
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+You can use the number of commits:
+<P>
+<DL COMPACT><DT id="18"><DD>
+
+
+
+<PRE>
+$ git bundle create mybundle -10 master
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+You can run <B>git-bundle verify</B> to see if you can extract from a bundle that was created with a basis:
+<P>
+<DL COMPACT><DT id="19"><DD>
+
+
+
+<PRE>
+$ git bundle verify mybundle
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+This will list what commits you must have in order to extract from the bundle and will error out if you do not have them.
+<P>
+A bundle from a recipient repository's point of view is just like a regular repository which it fetches or pulls from. You can, for example, map references when fetching:
+<P>
+<DL COMPACT><DT id="20"><DD>
+
+
+
+<PRE>
+$ git fetch mybundle master:localRef
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+You can also see what references it offers:
+<P>
+<DL COMPACT><DT id="21"><DD>
+
+
+
+<PRE>
+$ git ls-remote mybundle
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<A NAME="lbAH">&nbsp;</A>
+<H2>GIT</H2>
+
+<P>
+Part of the <B><A HREF="/cgi-bin/man/man2html?1+git">git</A></B>(1) suite
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="22"><A HREF="#lbAB">NAME</A><DD>
+<DT id="23"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="24"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="25"><A HREF="#lbAE">OPTIONS</A><DD>
+<DT id="26"><A HREF="#lbAF">SPECIFYING REFERENCES</A><DD>
+<DT id="27"><A HREF="#lbAG">EXAMPLES</A><DD>
+<DT id="28"><A HREF="#lbAH">GIT</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:13 GMT, March 31, 2021
+</BODY>
+</HTML>

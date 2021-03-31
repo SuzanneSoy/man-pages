@@ -1,0 +1,335 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of GIT-CHECK-REF-FOR</TITLE>
+</HEAD><BODY>
+<H1>GIT-CHECK-REF-FOR</H1>
+Section: Git Manual (1)<BR>Updated: 03/04/2021<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+git-check-ref-format - Ensures that a reference name is well formed
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+<PRE>
+<I>git check-ref-format</I> [--normalize]
+       [--[no-]allow-onelevel] [--refspec-pattern]
+       &lt;refname&gt;
+<I>git check-ref-format</I> --branch &lt;branchname-shorthand&gt;
+</PRE>
+
+<P>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+Checks if a given <I>refname</I> is acceptable, and exits with a non-zero status if it is not.
+<P>
+A reference is used in Git to specify branches and tags. A branch head is stored in the <B>refs/heads</B> hierarchy, while a tag is stored in the <B>refs/tags</B> hierarchy of the ref namespace (typically in <B>$GIT_DIR/refs/heads</B> and <B>$GIT_DIR/refs/tags</B> directories or, as entries in file <B>$GIT_DIR/packed-refs</B> if refs are packed by <B>git gc</B>).
+<P>
+Git imposes the following rules on how references are named:
+<P>
+<DL COMPACT><DT id="1"><DD>
+ 1.
+
+
+They can include slash
+<B>/</B>
+for hierarchical (directory) grouping, but no slash-separated component can begin with a dot
+<B>.</B>
+or end with the sequence
+<B>.lock</B>.
+</DL>
+
+<P>
+<DL COMPACT><DT id="2"><DD>
+ 2.
+
+
+They must contain at least one
+<B>/</B>. This enforces the presence of a category like
+<B>heads/</B>,
+<B>tags/</B>
+etc. but the actual names are not restricted. If the
+<B>--allow-onelevel</B>
+option is used, this rule is waived.
+</DL>
+
+<P>
+<DL COMPACT><DT id="3"><DD>
+ 3.
+
+
+They cannot have two consecutive dots
+<B>..</B>
+anywhere.
+</DL>
+
+<P>
+<DL COMPACT><DT id="4"><DD>
+ 4.
+
+
+They cannot have ASCII control characters (i.e. bytes whose values are lower than \040, or \177
+<B>DEL</B>), space, tilde
+<B>~</B>, caret
+<B>^</B>, or colon
+<B>:</B>
+anywhere.
+</DL>
+
+<P>
+<DL COMPACT><DT id="5"><DD>
+ 5.
+
+
+They cannot have question-mark
+<B>?</B>, asterisk
+<B>*</B>, or open bracket
+<B>[</B>
+anywhere. See the
+<B>--refspec-pattern</B>
+option below for an exception to this rule.
+</DL>
+
+<P>
+<DL COMPACT><DT id="6"><DD>
+ 6.
+
+
+They cannot begin or end with a slash
+<B>/</B>
+or contain multiple consecutive slashes (see the
+<B>--normalize</B>
+option below for an exception to this rule)
+</DL>
+
+<P>
+<DL COMPACT><DT id="7"><DD>
+ 7.
+
+
+They cannot end with a dot
+<B>.</B>.
+</DL>
+
+<P>
+<DL COMPACT><DT id="8"><DD>
+ 8.
+
+
+They cannot contain a sequence
+<B>@{</B>.
+</DL>
+
+<P>
+<DL COMPACT><DT id="9"><DD>
+ 9.
+
+
+They cannot be the single character
+<B>@</B>.
+</DL>
+
+<P>
+<DL COMPACT><DT id="10"><DD>
+10.
+
+
+They cannot contain a
+<B>\</B>.
+</DL>
+
+<P>
+These rules make it easy for shell script based tools to parse reference names, pathname expansion by the shell when a reference name is used unquoted (by mistake), and also avoid ambiguities in certain reference name expressions (see <B><A HREF="/cgi-bin/man/man2html?7+gitrevisions">gitrevisions</A></B>(7)):
+<P>
+<DL COMPACT><DT id="11"><DD>
+ 1.
+
+
+A double-dot
+<B>..</B>
+is often used as in
+<B>ref1..ref2</B>, and in some contexts this notation means
+<B>^ref1 ref2</B>
+(i.e. not in
+<B>ref1</B>
+and in
+<B>ref2</B>).
+</DL>
+
+<P>
+<DL COMPACT><DT id="12"><DD>
+ 2.
+
+
+A tilde
+<B>~</B>
+and caret
+<B>^</B>
+are used to introduce the postfix
+<I>nth parent</I>
+and
+<I>peel onion</I>
+operation.
+</DL>
+
+<P>
+<DL COMPACT><DT id="13"><DD>
+ 3.
+
+
+A colon
+<B>:</B>
+is used as in
+<B>srcref:dstref</B>
+to mean &quot;use srcref's value and store it in dstref&quot; in fetch and push operations. It may also be used to select a specific object such as with
+<I>git cat-file</I>: &quot;git cat-file blob v1.3.3:refs.c&quot;.
+</DL>
+
+<P>
+<DL COMPACT><DT id="14"><DD>
+ 4.
+
+
+at-open-brace
+<B>@{</B>
+is used as a notation to access a reflog entry.
+</DL>
+
+<P>
+With the <B>--branch</B> option, the command takes a name and checks if it can be used as a valid branch name (e.g. when creating a new branch). But be cautious when using the previous checkout syntax that may refer to a detached HEAD state. The rule <B>git check-ref-format --branch $name</B> implements may be stricter than what <B>git check-ref-format refs/heads/$name</B> says (e.g. a dash may appear at the beginning of a ref component, but it is explicitly forbidden at the beginning of a branch name). When run with <B>--branch</B> option in a repository, the input is first expanded for the "previous checkout syntax" <B>@{-n}</B>. For example, <B>@{-1}</B> is a way to refer the last thing that was checked out using &quot;git switch&quot; or &quot;git checkout&quot; operation. This option should be used by porcelains to accept this syntax anywhere a branch name is expected, so they can act as if you typed the branch name. As an exception note that, the "previous checkout operation" might result in a commit object name when the N-th last thing checked out was not a branch.
+<A NAME="lbAE">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<P>
+
+--[no-]allow-onelevel
+<DL COMPACT><DT id="15"><DD>
+Controls whether one-level refnames are accepted (i.e., refnames that do not contain multiple
+<B>/</B>-separated components). The default is
+<B>--no-allow-onelevel</B>.
+</DL>
+
+<P>
+
+--refspec-pattern
+<DL COMPACT><DT id="16"><DD>
+Interpret &lt;refname&gt; as a reference name pattern for a refspec (as used with remote repositories). If this option is enabled, &lt;refname&gt; is allowed to contain a single
+<B>*</B>
+in the refspec (e.g.,
+<B>foo/bar*/baz</B>
+or
+<B>foo/bar*baz/</B>
+but not
+<B>foo/bar*/baz*</B>).
+</DL>
+
+<P>
+
+--normalize
+<DL COMPACT><DT id="17"><DD>
+Normalize
+<I>refname</I>
+by removing any leading slash (<B>/</B>) characters and collapsing runs of adjacent slashes between name components into a single slash. If the normalized refname is valid then print it to standard output and exit with a status of 0, otherwise exit with a non-zero status. (<B>--print</B>
+is a deprecated way to spell
+<B>--normalize</B>.)
+</DL>
+
+<A NAME="lbAF">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+<P>
+<DL COMPACT><DT id="18"><DD>
+&bull;
+
+
+Print the name of the previous thing checked out:
+<P>
+<DL COMPACT><DT id="19"><DD>
+
+
+
+<PRE>
+$ git check-ref-format --branch @{-1}
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+</DL>
+
+<P>
+<DL COMPACT><DT id="20"><DD>
+&bull;
+
+
+Determine the reference name to use for a new branch:
+<P>
+<DL COMPACT><DT id="21"><DD>
+
+
+
+<PRE>
+$ ref=$(git check-ref-format --normalize &quot;refs/heads/$newbranch&quot;)||
+{ echo &quot;we do not like '$newbranch' as a branch name.&quot; &gt;&amp;2 ; exit 1 ; }
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+</DL>
+
+<A NAME="lbAG">&nbsp;</A>
+<H2>GIT</H2>
+
+<P>
+Part of the <B><A HREF="/cgi-bin/man/man2html?1+git">git</A></B>(1) suite
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="22"><A HREF="#lbAB">NAME</A><DD>
+<DT id="23"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="24"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="25"><A HREF="#lbAE">OPTIONS</A><DD>
+<DT id="26"><A HREF="#lbAF">EXAMPLES</A><DD>
+<DT id="27"><A HREF="#lbAG">GIT</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:13 GMT, March 31, 2021
+</BODY>
+</HTML>

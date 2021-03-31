@@ -1,0 +1,1135 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of APT_PREFERENCES</TITLE>
+</HEAD><BODY>
+<H1>APT_PREFERENCES</H1>
+Section: APT (5)<BR>Updated: 17&nbsp;1 月&nbsp;2020<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>名前</H2>
+
+apt_preferences - APT 用選択制御ファイル
+<A NAME="lbAC">&nbsp;</A>
+<H2>説明</H2>
+
+<P>
+
+APT プリファレンスファイル
+/etc/apt/preferences
+と
+/etc/apt/preferences.d/
+フォルダにある断片ファイルは、インストールするパッケージのバージョンを制御するのに使用します。
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?5+sources.list">sources.list</A></B>(5)
+ファイルに複数のディストリビューション (stable
+と
+testing
+など) が指定されていて、パッケージに対し複数のバージョンがインストールできることがあります。このとき APT は、利用できるバージョンごとに優先度を割り当てます。依存関係規則を条件として、<B>apt-get</B>
+は、最も高い優先度を持つバージョンをインストールするよう選択します。APT プリファレンスファイルは、APT がデフォルトで割り当てた、パッケージのバージョンの優先度を上書きします。その結果インストールするものの選択を、ユーザが選択できるようになります。
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?5+sources.list">sources.list</A></B>(5)
+ファイルに複数の参照が書かれている場合、パッケージの同じバージョンのインスタンスが複数利用できる可能性があります。この場合、<B>apt-get</B>
+は
+<B><A HREF="/cgi-bin/man/man2html?5+sources.list">sources.list</A></B>(5)
+ファイルの初めの方に指定されているところからダウンロードします。APT プリファレンスファイルはバージョンの選択にのみ影響し、インスタンスの選択には影響しません。
+<P>
+
+プリファレンスファイルは、システム管理者の強い力ですが、注意して使わないと大きな悪夢にもなります! APT はプリファレンスについて問い合わせることはしません。そのため、設定を誤ったことにより、インストールできないパッケージに誘導されたり、パッケージのアップグレード中に誤った判断をしたりという事がありえます。以降の段落の内容をよく理解しないで、複数のディストリビューションリリースを混ぜてしまうと、より多くの問題が発生する事になります。特定のリリースに含まれるパッケージは、古い/新しいリリースや、異なるリリースから持ってきた他のパッケージとでは、テストされていません (し、予想通りに常に動作するとは限りません)。以上、警告しました。
+<P>
+
+/etc/apt/preferences.d
+ディレクトリにあるファイルは、英数字の昇順で解析され、以下の命名規約に従う必要があることに注意してください。ファイル名の拡張子はないか、&quot;pref&quot; となっており、英数字、ハイフン (-)、アンダースコア (_)、ピリオド (.) でできています。そうでなければ、Dir::Ignore-Files-Silently
+設定リストのパターンに一致するもの以外に対して、ファイルを無視するという注意を APT が出力します。一致する場合は黙って無視します。
+<A NAME="lbAD">&nbsp;</A>
+<H3>APT のデフォルト優先度の割り当て</H3>
+
+<P>
+
+プリファレンスファイルがなかったり、プリファレンスファイルに特定のパッケージを割り当てるエントリがない場合、そのバージョンの優先度は、そのバージョンが属しているディストリビューションの優先度となります。デフォルトで他のディストリビューションより高い優先度を持つ、特定のディストリビューションを「ターゲットリリース」としておけます。ターゲットリリースは、<B>apt-get</B>
+のコマンドラインや、APT 設定ファイル
+/etc/apt/apt.conf
+で設定できます。後述する
+/etc/apt/preferences
+ファイルで設定した一般優先度よりもこれは優先されますが、pin 止めしたパッケージには及ばないことに注意してください。例えば以下のようになります。
+<P>
+<DL COMPACT><DT id="1"><DD>
+
+
+
+<PRE>
+<B>apt-get install -t testing </B><B></B><I>some-package</I>
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+<P>
+<DL COMPACT><DT id="2"><DD>
+
+
+
+<PRE>
+APT::Default-Release &quot;stable&quot;;
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+ターゲットリリースが指定されると、APT は以下のアルゴリズムで、パッケージのバージョンの優先度を設定します。以下のように割り当てます。
+<P>
+
+優先度 1
+<DL COMPACT><DT id="3"><DD>
+Debian の
+experimental
+アーカイブのように、Release
+ファイルに &quot;NotAutomatic: yes&quot; とマークされ、&quot;ButAutomaticUpgrades: yes&quot; とマークされて<I>いない</I>アーカイブ由来のバージョン。
+</DL>
+
+<P>
+
+優先度 100
+<DL COMPACT><DT id="4"><DD>
+(もしあれば) 既にインストール済みのバージョンや、squeeze-backports
+以降である Debian のバックポートアーカイブのような、Release
+ファイルに &quot;NotAutomatic: yes&quot; かつ &quot;ButAutomaticUpgrades: yes&quot; とマークされているアーカイブ由来のバージョン。
+</DL>
+
+<P>
+
+優先度 500
+<DL COMPACT><DT id="5"><DD>
+ターゲットリリースに属していないバージョン。
+</DL>
+
+<P>
+
+優先度 990
+<DL COMPACT><DT id="6"><DD>
+ターゲットリリースに属するバージョン。
+</DL>
+
+説明がバージョンとマッチし、優先順位が最も高いものがバージョンに割り当てられます。
+<P>
+
+ターゲットリリースが指定されていなければ、APT は単純にインストールしているパッケージのバージョンには優先度 100 を、インストールしていないパッケージのバージョンには優先度 500 を割り当てます。ただし、Release
+ファイルに &quot;NotAutomatic: yes&quot; とマークされたアーカイブ由来のバージョンは違います。こういったバージョンでは優先度 1 を割り当て、さらに &quot;ButAutomaticUpgrades: yes&quot; とマークされている場合には、優先度 100 を割り当てます。
+<P>
+
+APT は、インストールするパッケージのバージョンを決定するために、以下のルールを上から順番に適用します。
+<P>
+<DL COMPACT><DT id="7"><DD>
+&bull;
+
+
+有効なバージョンの優先度が 1000 を越えない場合、決してダウングレードしません。(「ダウングレード」は、現在のパッケージのバージョンよりも、小さいバージョンのものをインストールします。APT のデフォルト優先度が 1000 を越えないことに注意してください。そのような優先度は、プリファレンスファイルでのみ設定できます。また、パッケージのダウングレードは危険であることにも注意してください)
+</DL>
+
+<P>
+<DL COMPACT><DT id="8"><DD>
+&bull;
+
+
+最も高い優先度のバージョンをインストールします。
+</DL>
+
+<P>
+<DL COMPACT><DT id="9"><DD>
+&bull;
+
+
+同じ優先度のバージョンが複数存在する場合、最も新しいもの (最もバージョン番号が高いもの) をインストールします。
+</DL>
+
+<P>
+<DL COMPACT><DT id="10"><DD>
+&bull;
+
+
+優先度・バージョン番号が同じものが複数存在し、そのパッケージのメタデータが異なるか
+--reinstall
+オプションが与えられている場合、インストールされていないものをインストールします。
+</DL>
+
+<P>
+
+よくある状況として、あるインストールされているパッケージのバージョン (優先度 100) が、<B><A HREF="/cgi-bin/man/man2html?5+sources.list">sources.list</A></B>(5)
+ファイルのリストから得られるバージョン (優先度 500 か 990) よりも新しくないということがあります。この場合、<B>apt-get install </B><B></B><I>some-package</I>
+や
+<B>apt-get upgrade</B>
+を実行するとパッケージが更新されます。
+<P>
+
+まれに、インストールされているパッケージのバージョンが、<I>他の有効なバージョンよりも</I>新しい場合があります。この時
+<B>apt-get install </B><B></B><I>some-package</I>
+や
+<B>apt-get upgrade</B>
+を実行しても、ダウングレードしません。
+<P>
+
+時々、インストールしているパッケージのバージョンが、ターゲットリリースに属するバージョンよりも新しく、他のディストリビューションよりも古い場合があります。そのようなパッケージに対して
+<B>apt-get install </B><B></B><I>some-package</I>
+や
+<B>apt-get upgrade</B>
+を実行すると、パッケージは更新されます。この場合、インストールされているバージョンよりも、少なくとも<I>ひとつ</I>は、高い優先度を持つ有効なパッケージがあるからです。
+<A NAME="lbAE">&nbsp;</A>
+<H3>APT プリファレンスファイルの効果</H3>
+
+<P>
+
+APT プリファレンスファイルを使うと、システム管理者が優先度を割り当てられるようになります。ファイルは、空白行で区切られた、複数行からなるレコードで構成されています。レコードは特定形式か、汎用形式のどちらかの形式をとります。
+<P>
+<DL COMPACT><DT id="11"><DD>
+&bull;
+
+
+特定形式は、優先度 (&quot;Pin-Priority&quot;) を、指定したバージョンやバージョン範囲の、指定したパッケージについて割り当てます。例えば以下のレコードは、バージョン番号が &quot;5.20&quot; で始まる
+perl
+パッケージを、高い優先度に設定します。空白で区切り、複数のパッケージを指定できます。
+<P>
+<DL COMPACT><DT id="12"><DD>
+
+
+
+<PRE>
+Package: perl
+Pin: version 5.20*
+Pin-Priority: 1001
+</PRE>
+
+</DL>
+
+
+
+
+</DL>
+
+<P>
+<DL COMPACT><DT id="13"><DD>
+&bull;
+
+
+汎用形式は、与えられたディストリビューションにある、すべてのパッケージ (Release
+ファイルに列挙したパッケージ) の優先度や、FQDNで指定した、特定のインターネットサイトから取得するパッケージの優先度を割り当てます。
+<P>
+APT プリファレンスファイルに書かれている汎用形式のエントリは、パッケージのグループについてのみ適用されます。例えば以下のレコードは、ローカルサイトにある全パッケージについて、高い優先度を割り当てます。
+<P>
+<DL COMPACT><DT id="14"><DD>
+
+
+
+<PRE>
+Package: *
+Pin: origin &quot;&quot;
+Pin-Priority: 999
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+注意: ここで使われるキーワードは、ホスト名にマッチするのに使われる &quot;origin&quot; です。以下のレコードは、ホスト名が &quot;<A HREF="ftp://ftp.de.debian.org">ftp.de.debian.org</A>&quot; で識別されるサーバ由来のすべてのバージョンに、高い優先度を割り当てます。
+<P>
+<DL COMPACT><DT id="15"><DD>
+
+
+
+<PRE>
+Package: *
+Pin: origin &quot;<A HREF="ftp://ftp.de.debian.org">ftp.de.debian.org</A>&quot;
+Pin-Priority: 999
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+Release
+ファイルに指定されたような、ディストリビューションの Origin と
+<I>混同しない</I>ようにしてください。Release
+ファイルにある &quot;Origin:&quot; タグは、インターネットアドレスではなく、&quot;Debian&quot; や &quot;Ximian&quot; といった作者やベンダ名です。
+<P>
+以下のレコードは、アーカイブ名が &quot;unstable&quot; となっているディストリビューションに属するパッケージを、すべて低い優先度に割り当てます。
+<P>
+<DL COMPACT><DT id="16"><DD>
+
+
+
+<PRE>
+Package: *
+Pin: release a=unstable
+Pin-Priority: 50
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+以下のレコードは、コード名が &quot;bullseye&quot; となっているディストリビューションに属するパッケージのバージョンを、高い優先度に割り当てます。
+<P>
+<DL COMPACT><DT id="17"><DD>
+
+
+
+<PRE>
+Package: *
+Pin: release n=bullseye
+Pin-Priority: 900
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+以下のレコードは、アーカイブ名が &quot;stable&quot; で、リリースバージョン番号が &quot;10&quot; となっているリリースに属するパッケージを、すべて高い優先度に割り当てます。
+<P>
+<DL COMPACT><DT id="18"><DD>
+
+
+
+<PRE>
+Package: *
+Pin: release a=stable, v=10
+Pin-Priority: 500
+</PRE>
+
+</DL>
+
+
+
+
+</DL>
+
+<P>
+コンマ演算子の効果は &quot;and&quot; 論理に似ています: ピンが一致するようにすべての条件がピンが一致しなければなりません。一つの例外があります: 条件のいずれかの型では (例えば、二つの &quot;a&quot; 条件)、ただ最後の条件のみがチェックされます。
+<A NAME="lbAF">&nbsp;</A>
+<H3>正規表現と <A HREF="/cgi-bin/man/man2html?7+glob">glob</A>(7) 構文</H3>
+
+<P>
+
+APT は
+<B><A HREF="/cgi-bin/man/man2html?7+glob">glob</A></B>(7)
+表現と、スラッシュで囲んだ正規表現による pin もサポートしています。例えば以下の例は、gnome で始まる (<B><A HREF="/cgi-bin/man/man2html?7+glob">glob</A></B>(7)
+風表現) か kde を含む (スラッシュで囲んだ POSIX の拡張正規表現) 名前の、experimental 由来のすべてのパッケージに、優先度500を割り当てます。
+<P>
+<DL COMPACT><DT id="19"><DD>
+
+
+
+<PRE>
+Package: gnome* /kde/
+Pin: release a=experimental
+Pin-Priority: 500
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+この表現の規則は、文字が現れうる場所なら、どこでも発生しうるという事です。したがって、以下の pin は、focal で始まるリリース由来の、すべてのパッケージに、優先度 990 を割り当てます。
+<P>
+<DL COMPACT><DT id="20"><DD>
+
+
+
+<PRE>
+Package: *
+Pin: release n=focal*
+Pin-Priority: 990
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+Package
+フィールドも正規表現が現れる場合、正規表現を、マッチするすべてのパッケージ名のリストに置き換えたものとして、動作します。これは将来変更されるかどうか、まだ決定していません。そのため、まずはじめにワイルドカード pin を、常に記述するようにしてください。その後に続く pin で上書きされます。Package フィールドの &quot;*&quot; パターンは、<B><A HREF="/cgi-bin/man/man2html?7+glob">glob</A></B>(7)
+表現自体とは見なされません。
+<A NAME="lbAG">&nbsp;</A>
+<H3>Pinning by source package</H3>
+
+<P>
+
+APT supports pinning by source packages. To pin by a source package, prepend &quot;src:&quot; to the package name.
+<P>
+
+For example, to pin all binaries produced by the apt source package of this APT's version to 990, you can do:
+<P>
+<DL COMPACT><DT id="21"><DD>
+
+
+
+<PRE>
+Package: src:apt
+Pin: version 2.0.4
+Pin-Priority: 990
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+Source package pinning can be combined with regular expressions and glob patterns, and can also take a binary architecture.
+<P>
+
+For example, let's pin all binaries for all architectures produced by any source package containing apt in its name to 990:
+<P>
+<DL COMPACT><DT id="22"><DD>
+
+
+
+<PRE>
+Package: src:*apt*:any
+Pin: version *
+Pin-Priority: 990
+</PRE>
+
+</DL>
+
+
+
+
+<A NAME="lbAH">&nbsp;</A>
+<H3>APT が優先度に割り込む方法</H3>
+
+<P>
+
+APT プリファレンスファイルで割り当てた優先度 (P) は、正負の整数でなくてはなりません。これは (おおざっぱにいうと) 以下のように解釈されます。
+<P>
+
+P &gt;= 1000
+<DL COMPACT><DT id="23"><DD>
+パッケージがダウングレードしても、このバージョンのパッケージをインストール
+</DL>
+
+<P>
+
+990 &lt;= P &lt; 1000
+<DL COMPACT><DT id="24"><DD>
+インストールされているバージョンの方が新しいのでなければ、ターゲットリリースに含まれなくても、このバージョンのパッケージをインストール
+</DL>
+
+<P>
+
+500 &lt;= P &lt; 990
+<DL COMPACT><DT id="25"><DD>
+ターゲットリリースに属するバージョンがあったり、インストールされているバージョンの方が新しいのでなければ、このバージョンのパッケージをインストール
+</DL>
+
+<P>
+
+100 &lt;= P &lt; 500
+<DL COMPACT><DT id="26"><DD>
+他のディストリビューションに属するバージョンがあったり、インストールされているバージョンの方が新しいのでなければ、このバージョンのパッケージをインストール
+</DL>
+
+<P>
+
+0 &lt; P &lt; 100
+<DL COMPACT><DT id="27"><DD>
+このパッケージがインストールされていない場合、このバージョンのパッケージをインストール
+</DL>
+
+<P>
+
+P &lt; 0
+<DL COMPACT><DT id="28"><DD>
+このバージョンのインストール禁止
+</DL>
+
+<P>
+
+P = 0
+<DL COMPACT><DT id="29"><DD>
+は動作が未定義です、使用しないでください。
+</DL>
+
+<P>
+
+利用可能なパッケージバージョンに一致する最初の特定形式のレコードが、パッケージバージョンの優先度を決定します。それに失敗すると、パッケージバージョンの優先度は、バージョンに一致する汎用形式のレコードで定義されたすべての優先度の最大値として定義されます。
+<P>
+
+例えば、APT プリファレンスファイルの上の方に、以下のレコードが書かれていると仮定してください。
+<P>
+<DL COMPACT><DT id="30"><DD>
+
+
+
+<PRE>
+Package: perl
+Pin: version 5.20*
+Pin-Priority: 1001
+
+Package: *
+Pin: origin &quot;&quot;
+Pin-Priority: 999
+
+Package: *
+Pin: release unstable
+Pin-Priority: 50
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+すると、以下のように動作します。
+<P>
+<DL COMPACT><DT id="31"><DD>
+&bull;
+
+
+バージョン番号が &quot;5.20&quot; で始まっていれば、perl
+の最新の利用可能パッケージがインストールされます。バージョン 5.20* が利用可能で、バージョン 5.24* がインストールされている場合、perl
+はダウングレードされます。
+</DL>
+
+<P>
+<DL COMPACT><DT id="32"><DD>
+&bull;
+
+
+ローカルシステムで有効な、perl
+以外のどんなパッケージでも、他のバージョンより (たとえターゲットリリースに属していても) 優先度が高くなります。
+</DL>
+
+<P>
+<DL COMPACT><DT id="33"><DD>
+&bull;
+
+
+ローカルシステムにはなくても
+<B><A HREF="/cgi-bin/man/man2html?5+sources.list">sources.list</A></B>(5)
+に列挙されたサイトにあるバージョンで、unstable
+ディストリビューションに属しているパッケージは、インストールするよう選択され、既にインストールされているバージョンがない場合にのみインストールされます。
+</DL>
+
+<P>
+<A NAME="lbAI">&nbsp;</A>
+<H3>パッケージのバージョンとディストリビューションプロパティの決定</H3>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?5+sources.list">sources.list</A></B>(5)
+ファイルに列挙した場所では、その場所で利用できるパッケージを記述した、Packages
+ファイルや
+Release
+ファイルを提供します。
+<P>
+
+Packages
+ファイルは通常
+.../dists/<I>dist-name</I>/<I>component</I>/<I>arch</I>
+ディレクトリにあります。例えば、.../dists/stable/main/binary-i386/Packages
+です。これは、ディレクトリにある利用可能パッケージごとに、複数行のレコードからできています。APT 優先度の設定は、レコードごとに以下の 2 行だけです。
+<P>
+
+Package: 行
+<DL COMPACT><DT id="34"><DD>
+パッケージ名
+</DL>
+
+<P>
+
+Version: 行
+<DL COMPACT><DT id="35"><DD>
+その名前のパッケージのバージョン番号
+</DL>
+
+<P>
+
+Release
+ファイルは、通常
+.../dists/<I>dist-name</I>
+ディレクトリにあります。例えば、.../dists/stable/Release
+や
+.../dists/buster/Release
+です。これは、このディレクトリ以下にある<I>全</I>パッケージに適用する、複数行のレコード 1 つから成っています。Packages
+ファイルと違い
+Release
+ファイルは、以下のようにほとんどの行が APT 優先度の設定に関連します。
+<P>
+
+Archive: 行や Suite: 行
+<DL COMPACT><DT id="36"><DD>
+このディレクトリツリーに属する全パッケージのアーカイブ名です。例えば、&quot;Archive: stable&quot; や &quot;Suite: stable&quot; という行は、Release
+ファイルの親ディレクトリツリー以下にある全パッケージが、stable
+アーカイブだと指定します。APT プリファレンスファイルでこの値を指定するには、以下の行が必要になります。
+<P>
+<DL COMPACT><DT id="37"><DD>
+
+
+
+<PRE>
+Pin: release a=stable
+</PRE>
+
+</DL>
+
+
+
+
+</DL>
+
+<P>
+
+Codename: 行
+<DL COMPACT><DT id="38"><DD>
+このディレクトリツリーに属する全パッケージのコード名です。たとえば、&quot;Codename: bullseye&quot; という行は、Release
+ファイルの親ディレクトリツリー以下にある全パッケージが、bullseye
+と名前のついたバージョンであると指定します。APT プリファレンスファイルでこの値を指定するには、以下の行が必要になります。
+<P>
+<DL COMPACT><DT id="39"><DD>
+
+
+
+<PRE>
+Pin: release n=bullseye
+</PRE>
+
+</DL>
+
+
+
+
+</DL>
+
+<P>
+
+Version: 行
+<DL COMPACT><DT id="40"><DD>
+リリースバージョン名です。例えば、このツリーのパッケージが、Debian リリースバージョン 10 に属するとします。通常
+testing
+ディストリビューションや
+unstable
+ディストリビューションには、まだリリースされていないので、バージョン番号が付きません。APT プリファレンスファイルでこれを指定するには、以下の行のいずれかが必要になります。
+<P>
+<DL COMPACT><DT id="41"><DD>
+
+
+
+<PRE>
+Pin: release v=10
+Pin: release a=stable, v=10
+Pin: release 10
+</PRE>
+
+</DL>
+
+
+
+
+</DL>
+
+<P>
+
+Component: 行
+<DL COMPACT><DT id="42"><DD>
+Release
+ファイルの、ディレクトリツリーにあるパッケージのライセンスコンポーネント名です。例えば、&quot;Component: main&quot; という行は、このディレクトリ以下の全ファイルが、main
+コンポーネント (Debian フリーソフトウェアガイドラインの元でライセンスされている) であることを表します。APT プリファレンスファイルでこのコンポーネントを指定するには、以下の行が必要になります。
+<P>
+<DL COMPACT><DT id="43"><DD>
+
+
+
+<PRE>
+Pin: release c=main
+</PRE>
+
+</DL>
+
+
+
+
+</DL>
+
+<P>
+
+Origin: 行
+<DL COMPACT><DT id="44"><DD>
+Release
+ファイルのディレクトリツリーにあるパッケージの提供者名です。ほとんど共通で
+Debian
+です。APT プリファレンスファイルでこの提供者を指定するには、以下の行が必要になります。
+<P>
+<DL COMPACT><DT id="45"><DD>
+
+
+
+<PRE>
+Pin: release o=Debian
+</PRE>
+
+</DL>
+
+
+
+
+</DL>
+
+<P>
+
+Label: 行
+<DL COMPACT><DT id="46"><DD>
+Release
+ファイルのディレクトリツリーにあるパッケージのラベル名です。ほとんど共通で
+Debian
+です。APT プリファレンスファイルでこのラベルを指定するには、以下の行が必要になります。
+<P>
+<DL COMPACT><DT id="47"><DD>
+
+
+
+<PRE>
+Pin: release l=Debian
+</PRE>
+
+</DL>
+
+
+
+
+</DL>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?5+sources.list">sources.list</A></B>(5)
+ファイルに列挙された場所から取得した
+Packages
+ファイルや
+Release
+ファイルはすべて、/var/lib/apt/lists
+ディレクトリや、apt.conf
+ファイルの
+Dir::State::Lists
+変数で指定した場所に取得されます。例えば、debian.lcs.mit.edu_debian_dists_unstable_contrib_binary-i386_Release
+ファイルは、debian.lcs.mit.edu
+から取得した、unstable
+ディストリビューションで、contrib
+コンポーネントな、binary-i386
+アーキテクチャ用の
+Release
+ファイルを含んでいます。
+<A NAME="lbAJ">&nbsp;</A>
+<H3>APT プリファレンスレコードのオプション行</H3>
+
+<P>
+
+APT プリファレンスファイルのレコードごとに、任意で
+Explanation:
+で始まる行を持てます。これは、コメント用の場所を確保します。
+<A NAME="lbAK">&nbsp;</A>
+<H2>サンプル</H2>
+
+<A NAME="lbAL">&nbsp;</A>
+<H3>安定版の追跡</H3>
+
+<P>
+
+以下の APT プリファレンスファイルは、stable
+ディストリビューションに属する全てのパッケージのバージョンに、デフォルト (500) より高い優先度を割り当て、他の
+Debian
+ディストリビューションのパッケージのバージョンには、低くてインストールできないような優先度を割り当てます。
+<P>
+<DL COMPACT><DT id="48"><DD>
+
+
+
+<PRE>
+Explanation: Uninstall or do not install any Debian-originated
+Explanation: package versions other than those in the stable distro
+Package: *
+Pin: release a=stable
+Pin-Priority: 900
+
+Package: *
+Pin: release o=Debian
+Pin-Priority: -10
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+適切な
+<B><A HREF="/cgi-bin/man/man2html?5+sources.list">sources.list</A></B>(5)
+ファイルと上記のプリファレンスファイルにより、以下のコマンドのいずれかで最新の
+stable
+バージョンにアップグレードできます。
+<P>
+<DL COMPACT><DT id="49"><DD>
+
+
+
+<PRE>
+apt-get install <I>package-name</I>
+apt-get upgrade
+apt-get dist-upgrade
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+以下のコマンドで、指定したパッケージを
+testing
+ディストリビューションの最新バージョンにアップグレードします。このパッケージは、再度このコマンドを発行しないとアップグレードされません。
+<P>
+<DL COMPACT><DT id="50"><DD>
+
+
+
+<PRE>
+apt-get install <I>package</I>/testing
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<A NAME="lbAM">&nbsp;</A>
+<H3>テスト版や不安定版の追跡</H3>
+
+<P>
+
+以下の APT プリファレンスファイルは、testing
+ディストリビューションのパッケージのバージョンに高い優先度を割り当て、unstable
+ディストリビューションのパッケージのバージョンには低い優先度を割り当てます。また他の
+Debian
+ディストリビューションのパッケージのバージョンには、低くてインストールできないような優先度を割り当てます。
+<P>
+<DL COMPACT><DT id="51"><DD>
+
+
+
+<PRE>
+Package: *
+Pin: release a=testing
+Pin-Priority: 900
+
+Package: *
+Pin: release a=unstable
+Pin-Priority: 800
+
+Package: *
+Pin: release o=Debian
+Pin-Priority: -10
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+適切な
+<B><A HREF="/cgi-bin/man/man2html?5+sources.list">sources.list</A></B>(5)
+ファイルと上記のプリファレンスファイルにより、以下のコマンドのいずれかで最新の
+testing
+バージョンにアップグレードできます。
+<P>
+<DL COMPACT><DT id="52"><DD>
+
+
+
+<PRE>
+apt-get install <I>package-name</I>
+apt-get upgrade
+apt-get dist-upgrade
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+以下のコマンドで、指定したパッケージを
+unstable
+ディストリビューションの最新バージョンにアップグレードします。それ以降、<B>apt-get upgrade</B>
+は
+testing
+バージョンのパッケージが更新されていれば
+testing
+の最新版に、unstable
+バージョンのパッケージが更新されていれば
+unstable
+の最新版にアップグレードします。
+<P>
+<DL COMPACT><DT id="53"><DD>
+
+
+
+<PRE>
+apt-get install <I>package</I>/unstable
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<A NAME="lbAN">&nbsp;</A>
+<H3>コード名リリースの進化の追跡</H3>
+
+<P>
+
+以下の APT プリファレンスファイルは、指定したコード名のディストリビューションに属する全てのパッケージのバージョンに、デフォルト (500) より高い優先度を割り当て、他の
+Debian
+ディストリビューション、コード名、アーカイブのパッケージのバージョンには、低くてインストールできないような優先度を割り当てます。この APT プリファレンスファイルにより、APT は
+testing
+アーカイブから、stable
+や最新の
+oldstable
+へ移行できます。コード名の変更に関係なく
+testing
+を追跡したい場合は、上記の設定例を使用するべきです。
+<P>
+<DL COMPACT><DT id="54"><DD>
+
+
+
+<PRE>
+Explanation: Uninstall or do not install any Debian-originated package versions
+Explanation: other than those in the distribution codenamed with bullseye or sid
+Package: *
+Pin: release n=bullseye
+Pin-Priority: 900
+
+Explanation: Debian unstable is always codenamed with sid
+Package: *
+Pin: release n=sid
+Pin-Priority: 800
+
+Package: *
+Pin: release o=Debian
+Pin-Priority: -10
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+適切な
+<B><A HREF="/cgi-bin/man/man2html?5+sources.list">sources.list</A></B>(5)
+ファイルと上記のプリファレンスファイルにより、以下のコマンドのいずれかで、リリースコード名が
+bullseye
+である最新バージョンにアップグレードできます。
+<P>
+<DL COMPACT><DT id="55"><DD>
+
+
+
+<PRE>
+apt-get install <I>package-name</I>
+apt-get upgrade
+apt-get dist-upgrade
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+以下のコマンドで、指定したパッケージを
+sid
+ディストリビューションの最新バージョンにアップグレードします。それ以降、<B>apt-get upgrade</B>
+は
+bullseye
+バージョンのパッケージが更新されていれば
+bullseye
+の最新版に、sid
+バージョンのパッケージが更新されていれば
+sidの最新版にアップグレードします。
+<P>
+<DL COMPACT><DT id="56"><DD>
+
+
+
+<PRE>
+apt-get install <I>package</I>/sid
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<A NAME="lbAO">&nbsp;</A>
+<H2>ファイル</H2>
+
+<P>
+
+/etc/apt/preferences
+<DL COMPACT><DT id="57"><DD>
+バージョンプリファレンスファイル。 ここに &quot;pin&quot;の設定を行います。 つまり、別々の取得元や異なるディストリビューションのバージョンの、 どこからパッケージを取得するかを設定します。 設定項目:
+Dir::Etc::Preferences
+</DL>
+
+<P>
+
+/etc/apt/preferences.d/
+<DL COMPACT><DT id="58"><DD>
+バージョンプリファレンスファイル断片。 設定項目:
+Dir::Etc::PreferencesParts
+</DL>
+
+<A NAME="lbAP">&nbsp;</A>
+<H2>関連項目</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?8+apt-get">apt-get</A></B>(8)
+<B><A HREF="/cgi-bin/man/man2html?8+apt-cache">apt-cache</A></B>(8)
+<B><A HREF="/cgi-bin/man/man2html?5+apt.conf">apt.conf</A></B>(5)
+<B><A HREF="/cgi-bin/man/man2html?5+sources.list">sources.list</A></B>(5)
+<A NAME="lbAQ">&nbsp;</A>
+<H2>バグ</H2>
+
+<P>
+
+m[blue]<B>APT バグページ</B>m[]<FONT SIZE="-2">[1]</FONT>
+をご覧ください。 APT のバグを報告する場合は、
+/usr/share/doc/debian/bug-reporting.txt
+や
+<B><A HREF="/cgi-bin/man/man2html?1+reportbug">reportbug</A></B>(1)
+コマンドをご覧ください。
+<A NAME="lbAR">&nbsp;</A>
+<H2>翻訳</H2>
+
+<P>
+
+倉澤 望
+&lt;<A HREF="mailto:nabetaro@debian.or.jp">nabetaro@debian.or.jp</A>&gt;
+(2003-2006,2009-2012), Takuma Yamada
+&lt;<A HREF="mailto:tyamada@takumayamada.com">tyamada@takumayamada.com</A>&gt;
+(2016), Debian JP Documentation ML
+&lt;<A HREF="mailto:debian-doc@debian.or.jp">debian-doc@debian.or.jp</A>&gt;
+<P>
+
+この翻訳文書には未訳部分が含まれている可能性があることに 注意してください。 翻訳がオリジナルに追従できていない場合、 内容を失わないようにこのようにしています。
+<A NAME="lbAS">&nbsp;</A>
+<H2>著者</H2>
+
+<P>
+
+<B>[FAMILY Given]</B>
+<DL COMPACT><DT id="59"><DD>
+</DL>
+
+<A NAME="lbAT">&nbsp;</A>
+<H2>注記</H2>
+
+<DL COMPACT>
+<DT id="60"> 1.<DD>
+APT バグページ
+<DL COMPACT><DT id="61"><DD>
+<A HREF="http://bugs.debian.org/src:apt">http://bugs.debian.org/src:apt</A>
+</DL>
+
+<P>
+</DL>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="62"><A HREF="#lbAB">名前</A><DD>
+<DT id="63"><A HREF="#lbAC">説明</A><DD>
+<DL>
+<DT id="64"><A HREF="#lbAD">APT のデフォルト優先度の割り当て</A><DD>
+<DT id="65"><A HREF="#lbAE">APT プリファレンスファイルの効果</A><DD>
+<DT id="66"><A HREF="#lbAF">正規表現と glob(7) 構文</A><DD>
+<DT id="67"><A HREF="#lbAG">Pinning by source package</A><DD>
+<DT id="68"><A HREF="#lbAH">APT が優先度に割り込む方法</A><DD>
+<DT id="69"><A HREF="#lbAI">パッケージのバージョンとディストリビューションプロパティの決定</A><DD>
+<DT id="70"><A HREF="#lbAJ">APT プリファレンスレコードのオプション行</A><DD>
+</DL>
+<DT id="71"><A HREF="#lbAK">サンプル</A><DD>
+<DL>
+<DT id="72"><A HREF="#lbAL">安定版の追跡</A><DD>
+<DT id="73"><A HREF="#lbAM">テスト版や不安定版の追跡</A><DD>
+<DT id="74"><A HREF="#lbAN">コード名リリースの進化の追跡</A><DD>
+</DL>
+<DT id="75"><A HREF="#lbAO">ファイル</A><DD>
+<DT id="76"><A HREF="#lbAP">関連項目</A><DD>
+<DT id="77"><A HREF="#lbAQ">バグ</A><DD>
+<DT id="78"><A HREF="#lbAR">翻訳</A><DD>
+<DT id="79"><A HREF="#lbAS">著者</A><DD>
+<DT id="80"><A HREF="#lbAT">注記</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:05 GMT, March 31, 2021
+</BODY>
+</HTML>

@@ -1,0 +1,348 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of VSOCK</TITLE>
+</HEAD><BODY>
+<H1>VSOCK</H1>
+Section: Linux Programmer's Manual (7)<BR>Updated: 2020-02-09<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+vsock - Linux VSOCK address family
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<B>#include &lt;<A HREF="file:///usr/include/sys/socket.h">sys/socket.h</A>&gt;</B>
+
+<BR>
+
+<B>#include &lt;<A HREF="file:///usr/include/linux/vm_sockets.h">linux/vm_sockets.h</A>&gt;</B>
+
+<P>
+
+<I>stream_socket</I><B> = socket(AF_VSOCK, SOCK_STREAM, 0);</B>
+
+<BR>
+
+<I>datagram_socket</I><B> = socket(AF_VSOCK, SOCK_DGRAM, 0);</B>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+The VSOCK address family facilitates communication between virtual machines and
+the host they are running on.
+This address family is used by guest agents and
+hypervisor services that need a communications channel that is independent of
+virtual machine network configuration.
+<P>
+
+Valid socket types are
+<B>SOCK_STREAM</B>
+
+and
+<B>SOCK_DGRAM</B>.
+
+<B>SOCK_STREAM</B>
+
+provides connection-oriented byte streams with guaranteed, in-order delivery.
+<B>SOCK_DGRAM</B>
+
+provides a connectionless datagram packet service with best-effort delivery and
+best-effort ordering.
+Availability of these socket types is dependent on the
+underlying hypervisor.
+<P>
+
+A new socket is created with
+<P>
+
+
+
+socket(AF_VSOCK, socket_type, 0);
+
+
+<P>
+
+When a process wants to establish a connection, it calls
+<B><A HREF="/cgi-bin/man/man2html?2+connect">connect</A></B>(2)
+
+with a given destination socket address.
+The socket is automatically bound to a free port if unbound.
+<P>
+
+A process can listen for incoming connections by first binding to a socket
+address using
+<B><A HREF="/cgi-bin/man/man2html?2+bind">bind</A></B>(2)
+
+and then calling
+<B><A HREF="/cgi-bin/man/man2html?2+listen">listen</A></B>(2).
+
+<P>
+
+Data is transmitted using the
+<B><A HREF="/cgi-bin/man/man2html?2+send">send</A></B>(2)
+
+or
+<B><A HREF="/cgi-bin/man/man2html?2+write">write</A></B>(2)
+
+families of system calls and data is received using the
+<B><A HREF="/cgi-bin/man/man2html?2+recv">recv</A></B>(2)
+
+or
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)
+
+families of system calls.
+<A NAME="lbAE">&nbsp;</A>
+<H3>Address format</H3>
+
+A socket address is defined as a combination of a 32-bit Context Identifier
+(CID) and a 32-bit port number.
+The CID identifies the source or destination,
+which is either a virtual machine or the host.
+The port number differentiates between multiple services running on
+a single machine.
+<P>
+
+
+
+struct sockaddr_vm {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;sa_family_t&nbsp;&nbsp;&nbsp;&nbsp;svm_family;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Address&nbsp;family:&nbsp;AF_VSOCK&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;unsigned&nbsp;short&nbsp;svm_reserved1;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;unsigned&nbsp;int&nbsp;&nbsp;&nbsp;svm_port;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Port&nbsp;#&nbsp;in&nbsp;host&nbsp;byte&nbsp;order&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;unsigned&nbsp;int&nbsp;&nbsp;&nbsp;svm_cid;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Address&nbsp;in&nbsp;host&nbsp;byte&nbsp;order&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;unsigned&nbsp;char&nbsp;&nbsp;svm_zero[sizeof(struct&nbsp;sockaddr)&nbsp;-
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sizeof(sa_family_t)&nbsp;-
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sizeof(unsigned&nbsp;short)&nbsp;-
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sizeof(unsigned&nbsp;int)&nbsp;-
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sizeof(unsigned&nbsp;int)];
+};
+
+
+<P>
+
+<I>svm_family</I>
+
+is always set to
+<B>AF_VSOCK</B>.
+
+<I>svm_reserved1</I>
+
+is always set to 0.
+<I>svm_port</I>
+
+contains the port number in host byte order.
+The port numbers below 1024 are called
+<I>privileged ports</I>.
+
+Only a process with the
+<B>CAP_NET_BIND_SERVICE</B>
+
+capability may
+<B><A HREF="/cgi-bin/man/man2html?2+bind">bind</A></B>(2)
+
+to these port numbers.
+<I>svm_zero</I>
+
+must be zero-filled.
+<P>
+
+There are several special addresses:
+<B>VMADDR_CID_ANY</B>
+
+(-1U)
+means any address for binding;
+<B>VMADDR_CID_HYPERVISOR</B>
+
+(0) is reserved for services built into the hypervisor;
+<B>VMADDR_CID_RESERVED</B>
+
+(1) must not be used;
+<B>VMADDR_CID_HOST</B>
+
+(2)
+is the well-known address of the host.
+<P>
+
+The special constant
+<B>VMADDR_PORT_ANY</B>
+
+(-1U)
+means any port number for binding.
+<A NAME="lbAF">&nbsp;</A>
+<H3>Live migration</H3>
+
+Sockets are affected by live migration of virtual machines.
+Connected
+<B>SOCK_STREAM</B>
+
+sockets become disconnected when the virtual machine migrates to a new host.
+Applications must reconnect when this happens.
+<P>
+
+The local CID may change across live migration if the old CID is
+not available on the new host.
+Bound sockets are automatically updated to the new CID.
+<A NAME="lbAG">&nbsp;</A>
+<H3>Ioctls</H3>
+
+<DL COMPACT>
+<DT id="1"><B>IOCTL_VM_SOCKETS_GET_LOCAL_CID</B>
+
+<DD>
+Get the CID of the local machine.
+The argument is a pointer to an
+<I>unsigned int</I>.
+
+<DT id="2"><DD>
+
+
+ioctl(socket, IOCTL_VM_SOCKETS_GET_LOCAL_CID, &amp;cid);
+
+
+<DT id="3"><DD>
+Consider using
+<B>VMADDR_CID_ANY</B>
+
+when binding instead of getting the local CID with
+<B>IOCTL_VM_SOCKETS_GET_LOCAL_CID</B>.
+
+</DL>
+<A NAME="lbAH">&nbsp;</A>
+<H2>ERRORS</H2>
+
+<DL COMPACT>
+<DT id="4"><B>EACCES</B>
+
+<DD>
+Unable to bind to a privileged port without the
+<B>CAP_NET_BIND_SERVICE</B>
+
+capability.
+<DT id="5"><B>EADDRINUSE</B>
+
+<DD>
+Unable to bind to a port that is already in use.
+<DT id="6"><B>EADDRNOTAVAIL</B>
+
+<DD>
+Unable to find a free port for binding or unable to bind to a nonlocal CID.
+<DT id="7"><B>EINVAL</B>
+
+<DD>
+Invalid parameters.
+This includes:
+attempting to bind a socket that is already bound, providing an invalid struct
+<I>sockaddr_vm</I>,
+
+and other input validation errors.
+<DT id="8"><B>ENOPROTOOPT</B>
+
+<DD>
+Invalid socket option in
+<B><A HREF="/cgi-bin/man/man2html?2+setsockopt">setsockopt</A></B>(2)
+
+or
+<B><A HREF="/cgi-bin/man/man2html?2+getsockopt">getsockopt</A></B>(2).
+
+<DT id="9"><B>ENOTCONN</B>
+
+<DD>
+Unable to perform operation on an unconnected socket.
+<DT id="10"><B>EOPNOTSUPP</B>
+
+<DD>
+Operation not supported.
+This includes:
+the
+<B>MSG_OOB</B>
+
+flag that is not implemented for the
+<B><A HREF="/cgi-bin/man/man2html?2+send">send</A></B>(2)
+
+family of syscalls and
+<B>MSG_PEEK</B>
+
+for the
+<B><A HREF="/cgi-bin/man/man2html?2+recv">recv</A></B>(2)
+
+family of syscalls.
+<DT id="11"><B>EPROTONOSUPPORT</B>
+
+<DD>
+Invalid socket protocol number.
+The protocol should always be 0.
+<DT id="12"><B>ESOCKTNOSUPPORT</B>
+
+<DD>
+Unsupported socket type in
+<B><A HREF="/cgi-bin/man/man2html?2+socket">socket</A></B>(2).
+
+Only
+<B>SOCK_STREAM</B>
+
+and
+<B>SOCK_DGRAM</B>
+
+are valid.
+</DL>
+<A NAME="lbAI">&nbsp;</A>
+<H2>VERSIONS</H2>
+
+Support for VMware (VMCI) has been available since Linux 3.9.
+KVM (virtio) is supported since Linux 4.8.
+Hyper-V is supported since Linux 4.14.
+<A NAME="lbAJ">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?2+bind">bind</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+connect">connect</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+listen">listen</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+recv">recv</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+send">send</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+socket">socket</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?7+capabilities">capabilities</A></B>(7)
+
+<A NAME="lbAK">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="13"><A HREF="#lbAB">NAME</A><DD>
+<DT id="14"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="15"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DL>
+<DT id="16"><A HREF="#lbAE">Address format</A><DD>
+<DT id="17"><A HREF="#lbAF">Live migration</A><DD>
+<DT id="18"><A HREF="#lbAG">Ioctls</A><DD>
+</DL>
+<DT id="19"><A HREF="#lbAH">ERRORS</A><DD>
+<DT id="20"><A HREF="#lbAI">VERSIONS</A><DD>
+<DT id="21"><A HREF="#lbAJ">SEE ALSO</A><DD>
+<DT id="22"><A HREF="#lbAK">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:10 GMT, March 31, 2021
+</BODY>
+</HTML>

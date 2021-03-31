@@ -1,0 +1,431 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of GITCLI</TITLE>
+</HEAD><BODY>
+<H1>GITCLI</H1>
+Section: Git Manual (7)<BR>Updated: 03/04/2021<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+gitcli - Git command-line interface and conventions
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+gitcli
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+This manual describes the convention used throughout Git CLI.
+<P>
+Many commands take revisions (most often &quot;commits&quot;, but sometimes &quot;tree-ish&quot;, depending on the context and command) and paths as their arguments. Here are the rules:
+<P>
+<DL COMPACT><DT id="1"><DD>
+&bull;
+
+
+Revisions come first and then paths. E.g. in
+<B>git diff v1.0 v2.0 arch/x86 include/asm-x86</B>,
+<B>v1.0</B>
+and
+<B>v2.0</B>
+are revisions and
+<B>arch/x86</B>
+and
+<B>include/asm-x86</B>
+are paths.
+</DL>
+
+<P>
+<DL COMPACT><DT id="2"><DD>
+&bull;
+
+
+When an argument can be misunderstood as either a revision or a path, they can be disambiguated by placing
+<B>--</B>
+between them. E.g.
+<B>git diff -- HEAD</B>
+is, &quot;I have a file called HEAD in my work tree. Please show changes between the version I staged in the index and what I have in the work tree for that file&quot;, not &quot;show difference between the HEAD commit and the work tree as a whole&quot;. You can say
+<B>git diff HEAD --</B>
+to ask for the latter.
+</DL>
+
+<P>
+<DL COMPACT><DT id="3"><DD>
+&bull;
+
+
+Without disambiguating
+<B>--</B>, Git makes a reasonable guess, but errors out and asking you to disambiguate when ambiguous. E.g. if you have a file called HEAD in your work tree,
+<B>git diff HEAD</B>
+is ambiguous, and you have to say either
+<B>git diff HEAD --</B>
+or
+<B>git diff -- HEAD</B>
+to disambiguate.
+</DL>
+
+<P>
+<DL COMPACT><DT id="4"><DD>
+&bull;
+
+
+Because
+<B>--</B>
+disambiguates revisions and paths in some commands, it cannot be used for those commands to separate options and revisions. You can use
+<B>--end-of-options</B>
+for this (it also works for commands that do not distinguish between revisions in paths, in which case it is simply an alias for
+<B>--</B>).
+<P>
+When writing a script that is expected to handle random user-input, it is a good practice to make it explicit which arguments are which by placing disambiguating
+<B>--</B>
+at appropriate places.
+</DL>
+
+<P>
+<DL COMPACT><DT id="5"><DD>
+&bull;
+
+
+Many commands allow wildcards in paths, but you need to protect them from getting globbed by the shell. These two mean different things:
+<P>
+<DL COMPACT><DT id="6"><DD>
+
+
+
+<PRE>
+$ git restore *.c
+$ git restore \*.c
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+The former lets your shell expand the fileglob, and you are asking the dot-C files in your working tree to be overwritten with the version in the index. The latter passes the
+<B>*.c</B>
+to Git, and you are asking the paths in the index that match the pattern to be checked out to your working tree. After running
+<B>git add hello.c; rm hello.c</B>, you will
+<I>not</I>
+see
+<B>hello.c</B>
+in your working tree with the former, but with the latter you will.
+</DL>
+
+<P>
+<DL COMPACT><DT id="7"><DD>
+&bull;
+
+
+Just as the filesystem
+<I>.</I>
+(period) refers to the current directory, using a
+<I>.</I>
+as a repository name in Git (a dot-repository) is a relative path and means your current repository.
+</DL>
+
+<P>
+Here are the rules regarding the &quot;flags&quot; that you should follow when you are scripting Git:
+<P>
+<DL COMPACT><DT id="8"><DD>
+&bull;
+
+
+it's preferred to use the non-dashed form of Git commands, which means that you should prefer
+<B>git foo</B>
+to
+<B>git-foo</B>.
+</DL>
+
+<P>
+<DL COMPACT><DT id="9"><DD>
+&bull;
+
+
+splitting short options to separate words (prefer
+<B>git foo -a -b</B>
+to
+<B>git foo -ab</B>, the latter may not even work).
+</DL>
+
+<P>
+<DL COMPACT><DT id="10"><DD>
+&bull;
+
+
+when a command-line option takes an argument, use the
+<I>stuck</I>
+form. In other words, write
+<B>git foo -oArg</B>
+instead of
+<B>git foo -o Arg</B>
+for short options, and
+<B>git foo --long-opt=Arg</B>
+instead of
+<B>git foo --long-opt Arg</B>
+for long options. An option that takes optional option-argument must be written in the
+<I>stuck</I>
+form.
+</DL>
+
+<P>
+<DL COMPACT><DT id="11"><DD>
+&bull;
+
+
+when you give a revision parameter to a command, make sure the parameter is not ambiguous with a name of a file in the work tree. E.g. do not write
+<B>git log -1 HEAD</B>
+but write
+<B>git log -1 HEAD --</B>; the former will not work if you happen to have a file called
+<B>HEAD</B>
+in the work tree.
+</DL>
+
+<P>
+<DL COMPACT><DT id="12"><DD>
+&bull;
+
+
+many commands allow a long option
+<B>--option</B>
+to be abbreviated only to their unique prefix (e.g. if there is no other option whose name begins with
+<B>opt</B>, you may be able to spell
+<B>--opt</B>
+to invoke the
+<B>--option</B>
+flag), but you should fully spell them out when writing your scripts; later versions of Git may introduce a new option whose name shares the same prefix, e.g.
+<B>--optimize</B>, to make a short prefix that used to be unique no longer unique.
+</DL>
+
+<A NAME="lbAE">&nbsp;</A>
+<H2>ENHANCED OPTION PARSER</H2>
+
+<P>
+From the Git 1.5.4 series and further, many Git commands (not all of them at the time of the writing though) come with an enhanced option parser.
+<P>
+Here is a list of the facilities provided by this option parser.
+<A NAME="lbAF">&nbsp;</A>
+<H3>Magic Options</H3>
+
+<P>
+Commands which have the enhanced option parser activated all understand a couple of magic command-line options:
+<P>
+
+-h
+<DL COMPACT><DT id="13"><DD>
+gives a pretty printed usage of the command.
+<P>
+<DL COMPACT><DT id="14"><DD>
+
+
+
+<PRE>
+$ git describe -h
+usage: git describe [&lt;options&gt;] &lt;commit-ish&gt;*
+   or: git describe [&lt;options&gt;] --dirty
+
+    --contains            find the tag that comes after the commit
+    --debug               debug search strategy on stderr
+    --all                 use any ref
+    --tags                use any tag, even unannotated
+    --long                always use long format
+    --abbrev[=&lt;n&gt;]        use &lt;n&gt; digits to display SHA-1s
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+</DL>
+
+<P>
+
+--help-all
+<DL COMPACT><DT id="15"><DD>
+Some Git commands take options that are only used for plumbing or that are deprecated, and such options are hidden from the default usage. This option gives the full list of options.
+</DL>
+
+<A NAME="lbAG">&nbsp;</A>
+<H3>Negating options</H3>
+
+<P>
+Options with long option names can be negated by prefixing <B>--no-</B>. For example, <B>git branch</B> has the option <B>--track</B> which is <I>on</I> by default. You can use <B>--no-track</B> to override that behaviour. The same goes for <B>--color</B> and <B>--no-color</B>.
+<A NAME="lbAH">&nbsp;</A>
+<H3>Aggregating short options</H3>
+
+<P>
+Commands that support the enhanced option parser allow you to aggregate short options. This means that you can for example use <B>git rm -rf</B> or <B>git clean -fdx</B>.
+<A NAME="lbAI">&nbsp;</A>
+<H3>Abbreviating long options</H3>
+
+<P>
+Commands that support the enhanced option parser accepts unique prefix of a long option as if it is fully spelled out, but use this with a caution. For example, <B>git commit --amen</B> behaves as if you typed <B>git commit --amend</B>, but that is true only until a later version of Git introduces another option that shares the same prefix, e.g. <B>git commit --amenity</B> option.
+<A NAME="lbAJ">&nbsp;</A>
+<H3>Separating argument from the option</H3>
+
+<P>
+You can write the mandatory option parameter to an option as a separate word on the command line. That means that all the following uses work:
+<P>
+<DL COMPACT><DT id="16"><DD>
+
+
+
+<PRE>
+$ git foo --long-opt=Arg
+$ git foo --long-opt Arg
+$ git foo -oArg
+$ git foo -o Arg
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+However, this is <B>NOT</B> allowed for switches with an optional value, where the <I>stuck</I> form must be used:
+<P>
+<DL COMPACT><DT id="17"><DD>
+
+
+
+<PRE>
+$ git describe --abbrev HEAD     # correct
+$ git describe --abbrev=10 HEAD  # correct
+$ git describe --abbrev 10 HEAD  # NOT WHAT YOU MEANT
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<A NAME="lbAK">&nbsp;</A>
+<H2>NOTES ON FREQUENTLY CONFUSED OPTIONS</H2>
+
+<P>
+Many commands that can work on files in the working tree and/or in the index can take <B>--cached</B> and/or <B>--index</B> options. Sometimes people incorrectly think that, because the index was originally called cache, these two are synonyms. They are <B>not</B> --- these two options mean very different things.
+<P>
+<DL COMPACT><DT id="18"><DD>
+&bull;
+
+
+The
+<B>--cached</B>
+option is used to ask a command that usually works on files in the working tree to
+<B>only</B>
+work with the index. For example,
+<B>git grep</B>, when used without a commit to specify from which commit to look for strings in, usually works on files in the working tree, but with the
+<B>--cached</B>
+option, it looks for strings in the index.
+</DL>
+
+<P>
+<DL COMPACT><DT id="19"><DD>
+&bull;
+
+
+The
+<B>--index</B>
+option is used to ask a command that usually works on files in the working tree to
+<B>also</B>
+affect the index. For example,
+<B>git stash apply</B>
+usually merges changes recorded in a stash entry to the working tree, but with the
+<B>--index</B>
+option, it also merges changes to the index as well.
+</DL>
+
+<P>
+<B>git apply</B> command can be used with <B>--cached</B> and <B>--index</B> (but not at the same time). Usually the command only affects the files in the working tree, but with <B>--index</B>, it patches both the files and their index entries, and with <B>--cached</B>, it modifies only the index entries.
+<P>
+See also m[blue]<B><A HREF="https://lore.kernel.org/git/7v64clg5u9.fsf@assigned-by-dhcp.cox.net/">https://lore.kernel.org/git/7v64clg5u9.fsf@assigned-by-dhcp.cox.net/</A></B>m[] and m[blue]<B><A HREF="https://lore.kernel.org/git/7vy7ej9g38.fsf@gitster.siamese.dyndns.org/">https://lore.kernel.org/git/7vy7ej9g38.fsf@gitster.siamese.dyndns.org/</A></B>m[] for further information.
+<P>
+Some other commands that also work on files in the working tree and/or in the index can take <B>--staged</B> and/or <B>--worktree</B>.
+<P>
+<DL COMPACT><DT id="20"><DD>
+&bull;
+
+
+<B>--staged</B>
+is exactly like
+<B>--cached</B>, which is used to ask a command to only work on the index, not the working tree.
+</DL>
+
+<P>
+<DL COMPACT><DT id="21"><DD>
+&bull;
+
+
+<B>--worktree</B>
+is the opposite, to ask a command to work on the working tree only, not the index.
+</DL>
+
+<P>
+<DL COMPACT><DT id="22"><DD>
+&bull;
+
+
+The two options can be specified together to ask a command to work on both the index and the working tree.
+</DL>
+
+<A NAME="lbAL">&nbsp;</A>
+<H2>GIT</H2>
+
+<P>
+Part of the <B><A HREF="/cgi-bin/man/man2html?1+git">git</A></B>(1) suite
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="23"><A HREF="#lbAB">NAME</A><DD>
+<DT id="24"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="25"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="26"><A HREF="#lbAE">ENHANCED OPTION PARSER</A><DD>
+<DL>
+<DT id="27"><A HREF="#lbAF">Magic Options</A><DD>
+<DT id="28"><A HREF="#lbAG">Negating options</A><DD>
+<DT id="29"><A HREF="#lbAH">Aggregating short options</A><DD>
+<DT id="30"><A HREF="#lbAI">Abbreviating long options</A><DD>
+<DT id="31"><A HREF="#lbAJ">Separating argument from the option</A><DD>
+</DL>
+<DT id="32"><A HREF="#lbAK">NOTES ON FREQUENTLY CONFUSED OPTIONS</A><DD>
+<DT id="33"><A HREF="#lbAL">GIT</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:08 GMT, March 31, 2021
+</BODY>
+</HTML>

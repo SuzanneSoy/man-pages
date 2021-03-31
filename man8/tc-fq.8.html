@@ -1,0 +1,196 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of FQ</TITLE>
+</HEAD><BODY>
+<H1>FQ</H1>
+Section: Linux (8)<BR>Updated: 10 Sept 2015<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+FQ - Fair Queue traffic policing
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<B>tc qdisc ... fq</B>
+
+[
+<B>limit</B>
+
+PACKETS ] [
+<B>flow_limit</B>
+
+PACKETS ] [
+<B>quantum</B>
+
+BYTES ] [
+<B>initial_quantum</B>
+
+BYTES ] [
+<B>maxrate</B>
+
+RATE ] [
+<B>buckets</B>
+
+NUMBER ] [
+<B>orphan_mask</B>
+
+NUMBER ] [
+<B>pacing</B>
+
+|
+<B>nopacing</B>
+
+] [
+<B>ce_threshold</B>
+
+TIME ]
+<P>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+FQ (Fair Queue) is a classless packet scheduler meant to be mostly
+used for locally generated traffic.  It is designed to achieve per flow pacing.
+FQ does flow separation, and is able to respect pacing requirements set by TCP stack.
+All packets belonging to a socket are considered as a 'flow'.
+For non local packets (router workload), packet hash is used as fallback.
+<P>
+An application can specify a maximum pacing rate using the
+<B>SO_MAX_PACING_RATE</B>
+
+setsockopt call.  This packet scheduler adds delay between packets to
+respect rate limitation set on each socket. Note that after linux-4.20, linux adopted EDT (Earliest Departure Time)
+and TCP directly sets the appropriate Departure Time for each skb.
+<P>
+Dequeueing happens in a round-robin fashion.
+A special FIFO queue is reserved for high priority packets (
+<B>TC_PRIO_CONTROL</B>
+
+priority), such packets are always dequeued first.
+<P>
+FQ is non-work-conserving.
+<P>
+TCP pacing is good for flows having idle times, as the congestion
+window permits TCP stack to queue a possibly large number of packets.
+This removes the 'slow start after idle' choice, badly hitting
+large BDP flows and applications delivering chunks of data such as video streams.
+<P>
+<A NAME="lbAE">&nbsp;</A>
+<H2>PARAMETERS</H2>
+
+<A NAME="lbAF">&nbsp;</A>
+<H3>limit</H3>
+
+Hard limit on the real queue size. When this limit is reached, new packets
+are dropped. If the value is lowered, packets are dropped so that the new limit is
+met. Default is 10000 packets.
+<A NAME="lbAG">&nbsp;</A>
+<H3>flow_limit</H3>
+
+Hard limit on the maximum number of packets queued per flow.
+Default value is 100.
+<A NAME="lbAH">&nbsp;</A>
+<H3>quantum</H3>
+
+The credit per dequeue RR round, i.e. the amount of bytes a flow is allowed to
+dequeue at once. A larger value means a longer time period before the next flow
+will be served.
+Default is 2 * interface MTU bytes.
+<A NAME="lbAI">&nbsp;</A>
+<H3>initial_quantum</H3>
+
+The initial sending rate credit, i.e. the amount of bytes a new flow is allowed
+to dequeue initially.
+This is specifically meant to allow using IW10 without added delay.
+Default is 10 * interface MTU, i.e. 15140 for 'standard' ethernet.
+<A NAME="lbAJ">&nbsp;</A>
+<H3>maxrate</H3>
+
+Maximum sending rate of a flow.  Default is unlimited.
+Application specific setting via
+<B>SO_MAX_PACING_RATE</B>
+
+is ignored only if it is larger than this value.
+<A NAME="lbAK">&nbsp;</A>
+<H3>buckets</H3>
+
+The size of the hash table used for flow lookups. Each bucket is assigned a
+red-black tree for efficient collision sorting.
+Default: 1024.
+<A NAME="lbAL">&nbsp;</A>
+<H3>orphan_mask</H3>
+
+For packets not owned by a socket, fq is able to mask a part of skb-&gt;hash
+and reduce number of buckets associated with the traffic. This is a DDOS
+prevention mechanism, and the default is 1023 (meaning no more than 1024 flows
+are allocated for these packets)
+<A NAME="lbAM">&nbsp;</A>
+<H3>[no]pacing</H3>
+
+Enable or disable flow pacing. Default is enabled.
+<A NAME="lbAN">&nbsp;</A>
+<H3>ce_threshold</H3>
+
+sets a threshold above which all packets are marked with ECN Congestion
+Experienced. This is useful for DCTCP-style congestion control algorithms that
+require marking at very shallow queueing thresholds.
+<P>
+<A NAME="lbAO">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+#tc qdisc add dev eth0 root fq ce_threshold 4ms
+<BR>
+
+#tc -s -d qdisc show dev eth0
+<BR>
+
+qdisc fq 8001: dev eth0 root refcnt 2 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40.0ms ce_threshold 4.0ms
+<BR>&nbsp;Sent&nbsp;72149092&nbsp;bytes&nbsp;48062&nbsp;pkt&nbsp;(dropped&nbsp;2176,&nbsp;overlimits&nbsp;0&nbsp;requeues&nbsp;0)
+<BR>&nbsp;backlog&nbsp;1937920b&nbsp;1280p&nbsp;requeues&nbsp;0
+<BR>&nbsp;&nbsp;flows&nbsp;34&nbsp;(inactive&nbsp;17&nbsp;throttled&nbsp;0)
+<BR>&nbsp;&nbsp;gc&nbsp;0&nbsp;highprio&nbsp;0&nbsp;throttled&nbsp;0&nbsp;ce_mark&nbsp;47622&nbsp;flows_plimit&nbsp;2176
+<BR>
+
+<A NAME="lbAP">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?8+tc">tc</A></B>(8),
+
+<B><A HREF="/cgi-bin/man/man2html?7+socket">socket</A></B>(7)
+
+<A NAME="lbAQ">&nbsp;</A>
+<H2>AUTHORS</H2>
+
+FQ was written by Eric Dumazet.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="1"><A HREF="#lbAB">NAME</A><DD>
+<DT id="2"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="3"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="4"><A HREF="#lbAE">PARAMETERS</A><DD>
+<DL>
+<DT id="5"><A HREF="#lbAF">limit</A><DD>
+<DT id="6"><A HREF="#lbAG">flow_limit</A><DD>
+<DT id="7"><A HREF="#lbAH">quantum</A><DD>
+<DT id="8"><A HREF="#lbAI">initial_quantum</A><DD>
+<DT id="9"><A HREF="#lbAJ">maxrate</A><DD>
+<DT id="10"><A HREF="#lbAK">buckets</A><DD>
+<DT id="11"><A HREF="#lbAL">orphan_mask</A><DD>
+<DT id="12"><A HREF="#lbAM">[no]pacing</A><DD>
+<DT id="13"><A HREF="#lbAN">ce_threshold</A><DD>
+</DL>
+<DT id="14"><A HREF="#lbAO">EXAMPLES</A><DD>
+<DT id="15"><A HREF="#lbAP">SEE ALSO</A><DD>
+<DT id="16"><A HREF="#lbAQ">AUTHORS</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:17 GMT, March 31, 2021
+</BODY>
+</HTML>

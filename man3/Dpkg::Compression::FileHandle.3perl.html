@@ -1,0 +1,247 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of Dpkg::Compression::FileHandle</TITLE>
+</HEAD><BODY>
+<H1>Dpkg::Compression::FileHandle</H1>
+Section: libdpkg-perl (3perl)<BR>Updated: 2020-03-23<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+Dpkg::Compression::FileHandle - object dealing transparently with file compression
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+
+
+
+
+<PRE>
+    use Dpkg::Compression::FileHandle;
+
+    my ($fh, @lines);
+
+    $fh = Dpkg::Compression::FileHandle-&gt;new(filename =&gt; 'sample.gz');
+    print $fh &quot;Something\n&quot;;
+    close $fh;
+
+    $fh = Dpkg::Compression::FileHandle-&gt;new();
+    open($fh, '&gt;', 'sample.bz2');
+    print $fh &quot;Something\n&quot;;
+    close $fh;
+
+    $fh = Dpkg::Compression::FileHandle-&gt;new();
+    $fh-&gt;open('sample.xz', 'w');
+    $fh-&gt;print(&quot;Something\n&quot;);
+    $fh-&gt;close();
+
+    $fh = Dpkg::Compression::FileHandle-&gt;new(filename =&gt; 'sample.gz');
+    @lines = &lt;$fh&gt;;
+    close $fh;
+
+    $fh = Dpkg::Compression::FileHandle-&gt;new();
+    open($fh, '&lt;', 'sample.bz2');
+    @lines = &lt;$fh&gt;;
+    close $fh;
+
+    $fh = Dpkg::Compression::FileHandle-&gt;new();
+    $fh-&gt;open('sample.xz', 'r');
+    @lines = $fh-&gt;getlines();
+    $fh-&gt;close();
+
+</PRE>
+
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+
+Dpkg::Compression::FileHandle is an object that can be used
+like any filehandle and that deals transparently with compressed
+files. By default, the compression scheme is guessed from the filename
+but you can override this behaviour with the method <TT>&quot;set_compression&quot;</TT>.
+<P>
+
+If you don't open the file explicitly, it will be auto-opened on the
+first read or write operation based on the filename set at creation time
+(or later with the <TT>&quot;set_filename&quot;</TT> method).
+<P>
+
+Once a file has been opened, the filehandle must be closed before being
+able to open another file.
+<A NAME="lbAE">&nbsp;</A>
+<H2>STANDARD FUNCTIONS</H2>
+
+
+
+The standard functions acting on filehandles should accept a
+Dpkg::Compression::FileHandle object transparently including
+<TT>&quot;open&quot;</TT> (only when using the variant with 3 parameters), <TT>&quot;close&quot;</TT>,
+<TT>&quot;binmode&quot;</TT>, <TT>&quot;eof&quot;</TT>, <TT>&quot;fileno&quot;</TT>, <TT>&quot;getc&quot;</TT>, <TT>&quot;print&quot;</TT>, <TT>&quot;printf&quot;</TT>, <TT>&quot;read&quot;</TT>,
+<TT>&quot;sysread&quot;</TT>, <TT>&quot;say&quot;</TT>, <TT>&quot;write&quot;</TT>, <TT>&quot;syswrite&quot;</TT>, <TT>&quot;seek&quot;</TT>, <TT>&quot;sysseek&quot;</TT>, <TT>&quot;tell&quot;</TT>.
+<P>
+
+Note however that <TT>&quot;seek&quot;</TT> and <TT>&quot;sysseek&quot;</TT> will only work on uncompressed
+files as compressed files are really pipes to the compressor programs
+and you can't seek on a pipe.
+<A NAME="lbAF">&nbsp;</A>
+<H2>FileHandle METHODS</H2>
+
+
+
+The object inherits from IO::File so all methods that work on this
+object should work for Dpkg::Compression::FileHandle too. There
+may be exceptions though.
+<A NAME="lbAG">&nbsp;</A>
+<H2>PUBLIC METHODS</H2>
+
+
+
+<DL COMPACT>
+<DT id="1">$fh = Dpkg::Compression::FileHandle-&gt;new(%opts)<DD>
+
+
+
+
+Creates a new filehandle supporting on-the-fly compression/decompression.
+Supported options are ``filename'', ``compression'', ``compression_level'' (see
+respective set_* functions) and ``add_comp_ext''. If ``add_comp_ext''
+evaluates to true, then the extension corresponding to the selected
+compression scheme is automatically added to the recorded filename. It's
+obviously incompatible with automatic detection of the compression method.
+<DT id="2">$fh-&gt;ensure_open($mode, %opts)<DD>
+
+
+
+
+Ensure the file is opened in the requested mode (``r'' for read and ``w'' for
+write). The options are passed down to the compressor's <B>spawn()</B> call, if one
+is used. Opens the file with the recorded filename if needed. If the file
+is already open but not in the requested mode, then it errors out.
+<DT id="3">$fh-&gt;set_compression($comp)<DD>
+
+
+
+
+Defines the compression method used. <TT>$comp</TT> should one of the methods supported by
+<B>Dpkg::Compression</B> or ``none'' or ``auto''. ``none'' indicates that the file is
+uncompressed and ``auto'' indicates that the method must be guessed based
+on the filename extension used.
+<DT id="4">$fh-&gt;set_compression_level($level)<DD>
+
+
+
+
+Indicate the desired compression level. It should be a value accepted
+by the function <TT>&quot;compression_is_valid_level&quot;</TT> of <B>Dpkg::Compression</B>.
+<DT id="5">$fh-&gt;set_filename($name, [$add_comp_ext])<DD>
+
+
+
+
+Use <TT>$name</TT> as filename when the file must be opened/created. If
+<TT>$add_comp_ext</TT> is passed, it indicates whether the default extension
+of the compression method must be automatically added to the filename
+(or not).
+<DT id="6">$file = $fh-&gt;<B>get_filename()</B><DD>
+
+
+
+
+Returns the filename that would be used when the filehandle must
+be opened (both in read and write mode). This function errors out
+if ``add_comp_ext'' is enabled while the compression method is set
+to ``auto''. The returned filename includes the extension of the compression
+method if ``add_comp_ext'' is enabled.
+<DT id="7">$ret = $fh-&gt;<B>use_compression()</B><DD>
+
+
+
+
+Returns ``0'' if no compression is used and the compression method used
+otherwise. If the compression is set to ``auto'', the value returned
+depends on the extension of the filename obtained with the <B>get_filename</B>
+method.
+<DT id="8">$real_fh = $fh-&gt;<B>get_filehandle()</B><DD>
+
+
+
+
+Returns the real underlying filehandle. Useful if you want to pass it
+along in a derived object.
+</DL>
+<A NAME="lbAH">&nbsp;</A>
+<H2>DERIVED OBJECTS</H2>
+
+
+
+If you want to create an object that inherits from
+Dpkg::Compression::FileHandle you must be aware that
+the object is a reference to a <FONT SIZE="-1">GLOB</FONT> that is returned by <B>Symbol::gensym()</B>
+and as such it's not a <FONT SIZE="-1">HASH.</FONT>
+<P>
+
+You can store internal data in a hash but you have to use
+<TT>&quot;*$self-&quot;</TT>{...}&gt; to access the associated hash like in the example below:
+<P>
+
+
+
+<PRE>
+    sub set_option {
+        my ($self, $value) = @_;
+        *$self-&gt;{option} = $value;
+    }
+
+</PRE>
+
+
+<A NAME="lbAI">&nbsp;</A>
+<H2>CHANGES</H2>
+
+
+
+<A NAME="lbAJ">&nbsp;</A>
+<H3>Version 1.01 (dpkg 1.17.11)</H3>
+
+
+
+New argument: <TT>$fh</TT>-&gt;<B>ensure_open()</B> accepts an <TT>%opts</TT> argument.
+<A NAME="lbAK">&nbsp;</A>
+<H3>Version 1.00 (dpkg 1.15.6)</H3>
+
+
+
+Mark the module as public.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="9"><A HREF="#lbAB">NAME</A><DD>
+<DT id="10"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="11"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="12"><A HREF="#lbAE">STANDARD FUNCTIONS</A><DD>
+<DT id="13"><A HREF="#lbAF">FileHandle METHODS</A><DD>
+<DT id="14"><A HREF="#lbAG">PUBLIC METHODS</A><DD>
+<DT id="15"><A HREF="#lbAH">DERIVED OBJECTS</A><DD>
+<DT id="16"><A HREF="#lbAI">CHANGES</A><DD>
+<DL>
+<DT id="17"><A HREF="#lbAJ">Version 1.01 (dpkg 1.17.11)</A><DD>
+<DT id="18"><A HREF="#lbAK">Version 1.00 (dpkg 1.15.6)</A><DD>
+</DL>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:38 GMT, March 31, 2021
+</BODY>
+</HTML>

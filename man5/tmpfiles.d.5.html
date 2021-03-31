@@ -1,0 +1,1051 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of TMPFILES.D</TITLE>
+</HEAD><BODY>
+<H1>TMPFILES.D</H1>
+Section: tmpfiles.d (5)<BR>Updated: <BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+tmpfiles.d - Configuration for creation, deletion and cleaning of volatile and temporary files
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+
+<PRE>
+/etc/tmpfiles.d/*.conf
+/run/tmpfiles.d/*.conf
+/usr/lib/tmpfiles.d/*.conf
+    
+</PRE>
+
+<P>
+
+<PRE>
+~/.config/user-tmpfiles.d/*.conf
+$XDG_RUNTIME_DIR/user-tmpfiles.d/*.conf
+~/.local/share/user-tmpfiles.d/*.conf
+...
+/usr/share/user-tmpfiles.d/*.conf
+    
+</PRE>
+
+<P>
+<P>
+<PRE>
+#Type Path                                     Mode User Group Age         Argument
+f     /file/to/create                          mode user group -           content
+f+    /file/to/create-or-truncate              mode user group -           content
+w     /file/to/write-to                        -    -    -     -           content
+w+    /file/to/append-to                       -    -    -     -           content
+d     /directory/to/create-and-cleanup         mode user group cleanup-age -
+D     /directory/to/create-and-remove          mode user group cleanup-age -
+e     /directory/to/cleanup                    mode user group cleanup-age -
+v     /subvolume-or-directory/to/create        mode user group -           -
+q     /subvolume-or-directory/to/create        mode user group -           -
+Q     /subvolume-or-directory/to/create        mode user group -           -
+p     /fifo/to/create                          mode user group -           -
+p+    /fifo/to/[re]create                      mode user group -           -
+L     /symlink/to/create                       -    -    -     -           symlink/target/path
+L+    /symlink/to/[re]create                   -    -    -     -           symlink/target/path
+c     /dev/char-device-to-create               mode user group -           major:minor
+c+    /dev/char-device-to-[re]create           mode user group -           major:minor
+b     /dev/block-device-to-create              mode user group -           major:minor
+b+    /dev/block-device-to-[re]create          mode user group -           major:minor
+C     /target/to/create                        -    -    -     -           /source/to/copy
+x     /path-or-glob/to/ignore                  -    -    -     -           -
+X     /path-or-glob/to/ignore/recursively      -    -    -     -           -
+r     /empty/dir/to/remove                     -    -    -     -           -
+R     /dir/to/remove/recursively               -    -    -     -           -
+z     /path-or-glob/to/adjust/mode             mode user group -           -
+Z     /path-or-glob/to/adjust/mode/recursively mode user group -           -
+t     /path-or-glob/to/set/xattrs              -    -    -     -           xattrs
+T     /path-or-glob/to/set/xattrs/recursively  -    -    -     -           xattrs
+h     /path-or-glob/to/set/attrs               -    -    -     -           file attrs
+H     /path-or-glob/to/set/attrs/recursively   -    -    -     -           file attrs
+a     /path-or-glob/to/set/acls                -    -    -     -           POSIX ACLs
+a+    /path-or-glob/to/append/acls             -    -    -     -           POSIX ACLs
+A     /path-or-glob/to/set/acls/recursively    -    -    -     -           POSIX ACLs
+A+    /path-or-glob/to/append/acls/recursively -    -    -     -           POSIX ACLs
+
+</PRE>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+tmpfiles.d
+configuration files provide a generic mechanism to define the
+<I>creation</I>
+of regular files, directories, pipes, and device nodes, adjustments to their
+<I>access mode, ownership, attributes, quota assignments, and contents</I>, and finally their time-based
+<I>removal</I>. It is mostly commonly used for volatile and temporary files and directories (such as those located under
+/run,
+/tmp,
+/var/tmp, the API file systems such as
+/sys
+or
+/proc, as well as some other directories below
+/var).
+<P>
+
+<B>systemd-tmpfiles</B>
+uses this configuration to create volatile files and directories during boot and to do periodic cleanup afterwards. See
+<B><A HREF="/cgi-bin/man/man2html?5+systemd-tmpfiles">systemd-tmpfiles</A></B>(5)
+for the description of
+systemd-tmpfiles-setup.service,
+systemd-tmpfiles-cleanup.service, and associated units.
+<P>
+
+System daemons frequently require private runtime directories below
+/run
+to store communication sockets and similar. For these, it is better to use
+<I>RuntimeDirectory=</I>
+in their unit files (see
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.exec">systemd.exec</A></B>(5)
+for details), if the flexibility provided by
+tmpfiles.d
+is not required. The advantages are that the configuration required by the unit is centralized in one place, and that the lifetime of the directory is tied to the lifetime of the service itself. Similarly,
+<I>StateDirectory=</I>,
+<I>CacheDirectory=</I>,
+<I>LogsDirectory=</I>, and
+<I>ConfigurationDirectory=</I>
+should be used to create directories under
+/var/lib/,
+/var/cache/,
+/var/log/, and
+/etc/.
+tmpfiles.d
+should be used for files whose lifetime is independent of any service or requires more complicated configuration.
+<A NAME="lbAE">&nbsp;</A>
+<H2>CONFIGURATION DIRECTORIES AND PRECEDENCE</H2>
+
+<P>
+
+Each configuration file shall be named in the style of
+<I>package</I>.conf
+or
+<I>package</I>-<I>part</I>.conf. The second variant should be used when it is desirable to make it easy to override just this part of configuration.
+<P>
+
+Files in
+/etc/tmpfiles.d
+override files with the same name in
+/usr/lib/tmpfiles.d
+and
+/run/tmpfiles.d. Files in
+/run/tmpfiles.d
+override files with the same name in
+/usr/lib/tmpfiles.d. Packages should install their configuration files in
+/usr/lib/tmpfiles.d. Files in
+/etc/tmpfiles.d
+are reserved for the local administrator, who may use this logic to override the configuration files installed by vendor packages. All configuration files are sorted by their filename in lexicographic order, regardless of which of the directories they reside in. If multiple files specify the same path, the entry in the file with the lexicographically earliest name will be applied. All other conflicting entries will be logged as errors. When two lines are prefix path and suffix path of each other, then the prefix line is always created first, the suffix later (and if removal applies to the line, the order is reversed: the suffix is removed first, the prefix later). Lines that take globs are applied after those accepting no globs. If multiple operations shall be applied on the same file (such as ACL, xattr, file attribute adjustments), these are always done in the same fixed order. Except for those cases, the files/directories are processed in the order they are listed.
+<P>
+
+If the administrator wants to disable a configuration file supplied by the vendor, the recommended way is to place a symlink to
+/dev/null
+in
+/etc/tmpfiles.d/
+bearing the same filename.
+<A NAME="lbAF">&nbsp;</A>
+<H2>CONFIGURATION FILE FORMAT</H2>
+
+<P>
+
+The configuration format is one line per path containing type, path, mode, ownership, age, and argument fields:
+<P>
+<DL COMPACT><DT id="1"><DD>
+
+
+
+<PRE>
+#Type Path        Mode User Group Age Argument
+d     /run/user   0755 root root  10d -
+L     /tmp/foobar -    -    -     -   /dev/null
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+Fields may be enclosed within quotes and contain C-style escapes.
+<A NAME="lbAG">&nbsp;</A>
+<H3>Type</H3>
+
+<P>
+
+The type consists of a single letter and optionally an exclamation mark and/or minus sign.
+<P>
+
+The following line types are understood:
+<P>
+
+<I>f</I>, <I>f+</I>
+<DL COMPACT><DT id="2"><DD>
+<I>f</I>
+will create a file if it does not exist yet. If the argument parameter is given and the file did not exist yet, it will be written to the file.
+<I>f+</I>
+will create or truncate the file. If the argument parameter is given, it will be written to the file. Does not follow symlinks.
+</DL>
+
+<P>
+
+<I>w</I>, <I>w+</I>
+<DL COMPACT><DT id="3"><DD>
+Write the argument parameter to a file, if the file exists. If suffixed with
+<I>+</I>, the line will be appended to the file. If your configuration writes multiple lines to the same file, use
+<I>w+</I>. Lines of this type accept shell-style globs in place of normal path names. The argument parameter will be written without a trailing newline. C-style backslash escapes are interpreted. Follows symlinks.
+</DL>
+
+<P>
+
+<I>d</I>
+<DL COMPACT><DT id="4"><DD>
+Create a directory. The mode and ownership will be adjusted if specified. Contents of this directory are subject to time based cleanup if the age argument is specified.
+</DL>
+
+<P>
+
+<I>D</I>
+<DL COMPACT><DT id="5"><DD>
+Similar to
+<I>d</I>, but in addition the contents of the directory will be removed when
+<B>--remove</B>
+is used.
+</DL>
+
+<P>
+
+<I>e</I>
+<DL COMPACT><DT id="6"><DD>
+Adjust the mode and ownership of existing directories and remove their contents based on age. Lines of this type accept shell-style globs in place of normal path names. Contents of the directories are subject to time based cleanup if the age argument is specified. If the age argument is
+&quot;0&quot;, contents will be unconditionally deleted every time
+<B>systemd-tmpfiles --clean</B>
+is run.
+<P>
+For this entry to be useful, at least one of the mode, user, group, or age arguments must be specified, since otherwise this entry has no effect. As an exception, an entry with no effect may be useful when combined with
+<I>!</I>, see the examples.
+</DL>
+
+<P>
+
+<I>v</I>
+<DL COMPACT><DT id="7"><DD>
+Create a subvolume if the path does not exist yet, the file system supports subvolumes (btrfs), and the system itself is installed into a subvolume (specifically: the root directory
+/
+is itself a subvolume). Otherwise, create a normal directory, in the same way as
+<I>d</I>.
+<P>
+A subvolume created with this line type is not assigned to any higher-level quota group. For that, use
+<I>q</I>
+or
+<I>Q</I>, which allow creating simple quota group hierarchies, see below.
+</DL>
+
+<P>
+
+<I>q</I>
+<DL COMPACT><DT id="8"><DD>
+Create a subvolume or directory the same as
+<I>v</I>, but assign the subvolume to the same higher-level quota groups as the parent. This ensures that higher-level limits and accounting applied to the parent subvolume also include the specified subvolume. On non-btrfs file systems, this line type is identical to
+<I>d</I>.
+<P>
+If the subvolume already exists, no change to the quota hierarchy is made, regardless of whether the subvolume is already attached to a quota group or not. Also see
+<I>Q</I>
+below. See
+<B><A HREF="/cgi-bin/man/man2html?8+btrfs-qgroup">btrfs-qgroup</A></B>(8)
+for details about the btrfs quota group concept.
+</DL>
+
+<P>
+
+<I>Q</I>
+<DL COMPACT><DT id="9"><DD>
+Create the subvolume or directory the same as
+<I>v</I>, but assign the new subvolume to a new leaf quota group. Instead of copying the higher-level quota group assignments from the parent as is done with
+<I>q</I>, the lowest quota group of the parent subvolume is determined that is not the leaf quota group. Then, an &quot;intermediary&quot; quota group is inserted that is one level below this level, and shares the same ID part as the specified subvolume. If no higher-level quota group exists for the parent subvolume, a new quota group at level 255 sharing the same ID as the specified subvolume is inserted instead. This new intermediary quota group is then assigned to the parent subvolume's higher-level quota groups, and the specified subvolume's leaf quota group is assigned to it.
+<P>
+Effectively, this has a similar effect as
+<I>q</I>, however introduces a new higher-level quota group for the specified subvolume that may be used to enforce limits and accounting to the specified subvolume and children subvolume created within it. Thus, by creating subvolumes only via
+<I>q</I>
+and
+<I>Q</I>, a concept of &quot;subtree quotas&quot; is implemented. Each subvolume for which
+<I>Q</I>
+is set will get a &quot;subtree&quot; quota group created, and all child subvolumes created within it will be assigned to it. Each subvolume for which
+<I>q</I>
+is set will not get such a &quot;subtree&quot; quota group, but it is ensured that they are added to the same &quot;subtree&quot; quota group as their immediate parents.
+<P>
+It is recommended to use
+<I>Q</I>
+for subvolumes that typically contain further subvolumes, and where it is desirable to have accounting and quota limits on all child subvolumes together. Examples for
+<I>Q</I>
+are typically
+/home
+or
+/var/lib/machines. In contrast,
+<I>q</I>
+should be used for subvolumes that either usually do not include further subvolumes or where no accounting and quota limits are needed that apply to all child subvolumes together. Examples for
+<I>q</I>
+are typically
+/var
+or
+/var/tmp.
+<P>
+As with
+<I>q</I>,
+<I>Q</I>
+has no effect on the quota group hierarchy if the subvolume already exists, regardless of whether the subvolume already belong to a quota group or not.
+</DL>
+
+<P>
+
+<I>p</I>, <I>p+</I>
+<DL COMPACT><DT id="10"><DD>
+Create a named pipe (FIFO) if it does not exist yet. If suffixed with
+<I>+</I>
+and a file already exists where the pipe is to be created, it will be removed and be replaced by the pipe.
+</DL>
+
+<P>
+
+<I>L</I>, <I>L+</I>
+<DL COMPACT><DT id="11"><DD>
+Create a symlink if it does not exist yet. If suffixed with
+<I>+</I>
+and a file or directory already exists where the symlink is to be created, it will be removed and be replaced by the symlink. If the argument is omitted, symlinks to files with the same name residing in the directory
+/usr/share/factory/
+are created. Note that permissions and ownership on symlinks are ignored.
+</DL>
+
+<P>
+
+<I>c</I>, <I>c+</I>
+<DL COMPACT><DT id="12"><DD>
+Create a character device node if it does not exist yet. If suffixed with
+<I>+</I>
+and a file already exists where the device node is to be created, it will be removed and be replaced by the device node. It is recommended to suffix this entry with an exclamation mark to only create static device nodes at boot, as udev will not manage static device nodes that are created at runtime.
+</DL>
+
+<P>
+
+<I>b</I>, <I>b+</I>
+<DL COMPACT><DT id="13"><DD>
+Create a block device node if it does not exist yet. If suffixed with
+<I>+</I>
+and a file already exists where the device node is to be created, it will be removed and be replaced by the device node. It is recommended to suffix this entry with an exclamation mark to only create static device nodes at boot, as udev will not manage static device nodes that are created at runtime.
+</DL>
+
+<P>
+
+<I>C</I>
+<DL COMPACT><DT id="14"><DD>
+Recursively copy a file or directory, if the destination files or directories do not exist yet or the destination directory is empty. Note that this command will not descend into subdirectories if the destination directory already exists and is not empty. Instead, the entire copy operation is skipped. If the argument is omitted, files from the source directory
+/usr/share/factory/
+with the same name are copied. Does not follow symlinks.
+</DL>
+
+<P>
+
+<I>x</I>
+<DL COMPACT><DT id="15"><DD>
+Ignore a path during cleaning. Use this type to exclude paths from clean-up as controlled with the Age parameter. Note that lines of this type do not influence the effect of
+<I>r</I>
+or
+<I>R</I>
+lines. Lines of this type accept shell-style globs in place of normal path names.
+</DL>
+
+<P>
+
+<I>X</I>
+<DL COMPACT><DT id="16"><DD>
+Ignore a path during cleaning. Use this type to exclude paths from clean-up as controlled with the Age parameter. Unlike
+<I>x</I>, this parameter will not exclude the content if path is a directory, but only directory itself. Note that lines of this type do not influence the effect of
+<I>r</I>
+or
+<I>R</I>
+lines. Lines of this type accept shell-style globs in place of normal path names.
+</DL>
+
+<P>
+
+<I>r</I>
+<DL COMPACT><DT id="17"><DD>
+Remove a file or directory if it exists. This may not be used to remove non-empty directories, use
+<I>R</I>
+for that. Lines of this type accept shell-style globs in place of normal path names. Does not follow symlinks.
+</DL>
+
+<P>
+
+<I>R</I>
+<DL COMPACT><DT id="18"><DD>
+Recursively remove a path and all its subdirectories (if it is a directory). Lines of this type accept shell-style globs in place of normal path names. Does not follow symlinks.
+</DL>
+
+<P>
+
+<I>z</I>
+<DL COMPACT><DT id="19"><DD>
+Adjust the access mode, user and group ownership, and restore the SELinux security context of a file or directory, if it exists. Lines of this type accept shell-style globs in place of normal path names. Does not follow symlinks.
+</DL>
+
+<P>
+
+<I>Z</I>
+<DL COMPACT><DT id="20"><DD>
+Recursively set the access mode, user and group ownership, and restore the SELinux security context of a file or directory if it exists, as well as of its subdirectories and the files contained therein (if applicable). Lines of this type accept shell-style globs in place of normal path names. Does not follow symlinks.
+</DL>
+
+<P>
+
+<I>t</I>
+<DL COMPACT><DT id="21"><DD>
+Set extended attributes, see
+<B><A HREF="/cgi-bin/man/man2html?5+attr">attr</A></B>(5)
+for details. The argument field should take one or more assignment expressions in the form
+<I>namespace</I>.<I>attribute</I>=<I>value</I>, for examples see below. Lines of this type accept shell-style globs in place of normal path names. This can be useful for setting SMACK labels. Does not follow symlinks.
+<P>
+Please note that extended attributes settable with this line type are a different concept from the Linux file attributes settable with
+<I>h</I>/<I>H</I>, see below.
+</DL>
+
+<P>
+
+<I>T</I>
+<DL COMPACT><DT id="22"><DD>
+Same as
+<I>t</I>, but operates recursively.
+</DL>
+
+<P>
+
+<I>h</I>
+<DL COMPACT><DT id="23"><DD>
+Set Linux file/directory attributes. Lines of this type accept shell-style globs in place of normal path names.
+<P>
+The format of the argument field is
+<I>[+-=][aAcCdDeijPsStTu]</I>. The prefix
+<I>+</I>
+(the default one) causes the attribute(s) to be added;
+<I>-</I>
+causes the attribute(s) to be removed;
+<I>=</I>
+causes the attributes to be set exactly as the following letters. The letters
+&quot;aAcCdDeijPsStTu&quot;
+select the new attributes for the files, see
+<B><A HREF="/cgi-bin/man/man2html?1+chattr">chattr</A></B>(1)
+for further information.
+<P>
+Passing only
+<I>=</I>
+as argument resets all the file attributes listed above. It has to be pointed out that the
+<I>=</I>
+prefix limits itself to the attributes corresponding to the letters listed here. All other attributes will be left untouched. Does not follow symlinks.
+<P>
+Please note that the Linux file attributes settable with this line type are a different concept from the extended attributes settable with
+<I>t</I>/<I>T</I>, see above.
+</DL>
+
+<P>
+
+<I>H</I>
+<DL COMPACT><DT id="24"><DD>
+Sames as
+<I>h</I>, but operates recursively.
+</DL>
+
+<P>
+
+<I>a</I>, <I>a+</I>
+<DL COMPACT><DT id="25"><DD>
+Set POSIX ACLs (access control lists), see
+<B><A HREF="/cgi-bin/man/man2html?5+acl">acl</A></B>(5). If suffixed with
+<I>+</I>, the specified entries will be added to the existing set.
+<B>systemd-tmpfiles</B>
+will automatically add the required base entries for user and group based on the access mode of the file, unless base entries already exist or are explicitly specified. The mask will be added if not specified explicitly or already present. Lines of this type accept shell-style globs in place of normal path names. This can be useful for allowing additional access to certain files. Does not follow symlinks.
+</DL>
+
+<P>
+
+<I>A</I>, <I>A+</I>
+<DL COMPACT><DT id="26"><DD>
+Same as
+<I>a</I>
+and
+<I>a+</I>, but recursive. Does not follow symlinks.
+</DL>
+
+<P>
+
+If the exclamation mark is used, this line is only safe to execute during boot, and can break a running system. Lines without the exclamation mark are presumed to be safe to execute at any time, e.g. on package upgrades.
+<B>systemd-tmpfiles</B>
+will execute line with an exclamation mark only if option
+<B>--boot</B>
+is given.
+<P>
+
+For example:
+<P>
+<DL COMPACT><DT id="27"><DD>
+
+
+
+<PRE>
+# Make sure these are created by default so that nobody else can
+d /tmp/.X11-unix 1777 root root 10d
+
+# Unlink the X11 lock files
+r! /tmp/.X[0-9]*-lock
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+The second line in contrast to the first one would break a running system, and will only be executed with
+<B>--boot</B>.
+<P>
+
+If the minus sign is used, this line failing to run successfully during create (and only create) will not cause the execution of
+<B>systemd-tmpfiles</B>
+to return an error.
+<P>
+
+For example:
+<P>
+<DL COMPACT><DT id="28"><DD>
+
+
+
+<PRE>
+# Modify sysfs but don't fail if we are in a container with a read-only /proc
+w- /proc/sys/vm/swappiness - - - - 10
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+Note that for all line types that result in creation of any kind of file node (i.e.
+<I>f</I>/<I>F</I>,
+<I>d</I>/<I>D</I>/<I>v</I>/<I>q</I>/<I>Q</I>,
+<I>p</I>,
+<I>L</I>,
+<I>c</I>/<I>b</I>
+and
+<I>C</I>) leading directories are implicitly created if needed, owned by root with an access mode of 0755. In order to create them with different modes or ownership make sure to add appropriate
+<I>d</I>
+lines.
+<A NAME="lbAH">&nbsp;</A>
+<H3>Path</H3>
+
+<P>
+
+The file system path specification supports simple specifier expansion, see below. The path (after expansion) must be absolute.
+<A NAME="lbAI">&nbsp;</A>
+<H3>Mode</H3>
+
+<P>
+
+The file access mode to use when creating this file or directory. If omitted or when set to
+&quot;-&quot;, the default is used: 0755 for directories, 0644 for all other file objects. For
+<I>z</I>,
+<I>Z</I>
+lines, if omitted or when set to
+&quot;-&quot;, the file access mode will not be modified. This parameter is ignored for
+<I>x</I>,
+<I>r</I>,
+<I>R</I>,
+<I>L</I>,
+<I>t</I>, and
+<I>a</I>
+lines.
+<P>
+
+Optionally, if prefixed with
+&quot;~&quot;, the access mode is masked based on the already set access bits for existing file or directories: if the existing file has all executable bits unset, all executable bits are removed from the new access mode, too. Similarly, if all read bits are removed from the old access mode, they will be removed from the new access mode too, and if all write bits are removed, they will be removed from the new access mode too. In addition, the sticky/SUID/SGID bit is removed unless applied to a directory. This functionality is particularly useful in conjunction with
+<I>Z</I>.
+<A NAME="lbAJ">&nbsp;</A>
+<H3>User, Group</H3>
+
+<P>
+
+The user and group to use for this file or directory. This may either be a numeric ID or a user/group name. If omitted or when set to
+&quot;-&quot;, the user and group of the user who invokes
+<B>systemd-tmpfiles</B>
+is used. For
+<I>z</I>
+and
+<I>Z</I>
+lines, when omitted or when set to
+&quot;-&quot;, the file ownership will not be modified. These parameters are ignored for
+<I>x</I>,
+<I>r</I>,
+<I>R</I>,
+<I>L</I>,
+<I>t</I>, and
+<I>a</I>
+lines.
+<P>
+
+This field should generally only reference system users/groups, i.e. users/groups that are guaranteed to be resolvable during early boot. If this field references users/groups that only become resolveable during later boot (i.e. after NIS, LDAP or a similar networked directory service become available), execution of the operations declared by the line will likely fail. Also see
+m[blue]<B>Notes on Resolvability of User and Group Names</B>m[]<FONT SIZE="-2">[1]</FONT>
+for more information on requirements on system user/group definitions.
+<A NAME="lbAK">&nbsp;</A>
+<H3>Age</H3>
+
+<P>
+
+The date field, when set, is used to decide what files to delete when cleaning. If a file or directory is older than the current time minus the age field, it is deleted. The field format is a series of integers each followed by one of the following suffixes for the respective time units:
+<B>s</B>,
+<B>m</B>
+or
+<B>min</B>,
+<B>h</B>,
+<B>d</B>,
+<B>w</B>,
+<B>ms</B>, and
+<B>us</B>, meaning seconds, minutes, hours, days, weeks, milliseconds, and microseconds, respectively. Full names of the time units can be used too.
+<P>
+
+If multiple integers and units are specified, the time values are summed. If an integer is given without a unit,
+<B>s</B>
+is assumed.
+<P>
+
+When the age is set to zero, the files are cleaned unconditionally.
+<P>
+
+The age field only applies to lines starting with
+<I>d</I>,
+<I>D</I>,
+<I>e</I>,
+<I>v</I>,
+<I>q</I>,
+<I>Q</I>,
+<I>C</I>,
+<I>x</I>
+and
+<I>X</I>. If omitted or set to
+&quot;-&quot;, no automatic clean-up is done.
+<P>
+
+If the age field starts with a tilde character
+&quot;~&quot;, the clean-up is only applied to files and directories one level inside the directory specified, but not the files and directories immediately inside it.
+<P>
+
+The age of a file system entry is determined from its last modification timestamp (mtime), its last access timestamp (atime), and (except for directories) its last status change timestamp (ctime). Any of these three (or two) values will prevent cleanup if it is more recent than the current time minus the age field.
+<P>
+
+Note that while the aging algorithm is run a 'shared' BSD file lock (see
+<B><A HREF="/cgi-bin/man/man2html?2+flock">flock</A></B>(2)) is taken on each directory the algorithm descends into (and each directory below that, and so on). If the aging algorithm finds a lock is already taken on some directory, it (and everything below it) is skipped. Applications may use this to temporarily exclude certain directory subtrees from the aging algorithm: the applications can take a BSD file lock themselves, and as long as they keep it aging of the directory and everything below it is disabled.
+<A NAME="lbAL">&nbsp;</A>
+<H3>Argument</H3>
+
+<P>
+
+For
+<I>L</I>
+lines determines the destination path of the symlink. For
+<I>c</I>
+and
+<I>b</I>, determines the major/minor of the device node, with major and minor formatted as integers, separated by
+&quot;:&quot;, e.g.
+&quot;1:3&quot;. For
+<I>f</I>,
+<I>F</I>, and
+<I>w</I>, the argument may be used to specify a short string that is written to the file, suffixed by a newline. For
+<I>C</I>, specifies the source file or directory. For
+<I>t</I>
+and
+<I>T</I>, determines extended attributes to be set. For
+<I>a</I>
+and
+<I>A</I>, determines ACL attributes to be set. For
+<I>h</I>
+and
+<I>H</I>, determines the file attributes to set. Ignored for all other lines.
+<P>
+
+This field can contain specifiers, see below.
+<A NAME="lbAM">&nbsp;</A>
+<H2>SPECIFIERS</H2>
+
+<P>
+
+Specifiers can be used in the &quot;path&quot; and &quot;argument&quot; fields. An unknown or unresolvable specifier is treated as invalid configuration. The following expansions are understood:
+<P>
+
+
+
+<BR>
+
+<B>Table&nbsp;1.&nbsp;Specifiers available</B>
+
+<TABLE BORDER>
+<TR VALIGN=top><TD><B>
+Specifier
+</B></TD><TD><B>
+Meaning
+</B></TD><TD><B>
+Details
+</B><BR></TD></TR>
+<TR VALIGN=top><TD>
+&quot;%b&quot;
+</TD><TD>
+Boot ID
+</TD><TD>
+The boot ID of the running system, formatted as string. See <B><A HREF="/cgi-bin/man/man2html?4+random">random</A></B>(4) for more information.
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+&quot;%C&quot;
+</TD><TD>
+System or user cache directory
+</TD><TD>
+In <B>--user</B> mode, this is the same as <I>$XDG_CACHE_HOME</I>, and /var/cache otherwise.
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+&quot;%h&quot;
+</TD><TD>
+User home directory
+</TD><TD>
+This is the home directory of the user running the command. In case of the system instance this resolves to &quot;/root&quot;.
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+&quot;%H&quot;
+</TD><TD>
+Host name
+</TD><TD>
+The hostname of the running system.
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+&quot;%L&quot;
+</TD><TD>
+System or user log directory
+</TD><TD>
+In <B>--user</B> mode, this is the same as <I>$XDG_CONFIG_HOME</I> with /log appended, and /var/log otherwise.
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+&quot;%m&quot;
+</TD><TD>
+Machine ID
+</TD><TD>
+The machine ID of the running system, formatted as string. See <B><A HREF="/cgi-bin/man/man2html?5+machine-id">machine-id</A></B>(5) for more information.
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+&quot;%S&quot;
+</TD><TD>
+System or user state directory
+</TD><TD>
+In <B>--user</B> mode, this is the same as <I>$XDG_CONFIG_HOME</I>, and /var/lib otherwise.
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+&quot;%t&quot;
+</TD><TD>
+System or user runtime directory
+</TD><TD>
+In <B>--user</B> mode, this is the same <I>$XDG_RUNTIME_DIR</I>, and /run otherwise.
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+&quot;%T&quot;
+</TD><TD>
+Directory for temporary files
+</TD><TD>
+This is either /tmp or the path &quot;$TMPDIR&quot;, &quot;$TEMP&quot; or &quot;$TMP&quot; are set to.
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+&quot;%g&quot;
+</TD><TD>
+User group
+</TD><TD>
+This is the name of the group running the command. In case of the system instance this resolves to &quot;root&quot;.
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+&quot;%G&quot;
+</TD><TD>
+User GID
+</TD><TD>
+This is the numeric GID of the group running the command. In case of the system instance this resolves to <B>0</B>.
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+&quot;%u&quot;
+</TD><TD>
+User name
+</TD><TD>
+This is the name of the user running the command. In case of the system instance this resolves to &quot;root&quot;.
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+&quot;%U&quot;
+</TD><TD>
+User UID
+</TD><TD>
+This is the numeric UID of the user running the command. In case of the system instance this resolves to <B>0</B>.
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+&quot;%v&quot;
+</TD><TD>
+Kernel release
+</TD><TD>
+Identical to <B>uname -r</B> output.
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+&quot;%V&quot;
+</TD><TD>
+Directory for larger and persistent temporary files
+</TD><TD>
+This is either /var/tmp or the path &quot;$TMPDIR&quot;, &quot;$TEMP&quot; or &quot;$TMP&quot; are set to.
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+&quot;%%&quot;
+</TD><TD>
+Escaped &quot;%&quot;
+</TD><TD>
+Single percent sign.
+<BR></TD></TR>
+</TABLE>
+
+<P>
+<A NAME="lbAN">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+<P>
+
+<B>Example&nbsp;1.&nbsp;Create directories with specific mode and ownership</B>
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?1+screen">screen</A></B>(1), needs two directories created at boot with specific modes and ownership:
+<P>
+<DL COMPACT><DT id="29"><DD>
+
+
+
+<PRE>
+# /usr/lib/tmpfiles.d/screen.conf
+d /run/screens  1777 root screen 10d
+d /run/uscreens 0755 root screen 10d12h
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+Contents of
+/run/screens
+and /run/uscreens will be cleaned up after 10 and 10&#189; days, respectively.
+<P>
+
+<B>Example&nbsp;2.&nbsp;Create a directory with a SMACK attribute</B>
+<P>
+<DL COMPACT><DT id="30"><DD>
+
+
+
+<PRE>
+D /run/cups - - - -
+t /run/cups - - - - security.SMACK64=printing user.attr-with-spaces=&quot;foo bar&quot;
+      
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+The directory will be owned by root and have default mode. Its contents are not subject to time based cleanup, but will be obliterated when
+<B>systemd-tmpfiles --remove</B>
+runs.
+<P>
+
+<B>Example&nbsp;3.&nbsp;Create a directory and prevent its contents from cleanup</B>
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?1+abrt">abrt</A></B>(1), needs a directory created at boot with specific mode and ownership and its content should be preserved from the automatic cleanup applied to the contents of
+/var/tmp:
+<P>
+<DL COMPACT><DT id="31"><DD>
+
+
+
+<PRE>
+# /usr/lib/tmpfiles.d/tmp.conf
+d /var/tmp 1777 root root 30d
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<DL COMPACT><DT id="32"><DD>
+
+
+
+<PRE>
+# /usr/lib/tmpfiles.d/abrt.conf
+d /var/tmp/abrt 0755 abrt abrt -
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+<B>Example&nbsp;4.&nbsp;Apply clean up during boot and based on time</B>
+<P>
+<DL COMPACT><DT id="33"><DD>
+
+
+
+<PRE>
+# /usr/lib/tmpfiles.d/dnf.conf
+r! /var/cache/dnf/*/*/download_lock.pid
+r! /var/cache/dnf/*/*/metadata_lock.pid
+r! /var/lib/dnf/rpmdb_lock.pid
+e  /var/cache/dnf/ - - - 30d
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+The lock files will be removed during boot. Any files and directories in
+/var/cache/dnf/
+will be removed after they have not been accessed in 30 days.
+<P>
+
+<B>Example&nbsp;5.&nbsp;Empty the contents of a cache directory on boot</B>
+<P>
+<DL COMPACT><DT id="34"><DD>
+
+
+
+<PRE>
+# /usr/lib/tmpfiles.d/krb5rcache.conf
+e! /var/cache/krb5rcache - - - 0
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+Any files and subdirectories in
+/var/cache/krb5rcache/
+will be removed on boot. The directory will not be created.
+<A NAME="lbAO">&nbsp;</A>
+<H2>/RUN/ AND /VAR/RUN/</H2>
+
+<P>
+
+/var/run/
+is a deprecated symlink to
+/run/, and applications should use the latter.
+<B>systemd-tmpfiles</B>
+will warn if
+/var/run/
+is used.
+<A NAME="lbAP">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-tmpfiles">systemd-tmpfiles</A></B>(8),
+<B><A HREF="/cgi-bin/man/man2html?1+systemd-delta">systemd-delta</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.exec">systemd.exec</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?5+attr">attr</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?1+getfattr">getfattr</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?1+setfattr">setfattr</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?1+setfacl">setfacl</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?1+getfacl">getfacl</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?1+chattr">chattr</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?8+btrfs-subvolume">btrfs-subvolume</A></B>(8),
+<B><A HREF="/cgi-bin/man/man2html?8+btrfs-qgroup">btrfs-qgroup</A></B>(8)
+<A NAME="lbAQ">&nbsp;</A>
+<H2>NOTES</H2>
+
+<DL COMPACT>
+<DT id="35"> 1.<DD>
+Notes on Resolvability of User and Group Names
+<DL COMPACT><DT id="36"><DD>
+<A HREF="https://systemd.io/UIDS-GIDS/#notes-on-resolvability-of-user-and-group-names">https://systemd.io/UIDS-GIDS/#notes-on-resolvability-of-user-and-group-names</A>
+</DL>
+
+<P>
+</DL>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="37"><A HREF="#lbAB">NAME</A><DD>
+<DT id="38"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="39"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="40"><A HREF="#lbAE">CONFIGURATION DIRECTORIES AND PRECEDENCE</A><DD>
+<DT id="41"><A HREF="#lbAF">CONFIGURATION FILE FORMAT</A><DD>
+<DL>
+<DT id="42"><A HREF="#lbAG">Type</A><DD>
+<DT id="43"><A HREF="#lbAH">Path</A><DD>
+<DT id="44"><A HREF="#lbAI">Mode</A><DD>
+<DT id="45"><A HREF="#lbAJ">User, Group</A><DD>
+<DT id="46"><A HREF="#lbAK">Age</A><DD>
+<DT id="47"><A HREF="#lbAL">Argument</A><DD>
+</DL>
+<DT id="48"><A HREF="#lbAM">SPECIFIERS</A><DD>
+<DT id="49"><A HREF="#lbAN">EXAMPLES</A><DD>
+<DT id="50"><A HREF="#lbAO">/RUN/ AND /VAR/RUN/</A><DD>
+<DT id="51"><A HREF="#lbAP">SEE ALSO</A><DD>
+<DT id="52"><A HREF="#lbAQ">NOTES</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:06 GMT, March 31, 2021
+</BODY>
+</HTML>

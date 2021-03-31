@@ -1,0 +1,406 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SIGNAL-SAFETY</TITLE>
+</HEAD><BODY>
+<H1>SIGNAL-SAFETY</H1>
+Section: Linux Programmer's Manual (7)<BR>Updated: 2019-10-10<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+signal-safety - async-signal-safe functions
+<A NAME="lbAC">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+An
+<I>async-signal-safe</I>
+
+function is one that can be safely called from within a signal handler.
+Many functions are
+<I>not</I>
+
+async-signal-safe.
+In particular,
+nonreentrant functions are generally unsafe to call from a signal handler.
+<P>
+
+The kinds of issues that render a function
+unsafe can be quickly understood when one considers
+the implementation of the
+<I>stdio</I>
+
+library, all of whose functions are not async-signal-safe.
+<P>
+
+When performing buffered I/O on a file, the
+<I>stdio</I>
+
+functions must maintain a statically allocated data buffer
+along with associated counters and indexes (or pointers)
+that record the amount of data and the current position in the buffer.
+Suppose that the main program is in the middle of a call to a
+<I>stdio</I>
+
+function such as
+<B><A HREF="/cgi-bin/man/man2html?3+printf">printf</A></B>(3)
+
+where the buffer and associated variables have been partially updated.
+If, at that moment,
+the program is interrupted by a signal handler that also calls
+<B><A HREF="/cgi-bin/man/man2html?3+printf">printf</A></B>(3),
+
+then the second call to
+<B><A HREF="/cgi-bin/man/man2html?3+printf">printf</A></B>(3)
+
+will operate on inconsistent data, with unpredictable results.
+<P>
+
+To avoid problems with unsafe functions, there are two possible choices:
+<DL COMPACT>
+<DT id="1">1.<DD>
+Ensure that
+(a) the signal handler calls only async-signal-safe functions,
+and
+(b) the signal handler itself is reentrant
+with respect to global variables in the main program.
+<DT id="2">2.<DD>
+Block signal delivery in the main program when calling functions
+that are unsafe or operating on global data that is also accessed
+by the signal handler.
+</DL>
+<P>
+
+Generally, the second choice is difficult in programs of any complexity,
+so the first choice is taken.
+<P>
+
+POSIX.1 specifies a set of functions that an implementation
+must make async-signal-safe.
+(An implementation may provide safe implementations of additional functions,
+but this is not required by the standard and other implementations
+may not provide the same guarantees.)
+<P>
+
+In general, a function is async-signal-safe either because it is reentrant
+or because it is atomic with respect to signals
+(i.e., its execution can't be interrupted by a signal handler).
+<P>
+
+The set of functions required to be async-signal-safe by POSIX.1
+is shown in the following table.
+The functions not otherwise noted were required to be async-signal-safe
+in POSIX.1-2001;
+the table details changes in the subsequent standards.
+<P>
+
+<TABLE>
+<TR VALIGN=top><TD><B>Function</B></TD><TD><B>Notes</B><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+abort">abort</A></B>(3)</TD><TD>Added in POSIX.1-2003<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+accept">accept</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+access">access</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+aio_error">aio_error</A></B>(3)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+aio_return">aio_return</A></B>(3)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+aio_suspend">aio_suspend</A></B>(3)</TD><TD>See notes below<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+alarm">alarm</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+bind">bind</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+cfgetispeed">cfgetispeed</A></B>(3)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+cfgetospeed">cfgetospeed</A></B>(3)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+cfsetispeed">cfsetispeed</A></B>(3)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+cfsetospeed">cfsetospeed</A></B>(3)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+chdir">chdir</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+chmod">chmod</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+chown">chown</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+clock_gettime">clock_gettime</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+close">close</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+connect">connect</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+creat">creat</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+dup">dup</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+dup2">dup2</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+execl">execl</A></B>(3)</TD><TD>Added in POSIX.1-2008; see notes below<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+execle">execle</A></B>(3)</TD><TD>See notes below<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+execv">execv</A></B>(3)</TD><TD>Added in POSIX.1-2008<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+execve">execve</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+_exit">_exit</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+_Exit">_Exit</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+faccessat">faccessat</A></B>(2)</TD><TD>Added in POSIX.1-2008<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+fchdir">fchdir</A></B>(2)</TD><TD>Added in POSIX.1-2013<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+fchmod">fchmod</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+fchmodat">fchmodat</A></B>(2)</TD><TD>Added in POSIX.1-2008<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+fchown">fchown</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+fchownat">fchownat</A></B>(2)</TD><TD>Added in POSIX.1-2008<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+fdatasync">fdatasync</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+fexecve">fexecve</A></B>(3)</TD><TD>Added in POSIX.1-2008<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+ffs">ffs</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2)</TD><TD>See notes below<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+fstat">fstat</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+fstatat">fstatat</A></B>(2)</TD><TD>Added in POSIX.1-2008<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+fsync">fsync</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+ftruncate">ftruncate</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+futimens">futimens</A></B>(3)</TD><TD>Added in POSIX.1-2008<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+getegid">getegid</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+geteuid">geteuid</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+getgid">getgid</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+getgroups">getgroups</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+getpeername">getpeername</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+getpgrp">getpgrp</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+getpid">getpid</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+getppid">getppid</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+getsockname">getsockname</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+getsockopt">getsockopt</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+getuid">getuid</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+htonl">htonl</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+htons">htons</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+kill">kill</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+link">link</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+linkat">linkat</A></B>(2)</TD><TD>Added in POSIX.1-2008<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+listen">listen</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+longjmp">longjmp</A></B>(3)</TD><TD>Added in POSIX.1-2016; see notes below<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+lseek">lseek</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+lstat">lstat</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+memccpy">memccpy</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+memchr">memchr</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+memcmp">memcmp</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+memcpy">memcpy</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+memmove">memmove</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+memset">memset</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+mkdir">mkdir</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+mkdirat">mkdirat</A></B>(2)</TD><TD>Added in POSIX.1-2008<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+mkfifo">mkfifo</A></B>(3)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+mkfifoat">mkfifoat</A></B>(3)</TD><TD>Added in POSIX.1-2008<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+mknod">mknod</A></B>(2)</TD><TD>Added in POSIX.1-2008<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+mknodat">mknodat</A></B>(2)</TD><TD>Added in POSIX.1-2008<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+ntohl">ntohl</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+ntohs">ntohs</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+open">open</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+openat">openat</A></B>(2)</TD><TD>Added in POSIX.1-2008<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+pause">pause</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+pipe">pipe</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+poll">poll</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+posix_trace_event">posix_trace_event</A></B>(3)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+pselect">pselect</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+pthread_kill">pthread_kill</A></B>(3)</TD><TD>Added in POSIX.1-2013<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+pthread_self">pthread_self</A></B>(3)</TD><TD>Added in POSIX.1-2013<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+pthread_sigmask">pthread_sigmask</A></B>(3)</TD><TD>Added in POSIX.1-2013<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+raise">raise</A></B>(3)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+readlink">readlink</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+readlinkat">readlinkat</A></B>(2)</TD><TD>Added in POSIX.1-2008<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+recv">recv</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+recvfrom">recvfrom</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+recvmsg">recvmsg</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+rename">rename</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+renameat">renameat</A></B>(2)</TD><TD>Added in POSIX.1-2008<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+rmdir">rmdir</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+select">select</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+sem_post">sem_post</A></B>(3)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+send">send</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+sendmsg">sendmsg</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+sendto">sendto</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+setgid">setgid</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+setpgid">setpgid</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+setsid">setsid</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+setsockopt">setsockopt</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+setuid">setuid</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+shutdown">shutdown</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+sigaction">sigaction</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+sigaddset">sigaddset</A></B>(3)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+sigdelset">sigdelset</A></B>(3)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+sigemptyset">sigemptyset</A></B>(3)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+sigfillset">sigfillset</A></B>(3)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+sigismember">sigismember</A></B>(3)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+siglongjmp">siglongjmp</A></B>(3)</TD><TD>Added in POSIX.1-2016; see notes below<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+signal">signal</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+sigpause">sigpause</A></B>(3)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+sigpending">sigpending</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+sigprocmask">sigprocmask</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+sigqueue">sigqueue</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+sigset">sigset</A></B>(3)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+sigsuspend">sigsuspend</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+sleep">sleep</A></B>(3)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+sockatmark">sockatmark</A></B>(3)</TD><TD>Added in POSIX.1-2004<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+socket">socket</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+socketpair">socketpair</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+stat">stat</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+stpcpy">stpcpy</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+stpncpy">stpncpy</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+strcat">strcat</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+strchr">strchr</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+strcmp">strcmp</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+strcpy">strcpy</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+strcspn">strcspn</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+strlen">strlen</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+strncat">strncat</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+strncmp">strncmp</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+strncpy">strncpy</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+strnlen">strnlen</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+strpbrk">strpbrk</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+strrchr">strrchr</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+strspn">strspn</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+strstr">strstr</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+strtok_r">strtok_r</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+symlink">symlink</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+symlinkat">symlinkat</A></B>(2)</TD><TD>Added in POSIX.1-2008<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+tcdrain">tcdrain</A></B>(3)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+tcflow">tcflow</A></B>(3)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+tcflush">tcflush</A></B>(3)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+tcgetattr">tcgetattr</A></B>(3)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+tcgetpgrp">tcgetpgrp</A></B>(3)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+tcsendbreak">tcsendbreak</A></B>(3)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+tcsetattr">tcsetattr</A></B>(3)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+tcsetpgrp">tcsetpgrp</A></B>(3)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+time">time</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+timer_getoverrun">timer_getoverrun</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+timer_gettime">timer_gettime</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+timer_settime">timer_settime</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+times">times</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+umask">umask</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+uname">uname</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+unlink">unlink</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+unlinkat">unlinkat</A></B>(2)</TD><TD>Added in POSIX.1-2008<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+utime">utime</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+utimensat">utimensat</A></B>(2)</TD><TD>Added in POSIX.1-2008<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+utimes">utimes</A></B>(2)</TD><TD>Added in POSIX.1-2008<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+wait">wait</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+waitpid">waitpid</A></B>(2)</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+wcpcpy">wcpcpy</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+wcpncpy">wcpncpy</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+wcscat">wcscat</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+wcschr">wcschr</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+wcscmp">wcscmp</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+wcscpy">wcscpy</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+wcscspn">wcscspn</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+wcslen">wcslen</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+wcsncat">wcsncat</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+wcsncmp">wcsncmp</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+wcsncpy">wcsncpy</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+wcsnlen">wcsnlen</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+wcspbrk">wcspbrk</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+wcsrchr">wcsrchr</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+wcsspn">wcsspn</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+wcsstr">wcsstr</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+wcstok">wcstok</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+wmemchr">wmemchr</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+wmemcmp">wmemcmp</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+wmemcpy">wmemcpy</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+wmemmove">wmemmove</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?3+wmemset">wmemset</A></B>(3)</TD><TD>Added in POSIX.1-2016<BR></TD></TR>
+<TR VALIGN=top><TD><B><A HREF="/cgi-bin/man/man2html?2+write">write</A></B>(2)</TD><TD><BR></TD></TR>
+</TABLE>
+
+<P>
+Notes:
+<DL COMPACT>
+<DT id="3">*<DD>
+POSIX.1-2001 and POSIX.1-2004 required the functions
+<B><A HREF="/cgi-bin/man/man2html?3+fpathconf">fpathconf</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+pathconf">pathconf</A></B>(3),
+
+and
+<B><A HREF="/cgi-bin/man/man2html?3+sysconf">sysconf</A></B>(3)
+
+to be async-signal-safe, but this requirement was removed in POSIX.1-2008.
+<DT id="4">*<DD>
+If a signal handler interrupts the execution of an unsafe function,
+and the handler terminates via a call to
+<B><A HREF="/cgi-bin/man/man2html?3+longjmp">longjmp</A></B>(3)
+
+or
+<B><A HREF="/cgi-bin/man/man2html?3+siglongjmp">siglongjmp</A></B>(3)
+
+and the program subsequently calls an unsafe function,
+then the behavior of the program is undefined.
+<DT id="5">*<DD>
+POSIX.1-2003 clarified
+that if an application calls
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2)
+
+from a signal handler and any of the fork handlers registered by
+<B><A HREF="/cgi-bin/man/man2html?3+pthread_atfork">pthread_atfork</A></B>(3)
+
+calls a function that is not async-signal-safe, the behavior is undefined.
+A future revision of the standard
+
+is likely to remove
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2)
+
+from the list of async-signal-safe functions.
+
+<DT id="6">*<DD>
+Asynchronous signal handlers that call functions which are cancellation
+points and nest over regions of deferred cancellation may trigger
+cancellation whose behavior is as if asynchronous cancellation had
+occurred and may cause application state to become inconsistent.
+</DL>
+<A NAME="lbAD">&nbsp;</A>
+<H3>Deviations in the GNU C library</H3>
+
+The following known deviations from the standard occur in
+the GNU C library:
+<DL COMPACT>
+<DT id="7">*<DD>
+Before glibc 2.24,
+<B><A HREF="/cgi-bin/man/man2html?3+execl">execl</A></B>(3)
+
+and
+<B><A HREF="/cgi-bin/man/man2html?3+execle">execle</A></B>(3)
+
+employed
+<B><A HREF="/cgi-bin/man/man2html?3+realloc">realloc</A></B>(3)
+
+internally and were consequently not async-signal-safe.
+
+This was fixed in glibc 2.24.
+<DT id="8">*<DD>
+
+The glibc implementation of
+<B><A HREF="/cgi-bin/man/man2html?3+aio_suspend">aio_suspend</A></B>(3)
+
+is not async-signal-safe because it uses
+<B><A HREF="/cgi-bin/man/man2html?3+pthread_mutex_lock">pthread_mutex_lock</A></B>(3)
+
+internally.
+</DL>
+<A NAME="lbAE">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?2+sigaction">sigaction</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?7+signal">signal</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+standards">standards</A></B>(7)
+
+<A NAME="lbAF">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="9"><A HREF="#lbAB">NAME</A><DD>
+<DT id="10"><A HREF="#lbAC">DESCRIPTION</A><DD>
+<DL>
+<DT id="11"><A HREF="#lbAD">Deviations in the GNU C library</A><DD>
+</DL>
+<DT id="12"><A HREF="#lbAE">SEE ALSO</A><DD>
+<DT id="13"><A HREF="#lbAF">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:09 GMT, March 31, 2021
+</BODY>
+</HTML>

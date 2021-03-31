@@ -1,0 +1,224 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of skbmod action in tc</TITLE>
+</HEAD><BODY>
+<H1>skbmod action in tc</H1>
+Section: Linux (8)<BR>Updated: 21 Sep 2016<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<P>
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+skbmod - user-friendly packet editor action
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+
+<BR>
+
+<B>tc</B> ... <B>action skbmod </B>{ [ <B>set </B>
+
+<I>SETTABLE</I> ] [ 
+
+<B>swap</B><I> SWAPPABLE</I>
+
+ ] [ <I>CONTROL</I> ] [ 
+
+<B>index</B><I> INDEX </I>
+
+] }
+<P>
+<BR>
+
+<I>SETTABLE</I> := 
+
+ [ <B>dmac</B>
+
+<I>DMAC</I> ] 
+
+ [ <B>smac</B>
+
+<I>SMAC</I> ] 
+
+ [ <B>etype</B>
+
+<I>ETYPE</I> ] 
+
+<P>
+<BR>
+
+<I>SWAPPABLE</I> := 
+
+<B>mac</B>
+
+<BR>
+
+<I>CONTROL</I> := {
+
+<B>reclassify</B> | <B>pipe</B> | <B>drop</B> | <B>shot</B> | <B>continue</B> | <B>pass</B> }
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+The
+<B>skbmod</B>
+
+action is intended as a usability upgrade to the existing
+<B>pedit</B>
+
+action. Instead of having to manually edit 8-, 16-, or 32-bit chunks of an
+ethernet header,
+<B>skbmod</B>
+
+allows complete substitution of supported elements.
+<A NAME="lbAE">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<DL COMPACT>
+<DT id="1"><B>dmac</B><I> DMAC</I>
+
+<DD>
+Change the destination mac to the specified address.
+<DT id="2"><B>smac</B><I> SMAC</I>
+
+<DD>
+Change the source mac to the specified address.
+<DT id="3"><B>etype</B><I> ETYPE</I>
+
+<DD>
+Change the ethertype to the specified value.
+<DT id="4"><B>mac</B>
+
+<DD>
+Used to swap mac addresses. The
+<B>swap mac</B>
+
+directive is performed
+after any outstanding D/SMAC changes.
+<DT id="5"><I>CONTROL</I>
+
+<DD>
+The following keywords allow to control how the tree of qdisc, classes,
+filters and actions is further traversed after this action.
+<DL COMPACT><DT id="6"><DD>
+<DL COMPACT>
+<DT id="7"><B>reclassify</B>
+
+<DD>
+Restart with the first filter in the current list.
+<DT id="8"><B>pipe</B>
+
+<DD>
+Continue with the next action attached to the same filter.
+<DT id="9"><B>drop</B>
+
+<DD>
+
+<B>shot</B>
+
+Drop the packet.
+<DT id="10"><B>continue</B>
+
+<DD>
+Continue classification with the next filter in line.
+<DT id="11"><B>pass</B>
+
+<DD>
+Finish classification process and return to calling qdisc for further packet
+processing. This is the default.
+</DL>
+</DL>
+
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+To start, observe the following filter with a pedit action:
+<P>
+<DL COMPACT><DT id="12"><DD>
+
+tc filter add dev eth1 parent 1: protocol ip prio 10 \
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>u32 match ip protocol 1 0xff flowid 1:2 \<BR>
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>action pedit munge offset -14 u8 set 0x02 \<BR>
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>munge offset -13 u8 set 0x15 \<BR>
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>munge offset -12 u8 set 0x15 \<BR>
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>munge offset -11 u8 set 0x15 \<BR>
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>munge offset -10 u16 set 0x1515 \<BR>
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>pipe<BR>
+
+</DL>
+
+<P>
+Using the skbmod action, this command can be simplified to:
+<P>
+<DL COMPACT><DT id="13"><DD>
+
+tc filter add dev eth1 parent 1: protocol ip prio 10 \
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>u32 match ip protocol 1 0xff flowid 1:2 \<BR>
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>action skbmod set dmac 02:15:15:15:15:15 \<BR>
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>pipe<BR>
+
+</DL>
+
+<P>
+Complexity will increase if source mac and ethertype are also being edited
+as part of the action. If all three fields are to be changed with skbmod:
+<P>
+<DL COMPACT><DT id="14"><DD>
+
+tc filter add dev eth5 parent 1: protocol ip prio 10 \
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>u32 match ip protocol 1 0xff flowid 1:2 \<BR>
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>action skbmod \<BR>
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>set etype 0xBEEF \<BR>
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>set dmac 02:12:13:14:15:16 \<BR>
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>set smac 02:22:23:24:25:26<BR>
+
+</DL>
+
+<P>
+Finally, swap the destination and source mac addresses in the header:
+<P>
+<DL COMPACT><DT id="15"><DD>
+
+tc filter add dev eth3 parent 1: protocol ip prio 10 \
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>u32 match ip protocol 1 0xff flowid 1:2 \<BR>
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>action skbmod \<BR>
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>swap mac<BR>
+
+</DL>
+
+<P>
+As mentioned above, the swap action will occur after any
+<B> smac/dmac </B>
+
+substitutions are executed, if they are present.
+<P>
+<A NAME="lbAG">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?8+tc">tc</A></B>(8),
+
+<B><A HREF="/cgi-bin/man/man2html?8+tc-u32">tc-u32</A></B>(8),
+
+<B><A HREF="/cgi-bin/man/man2html?8+tc-pedit">tc-pedit</A></B>(8)
+
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="16"><A HREF="#lbAB">NAME</A><DD>
+<DT id="17"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="18"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="19"><A HREF="#lbAE">OPTIONS</A><DD>
+<DT id="20"><A HREF="#lbAF">EXAMPLES</A><DD>
+<DT id="21"><A HREF="#lbAG">SEE ALSO</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:17 GMT, March 31, 2021
+</BODY>
+</HTML>

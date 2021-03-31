@@ -1,0 +1,682 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SYSTEMD.MOUNT</TITLE>
+</HEAD><BODY>
+<H1>SYSTEMD.MOUNT</H1>
+Section: systemd.mount (5)<BR>Updated: <BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+systemd.mount - Mount unit configuration
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+
+<I>mount</I>.mount
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+A unit configuration file whose name ends in
+&quot;.mount&quot;
+encodes information about a file system mount point controlled and supervised by systemd.
+<P>
+
+This man page lists the configuration options specific to this unit type. See
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.unit">systemd.unit</A></B>(5)
+for the common options of all unit configuration files. The common configuration items are configured in the generic
+&quot;[Unit]&quot;
+and
+&quot;[Install]&quot;
+sections. The mount specific configuration options are configured in the
+&quot;[Mount]&quot;
+section.
+<P>
+
+Additional options are listed in
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.exec">systemd.exec</A></B>(5), which define the execution environment the
+<B><A HREF="/cgi-bin/man/man2html?8+mount">mount</A></B>(8)
+program is executed in, and in
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.kill">systemd.kill</A></B>(5), which define the way the processes are terminated, and in
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.resource-control">systemd.resource-control</A></B>(5), which configure resource control settings for the processes of the service.
+<P>
+
+Note that the options
+<I>User=</I>
+and
+<I>Group=</I>
+are not useful for mount units. systemd passes two parameters to
+<B><A HREF="/cgi-bin/man/man2html?8+mount">mount</A></B>(8); the values of
+<I>What=</I>
+and
+<I>Where=</I>. When invoked in this way,
+<B><A HREF="/cgi-bin/man/man2html?8+mount">mount</A></B>(8)
+does not read any options from
+/etc/fstab, and must be run as UID 0.
+<P>
+
+Mount units must be named after the mount point directories they control. Example: the mount point
+/home/lennart
+must be configured in a unit file
+home-lennart.mount. For details about the escaping logic used to convert a file system path to a unit name, see
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.unit">systemd.unit</A></B>(5). Note that mount units cannot be templated, nor is possible to add multiple names to a mount unit by creating additional symlinks to it.
+<P>
+
+Optionally, a mount unit may be accompanied by an automount unit, to allow on-demand or parallelized mounting. See
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.automount">systemd.automount</A></B>(5).
+<P>
+
+Mount points created at runtime (independently of unit files or
+/etc/fstab) will be monitored by systemd and appear like any other mount unit in systemd. See
+/proc/self/mountinfo
+description in
+<B><A HREF="/cgi-bin/man/man2html?5+proc">proc</A></B>(5).
+<P>
+
+Some file systems have special semantics as API file systems for kernel-to-userspace and userspace-to-userspace interfaces. Some of them may not be changed via mount units, and cannot be disabled. For a longer discussion see
+m[blue]<B>API File Systems</B>m[]<FONT SIZE="-2">[1]</FONT>.
+<P>
+
+The
+<B><A HREF="/cgi-bin/man/man2html?1+systemd-mount">systemd-mount</A></B>(1)
+command allows creating
+.mount
+and
+.automount
+units dynamically and transiently from the command line.
+<A NAME="lbAE">&nbsp;</A>
+<H2>AUTOMATIC DEPENDENCIES</H2>
+
+<A NAME="lbAF">&nbsp;</A>
+<H3>Implicit Dependencies</H3>
+
+<P>
+
+The following dependencies are implicitly added:
+<P>
+<DL COMPACT><DT id="1"><DD>
+&bull;
+
+
+If a mount unit is beneath another mount unit in the file system hierarchy, both a requirement dependency and an ordering dependency between both units are created automatically.
+</DL>
+
+<P>
+<DL COMPACT><DT id="2"><DD>
+&bull;
+
+
+Block device backed file systems automatically gain
+<I>BindsTo=</I>
+and
+<I>After=</I>
+type dependencies on the device unit encapsulating the block device (see below).
+</DL>
+
+<P>
+<DL COMPACT><DT id="3"><DD>
+&bull;
+
+
+If traditional file system quota is enabled for a mount unit, automatic
+<I>Wants=</I>
+and
+<I>Before=</I>
+dependencies on
+systemd-quotacheck.service
+and
+quotaon.service
+are added.
+</DL>
+
+<P>
+<DL COMPACT><DT id="4"><DD>
+&bull;
+
+
+Additional implicit dependencies may be added as result of execution and resource control parameters as documented in
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.exec">systemd.exec</A></B>(5)
+and
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.resource-control">systemd.resource-control</A></B>(5).
+</DL>
+
+<A NAME="lbAG">&nbsp;</A>
+<H3>Default Dependencies</H3>
+
+<P>
+
+The following dependencies are added unless
+<I>DefaultDependencies=no</I>
+is set:
+<P>
+<DL COMPACT><DT id="5"><DD>
+&bull;
+
+
+All mount units acquire automatic
+<I>Before=</I>
+and
+<I>Conflicts=</I>
+on
+umount.target
+in order to be stopped during shutdown.
+</DL>
+
+<P>
+<DL COMPACT><DT id="6"><DD>
+&bull;
+
+
+Mount units referring to local file systems automatically gain an
+<I>After=</I>
+dependency on
+local-fs-pre.target, and a
+<I>Before=</I>
+dependency on
+local-fs.target
+unless
+<B>nofail</B>
+mount option is set.
+</DL>
+
+<P>
+<DL COMPACT><DT id="7"><DD>
+&bull;
+
+
+Network mount units automatically acquire
+<I>After=</I>
+dependencies on
+remote-fs-pre.target,
+network.target
+and
+network-online.target, and gain a
+<I>Before=</I>
+dependency on
+remote-fs.target
+unless
+<B>nofail</B>
+mount option is set. Towards the latter a
+<I>Wants=</I>
+unit is added as well.
+</DL>
+
+<P>
+
+Mount units referring to local and network file systems are distinguished by their file system type specification. In some cases this is not sufficient (for example network block device based mounts, such as iSCSI), in which case
+<B>_netdev</B>
+may be added to the mount option string of the unit, which forces systemd to consider the mount unit a network mount.
+<A NAME="lbAH">&nbsp;</A>
+<H2>FSTAB</H2>
+
+<P>
+
+Mount units may either be configured via unit files, or via
+/etc/fstab
+(see
+<B><A HREF="/cgi-bin/man/man2html?5+fstab">fstab</A></B>(5)
+for details). Mounts listed in
+/etc/fstab
+will be converted into native units dynamically at boot and when the configuration of the system manager is reloaded. In general, configuring mount points through
+/etc/fstab
+is the preferred approach. See
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-fstab-generator">systemd-fstab-generator</A></B>(8)
+for details about the conversion.
+<P>
+
+The NFS mount option
+<B>bg</B>
+for NFS background mounts as documented in
+<B><A HREF="/cgi-bin/man/man2html?5+nfs">nfs</A></B>(5)
+is detected by
+<B>systemd-fstab-generator</B>
+and the options are transformed so that systemd fulfills the job-control implications of that option. Specifically
+<B>systemd-fstab-generator</B>
+acts as though
+&quot;x-systemd.mount-timeout=infinity,retry=10000&quot;
+was prepended to the option list, and
+&quot;fg,nofail&quot;
+was appended. Depending on specific requirements, it may be appropriate to provide some of these options explicitly, or to make use of the
+&quot;x-systemd.automount&quot;
+option described below instead of using
+&quot;bg&quot;.
+<P>
+
+When reading
+/etc/fstab
+a few special mount options are understood by systemd which influence how dependencies are created for mount points. systemd will create a dependency of type
+<I>Wants=</I>
+or
+<B>Requires=</B>
+(see option
+<B>nofail</B>
+below), from either
+local-fs.target
+or
+remote-fs.target, depending whether the file system is local or remote.
+<P>
+
+<B>x-systemd.requires=</B>
+<DL COMPACT><DT id="8"><DD>
+Configures a
+<I>Requires=</I>
+and an
+<I>After=</I>
+dependency between the created mount unit and another systemd unit, such as a device or mount unit. The argument should be a unit name, or an absolute path to a device node or mount point. This option may be specified more than once. This option is particularly useful for mount point declarations that need an additional device to be around (such as an external journal device for journal file systems) or an additional mount to be in place (such as an overlay file system that merges multiple mount points). See
+<I>After=</I>
+and
+<I>Requires=</I>
+in
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.unit">systemd.unit</A></B>(5)
+for details.
+</DL>
+
+<P>
+
+<B>x-systemd.before=</B>, <B>x-systemd.after=</B>
+<DL COMPACT><DT id="9"><DD>
+In the created mount unit, configures a
+<I>Before=</I>
+or
+<I>After=</I>
+dependency on another systemd unit, such as a mount unit. The argument should be a unit name or an absolute path to a mount point. This option may be specified more than once. This option is particularly useful for mount point declarations with
+<B>nofail</B>
+option that are mounted asynchronously but need to be mounted before or after some unit start, for example, before
+local-fs.target
+unit. See
+<I>Before=</I>
+and
+<I>After=</I>
+in
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.unit">systemd.unit</A></B>(5)
+for details.
+</DL>
+
+<P>
+
+<B>x-systemd.wanted-by=</B>, <B>x-systemd.required-by=</B>
+<DL COMPACT><DT id="10"><DD>
+In the created mount unit, configures a
+<I>WantedBy=</I>
+or
+<I>RequiredBy=</I>
+dependency on another unit. This option may be specified more than once. If this is specified, the normal automatic dependencies on the created mount unit, e.g.,
+local-fs.target, are not automatically created. See
+<I>WantedBy=</I>
+and
+<I>RequiredBy=</I>
+in
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.unit">systemd.unit</A></B>(5)
+for details.
+</DL>
+
+<P>
+
+<B>x-systemd.requires-mounts-for=</B>
+<DL COMPACT><DT id="11"><DD>
+Configures a
+<I>RequiresMountsFor=</I>
+dependency between the created mount unit and other mount units. The argument must be an absolute path. This option may be specified more than once. See
+<I>RequiresMountsFor=</I>
+in
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.unit">systemd.unit</A></B>(5)
+for details.
+</DL>
+
+<P>
+
+<B>x-systemd.device-bound</B>
+<DL COMPACT><DT id="12"><DD>
+The block device backed file system will be upgraded to
+<I>BindsTo=</I>
+dependency. This option is only useful when mounting file systems manually with
+<B><A HREF="/cgi-bin/man/man2html?8+mount">mount</A></B>(8)
+as the default dependency in this case is
+<I>Requires=</I>. This option is already implied by entries in
+/etc/fstab
+or by mount units.
+</DL>
+
+<P>
+
+<B>x-systemd.automount</B>
+<DL COMPACT><DT id="13"><DD>
+An automount unit will be created for the file system. See
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.automount">systemd.automount</A></B>(5)
+for details.
+</DL>
+
+<P>
+
+<B>x-systemd.idle-timeout=</B>
+<DL COMPACT><DT id="14"><DD>
+Configures the idle timeout of the automount unit. See
+<I>TimeoutIdleSec=</I>
+in
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.automount">systemd.automount</A></B>(5)
+for details.
+</DL>
+
+<P>
+
+<B>x-systemd.device-timeout=</B>
+<DL COMPACT><DT id="15"><DD>
+Configure how long systemd should wait for a device to show up before giving up on an entry from
+/etc/fstab. Specify a time in seconds or explicitly append a unit such as
+&quot;s&quot;,
+&quot;min&quot;,
+&quot;h&quot;,
+&quot;ms&quot;.
+<P>
+Note that this option can only be used in
+/etc/fstab, and will be ignored when part of the
+<I>Options=</I>
+setting in a unit file.
+</DL>
+
+<P>
+
+<B>x-systemd.mount-timeout=</B>
+<DL COMPACT><DT id="16"><DD>
+Configure how long systemd should wait for the mount command to finish before giving up on an entry from
+/etc/fstab. Specify a time in seconds or explicitly append a unit such as
+&quot;s&quot;,
+&quot;min&quot;,
+&quot;h&quot;,
+&quot;ms&quot;.
+<P>
+Note that this option can only be used in
+/etc/fstab, and will be ignored when part of the
+<I>Options=</I>
+setting in a unit file.
+<P>
+See
+<I>TimeoutSec=</I>
+below for details.
+</DL>
+
+<P>
+
+<B>x-systemd.makefs</B>
+<DL COMPACT><DT id="17"><DD>
+The file system will be initialized on the device. If the device is not &quot;empty&quot;, i.e. it contains any signature, the operation will be skipped. It is hence expected that this option remains set even after the device has been initialized.
+<P>
+Note that this option can only be used in
+/etc/fstab, and will be ignored when part of the
+<I>Options=</I>
+setting in a unit file.
+<P>
+See
+<B><A HREF="mailto:systemd-makefs@.service">systemd-makefs@.service</A></B>(8).
+<P>
+<B><A HREF="/cgi-bin/man/man2html?8+wipefs">wipefs</A></B>(8)
+may be used to remove any signatures from a block device to force
+<B>x-systemd.makefs</B>
+to reinitialize the device.
+</DL>
+
+<P>
+
+<B>x-systemd.growfs</B>
+<DL COMPACT><DT id="18"><DD>
+The file system will be grown to occupy the full block device. If the file system is already at maximum size, no action will be performed. It is hence expected that this option remains set even after the file system has been grown. Only certain file system types are supported, see
+<B><A HREF="mailto:systemd-makefs@.service">systemd-makefs@.service</A></B>(8)
+for details.
+<P>
+Note that this option can only be used in
+/etc/fstab, and will be ignored when part of the
+<I>Options=</I>
+setting in a unit file.
+</DL>
+
+<P>
+
+<B>_netdev</B>
+<DL COMPACT><DT id="19"><DD>
+Normally the file system type is used to determine if a mount is a &quot;network mount&quot;, i.e. if it should only be started after the network is available. Using this option overrides this detection and specifies that the mount requires network.
+<P>
+Network mount units are ordered between
+remote-fs-pre.target
+and
+remote-fs.target, instead of
+local-fs-pre.target
+and
+local-fs.target. They also pull in
+network-online.target
+and are ordered after it and
+network.target.
+</DL>
+
+<P>
+
+<B>noauto</B>, <B>auto</B>
+<DL COMPACT><DT id="20"><DD>
+With
+<B>noauto</B>, the mount unit will not be added as a dependency for
+local-fs.target
+or
+remote-fs.target. This means that it will not be mounted automatically during boot, unless it is pulled in by some other unit. The
+<B>auto</B>
+option has the opposite meaning and is the default. Note that the
+<B>noauto</B>
+option has an effect on the mount unit itself only --- if
+<B>x-systemd.automount</B>
+is used (see above), then the matching automount unit will still be pulled in by these targets.
+</DL>
+
+<P>
+
+<B>nofail</B>
+<DL COMPACT><DT id="21"><DD>
+With
+<B>nofail</B>, this mount will be only wanted, not required, by
+local-fs.target
+or
+remote-fs.target. Moreover the mount unit is not ordered before these target units. This means that the boot will continue without waiting for the mount unit and regardless whether the mount point can be mounted successfully.
+</DL>
+
+<P>
+
+<B>x-initrd.mount</B>
+<DL COMPACT><DT id="22"><DD>
+An additional filesystem to be mounted in the initramfs. See
+initrd-fs.target
+description in
+<B><A HREF="/cgi-bin/man/man2html?7+systemd.special">systemd.special</A></B>(7).
+</DL>
+
+<P>
+
+If a mount point is configured in both
+/etc/fstab
+and a unit file that is stored below
+/usr, the former will take precedence. If the unit file is stored below
+/etc, it will take precedence. This means: native unit files take precedence over traditional configuration files, but this is superseded by the rule that configuration in
+/etc
+will always take precedence over configuration in
+/usr.
+<A NAME="lbAI">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<P>
+
+Mount files must include a [Mount] section, which carries information about the file system mount points it supervises. A number of options that may be used in this section are shared with other unit types. These options are documented in
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.exec">systemd.exec</A></B>(5)
+and
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.kill">systemd.kill</A></B>(5). The options specific to the [Mount] section of mount units are the following:
+<P>
+
+<I>What=</I>
+<DL COMPACT><DT id="23"><DD>
+Takes an absolute path of a device node, file or other resource to mount. See
+<B><A HREF="/cgi-bin/man/man2html?8+mount">mount</A></B>(8)
+for details. If this refers to a device node, a dependency on the respective device unit is automatically created. (See
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.device">systemd.device</A></B>(5)
+for more information.) This option is mandatory. Note that the usual specifier expansion is applied to this setting, literal percent characters should hence be written as
+&quot;%%&quot;. If this mount is a bind mount and the specified path does not exist yet it is created as directory.
+</DL>
+
+<P>
+
+<I>Where=</I>
+<DL COMPACT><DT id="24"><DD>
+Takes an absolute path of a file or directory for the mount point; in particular, the destination cannot be a symbolic link. If the mount point does not exist at the time of mounting, it is created as directory. This string must be reflected in the unit filename. (See above.) This option is mandatory.
+</DL>
+
+<P>
+
+<I>Type=</I>
+<DL COMPACT><DT id="25"><DD>
+Takes a string for the file system type. See
+<B><A HREF="/cgi-bin/man/man2html?8+mount">mount</A></B>(8)
+for details. This setting is optional.
+</DL>
+
+<P>
+
+<I>Options=</I>
+<DL COMPACT><DT id="26"><DD>
+Mount options to use when mounting. This takes a comma-separated list of options. This setting is optional. Note that the usual specifier expansion is applied to this setting, literal percent characters should hence be written as
+&quot;%%&quot;.
+</DL>
+
+<P>
+
+<I>SloppyOptions=</I>
+<DL COMPACT><DT id="27"><DD>
+Takes a boolean argument. If true, parsing of the options specified in
+<I>Options=</I>
+is relaxed, and unknown mount options are tolerated. This corresponds with
+<B><A HREF="/cgi-bin/man/man2html?8+mount">mount</A></B>(8)'s
+<I>-s</I>
+switch. Defaults to off.
+</DL>
+
+<P>
+
+<I>LazyUnmount=</I>
+<DL COMPACT><DT id="28"><DD>
+Takes a boolean argument. If true, detach the filesystem from the filesystem hierarchy at time of the unmount operation, and clean up all references to the filesystem as soon as they are not busy anymore. This corresponds with
+<B><A HREF="/cgi-bin/man/man2html?8+umount">umount</A></B>(8)'s
+<I>-l</I>
+switch. Defaults to off.
+</DL>
+
+<P>
+
+<I>ForceUnmount=</I>
+<DL COMPACT><DT id="29"><DD>
+Takes a boolean argument. If true, force an unmount (in case of an unreachable NFS system). This corresponds with
+<B><A HREF="/cgi-bin/man/man2html?8+umount">umount</A></B>(8)'s
+<I>-f</I>
+switch. Defaults to off.
+</DL>
+
+<P>
+
+<I>DirectoryMode=</I>
+<DL COMPACT><DT id="30"><DD>
+Directories of mount points (and any parent directories) are automatically created if needed. This option specifies the file system access mode used when creating these directories. Takes an access mode in octal notation. Defaults to 0755.
+</DL>
+
+<P>
+
+<I>TimeoutSec=</I>
+<DL COMPACT><DT id="31"><DD>
+Configures the time to wait for the mount command to finish. If a command does not exit within the configured time, the mount will be considered failed and be shut down again. All commands still running will be terminated forcibly via
+<B>SIGTERM</B>, and after another delay of this time with
+<B>SIGKILL</B>. (See
+<B>KillMode=</B>
+in
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.kill">systemd.kill</A></B>(5).) Takes a unit-less value in seconds, or a time span value such as &quot;5min 20s&quot;. Pass 0 to disable the timeout logic. The default value is set from
+<I>DefaultTimeoutStartSec=</I>
+option in
+<B><A HREF="/cgi-bin/man/man2html?5+systemd-system.conf">systemd-system.conf</A></B>(5).
+</DL>
+
+<P>
+
+Check
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.exec">systemd.exec</A></B>(5)
+and
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.kill">systemd.kill</A></B>(5)
+for more settings.
+<A NAME="lbAJ">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?1+systemctl">systemctl</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?5+systemd-system.conf">systemd-system.conf</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.unit">systemd.unit</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.exec">systemd.exec</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.kill">systemd.kill</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.resource-control">systemd.resource-control</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.service">systemd.service</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.device">systemd.device</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?5+proc">proc</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?8+mount">mount</A></B>(8),
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-fstab-generator">systemd-fstab-generator</A></B>(8),
+<B><A HREF="/cgi-bin/man/man2html?7+systemd.directives">systemd.directives</A></B>(7),
+<B><A HREF="/cgi-bin/man/man2html?1+systemd-mount">systemd-mount</A></B>(1)
+<A NAME="lbAK">&nbsp;</A>
+<H2>NOTES</H2>
+
+<DL COMPACT>
+<DT id="32"> 1.<DD>
+API File Systems
+<DL COMPACT><DT id="33"><DD>
+<A HREF="https://www.freedesktop.org/wiki/Software/systemd/APIFileSystems">https://www.freedesktop.org/wiki/Software/systemd/APIFileSystems</A>
+</DL>
+
+<P>
+</DL>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="34"><A HREF="#lbAB">NAME</A><DD>
+<DT id="35"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="36"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="37"><A HREF="#lbAE">AUTOMATIC DEPENDENCIES</A><DD>
+<DL>
+<DT id="38"><A HREF="#lbAF">Implicit Dependencies</A><DD>
+<DT id="39"><A HREF="#lbAG">Default Dependencies</A><DD>
+</DL>
+<DT id="40"><A HREF="#lbAH">FSTAB</A><DD>
+<DT id="41"><A HREF="#lbAI">OPTIONS</A><DD>
+<DT id="42"><A HREF="#lbAJ">SEE ALSO</A><DD>
+<DT id="43"><A HREF="#lbAK">NOTES</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:06 GMT, March 31, 2021
+</BODY>
+</HTML>

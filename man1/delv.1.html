@@ -1,0 +1,563 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of DELV</TITLE>
+</HEAD><BODY>
+<H1>DELV</H1>
+Section: BIND9 (1)<BR>Updated: 2014-04-23<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+delv - DNS lookup and validation utility
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<DL COMPACT>
+<DT id="1">
+<B>delv</B> [@server] [[<B>-4</B>] | [<B>-6</B>]] [<B>-a&nbsp;</B><B></B><I>anchor-file</I>] [<B>-b&nbsp;</B><B></B><I>address</I>] [<B>-c&nbsp;</B><B></B><I>class</I>] [<B>-d&nbsp;</B><B></B><I>level</I>] [<B>-i</B>] [<B>-m</B>] [<B>-p&nbsp;</B><B></B><I>port#</I>] [<B>-q&nbsp;</B><B></B><I>name</I>] [<B>-t&nbsp;</B><B></B><I>type</I>] [<B>-x&nbsp;</B><B></B><I>addr</I>] [name] [type] [class] [queryopt...]
+<DT id="2">
+<B>delv</B> [<B>-h</B>]
+<DT id="3">
+<B>delv</B> [<B>-v</B>]
+<DT id="4">
+<B>delv</B> [queryopt...] [query...]
+</DL>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+<B>delv</B>
+<DD>is a tool for sending DNS queries and validating the results, using the same internal resolver and validator logic as
+<B>named</B>.
+<P>
+
+<B>delv</B>
+will send to a specified name server all queries needed to fetch and validate the requested data; this includes the original requested query, subsequent queries to follow CNAME or DNAME chains, and queries for DNSKEY and DS records to establish a chain of trust for DNSSEC validation. It does not perform iterative resolution, but simulates the behavior of a name server configured for DNSSEC validating and forwarding.
+<P>
+
+By default, responses are validated using built-in DNSSEC trust anchor for the root zone (&quot;.&quot;). Records returned by
+<B>delv</B>
+are either fully validated or were not signed. If validation fails, an explanation of the failure is included in the output; the validation process can be traced in detail. Because
+<B>delv</B>
+does not rely on an external server to carry out validation, it can be used to check the validity of DNS responses in environments where local name servers may not be trustworthy.
+<P>
+
+Unless it is told to query a specific name server,
+<B>delv</B>
+will try each of the servers listed in
+/etc/resolv.conf. If no usable server addresses are found,
+<B>delv</B>
+will send queries to the localhost addresses (127.0.0.1 for IPv4, ::1 for IPv6).
+<P>
+
+When no command line arguments or options are given,
+<B>delv</B>
+will perform an NS query for &quot;.&quot; (the root zone).
+<A NAME="lbAE">&nbsp;</A>
+<H2>SIMPLE USAGE</H2>
+
+<P>
+
+A typical invocation of
+<B>delv</B>
+looks like:
+<P>
+<DL COMPACT><DT id="5"><DD>
+
+
+
+<PRE>
+ delv @server name type 
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+where:
+<P>
+
+<B>server</B>
+<DL COMPACT><DT id="6"><DD>
+is the name or IP address of the name server to query. This can be an IPv4 address in dotted-decimal notation or an IPv6 address in colon-delimited notation. When the supplied
+<I>server</I>
+argument is a hostname,
+<B>delv</B>
+resolves that name before querying that name server (note, however, that this initial lookup is
+<I>not</I>
+validated by DNSSEC).
+<P>
+If no
+<I>server</I>
+argument is provided,
+<B>delv</B>
+consults
+/etc/resolv.conf; if an address is found there, it queries the name server at that address. If either of the
+<B>-4</B>
+or
+<B>-6</B>
+options are in use, then only addresses for the corresponding transport will be tried. If no usable addresses are found,
+<B>delv</B>
+will send queries to the localhost addresses (127.0.0.1 for IPv4, ::1 for IPv6).
+</DL>
+
+<P>
+
+<B>name</B>
+<DL COMPACT><DT id="7"><DD>
+is the domain name to be looked up.
+</DL>
+
+<P>
+
+<B>type</B>
+<DL COMPACT><DT id="8"><DD>
+indicates what type of query is required --- ANY, A, MX, etc.
+<I>type</I>
+can be any valid query type. If no
+<I>type</I>
+argument is supplied,
+<B>delv</B>
+will perform a lookup for an A record.
+</DL>
+
+<A NAME="lbAF">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<P>
+
+-a <I>anchor-file</I>
+<DL COMPACT><DT id="9"><DD>
+Specifies a file from which to read DNSSEC trust anchors. The default is
+/etc/bind.keys, which is included with
+BIND
+9 and contains one or more trust anchors for the root zone (&quot;.&quot;).
+<P>
+Keys that do not match the root zone name are ignored. An alternate key name can be specified using the
+<B>+root=NAME</B>
+options.
+<P>
+Note: When reading the trust anchor file,
+<B>delv</B>
+treats
+<B>trust-anchors</B><B>initial-key</B>
+and
+<B>static-key</B>
+entries identically. That is, even if a key is configured with
+<B>initial-key</B>, indicating that it is meant to be used only as an initializing key for RFC 5011 key maintenance, it is still treated by
+<B>delv</B>
+as if it had been configured as a
+<B>static-key</B>.
+<B>delv</B>
+does not consult the managed keys database maintained by
+<B>named</B>. This means that if either of the keys in
+/etc/bind.keys
+is revoked and rolled over, it will be necessary to update
+/etc/bind.keys
+to use DNSSEC validation in
+<B>delv</B>.
+</DL>
+
+<P>
+
+-b <I>address</I>
+<DL COMPACT><DT id="10"><DD>
+Sets the source IP address of the query to
+<I>address</I>. This must be a valid address on one of the host's network interfaces or &quot;0.0.0.0&quot; or &quot;::&quot;. An optional source port may be specified by appending &quot;#&lt;port&gt;&quot;
+</DL>
+
+<P>
+
+-c <I>class</I>
+<DL COMPACT><DT id="11"><DD>
+Sets the query class for the requested data. Currently, only class &quot;IN&quot; is supported in
+<B>delv</B>
+and any other value is ignored.
+</DL>
+
+<P>
+
+-d <I>level</I>
+<DL COMPACT><DT id="12"><DD>
+Set the systemwide debug level to
+<B>level</B>. The allowed range is from 0 to 99. The default is 0 (no debugging). Debugging traces from
+<B>delv</B>
+become more verbose as the debug level increases. See the
+<B>+mtrace</B>,
+<B>+rtrace</B>, and
+<B>+vtrace</B>
+options below for additional debugging details.
+</DL>
+
+<P>
+
+-h
+<DL COMPACT><DT id="13"><DD>
+Display the
+<B>delv</B>
+help usage output and exit.
+</DL>
+
+<P>
+
+-i
+<DL COMPACT><DT id="14"><DD>
+Insecure mode. This disables internal DNSSEC validation. (Note, however, this does not set the CD bit on upstream queries. If the server being queried is performing DNSSEC validation, then it will not return invalid data; this can cause
+<B>delv</B>
+to time out. When it is necessary to examine invalid data to debug a DNSSEC problem, use
+<B>dig +cd</B>.)
+</DL>
+
+<P>
+
+-m
+<DL COMPACT><DT id="15"><DD>
+Enables memory usage debugging.
+</DL>
+
+<P>
+
+-p <I>port#</I>
+<DL COMPACT><DT id="16"><DD>
+Specifies a destination port to use for queries instead of the standard DNS port number 53. This option would be used with a name server that has been configured to listen for queries on a non-standard port number.
+</DL>
+
+<P>
+
+-q <I>name</I>
+<DL COMPACT><DT id="17"><DD>
+Sets the query name to
+<I>name</I>. While the query name can be specified without using the
+<B>-q</B>, it is sometimes necessary to disambiguate names from types or classes (for example, when looking up the name &quot;ns&quot;, which could be misinterpreted as the type NS, or &quot;ch&quot;, which could be misinterpreted as class CH).
+</DL>
+
+<P>
+
+-t <I>type</I>
+<DL COMPACT><DT id="18"><DD>
+Sets the query type to
+<I>type</I>, which can be any valid query type supported in BIND 9 except for zone transfer types AXFR and IXFR. As with
+<B>-q</B>, this is useful to distinguish query name type or class when they are ambiguous. it is sometimes necessary to disambiguate names from types.
+<P>
+The default query type is &quot;A&quot;, unless the
+<B>-x</B>
+option is supplied to indicate a reverse lookup, in which case it is &quot;PTR&quot;.
+</DL>
+
+<P>
+
+-v
+<DL COMPACT><DT id="19"><DD>
+Print the
+<B>delv</B>
+version and exit.
+</DL>
+
+<P>
+
+-x <I>addr</I>
+<DL COMPACT><DT id="20"><DD>
+Performs a reverse lookup, mapping an addresses to a name.
+<I>addr</I>
+is an IPv4 address in dotted-decimal notation, or a colon-delimited IPv6 address. When
+<B>-x</B>
+is used, there is no need to provide the
+<I>name</I>
+or
+<I>type</I>
+arguments.
+<B>delv</B>
+automatically performs a lookup for a name like
+11.12.13.10.in-addr.arpa
+and sets the query type to PTR. IPv6 addresses are looked up using nibble format under the IP6.ARPA domain.
+</DL>
+
+<P>
+
+-4
+<DL COMPACT><DT id="21"><DD>
+Forces
+<B>delv</B>
+to only use IPv4.
+</DL>
+
+<P>
+
+-6
+<DL COMPACT><DT id="22"><DD>
+Forces
+<B>delv</B>
+to only use IPv6.
+</DL>
+
+<A NAME="lbAG">&nbsp;</A>
+<H2>QUERY OPTIONS</H2>
+
+<P>
+
+<B>delv</B>
+provides a number of query options which affect the way results are displayed, and in some cases the way lookups are performed.
+<P>
+
+Each query option is identified by a keyword preceded by a plus sign (+). Some keywords set or reset an option. These may be preceded by the string
+no
+to negate the meaning of that keyword. Other keywords assign values to options like the timeout interval. They have the form
+<B>+keyword=value</B>. The query options are:
+<P>
+
+<B>+[no]cdflag</B>
+<DL COMPACT><DT id="23"><DD>
+Controls whether to set the CD (checking disabled) bit in queries sent by
+<B>delv</B>. This may be useful when troubleshooting DNSSEC problems from behind a validating resolver. A validating resolver will block invalid responses, making it difficult to retrieve them for analysis. Setting the CD flag on queries will cause the resolver to return invalid responses, which
+<B>delv</B>
+can then validate internally and report the errors in detail.
+</DL>
+
+<P>
+
+<B>+[no]class</B>
+<DL COMPACT><DT id="24"><DD>
+Controls whether to display the CLASS when printing a record. The default is to display the CLASS.
+</DL>
+
+<P>
+
+<B>+[no]ttl</B>
+<DL COMPACT><DT id="25"><DD>
+Controls whether to display the TTL when printing a record. The default is to display the TTL.
+</DL>
+
+<P>
+
+<B>+[no]rtrace</B>
+<DL COMPACT><DT id="26"><DD>
+Toggle resolver fetch logging. This reports the name and type of each query sent by
+<B>delv</B>
+in the process of carrying out the resolution and validation process: this includes including the original query and all subsequent queries to follow CNAMEs and to establish a chain of trust for DNSSEC validation.
+<P>
+This is equivalent to setting the debug level to 1 in the &quot;resolver&quot; logging category. Setting the systemwide debug level to 1 using the
+<B>-d</B>
+option will product the same output (but will affect other logging categories as well).
+</DL>
+
+<P>
+
+<B>+[no]mtrace</B>
+<DL COMPACT><DT id="27"><DD>
+Toggle message logging. This produces a detailed dump of the responses received by
+<B>delv</B>
+in the process of carrying out the resolution and validation process.
+<P>
+This is equivalent to setting the debug level to 10 for the &quot;packets&quot; module of the &quot;resolver&quot; logging category. Setting the systemwide debug level to 10 using the
+<B>-d</B>
+option will produce the same output (but will affect other logging categories as well).
+</DL>
+
+<P>
+
+<B>+[no]vtrace</B>
+<DL COMPACT><DT id="28"><DD>
+Toggle validation logging. This shows the internal process of the validator as it determines whether an answer is validly signed, unsigned, or invalid.
+<P>
+This is equivalent to setting the debug level to 3 for the &quot;validator&quot; module of the &quot;dnssec&quot; logging category. Setting the systemwide debug level to 3 using the
+<B>-d</B>
+option will produce the same output (but will affect other logging categories as well).
+</DL>
+
+<P>
+
+<B>+[no]short</B>
+<DL COMPACT><DT id="29"><DD>
+Provide a terse answer. The default is to print the answer in a verbose form.
+</DL>
+
+<P>
+
+<B>+[no]comments</B>
+<DL COMPACT><DT id="30"><DD>
+Toggle the display of comment lines in the output. The default is to print comments.
+</DL>
+
+<P>
+
+<B>+[no]rrcomments</B>
+<DL COMPACT><DT id="31"><DD>
+Toggle the display of per-record comments in the output (for example, human-readable key information about DNSKEY records). The default is to print per-record comments.
+</DL>
+
+<P>
+
+<B>+[no]crypto</B>
+<DL COMPACT><DT id="32"><DD>
+Toggle the display of cryptographic fields in DNSSEC records. The contents of these field are unnecessary to debug most DNSSEC validation failures and removing them makes it easier to see the common failures. The default is to display the fields. When omitted they are replaced by the string &quot;[omitted]&quot; or in the DNSKEY case the key id is displayed as the replacement, e.g. &quot;[ key id = value ]&quot;.
+</DL>
+
+<P>
+
+<B>+[no]trust</B>
+<DL COMPACT><DT id="33"><DD>
+Controls whether to display the trust level when printing a record. The default is to display the trust level.
+</DL>
+
+<P>
+
+<B>+[no]split[=W]</B>
+<DL COMPACT><DT id="34"><DD>
+Split long hex- or base64-formatted fields in resource records into chunks of
+<I>W</I>
+characters (where
+<I>W</I>
+is rounded up to the nearest multiple of 4).
+<I>+nosplit</I>
+or
+<I>+split=0</I>
+causes fields not to be split at all. The default is 56 characters, or 44 characters when multiline mode is active.
+</DL>
+
+<P>
+
+<B>+[no]all</B>
+<DL COMPACT><DT id="35"><DD>
+Set or clear the display options
+<B>+[no]comments</B>,
+<B>+[no]rrcomments</B>, and
+<B>+[no]trust</B>
+as a group.
+</DL>
+
+<P>
+
+<B>+[no]multiline</B>
+<DL COMPACT><DT id="36"><DD>
+Print long records (such as RRSIG, DNSKEY, and SOA records) in a verbose multi-line format with human-readable comments. The default is to print each record on a single line, to facilitate machine parsing of the
+<B>delv</B>
+output.
+</DL>
+
+<P>
+
+<B>+[no]dnssec</B>
+<DL COMPACT><DT id="37"><DD>
+Indicates whether to display RRSIG records in the
+<B>delv</B>
+output. The default is to do so. Note that (unlike in
+<B>dig</B>) this does
+<I>not</I>
+control whether to request DNSSEC records or whether to validate them. DNSSEC records are always requested, and validation will always occur unless suppressed by the use of
+<B>-i</B>
+or
+<B>+noroot</B>.
+</DL>
+
+<P>
+
+<B>+[no]root[=ROOT]</B>
+<DL COMPACT><DT id="38"><DD>
+Indicates whether to perform conventional DNSSEC validation, and if so, specifies the name of a trust anchor. The default is to validate using a trust anchor of &quot;.&quot; (the root zone), for which there is a built-in key. If specifying a different trust anchor, then
+<B>-a</B>
+must be used to specify a file containing the key.
+</DL>
+
+<P>
+
+<B>+[no]tcp</B>
+<DL COMPACT><DT id="39"><DD>
+Controls whether to use TCP when sending queries. The default is to use UDP unless a truncated response has been received.
+</DL>
+
+<P>
+
+<B>+[no]unknownformat</B>
+<DL COMPACT><DT id="40"><DD>
+Print all RDATA in unknown RR type presentation format (RFC 3597). The default is to print RDATA for known types in the type's presentation format.
+</DL>
+
+<P>
+
+<B>+[no]yaml</B>
+<DL COMPACT><DT id="41"><DD>
+Print response data in YAML format.
+</DL>
+
+<A NAME="lbAH">&nbsp;</A>
+<H2>FILES</H2>
+
+<P>
+
+/etc/bind.keys
+<P>
+
+/etc/resolv.conf
+<A NAME="lbAI">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?1+dig">dig</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?8+named">named</A></B>(8),
+RFC4034,
+RFC4035,
+RFC4431,
+RFC5074,
+RFC5155.
+<A NAME="lbAJ">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+<P>
+
+<B>Internet Systems Consortium, Inc.</B>
+<A NAME="lbAK">&nbsp;</A>
+<H2>COPYRIGHT</H2>
+
+<BR>
+
+Copyright &#169; 2014-2020 Internet Systems Consortium, Inc. (&quot;ISC&quot;)
+<BR>
+
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="42"><A HREF="#lbAB">NAME</A><DD>
+<DT id="43"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="44"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="45"><A HREF="#lbAE">SIMPLE USAGE</A><DD>
+<DT id="46"><A HREF="#lbAF">OPTIONS</A><DD>
+<DT id="47"><A HREF="#lbAG">QUERY OPTIONS</A><DD>
+<DT id="48"><A HREF="#lbAH">FILES</A><DD>
+<DT id="49"><A HREF="#lbAI">SEE ALSO</A><DD>
+<DT id="50"><A HREF="#lbAJ">AUTHOR</A><DD>
+<DT id="51"><A HREF="#lbAK">COPYRIGHT</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:10 GMT, March 31, 2021
+</BODY>
+</HTML>

@@ -1,0 +1,179 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of BOLTD</TITLE>
+</HEAD><BODY>
+<H1>BOLTD</H1>
+Section: bolt Manual (8)<BR>Updated: 09/10/2020<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+boltd - thunderbolt device managing system daemon
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+<B>boltd</B> [<I>OPTIONS</I>]
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+boltd is the thunderbolt device manager daemon. Its goal is to enable the secure and convenient use of thunderbolt devices by using the security features of modern thunderbolt controllers. It provides the org.freedesktop.bolt name on the system bus. boltd is autostarted via systemd/udev if a thunderbolt device is connected.
+<P>
+The thunderbolt I/O technology works by bridging PCIe between the controllers on each end of the connection, which in turn means that devices connected via Thunderbolt are ultimately connected via PCIe. Therefore thunderbolt can achieve very high connection speeds, fast enough to even drive external graphics cards. The downside is that it also makes certain attacks possible. To mitigate these security problems, the latest version --- known as Thunderbolt 3 --- supports different <B>security levels</B>:
+<P>
+
+<B>none</B>
+<DL COMPACT><DT id="1"><DD>
+No security. The behavior is identical to previous Thunderbolt versions.
+</DL>
+
+<P>
+
+<B>dponly</B>
+<DL COMPACT><DT id="2"><DD>
+No PCIe tunnels are created at all, but DisplayPort tunnels are allowed and will work.
+</DL>
+
+<P>
+
+<B>user</B>
+<DL COMPACT><DT id="3"><DD>
+Connected devices must be authorized by the user. Only then will the PCIe tunnels be activated.
+</DL>
+
+<P>
+
+<B>secure</B>
+<DL COMPACT><DT id="4"><DD>
+Basically the same as user mode, but additionally a key will be written to the device the first time the device is connected. This key will then be used to verify the identity of the connected device.
+</DL>
+
+<P>
+The primary task of <B>boltd</B> is to authorize thunderbolt peripherals if the security level is either user or secure. It provides a D-Bus API to list devices, enroll them (authorize and store them in the local database) and forget them again (remove previously enrolled devices). It also emits signals if new devices are connected (or removed). During enrollment devices can be set to be automatically authorized as soon as they are connected. A command line tool, called <A HREF="/cgi-bin/man/man2html?1+boltctl">boltctl</A>(1), can be used to control the daemon and perform all the above mentioned tasks.
+<P>
+The pre-boot access control list (<B>BootACL</B>) feature is active when supported by the firmware and when <I>boltd</I> is running on a new enough Linux kernel (&gt;= 4.17). The <I>BootACL</I> is a list of UUIDs, that can be written to the thunderbolt controller. If enabled in the BIOS, all devices in that list will be authorized by the firmware during pre-boot, which means these devices can be used in the BIOS setup and also during Linux early boot. NB: <B>no device verification</B> is done, even when the security level is set to <I>secure</I> mode in the BIOS, i.e. the maximal effective security level for devices in the <I>BootACL</I> is only <I>user</I>. If <I>BootACL</I> support is present, all new devices will be automatically added. Devices that are <I>forgotten</I> (removed from <I>boltd</I>) will also be removed from the <I>BootACL</I>. When a controller is offline, changes to the <I>BootACL</I> will be written to a journal and synchronized back when the controller is online again.
+<P>
+<I>IOMMU</I> support: if the hardware and firmware support using the input-output memory management unit (IOMMU) to restrict direct memory access to certain safe regions, boltd will detect that feature and change its behavior: As long as iommu support is active, as inidcated by the iommu_dma_protection sysfs attribute of the domain controller, new devices will be automatically enrolled with the <I>iommu</I> policy and existing devices with <I>iommu</I> (or <I>auto</I>) policy will be automatically authorized by boltd without any user interaction. When iommu is not active, devices that were enrolled with the <I>iommu</I> policy will not be authorized automatically. The status of iommu support can be inspected by using <B>boltctl domains</B>.
+<A NAME="lbAE">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<P>
+
+<B>-h, --help</B>
+<DL COMPACT><DT id="5"><DD>
+Prints a short help text and exits.
+</DL>
+
+<P>
+
+<B>--version</B>
+<DL COMPACT><DT id="6"><DD>
+Shows the version number and exits.
+</DL>
+
+<P>
+
+<B>-r, --replace</B>
+<DL COMPACT><DT id="7"><DD>
+Replace the currently running boltd instance.
+</DL>
+
+<P>
+
+<B>--journal</B>
+<DL COMPACT><DT id="8"><DD>
+Force logging to the journal.
+</DL>
+
+<P>
+
+<B>-v, --verbosee</B>
+<DL COMPACT><DT id="9"><DD>
+Print debug output.
+</DL>
+
+<A NAME="lbAF">&nbsp;</A>
+<H2>ENVIRONMENT</H2>
+
+<P>
+
+<B>RUNTIME_DIRECTORY</B>
+<DL COMPACT><DT id="10"><DD>
+Specifies the path where the daemon stores data that only has to live as long as the current boot. Will be set automatically when started via systemd (&gt;= 240). If not set the default path for runtime data is
+<I>/run/boltd</I>.
+</DL>
+
+<P>
+
+<B>STATE_DIRECTORY</B>
+<DL COMPACT><DT id="11"><DD>
+Specifies the path where the daemon stores device information, including the keys used for authorization. Overwrites the path that was set at compile time. Will be set automatically when started via systemd (&gt;= 240).
+</DL>
+
+<P>
+
+<B>BOLT_DBPATH</B>
+<DL COMPACT><DT id="12"><DD>
+Same as
+STATE_DIRECTORY
+but takes precedence over that, if set.
+</DL>
+
+<A NAME="lbAG">&nbsp;</A>
+<H2>EXIT STATUS</H2>
+
+<P>
+On success 0 is returned, a non-zero failure code otherwise.
+<A NAME="lbAH">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+<P>
+Written by Christian Kellner &lt;<A HREF="mailto:ckellner@redhat.com">ckellner@redhat.com</A>&gt;.
+<A NAME="lbAI">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+<A HREF="/cgi-bin/man/man2html?1+boltctl">boltctl</A>(1)
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="13"><A HREF="#lbAB">NAME</A><DD>
+<DT id="14"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="15"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="16"><A HREF="#lbAE">OPTIONS</A><DD>
+<DT id="17"><A HREF="#lbAF">ENVIRONMENT</A><DD>
+<DT id="18"><A HREF="#lbAG">EXIT STATUS</A><DD>
+<DT id="19"><A HREF="#lbAH">AUTHOR</A><DD>
+<DT id="20"><A HREF="#lbAI">SEE ALSO</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:11 GMT, March 31, 2021
+</BODY>
+</HTML>

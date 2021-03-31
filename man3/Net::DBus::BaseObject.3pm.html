@@ -1,0 +1,263 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of Net::DBus::BaseObject</TITLE>
+</HEAD><BODY>
+<H1>Net::DBus::BaseObject</H1>
+Section: User Contributed Perl Documentation (3pm)<BR>Updated: 2019-12-26<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+Net::DBus::BaseObject - base class for exporting objects to the bus
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+
+
+
+
+<PRE>
+  # We're going to be a DBus object
+  use base qw(Net::DBus::BaseObject);
+
+  # Export a 'Greeting' signal taking a stringl string parameter
+  dbus_signal(&quot;Greeting&quot;, [&quot;string&quot;]);
+
+  # Export 'Hello' as a method accepting a single string
+  # parameter, and returning a single string value
+  dbus_method(&quot;Hello&quot;, [&quot;string&quot;], [&quot;string&quot;]);
+
+  sub new {
+      my $class = shift;
+      my $service = shift;
+      my $self = $class-&gt;SUPER::new($service, &quot;/org/demo/HelloWorld&quot;);
+
+      bless $self, $class;
+
+      return $self;
+  }
+
+  sub _dispatch_object {
+      my $self = shift;
+      my $connection = shift;
+      my $message = shift;
+
+      if (....$message refers to a object's method ... ) {
+         ...dispatch this object's interfaces/methods...
+         return $reply;
+      }
+  }
+
+</PRE>
+
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+
+This the base of all objects which are exported to the
+message bus. It provides the core support for type introspection
+required for objects exported to the message. When sub-classing
+this object, the <TT>&quot;_dispatch&quot;</TT> object should be implemented to
+handle processing of incoming messages. The Net::DBus::Exporter
+module is used to declare which methods (and signals) are being
+exported to the message bus.
+<P>
+
+All packages inheriting from this, will automatically have the
+interface <TT>&quot;org.freedesktop.DBus.Introspectable&quot;</TT> registered
+with Net::DBus::Exporter, and the <TT>&quot;Introspect&quot;</TT> method within
+this exported.
+<P>
+
+Application developers will rarely want to use this class directly,
+instead either Net::DBus::Object or <TT>&quot;Net::DBus::ProxyObject&quot;</TT>
+are the common choices. This class will only be used if wanting to
+write a new approach to dispatching incoming method calls.
+<A NAME="lbAE">&nbsp;</A>
+<H2>METHODS</H2>
+
+
+
+<DL COMPACT>
+<DT id="1">my $object = Net::DBus::BaseObject-&gt;new($service, $path)<DD>
+
+
+
+
+This creates a new DBus object with an path of <TT>$path</TT>
+registered within the service <TT>$service</TT>. The <TT>$path</TT>
+parameter should be a string complying with the usual
+DBus requirements for object paths, while the <TT>$service</TT>
+parameter should be an instance of Net::DBus::Service.
+The latter is typically obtained by calling the <TT>&quot;export_service&quot;</TT>
+method on the Net::DBus object.
+<DT id="2">my $object = Net::DBus::BaseObject-&gt;new($parentobj, $subpath)<DD>
+
+
+
+
+This creates a new DBus child object with an path of <TT>$subpath</TT>
+relative to its parent <TT>$parentobj</TT>. The <TT>$subpath</TT>
+parameter should be a string complying with the usual
+DBus requirements for object paths, while the <TT>$parentobj</TT>
+parameter should be an instance of Net::DBus::BaseObject.
+<DT id="3">$object-&gt;<B>disconnect()</B>;<DD>
+
+
+
+
+This method disconnects the object from the bus, such that it
+will no longer receive messages sent by other clients. Any
+child objects will be recursively disconnected too. After an
+object has been disconnected, it is possible for Perl to
+garbage collect the object instance. It will also make it
+possible to connect a newly created object to the same path.
+<DT id="4">my $bool = $object-&gt;is_connected<DD>
+
+
+
+
+Returns a true value if the object is connected to the bus,
+and thus capable of being accessed by remote clients. Returns
+false if the object is disconnected &amp; thus ready for garbage
+collection. All objects start off in the connected state, and
+will only transition if the <TT>&quot;disconnect&quot;</TT> method is called.
+<DT id="5">my $service = $object-&gt;get_service<DD>
+
+
+
+
+Retrieves the Net::DBus::Service object within which this
+object is exported.
+<DT id="6">my $path = $object-&gt;get_object_path<DD>
+
+
+
+
+Retrieves the path under which this object is exported
+<DT id="7">$object-&gt;emit_signal_in($name, $interface, $client, @args);<DD>
+
+
+
+
+Emits a signal from the object, with a name of <TT>$name</TT>. If the
+<TT>$interface</TT> parameter is defined, the signal will be scoped
+within that interface. If the <TT>$client</TT> parameter is defined,
+the signal will be unicast to that client on the bus. The
+signal and the data types of the arguments <TT>@args</TT> must have
+been registered with Net::DBus::Exporter by calling the
+<TT>&quot;dbus_signal&quot;</TT> method.
+<DT id="8">$self-&gt;emit_signal_to($name, $client, @args);<DD>
+
+
+
+
+Emits a signal from the object, with a name of <TT>$name</TT>. The
+signal and the data types of the arguments <TT>@args</TT> must have
+been registered with Net::DBus::Exporter by calling the
+<TT>&quot;dbus_signal&quot;</TT> method. The signal will be sent only to the
+client named by the <TT>$client</TT> parameter.
+<DT id="9">$self-&gt;emit_signal($name, @args);<DD>
+
+
+
+
+Emits a signal from the object, with a name of <TT>$name</TT>. The
+signal and the data types of the arguments <TT>@args</TT> must have
+been registered with Net::DBus::Exporter by calling the
+<TT>&quot;dbus_signal&quot;</TT> method. The signal will be broadcast to all
+clients on the bus.
+<DT id="10">$object-&gt;connect_to_signal_in($name, $interface, $coderef);<DD>
+
+
+
+
+Connects a callback to a signal emitted by the object. The <TT>$name</TT>
+parameter is the name of the signal within the object, and <TT>$coderef</TT>
+is a reference to an anonymous subroutine. When the signal <TT>$name</TT>
+is emitted by the remote object, the subroutine <TT>$coderef</TT> will be
+invoked, and passed the parameters from the signal. The <TT>$interface</TT>
+parameter is used to specify the explicit interface defining the
+signal to connect to.
+<DT id="11">$object-&gt;connect_to_signal($name, $coderef);<DD>
+
+
+
+
+Connects a callback to a signal emitted by the object. The <TT>$name</TT>
+parameter is the name of the signal within the object, and <TT>$coderef</TT>
+is a reference to an anonymous subroutine. When the signal <TT>$name</TT>
+is emitted by the remote object, the subroutine <TT>$coderef</TT> will be
+invoked, and passed the parameters from the signal.
+<DT id="12">$reply = $object-&gt;_dispatch_object($connection, $message);<DD>
+
+
+
+
+The <TT>&quot;_dispatch_object&quot;</TT> method is to be used to handle dispatch of
+methods implemented by the object. The default implementation is
+a no-op and should be overridden by subclasses todo whatever
+processing is required. If the <TT>$message</TT> could be handled then
+another <TT>&quot;Net::DBus::Binding::Message&quot;</TT> instance should be returned
+for the reply. If <TT>&quot;undef&quot;</TT> is returned, then a generic error will
+be returned to the caller.
+<DT id="13">$currvalue = $object-&gt;_dispatch_property($name); =item $object-&gt;_dispatch_property($name, $newvalue);<DD>
+
+
+
+
+The <TT>&quot;_dispatch_property&quot;</TT> method is to be used to handle dispatch
+of property reads and writes. The <TT>$name</TT> parameter is the name
+of the property being accessed. If <TT>$newvalue</TT> is supplied then
+the property is to be updated, otherwise the current value is to
+be returned. The default implementation will simply raise an
+error, so must be overridden in subclasses.
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+
+
+Daniel P. Berrange
+<A NAME="lbAG">&nbsp;</A>
+<H2>COPYRIGHT</H2>
+
+
+
+Copyright (C) 2005-2011 Daniel P. Berrange
+<A NAME="lbAH">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+
+Net::DBus, Net::DBus::Service, Net::DBus::Object,
+Net::DBus::ProxyObject, Net::DBus::Exporter,
+Net::DBus::RemoteObject
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="14"><A HREF="#lbAB">NAME</A><DD>
+<DT id="15"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="16"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="17"><A HREF="#lbAE">METHODS</A><DD>
+<DT id="18"><A HREF="#lbAF">AUTHOR</A><DD>
+<DT id="19"><A HREF="#lbAG">COPYRIGHT</A><DD>
+<DT id="20"><A HREF="#lbAH">SEE ALSO</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:48 GMT, March 31, 2021
+</BODY>
+</HTML>

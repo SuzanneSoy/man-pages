@@ -1,0 +1,268 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of XDG-DBUS-PROXY</TITLE>
+</HEAD><BODY>
+<H1>XDG-DBUS-PROXY</H1>
+Section: User Commands (1)<BR>Updated: <BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+xdg-dbus-proxy - D-Bus proxy
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<DL COMPACT>
+<DT id="1">
+<B>xdg-dbus-proxy</B> [<I>OPTION</I>...] [<I>ADDRESS</I>&nbsp;<I>PATH</I>&nbsp;[<I>OPTION</I>...]...]
+</DL>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+<B>xdg-dbus-proxy</B>
+<DD>is a filtering proxy for D-Bus connections. Its arguments are one or more
+<I>ADDRESS</I>-<I>PATH</I>
+pairs specifying the buses to proxy, with options that specify what filtering to apply.
+<A NAME="lbAE">&nbsp;</A>
+<H3>Basic Operation</H3>
+
+<P>
+
+The proxy listens to the unix domain socket at
+<I>PATH</I>, and for each client that connects to the socket, it opens up a new connection to the specified D-Bus
+<I>ADDRESS</I>
+(typically the session bus) and forwards data between the two. During the authentication phase all data is forwarded as received, and additionally for the first 1 byte zero we also send the proxy credentials to the bus.
+<P>
+
+Once the connection is authenticated there are two modes, filtered and unfiltered. In the unfiltered mode all messages are sent on as they are received. In the filtering mode policy is applied to determine which messages to allow, and which to drop.
+<P>
+
+Filtering is applied only to outgoing signals and method calls and incoming broadcast signals. All replies (errors or method returns) are allowed once for an outstanding method call, and never otherwise.
+<P>
+
+If a client ever receives a message from another peer on the bus, the senders unique name is made visible, so the client can track caller lifetimes via NameOwnerChanged signals. If a client calls a method on or receives a broadcast signal from a name (even if filtered to some subset of paths or interfaces), that names basic policy is considered to be (at least) TALK, from then on.
+<A NAME="lbAF">&nbsp;</A>
+<H3>Policy</H3>
+
+<P>
+
+The policy for the filtering consists of a mapping from well-known names to a policy that is either SEE, TALK or OWN. The default initial policy is that the the user is only allowed to TALK to the bus itself (org.freedesktop.DBus, or no destination specified), and TALK to its own unique ID. All other clients are invisible.
+<P>
+
+Here is a description of the policy levels (each level implies the ones before it):
+<P>
+
+SEE
+<DL COMPACT><DT id="2"><DD>
+The name/ID is visible in the ListNames reply
+<P>
+The name/ID is visible in the ListActivatableNames reply
+<P>
+You can call GetNameOwner on the name
+<P>
+You can call NameHasOwner on the name
+<P>
+You see NameOwnerChanged signals on the name
+<P>
+You see NameOwnerChanged signals on the ID when the client disconnects
+<P>
+You can call the GetXXX methods on the name/ID to get e.g. the peer pid
+<P>
+You get AccessDenied rather than NameHasNoOwner when sending messages to the name/ID
+</DL>
+
+<P>
+
+TALK
+<DL COMPACT><DT id="3"><DD>
+You can send any method calls and signals to the name/ID
+<P>
+You will receive broadcast signals from the name/ID (if you have a match rule for them)
+<P>
+You can call StartServiceByName on the name
+</DL>
+
+<P>
+
+OWN
+<DL COMPACT><DT id="4"><DD>
+You are allowed to call RequestName/ReleaseName/ListQueuedOwners on the name
+</DL>
+
+<P>
+
+Policy is specified with the
+<B>--see</B>,
+<B>--talk</B>
+and
+<B>--own</B>
+options. The well-known names in these options can have a '.*' suffix. A name of &quot;org.foo.*&quot; matches &quot;org.foo&quot;, org.foo.bar&quot;, and &quot;org.foo.bar.gazonk&quot;, but not &quot;org.foobar&quot;.
+<P>
+
+Polices are specified for well-known names, but they also affect the owner of that name, so that the policy for a unique ID is the union of the polices for all the names it owns. For technical reasons, the policy for a unique name is &quot;sticky&quot;, in that the highest policy granted by a once-owned name is kept, even when the client releases that name. This is impossible to avoid in a race-free way in a proxy. But it is rarely a problem in practice, as few clients release names and stay on the bus.
+<P>
+
+In addition to the basic SEE/TALK/OWN policy, it is possible to specify more complicated rules about what method calls can be made on and what broadcast signals can be received from well-known names. A rule can restrict the allowed calls/signals to a specific object path or a subtree of object paths, and it can restrict the allowed interface down to an individual method or signal name.
+<P>
+
+Rules are specified with the
+<B>--call</B>
+and
+<B>--broadcast</B>
+options. The
+<I>RULE</I>
+in these options determines what interfaces, methods and object paths are allowed. It must be of the form [<I>METHOD</I>][@<I>PATH</I>], where
+<I>METHOD</I>
+can be either '*' or a D-Bus interface, possible with a '.*' suffix, or a fully-qualified method name, and
+<I>PATH</I>
+is a D-Bus object path, possible with a '/*' suffix.
+<A NAME="lbAG">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<P>
+
+When options are used multiple times, the last option wins, unless otherwise specified.
+<P>
+
+General options:
+<P>
+
+<B>--help</B>
+<DL COMPACT><DT id="5"><DD>
+Print help and exit
+</DL>
+
+<P>
+
+<B>--version</B>
+<DL COMPACT><DT id="6"><DD>
+Print version
+</DL>
+
+<P>
+
+<B>--fd=</B><B>FD</B>
+<DL COMPACT><DT id="7"><DD>
+Write to FD when the proxies are ready, and stop when it is closed.
+</DL>
+
+<P>
+
+<B>--args=</B><B>FD</B>
+<DL COMPACT><DT id="8"><DD>
+Parse nul-separated arguments from the given file descriptor. This option can be used multiple times to parse options from multiple sources.
+</DL>
+
+<P>
+
+Proxy Options:
+<P>
+
+These options can only be used after an ADDRESS and apply to the proxy for that address.
+<P>
+
+<B>--filter</B>
+<DL COMPACT><DT id="9"><DD>
+Enable filtering
+</DL>
+
+<P>
+
+<B>--log</B>
+<DL COMPACT><DT id="10"><DD>
+Turn on logging
+</DL>
+
+<P>
+
+<B>--sloppy-names</B>
+<DL COMPACT><DT id="11"><DD>
+Make all unique names visible.
+</DL>
+
+<P>
+
+<B>--see=</B><B></B><I>NAME</I>
+<DL COMPACT><DT id="12"><DD>
+Set the SEE policy for the given name.
+</DL>
+
+<P>
+
+<B>--talk=</B><B></B><I>NAME</I>
+<DL COMPACT><DT id="13"><DD>
+Set the TALK policy for the given name.
+</DL>
+
+<P>
+
+<B>--own=</B><B></B><I>NAME</I>
+<DL COMPACT><DT id="14"><DD>
+Set the OWN policy for the given name.
+</DL>
+
+<P>
+
+<B>--call=</B><B></B><I>NAME</I><B>=</B><B></B><I>RULE</I>
+<DL COMPACT><DT id="15"><DD>
+Set a rule for calls on the given name.
+</DL>
+
+<P>
+
+<B>--broadcast=</B><B></B><I>NAME</I><B>=</B><B></B><I>RULE</I>
+<DL COMPACT><DT id="16"><DD>
+Set a rule for broadcast signals from the given name.
+</DL>
+
+<A NAME="lbAH">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+<P>
+
+<B>$ xdg-dbus-proxy --fd=26 unix:path=/run/usr/1000/bus /run/usr/1000/.dbus-proxy/session-bus-proxy --filter --own=org.gnome.ghex.* --talk=ca.desrt.dconf --call=org.freedesktop.portal.*=* --broadcast=org.freedesktop.portal.*=@/org/freedesktop/portal/*</B>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="17"><A HREF="#lbAB">NAME</A><DD>
+<DT id="18"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="19"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DL>
+<DT id="20"><A HREF="#lbAE">Basic Operation</A><DD>
+<DT id="21"><A HREF="#lbAF">Policy</A><DD>
+</DL>
+<DT id="22"><A HREF="#lbAG">OPTIONS</A><DD>
+<DT id="23"><A HREF="#lbAH">EXAMPLES</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:30 GMT, March 31, 2021
+</BODY>
+</HTML>

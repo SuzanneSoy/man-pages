@@ -1,0 +1,1415 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of Glib::xsapi</TITLE>
+</HEAD><BODY>
+<H1>Glib::xsapi</H1>
+Section: User Contributed Perl Documentation (3pm)<BR>Updated: 2020-02-18<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+Glib::xsapi - internal API reference for GPerl.
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+
+
+
+
+<PRE>
+ #include &lt;<A HREF="file:///usr/include/gperl.h">gperl.h</A>&gt;
+
+</PRE>
+
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+
+This is the binding developer's <FONT SIZE="-1">API</FONT> reference for GPerl, automatically
+generated from the xs source files.  This header defines the public
+interface for use when creating new Perl language bindings for GLib-based C
+libraries.
+<P>
+
+gperl.h includes for you all the headers needed for writing XSUBs 
+(<FONT SIZE="-1">EXTERN</FONT>.h, perl.h, and <FONT SIZE="-1">XSUB</FONT>.h), as well as all of GLib (via glib-object.h).
+<A NAME="lbAE">&nbsp;</A>
+<H2>API</H2>
+
+
+
+<A NAME="lbAF">&nbsp;</A>
+<H3>Miscellaneous</H3>
+
+
+
+Various useful utilities defined in Glib.xs.
+<DL COMPACT>
+<DT id="1"><FONT SIZE="-1">GPERL_CALL_BOOT</FONT>(name)<DD>
+
+
+call the boot code of a module by symbol rather than by name.
+
+
+<P>
+
+
+in a perl extension which uses several xs files but only one pm, you
+need to bootstrap the other xs files in order to get their functions
+exported to perl.  if the file has <FONT SIZE="-1">MODULE</FONT> = Foo::Bar, the boot symbol
+would be boot_Foo__Bar.
+<DT id="2">void _gperl_call_XS (pTHX_ void (*subaddr) (pTHX_ <FONT SIZE="-1">CV</FONT> *), <FONT SIZE="-1">CV</FONT> * cv, <FONT SIZE="-1">SV</FONT> ** mark);<DD>
+
+
+never use this function directly.  see <TT>&quot;GPERL_CALL_BOOT&quot;</TT>.
+
+
+<P>
+
+
+for the curious, this calls a perl sub by function pointer rather than
+by name; call_sv requires that the xsub already be registered, but we
+need this to call a function which will register xsubs.  this is an
+evil hack and should not be used outside of the <FONT SIZE="-1">GPERL_CALL_BOOT</FONT> macro.
+it's implemented as a function to avoid code size bloat, and exported
+so that extension modules can pull the same trick.
+<DT id="3">gpointer gperl_alloc_temp (int nbytes)<DD>
+
+
+Allocate and return a pointer to an <I>nbytes</I>-long, zero-initialized,
+temporary buffer that will be reaped at the next garbage collection sweep.
+This is handy for allocating things that need to be alloc'ed before a croak
+(since croak doesn't return and give you the chance to free them).  The
+trick is that the memory is allocated in a mortal perl scalar.  See the
+perl online manual for notes on using this technique.
+
+
+<P>
+
+
+Do <B>not</B> under any circumstances attempt to call <B>g_free()</B>, <B>free()</B>, or any
+other deallocator on this pointer, or you will crash the interpreter.
+<DT id="4">gchar *gperl_filename_from_sv (<FONT SIZE="-1">SV</FONT> *sv)<DD>
+
+
+Return a localized version of the filename in the sv, using
+g_filename_from_utf8 (and consequently this function might croak). The
+memory is allocated using gperl_alloc_temp.
+<DT id="5"><FONT SIZE="-1">SV</FONT> *gperl_sv_from_filename (const gchar *filename)<DD>
+
+
+Convert the filename into an utf8 string as used by gtk/glib and perl.
+<DT id="6">gboolean gperl_str_eq (const char * a, const char * b);<DD>
+
+
+Compare a pair of ascii strings, considering '-' and '_' to be equivalent.
+Used for things like enum value nicknames and signal names.
+<DT id="7">guint gperl_str_hash (gconstpointer key)<DD>
+
+
+Like <B>g_str_hash()</B>, but considers '-' and '_' to be equivalent.
+<DT id="8">GPerlArgv * gperl_argv_new ()<DD>
+
+
+Creates a new Perl argv object whose members can then be passed to functions
+that request argc and argv style arguments.
+
+
+<P>
+
+
+If the called function(s) modified argv, you can call gperl_argv_update to
+update Perl's <TT>@ARGV</TT> in the same way.
+
+
+<P>
+
+
+Remember to call gperl_argv_free when you're done.
+<DT id="9">void gperl_argv_update (GPerlArgv *pargv)<DD>
+
+
+Updates <TT>@ARGV</TT> to resemble the stored argv array.
+<DT id="10">void gperl_argv_free (GPerlArgv *pargv)<DD>
+
+
+Frees any resources associated with <I>pargv</I>.
+<DT id="11">char * gperl_format_variable_for_output (<FONT SIZE="-1">SV</FONT> * sv)<DD>
+
+
+Formats the variable stored in <I>sv</I> for output in error messages.  Like
+<B>SvPV_nolen()</B>, but ellipsizes real strings (i.e., not stringified references)
+at 20 chars to trim things down for error messages.
+<DT id="12">gboolean gperl_sv_is_defined (<FONT SIZE="-1">SV</FONT> *sv)<DD>
+
+
+Checks the <FONT SIZE="-1">SV</FONT> <I>sv</I> for definedness just like Perl's <I></I>defined()<I></I> would do.
+Most importantly, it correctly handles ``magical'' SVs, unlike bare <I>SvOK</I>.
+It's also NULL-safe.
+<DT id="13">void gperl_hv_take_sv (<FONT SIZE="-1">HV</FONT> *hv, const char *key, size_t key_length, <FONT SIZE="-1">SV</FONT> *sv)<DD>
+
+
+Tries to store <I>sv</I> in <I>hv</I>.  Decreases <I>sv</I>'s reference count if something
+goes wrong.
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H3>GError Exception Objects</H3>
+
+
+
+GError is a facility for propagating run-time error / exception information
+around in C, which is a language without native support for exceptions.
+GError uses a simple error code, usually defined as an enum.  Since the
+enums will overlap, GError includes the GQuark corresponding to a particular
+error ``domain'' to tell you which error codes will be used.  There's also a
+string containing a specific error message.  The strings are arbitrary, and
+may be translated, but the domains and codes are definite.
+<P>
+
+Perl has native support for exceptions, using <TT>&quot;eval&quot;</TT> as ``try'', <TT>&quot;croak&quot;</TT> or
+<TT>&quot;die&quot;</TT> as ``throw'', and <TT>&quot;if ($@)&quot;</TT> as ``catch''.  <TT>$@</TT> may, in fact, be
+any scalar, including blessed objects.
+<P>
+
+So, GPerl maps GLib's GError to Perl exceptions.
+<P>
+
+Since, as we described above, error messages are not guaranteed to be unique
+everywhere, we need to support the use of the error domains and codes.
+The obvious choice here is to use exception objects; however, to support
+blessed exception objects, we must perform a little bit of black magic in
+the bindings.   There is no built-in association between an error domain
+quark and the GType of the corresponding error code enumeration, so the
+bindings supply both of these when specifying the name of the package into
+which to bless exceptions of this domain.  All GError-based exceptions 
+derive from Glib::Error, of course, and this base class provides all of the
+functionality, including stringification.
+<P>
+
+All you'll really ever need to do is register error domains with
+<TT>&quot;gperl_register_error_domain&quot;</TT>, and throw errors with <TT>&quot;gperl_croak_gerror&quot;</TT>.
+<DL COMPACT>
+<DT id="14">void gperl_register_error_domain (GQuark domain, GType error_enum, const char * package)<DD>
+
+
+Tell the bindings to bless GErrors with error-&gt;domain == <I>domain</I> into
+<I>package</I>, and use <I>error_enum</I> to find the nicknames for the error codes.
+This will call <TT>&quot;gperl_set_isa&quot;</TT> on <I>package</I> to add ``Glib::Error'' to
+<I>package</I>'s <TT>@ISA</TT>.
+
+
+<P>
+
+
+<I>domain</I> may not be 0, and <I>package</I> may not be <FONT SIZE="-1">NULL</FONT>; what would be the 
+point?  <I>error_enum</I> may be 0, in which case you'll get no fancy stringified
+error values.
+<DT id="15"><FONT SIZE="-1">SV</FONT> * gperl_sv_from_gerror (GError * error)<DD>
+
+
+You should rarely, if ever, need to call this function.  This is what turns
+a GError into a Perl object.
+<DT id="16">gperl_gerror_from_sv (<FONT SIZE="-1">SV</FONT> * sv, GError ** error)<DD>
+
+
+You should rarely need this function.  This parses a perl data structure into
+a GError.  If <I>sv</I> is undef (or the empty string), sets *<I>error</I> to <FONT SIZE="-1">NULL,</FONT>
+otherwise, allocates a new GError with <TT>&quot;g_error_new_literal()&quot;</TT> and writes
+through <I>error</I>; the caller is responsible for calling <TT>&quot;g_error_free()&quot;</TT>.
+(<B>gperl_croak_gerror()</B> does this, for example.)
+<DT id="17">void gperl_croak_gerror (const char * ignored, GError * err)<DD>
+
+
+Croak with an exception based on <I>err</I>.  <I>err</I> may not be <FONT SIZE="-1">NULL.</FONT>  <I>ignored</I>
+exists for backward compatibility, and is, well, ignored.  This function
+calls <B>croak()</B>, which does not return.
+
+
+<P>
+
+
+Since <B>croak()</B> does not return, this function handles the magic behind 
+not leaking the memory associated with the #GError.  To use this you'd
+do something like
+
+
+<P>
+
+
+
+
+<PRE>
+ PREINIT:
+   GError * error = NULL;
+ CODE:
+   if (!funtion_that_can_fail (something, &amp;error))
+      gperl_croak_gerror (NULL, error);
+
+</PRE>
+
+
+
+
+<P>
+
+
+It's just that simple!
+</DL>
+<A NAME="lbAH">&nbsp;</A>
+<H3>GLog</H3>
+
+
+
+GLib has a message logging mechanism which it uses for the <B>g_return_if_fail()</B>
+assertion macros, etc.; it's really versatile and allows you to set various
+levels to be fatal and whatnot.  Libraries use these for various types of
+message reporting.
+<P>
+
+These functions let you reroute those messages from Perl.  By default, 
+the warning, critical, and message levels go through perl's <B>warn()</B>, and
+fatal ones go through <B>croak()</B>.  [i'm not sure that these get to <B>croak()</B>
+before GLib <B>abort()</B>s on them...]
+<DL COMPACT>
+<DT id="18">gint gperl_handle_logs_for (const gchar * log_domain)<DD>
+
+
+Route all g_logs for <I>log_domain</I> through gperl's log handling.  You'll
+have to register domains in each binding submodule, because there's no way
+we can know about them down here.
+
+
+<P>
+
+
+And, technically, this traps all the predefined log levels, not any of
+the ones you (or your library) may define for yourself.
+</DL>
+<A NAME="lbAI">&nbsp;</A>
+<H3>GType / GEnum / GFlags</H3>
+
+
+
+<DL COMPACT>
+<DT id="19">void gperl_register_fundamental (GType gtype, const char * package)<DD>
+
+
+register a mapping between <I>gtype</I> and <I>package</I>.  this is for ``fundamental''
+types which have no other requirements for metadata storage, such as GEnums,
+GFlags, or real GLib fundamental types like G_TYPE_INT, G_TYPE_FLOAT, etc.
+<DT id="20">void gperl_register_fundamental_alias (GType gtype, const char * package)<DD>
+
+
+Makes <I>package</I> an alias for <I>type</I>.  This means that the package name
+specified by <I>package</I> will be mapped to <I>type</I> by
+<I>gperl_fundamental_type_from_package</I>, but
+<I>gperl_fundamental_package_from_type</I> won't map <I>type</I> to <I>package</I>.  This
+is useful if you want to change the canonical package name of a type while
+preserving backwards compatibility with code which uses <I>package</I> to specify
+<I>type</I>.
+
+
+<P>
+
+
+In order for this to make sense, another package name should be registered for
+<I>type</I> with <I>gperl_register_fundamental</I> or
+<I>gperl_register_fundamental_full</I>.
+<DT id="21">GPerlValueWrapperClass<DD>
+
+
+Specifies the vtable that is to be used to convert fundamental types to and
+from Perl variables.
+
+
+<P>
+
+
+
+
+<PRE>
+  typedef struct _GPerlValueWrapperClass GPerlValueWrapperClass;
+  struct _GPerlValueWrapperClass {
+          GPerlValueWrapFunc   wrap;
+          GPerlValueUnwrapFunc unwrap;
+  };
+
+</PRE>
+
+
+
+
+<P>
+
+
+The members are function pointers, each of which serves a specific purpose:
+<DL COMPACT><DT id="22"><DD>
+<DL COMPACT>
+<DT id="23">GPerlValueWrapFunc<DD>
+
+
+Turns <I>value</I> into an <FONT SIZE="-1">SV.</FONT>  The caller assumes ownership of the <FONT SIZE="-1">SV.</FONT>  <I>value</I>
+is not to be modified.
+
+
+<P>
+
+
+
+
+<PRE>
+  typedef SV*  (*GPerlValueWrapFunc)   (const GValue * value);
+
+</PRE>
+
+
+<DT id="24">GPerlValueUnwrapFunc<DD>
+
+
+Turns <I>sv</I> into its fundamental representation and stores the result in the
+pre-configured <I>value</I>.  <I>value</I> must not be overwritten; instead one of the
+various <TT>&quot;g_value_set_*()&quot;</TT> functions must be used or the <TT>&quot;value-&gt;data&quot;</TT>
+pointer must be modified directly.
+
+
+<P>
+
+
+
+
+<PRE>
+  typedef void (*GPerlValueUnwrapFunc) (GValue       * value,
+                                        SV           * sv);
+
+</PRE>
+
+
+</DL>
+</DL>
+
+<DL COMPACT><DT id="25"><DD>
+</DL>
+
+<DT id="26">void gperl_register_fundamental_full (GType gtype, const char * package, GPerlValueWrapperClass * wrapper_class)<DD>
+
+
+Like gperl_register_fundamental, registers a mapping between <I>gtype</I> and
+<I>package</I>.  In addition, this also installs the function pointers in
+<I>wrapper_class</I> as the handlers for the type.  See GPerlValueWrapperClass.
+
+
+<P>
+
+
+<I>gperl_register_fundamental_full</I> does not copy the contents of
+<I>wrapper_class</I> --- it assumes that <I>wrapper_class</I> is statically allocated
+and that it will be valid for the whole lifetime of the program.
+<DT id="27">GType gperl_fundamental_type_from_package (const char * package)<DD>
+
+
+look up the GType corresponding to a <I>package</I> registered by
+<B>gperl_register_fundamental()</B>.
+<DT id="28">const char * gperl_fundamental_package_from_type (GType gtype)<DD>
+
+
+look up the package corresponding to a <I>gtype</I> registered by
+<B>gperl_register_fundamental()</B>.
+<DT id="29">GPerlValueWrapperClass * gperl_fundamental_wrapper_class_from_type (GType gtype)<DD>
+
+
+look up the wrapper class corresponding to a <I>gtype</I> that has previously been
+registered with <B>gperl_register_fundamental_full()</B>.
+<DT id="30">gboolean gperl_try_convert_enum (GType gtype, <FONT SIZE="-1">SV</FONT> * sv, gint * val)<DD>
+
+
+return <FONT SIZE="-1">FALSE</FONT> if <I>sv</I> can't be mapped to a valid member of the registered
+enum type <I>gtype</I>; otherwise, return <FONT SIZE="-1">TRUE</FONT> write the new value to the
+int pointed to by <I>val</I>.
+
+
+<P>
+
+
+you'll need this only in esoteric cases.
+<DT id="31">gint gperl_convert_enum (GType type, <FONT SIZE="-1">SV</FONT> * val)<DD>
+
+
+croak if <I>val</I> is not part of <I>type</I>, otherwise return corresponding value
+<DT id="32"><FONT SIZE="-1">SV</FONT> * gperl_convert_back_enum_pass_unknown (GType type, gint val)<DD>
+
+
+return a scalar containing the nickname of the enum value <I>val</I>, or the
+integer value of <I>val</I> if <I>val</I> is not a member of the enum <I>type</I>.
+<DT id="33"><FONT SIZE="-1">SV</FONT> * gperl_convert_back_enum (GType type, gint val)<DD>
+
+
+return a scalar which is the nickname of the enum value val, or croak if
+val is not a member of the enum.
+<DT id="34">gboolean gperl_try_convert_flag (GType type, const char * val_p, gint * val)<DD>
+
+
+like <B>gperl_try_convert_enum()</B>, but for GFlags.
+<DT id="35">gint gperl_convert_flag_one (GType type, const char * val)<DD>
+
+
+croak if <I>val</I> is not part of <I>type</I>, otherwise return corresponding value.
+<DT id="36">gint gperl_convert_flags (GType type, <FONT SIZE="-1">SV</FONT> * val)<DD>
+
+
+collapse a list of strings to an integer with all the correct bits set,
+croak if anything is invalid.
+<DT id="37"><FONT SIZE="-1">SV</FONT> * gperl_convert_back_flags (GType type, gint val)<DD>
+
+
+convert a bitfield to a list of strings.
+</DL>
+<A NAME="lbAJ">&nbsp;</A>
+<H3>Inheritance management</H3>
+
+
+
+<DL COMPACT>
+<DT id="38">void gperl_set_isa (const char * child_package, const char * parent_package)<DD>
+
+
+tell perl that <I>child_package</I> inherits <I>parent_package</I>, after whatever else
+is already there.  equivalent to <TT>&quot;push @{$parent_package}::ISA, $child_package;&quot;</TT>
+<DT id="39">void gperl_prepend_isa (const char * child_package, const char * parent_package)<DD>
+
+
+tell perl that <I>child_package</I> inherits <I>parent_package</I>, but before whatever
+else is already there.  equivalent to <TT>&quot;unshift @{$parent_package}::ISA, $child_package;&quot;</TT>
+<DT id="40">GType gperl_type_from_package (const char * package)<DD>
+
+
+Look up the GType associated with <I>package</I>, regardless of how it was
+registered.  Returns 0 if no mapping can be found.
+<DT id="41">const char * gperl_package_from_type (GType gtype)<DD>
+
+
+Look up the name of the package associated with <I>gtype</I>, regardless of how it
+was registered.  Returns <FONT SIZE="-1">NULL</FONT> if no mapping can be found.
+</DL>
+<A NAME="lbAK">&nbsp;</A>
+<H3>Boxed type support for <FONT SIZE="-1">SV</FONT></H3>
+
+
+
+In order to allow GValues to hold perl SVs we need a GBoxed wrapper.
+<DL COMPACT>
+<DT id="42"><FONT SIZE="-1">GPERL_TYPE_SV</FONT><DD>
+
+
+Evaluates to the GType for SVs.  The bindings register a mapping between
+<FONT SIZE="-1">GPERL_TYPE_SV</FONT> and the package 'Glib::Scalar' with <B>gperl_register_boxed()</B>.
+<DT id="43"><FONT SIZE="-1">SV</FONT> * gperl_sv_copy (<FONT SIZE="-1">SV</FONT> * sv)<DD>
+
+
+implemented as <TT>&quot;newSVsv (sv)&quot;</TT>.
+<DT id="44">void gperl_sv_free (<FONT SIZE="-1">SV</FONT> * sv)<DD>
+
+
+implemented as <TT>&quot;SvREFCNT_dec (sv)&quot;</TT>.
+</DL>
+<A NAME="lbAL">&nbsp;</A>
+<H3><FONT SIZE="-1">UTF-8</FONT> strings with gchar</H3>
+
+
+
+By convention, gchar* is assumed to point to <FONT SIZE="-1">UTF8</FONT> string data,
+and char* points to ascii string data.  Here we define a pair of
+wrappers for the boilerplate of upgrading Perl strings.  They
+are implemented as functions rather than macros, because comma
+expressions in macros are not supported by all compilers.
+<P>
+
+These functions should be used instead of newSVpv and SvPV_nolen
+in all cases which deal with gchar* types.
+<DL COMPACT>
+<DT id="45">gchar * SvGChar (<FONT SIZE="-1">SV</FONT> * sv)<DD>
+
+
+extract a <FONT SIZE="-1">UTF8</FONT> string from <I>sv</I>.
+<DT id="46"><FONT SIZE="-1">SV</FONT> * newSVGChar (const gchar * str)<DD>
+
+
+copy a <FONT SIZE="-1">UTF8</FONT> string into a new <FONT SIZE="-1">SV.</FONT>  if str is <FONT SIZE="-1">NULL,</FONT> returns &amp;PL_sv_undef.
+</DL>
+<A NAME="lbAM">&nbsp;</A>
+<H3>64 bit integers</H3>
+
+
+
+On 32 bit machines and even on some 64 bit machines, perl's <FONT SIZE="-1">IV/UV</FONT> data type can
+only hold 32 bit values.  The following functions therefore convert 64 bit
+integers to and from Perl strings if normal <FONT SIZE="-1">IV/UV</FONT> conversion does not suffice.
+<DL COMPACT>
+<DT id="47">gint64 SvGInt64 (<FONT SIZE="-1">SV</FONT> *sv)<DD>
+
+
+Converts the string in <I>sv</I> to a signed 64 bit integer.  If appropriate, uses
+<TT>&quot;SvIV&quot;</TT> instead.
+<DT id="48"><FONT SIZE="-1">SV</FONT> * newSVGInt64 (gint64 value)<DD>
+
+
+Creates a <FONT SIZE="-1">PV</FONT> from the signed 64 bit integer in <I>value</I>.  If appropriate, uses
+<TT>&quot;newSViv&quot;</TT> instead.
+<DT id="49">guint64 SvGUInt64 (<FONT SIZE="-1">SV</FONT> *sv)<DD>
+
+
+Converts the string in <I>sv</I> to an unsigned 64 bit integer.  If appropriate,
+uses <TT>&quot;SvUV&quot;</TT> instead.
+<DT id="50"><FONT SIZE="-1">SV</FONT> * newSVGUInt64 (guint64 value)<DD>
+
+
+Creates a <FONT SIZE="-1">PV</FONT> from the unsigned 64 bit integer in <I>value</I>.  If appropriate,
+uses <TT>&quot;newSVuv&quot;</TT> instead.
+</DL>
+<A NAME="lbAN">&nbsp;</A>
+<H3>GBoxed</H3>
+
+
+
+<DL COMPACT>
+<DT id="51">GPerlBoxedWrapperClass<DD>
+
+
+Specifies the vtable of functions to be used for bringing boxed types in
+and out of perl.  The structure is defined like this:
+
+
+<P>
+
+
+
+
+<PRE>
+ typedef struct _GPerlBoxedWrapperClass GPerlBoxedWrapperClass;
+ struct _GPerlBoxedWrapperClass {
+          GPerlBoxedWrapFunc    wrap;
+          GPerlBoxedUnwrapFunc  unwrap;
+          GPerlBoxedDestroyFunc destroy;
+ };
+
+</PRE>
+
+
+
+
+<P>
+
+
+The members are function pointers, each of which serves a specific purpose:
+<DL COMPACT><DT id="52"><DD>
+<DL COMPACT>
+<DT id="53">GPerlBoxedWrapFunc<DD>
+
+
+turn a boxed pointer into an <FONT SIZE="-1">SV.</FONT>  gtype is the type of the boxed pointer,
+and package is the package to which that gtype is registered (the lookup
+has already been done for you at this point).  if own is true, the wrapper
+is responsible for freeing the object; if it is false, some other code 
+owns the object and you must <FONT SIZE="-1">NOT</FONT> free it.
+
+
+<P>
+
+
+
+
+<PRE>
+ typedef SV*      (*GPerlBoxedWrapFunc)    (GType        gtype,
+                                            const char * package,
+                                            gpointer     boxed,
+                                            gboolean     own);
+
+</PRE>
+
+
+<DT id="54">GPerlBoxedUnwrapFunc<DD>
+
+
+turn an <FONT SIZE="-1">SV</FONT> into a boxed pointer.  like GPerlBoxedWrapFunc, gtype and package
+are the registered type pair, already looked up for you (in the process of
+finding the proper wrapper class).  sv is the sv to unwrap.
+
+
+<P>
+
+
+
+
+<PRE>
+ typedef gpointer (*GPerlBoxedUnwrapFunc)  (GType        gtype,
+                                            const char * package,
+                                            SV         * sv);
+
+</PRE>
+
+
+<DT id="55">GPerlBoxedDestroyFunc<DD>
+
+
+this will be called by Glib::Boxed::DESTROY, when the wrapper is destroyed.
+it is a hook that allows you to destroy an object owned by the wrapper;
+note, however, that you will have had to keep track yourself of whether
+the object was to be freed.
+
+
+<P>
+
+
+
+
+<PRE>
+ typedef void     (*GPerlBoxedDestroyFunc) (SV         * sv);
+
+</PRE>
+
+
+</DL>
+</DL>
+
+<DL COMPACT><DT id="56"><DD>
+</DL>
+
+<DT id="57">void gperl_register_boxed (GType gtype, const char * package, GPerlBoxedWrapperClass * wrapper_class)<DD>
+
+
+Register a mapping between the GBoxed derivative <I>gtype</I> and <I>package</I>.  The
+specified, <I>wrapper_class</I> will be used to wrap and unwrap objects of this
+type; you may pass <FONT SIZE="-1">NULL</FONT> to use the default wrapper (the same one returned by
+<B>gperl_default_boxed_wrapper_class()</B>).
+
+
+<P>
+
+
+In normal usage, the standard opaque wrapper supplied by the library is
+sufficient and correct.  In some cases, however, you want a boxed type to map
+directly to a native perl type; for example, some struct may be more
+appropriately represented as a hash in perl.  Since the most necessary place
+for this conversion to happen is in <B>gperl_value_from_sv()</B> and
+<B>gperl_sv_from_value()</B>, the only reliable and robust way to implement this 
+is a hook into <B>gperl_get_boxed_check()</B> and <B>gperl_new_boxed()</B>; that is
+exactly the purpose of <I>wrapper_class</I>.  See <TT>&quot;GPerlBoxedWrapperClass&quot;</TT>.
+
+
+<P>
+
+
+<I>gperl_register_boxed</I> does not copy the contents of <I>wrapper_class</I> --- it
+assumes that <I>wrapper_class</I> is statically allocated and that it will be valid
+for the whole lifetime of the program.
+<DT id="58">void gperl_register_boxed_alias (GType gtype, const char * package)<DD>
+
+
+Makes <I>package</I> an alias for <I>type</I>.  This means that the package name
+specified by <I>package</I> will be mapped to <I>type</I> by
+<I>gperl_boxed_type_from_package</I>, but <I>gperl_boxed_package_from_type</I> won't
+map <I>type</I> to <I>package</I>.  This is useful if you want to change the canonical
+package name of a type while preserving backwards compatibility with code which
+uses <I>package</I> to specify <I>type</I>.
+
+
+<P>
+
+
+In order for this to make sense, another package name should be registered for
+<I>type</I> with <I>gperl_register_boxed</I>.
+<DT id="59">void gperl_register_boxed_synonym (GType registered_gtype, GType synonym_gtype)<DD>
+
+
+Registers <I>synonym_gtype</I> as a synonym for <I>registered_gtype</I>.  All boxed
+objects of type <I>synonym_gtype</I> will then be treated as if they were of type
+<I>registered_gtype</I>, and <I>gperl_boxed_package_from_type</I> will return the
+package associated with <I>registered_gtype</I>.
+
+
+<P>
+
+
+<I>registered_gtype</I> must have been registered with <I>gperl_register_boxed</I>
+already.
+<DT id="60">GType gperl_boxed_type_from_package (const char * package)<DD>
+
+
+Look up the GType associated with package <I>package</I>.  Returns 0 if <I>type</I> is
+not registered.
+<DT id="61">const char * gperl_boxed_package_from_type (GType type)<DD>
+
+
+Look up the package associated with GBoxed derivative <I>type</I>.  Returns <FONT SIZE="-1">NULL</FONT> if
+<I>type</I> is not registered.
+<DT id="62">GPerlBoxedWrapperClass * gperl_default_boxed_wrapper_class (void)<DD>
+
+
+get a pointer to the default wrapper class; handy if you want to use
+the normal wrapper, with minor modifications.  note that you can just
+pass <FONT SIZE="-1">NULL</FONT> to <B>gperl_register_boxed()</B>, so you really only need this in
+fringe cases.
+<DT id="63"><FONT SIZE="-1">SV</FONT> * gperl_new_boxed (gpointer boxed, GType gtype, gboolean own)<DD>
+
+
+Export a GBoxed derivative to perl, according to whatever
+GPerlBoxedWrapperClass is registered for <I>gtype</I>.  In the default
+implementation, this means wrapping an opaque perl object around the pointer
+to a small wrapper structure which stores some metadata, such as whether
+the boxed structure should be destroyed when the wrapper is destroyed
+(controlled by <I>own</I>; if the wrapper owns the object, the wrapper is in
+charge of destroying it's data).
+
+
+<P>
+
+
+This function might end up calling other Perl code, so if you use it in <FONT SIZE="-1">XS</FONT> code
+for a generic GType, make sure the stack pointer is set up correctly before the
+call, and restore it after the call.
+<DT id="64"><FONT SIZE="-1">SV</FONT> * gperl_new_boxed_copy (gpointer boxed, GType gtype)<DD>
+
+
+Create a new copy of <I>boxed</I> and return an owner wrapper for it.
+<I>boxed</I> may not be <FONT SIZE="-1">NULL.</FONT>  See <TT>&quot;gperl_new_boxed&quot;</TT>.
+<DT id="65">gpointer gperl_get_boxed_check (<FONT SIZE="-1">SV</FONT> * sv, GType gtype)<DD>
+
+
+Extract the boxed pointer from a wrapper; croaks if the wrapper <I>sv</I> is not
+blessed into a derivative of the expected <I>gtype</I>.  Does not allow undef.
+</DL>
+<A NAME="lbAO">&nbsp;</A>
+<H3>GObject</H3>
+
+
+
+To deal with the intricate interaction of the different reference-counting
+semantics of Perl objects versus GObjects, the bindings create a combined
+PerlObject+GObject, with the GObject's pointer in magic attached to the Perl
+object, and the Perl object's pointer in the GObject's user data.  Thus it's
+not really a ``wrapper'', but we refer to it as one, because ``combined Perl
+object + GObject'' is a cumbersome and confusing mouthful.
+<P>
+
+GObjects are represented as blessed hash references.  The GObject user data
+mechanism is not typesafe, and thus is used only for unsigned integer values;
+the Perl-level hash is available for any type of user data.  The combined
+nature of the wrapper means that data stored in the hash will stick around as
+long as the object is alive.
+<P>
+
+Since the C pointer is stored in attached magic, the C pointer is not available
+to the Perl developer via the hash object, so there's no need to worry about
+breaking it from perl.
+<P>
+
+Propers go to Marc Lehmann for dreaming most of this up.
+<DL COMPACT>
+<DT id="66">void gperl_register_object (GType gtype, const char * package)<DD>
+
+
+tell the GPerl type subsystem what Perl package corresponds with a given
+GObject by GType.  automagically sets up @<I>package</I>::ISA for you.
+
+
+<P>
+
+
+note that <TT>@ISA</TT> will not be created for gtype until gtype's parent has
+been registered.  if you are experiencing strange problems with a class'
+<TT>@ISA</TT> not being set up, change the order in which you register them.
+<DT id="67">void gperl_register_object_alias (GType gtype, const char * package)<DD>
+
+
+Makes <I>package</I> an alias for <I>type</I>.  This means that the package name
+specified by <I>package</I> will be mapped to <I>type</I> by
+<I>gperl_object_type_from_package</I>, but <I>gperl_object_package_from_type</I> won't
+map <I>type</I> to <I>package</I>.  This is useful if you want to change the canonical
+package name of a type while preserving backwards compatibility with code which
+uses <I>package</I> to specify <I>type</I>.
+
+
+<P>
+
+
+In order for this to make sense, another package name should be registered for
+<I>type</I> with <I>gperl_register_object</I>.
+<DT id="68">void gperl_register_sink_func (GType gtype, GPerlObjectSinkFunc func)<DD>
+
+
+Tell <B>gperl_new_object()</B> to use <I>func</I> to claim ownership of objects derived
+from <I>gtype</I>.
+
+
+<P>
+
+
+<B>gperl_new_object()</B> always refs a GObject when wrapping it for the first time.
+To have the Perl wrapper claim ownership of a GObject as part of
+<B>gperl_new_object()</B>, you unref the object after ref'ing it. however, different
+GObject subclasses have different ways to claim ownership; for example,
+GtkObject simply requires you to call <B>gtk_object_sink()</B>.  To make this concept
+generic, this function allows you to register a function to be called when then
+wrapper should claim ownership of the object.  The <I>func</I> registered for a
+given <I>type</I> will be called on any object for which <TT>&quot;g_type_isa
+(G_TYPE_OBJECT (object), type)&quot;</TT> succeeds.
+
+
+<P>
+
+
+If no sinkfunc is found for an object, <B>g_object_unref()</B> will be used.
+
+
+<P>
+
+
+Even though GObjects don't need sink funcs, we need to have them in Glib
+as a hook for upstream objects.  If we create a GtkObject (or any
+other type of object which uses a different way to claim ownership) via
+Glib::Object-&gt;new, any upstream wrappers, such as <B>gtk2perl_new_object()</B>, will
+<B>not</B> be called.  Having a sink func facility down here enables us always to
+do the right thing.
+<DT id="69">void gperl_object_set_no_warn_unreg_subclass (GType gtype, gboolean nowarn)<DD>
+
+
+In versions 1.00 through 1.10x of Glib, the bindings required all types
+to be registered ahead of time.  Upon encountering an unknown type, the
+bindings would emit a warning to the effect of ``unknown type 'Foo';
+representing as first known parent type 'Bar'''.  However, for some
+types, such as GtkStyle or GdkGC, the actual object returned is an
+instance of a child type of a private implementation (e.g., a theme
+engine (``BlueCurveStyle'') or gdk backend (``GdkGCX11'')); we neither can
+nor should have registered names for these types.  Therefore, it is
+possible to tell the bindings not to warn about these unregistered
+subclasses, and simply represent them as the parent type.
+
+
+<P>
+
+
+With 1.12x, the bindings will automatically register unknown classes
+into the namespace Glib::Object::_Unregistered to avoid possible
+breakage resulting from unknown ancestors of known children.  To
+preserve the old registered-as-unregistered behavior, the value
+installed by this function is used to prevent the _Unregistered mapping
+for such private backend classes.
+
+
+<P>
+
+
+Note: this assumes <I>gtype</I> has already been registered with
+<B>gperl_register_object()</B>.
+<DT id="70">const char * gperl_object_package_from_type (GType gtype)<DD>
+
+
+Get the package corresponding to <I>gtype</I>.  If <I>gtype</I> is not a GObject
+or GInterface, returns <FONT SIZE="-1">NULL.</FONT>  If <I>gtype</I> is not registered to a package
+name, a new name of the form <TT>&quot;Glib::Object::_Unregistered::$c_type_name&quot;</TT>
+will be created, used to register the class, and then returned.
+<DT id="71"><FONT SIZE="-1">HV</FONT> * gperl_object_stash_from_type (GType gtype)<DD>
+
+
+Get the stash corresponding to <I>gtype</I>; returns <FONT SIZE="-1">NULL</FONT> if <I>gtype</I> is
+not registered.  The stash is useful for <TT>&quot;bless&quot;</TT>ing.
+<DT id="72">GType gperl_object_type_from_package (const char * package)<DD>
+
+
+Inverse of <B>gperl_object_package_from_type()</B>,  returns 0 if <I>package</I>
+is not registered.
+<DT id="73"><FONT SIZE="-1">SV</FONT> * gperl_new_object (GObject * object, gboolean own)<DD>
+
+
+Use this function to get the perl part of a GObject.  If <I>object</I>
+has never been seen by perl before, a new, empty perl object will
+be created and added to a private key under <I>object</I>'s qdata.  If
+<I>object</I> already has a perl part, a new reference to it will be
+created. The gobject + perl object together form a combined object that
+is properly refcounted, i.e. both parts will stay alive as long as at
+least one of them is alive, and only when both perl object and gobject are
+no longer referenced will both be freed.
+
+
+<P>
+
+
+The perl object will be blessed into the package corresponding to the GType
+returned by calling <B>G_OBJECT_TYPE()</B> on <I>object</I>; if that class has not
+been registered via <B>gperl_register_object()</B>, this function will emit a
+warning to that effect (with <B>warn()</B>), and attempt to bless it into the
+first known class in the object's ancestry.  Since Glib::Object is
+already registered, you'll get a Glib::Object if you are lazy, and thus
+this function can fail only if <I>object</I> isn't descended from GObject,
+in which case it croaks.  (In reality, if you pass a non-GObject to this
+function, you'll be lucky if you don't get a segfault, as there's not
+really a way to trap that.)  In practice these warnings can be unavoidable,
+so you can use <B>gperl_object_set_no_warn_unreg_subclass()</B> to quell them
+on a class-by-class basis.
+
+
+<P>
+
+
+However, when perl code is calling a GObject constructor (any function
+which returns a new GObject), call <B>gperl_new_object()</B> with <I>own</I> set to
+<TT>%TRUE</TT>; this will cause the first matching sink function to be called
+on the GObject to claim ownership of that object, so that it will be
+destroyed when the perl object goes out of scope. The default sink func
+is <B>g_object_unref()</B>; other types should supply the proper function;
+e.g., GtkObject should use <B>gtk_object_sink()</B> here.
+
+
+<P>
+
+
+Returns the blessed perl object, or #&amp;PL_sv_undef if object was #NULL.
+<DT id="74">GObject * gperl_get_object (<FONT SIZE="-1">SV</FONT> * sv)<DD>
+
+
+retrieve the GObject pointer from a Perl object.  Returns <FONT SIZE="-1">NULL</FONT> if <I>sv</I> is not
+linked to a GObject.
+
+
+<P>
+
+
+Note, this one is not safe --- in general you want to use
+<B>gperl_get_object_check()</B>.
+<DT id="75">GObject * gperl_get_object_check (<FONT SIZE="-1">SV</FONT> * sv, GType gtype);<DD>
+
+
+croaks if <I>sv</I> is undef or is not blessed into the package corresponding
+to <I>gtype</I>.  use this for bringing parameters into xsubs from perl.
+Returns the same as <B>gperl_get_object()</B> (provided it doesn't croak first).
+<DT id="76"><FONT SIZE="-1">SV</FONT> * gperl_object_check_type (<FONT SIZE="-1">SV</FONT> * sv, GType gtype)<DD>
+
+
+Essentially the same as <B>gperl_get_object_check()</B>.
+
+
+<P>
+
+
+This croaks if the types aren't compatible.
+<DT id="77">typedef GObject GObject_noinc<DD>
+
+
+
+<DT id="78">typedef GObject GObject_ornull<DD>
+
+
+<DT id="79">newSVGObject(obj)<DD>
+
+
+<DT id="80">newSVGObject_noinc(obj)<DD>
+
+
+<DT id="81">SvGObject(sv)<DD>
+
+
+<DT id="82">SvGObject_ornull(sv)<DD>
+
+
+
+</DL>
+<A NAME="lbAP">&nbsp;</A>
+<H3>GValue</H3>
+
+
+
+GValue is GLib's generic value container, and it is because of GValue that the
+run time type handling of GObject parameters and GClosure marshaling can
+function, and most usages of these functions will be from those two points.
+<P>
+
+Client code will run into uses for <B>gperl_sv_from_value()</B> and
+<B>gperl_value_from_sv()</B> when trying to convert lists of parameters into GValue
+arrays and the like.
+<DL COMPACT>
+<DT id="83">gboolean gperl_value_from_sv (GValue * value, <FONT SIZE="-1">SV</FONT> * sv)<DD>
+
+
+set a <I>value</I> from a whatever is in <I>sv</I>.  <I>value</I> must be initialized 
+so the code knows what kind of value to coerce out of <I>sv</I>.
+
+
+<P>
+
+
+Return value is always <FONT SIZE="-1">TRUE</FONT>; if the code knows how to perform the conversion,
+it croaks.  (The return value is for backward compatibility.) In reality,
+this really ought to always succeed; a failed conversion should be considered
+a bug or unimplemented code!
+<DT id="84"><FONT SIZE="-1">SV</FONT> * gperl_sv_from_value (const GValue * value)<DD>
+
+
+Coerce whatever is in <I>value</I> into a perl scalar and return it.
+
+
+<P>
+
+
+Croaks if the code doesn't know how to perform the conversion.
+
+
+<P>
+
+
+Might end up calling other Perl code.  So if you use this function in <FONT SIZE="-1">XS</FONT> code
+for a generic GType, make sure the stack pointer is set up correctly before the
+call, and restore it after the call.
+</DL>
+<A NAME="lbAQ">&nbsp;</A>
+<H3>GClosure / GPerlClosure</H3>
+
+
+
+GPerlClosure is a wrapper around the gobject library's GClosure with
+special handling for marshalling perl subroutines as callbacks.
+This is specially tuned for use with GSignal and stuff like io watch,
+timeout, and idle handlers.
+<P>
+
+For generic callback functions, which need parameters but do not get
+registered with the type system, this is sometimes overkill.  See
+GPerlCallback, below.
+<DL COMPACT>
+<DT id="85">GClosure * gperl_closure_new (<FONT SIZE="-1">SV</FONT> * callback, <FONT SIZE="-1">SV</FONT> * data, gboolean swap)<DD>
+
+
+Create and return a new GPerlClosure.  <I>callback</I> and <I>data</I> will be copied
+for storage; <I>callback</I> must not be <FONT SIZE="-1">NULL.</FONT>  If <I>swap</I> is <FONT SIZE="-1">TRUE,</FONT> <I>data</I> will be
+swapped with the instance during invocation (this is used to implement
+<B>g_signal_connect_swapped()</B>).
+
+
+<P>
+
+
+If compiled under a thread-enabled perl, the closure will be created and
+marshaled in such a way as to ensure that the same interpreter which created
+the closure will be used to invoke it.
+<DT id="86">GClosure * gperl_closure_new_with_marshaller (<FONT SIZE="-1">SV</FONT> * callback, <FONT SIZE="-1">SV</FONT> * data, gboolean swap, GClosureMarshal marshaller)<DD>
+
+
+Like <TT>&quot;gperl_closure_new&quot;</TT>, but uses a caller-supplied marshaller.  This is
+provided for use in those sticky circumstances when you just can't do it 
+any other way; in general, you want to use the default marshaller, which you
+get if you provide <FONT SIZE="-1">NULL</FONT> for <I>marshaller</I>.
+
+
+<P>
+
+
+If you use you own marshaller, you need to take care of everything yourself,
+including swapping the instance and data if <TT>&quot;GPERL_CLOSURE_SWAP_DATA
+(closure)&quot;</TT> is true, calling <TT>&quot;gperl_run_exception_handlers&quot;</TT> if <FONT SIZE="-1">ERRSV</FONT> is true
+after invoking the perl sub, and ensuring that you properly use the
+<TT>&quot;marshal_data&quot;</TT> parameter as the perl interpreter when <FONT SIZE="-1">PERL_IMPLICIT_CONTEXT</FONT> is
+defined.  See the implementation of the default marshaller,
+<TT>&quot;gperl_closure_marshal&quot;</TT>, in Glib/GClosure.xs for inspiration.
+</DL>
+<A NAME="lbAR">&nbsp;</A>
+<H3>GPerlCallback</H3>
+
+
+
+generic callback functions usually get invoked directly, and are not passed
+parameter lists as GValues.  we could very easily wrap up such generic
+callbacks with something that converts the parameters to GValues and then
+channels everything through GClosure, but this has two problems:  1) the above
+implementation of GClosure is tuned to marshalling signal handlers, which
+always have an instance object, and 2) it's more work than is strictly
+necessary.
+<P>
+
+additionally, generic callbacks aren't always kind to the GClosure paradigm.
+<P>
+
+so, here's GPerlCallback, which is designed specifically to run generic
+callback functions.  it reads parameters off the C stack and converts them into
+parameters on the perl stack.  (it uses the GValue to/from <FONT SIZE="-1">SV</FONT> mechanism to do
+so, but doesn't allocate any temps on the heap.)  the callback object itself
+stores the parameter type list.
+<P>
+
+unfortunately, since the data element is always last, but the number of
+arguments is not known until we have the callback object, we can't pass
+gperl_callback_invoke directly to functions requiring a callback; you'll have
+to write a proxy callback which calls gperl_callback_invoke.
+<DL COMPACT>
+<DT id="87">GPerlCallback * gperl_callback_new (<FONT SIZE="-1">SV</FONT> * func, <FONT SIZE="-1">SV</FONT> * data, gint n_params, GType param_types[], GType return_type)<DD>
+
+
+Create and return a new GPerlCallback; use gperl_callback_destroy when you are
+finished with it.
+
+
+<P>
+
+
+<I>func</I>: perl subroutine to call.  this <FONT SIZE="-1">SV</FONT> will be copied, so don't worry about
+reference counts.  must <B>not</B> be #NULL.
+
+
+<P>
+
+
+<I>data</I>: scalar to pass to <I>func</I> in addition to all other arguments.  the <FONT SIZE="-1">SV</FONT>
+will be copied, so don't worry about reference counts.  may be #NULL.
+
+
+<P>
+
+
+<I>n_params</I>: the number of elements in <I>param_types</I>.
+
+
+<P>
+
+
+<I>param_types</I>: the #GType of each argument that should be passed from the
+invocation to <I>func</I>.  may be #NULL if <I>n_params</I> is zero, otherwise it must
+be <I>n_params</I> elements long or nasty things will happen.  this array will be
+copied; see <B>gperl_callback_invoke()</B> for how it is used.
+
+
+<P>
+
+
+<I>return_type</I>: the #GType of the return value, or 0 if the function has void
+return.
+<DT id="88">void gperl_callback_destroy (GPerlCallback * callback)<DD>
+
+
+Dispose of <I>callback</I>.
+<DT id="89">void gperl_callback_invoke (GPerlCallback * callback, GValue * return_value, ...)<DD>
+
+
+Marshall the variadic parameters according to <I>callback</I>'s param_types, and
+then invoke <I>callback</I>'s subroutine in scalar context, or void context if the
+return type is G_TYPE_VOID.  If <I>return_value</I> is not <FONT SIZE="-1">NULL,</FONT> then value
+returned (if any) will be copied into <I>return_value</I>.
+
+
+<P>
+
+
+A typical callback handler would look like this:
+
+
+<P>
+
+
+
+
+<PRE>
+  static gint
+  real_c_callback (Foo * f, Bar * b, int a, gpointer data)
+  {
+          GPerlCallback * callback = (GPerlCallback*)data;
+          GValue return_value = {0,};
+          gint retval;
+          g_value_init (&amp;return_value, callback-&gt;return_type);
+          gperl_callback_invoke (callback, &amp;return_value,
+                                 f, b, a);
+          retval = g_value_get_int (&amp;return_value);
+          g_value_unset (&amp;return_value);
+          return retval;
+  }
+
+</PRE>
+
+
+</DL>
+<A NAME="lbAS">&nbsp;</A>
+<H3>Exception Handling</H3>
+
+
+
+Like Event, Tk, and most other callback-using, event-based perl modules,
+Glib traps exceptions that happen in callbacks.  To enable your code to
+do something about these exceptions, Glib stores a list of exception
+handlers which will be called on the trapped exceptions.  This is
+completely distinct from the <TT>$SIG</TT>{__DIE__} mechanism provided by Perl
+itself, for various reasons (not the least of which is that the Perl
+docs and source code say that <TT>$SIG</TT>{__DIE__} is intended for running as
+the program is about to exit, and other behaviors may be removed in the
+future (apparently a source of much debate on p5p)).
+<DL COMPACT>
+<DT id="90">int gperl_install_exception_handler (GClosure * closure)<DD>
+
+
+Install a GClosure to be executed when <B>gperl_closure_invoke()</B> traps an
+exception.  The closure should return boolean (<FONT SIZE="-1">TRUE</FONT> if the handler should
+remain installed) and expect to receive a perl scalar.  This scalar will be
+a private copy of <FONT SIZE="-1">ERRSV</FONT> ($@) which the handler can mangle to its heart's
+content.
+
+
+<P>
+
+
+The return value is an integer id tag that may be passed to
+<B>gperl_removed_exception_handler()</B>.
+<DT id="91">void gperl_remove_exception_handler (guint tag)<DD>
+
+
+Remove the exception handler identified by <I>tag</I>, as returned by
+<B>gperl_install_exception_handler()</B>.  If <I>tag</I> cannot be found, this
+does nothing.
+
+
+<P>
+
+
+<FONT SIZE="-1">WARNING:</FONT>  this function locks a global data structure, so do <FONT SIZE="-1">NOT</FONT> call
+it recursively.  also, calling this from within an exception handler will
+result in a deadlock situation.  if you want to remove your handler just
+have it return <FONT SIZE="-1">FALSE.</FONT>
+<DT id="92">void gperl_run_exception_handlers (void)<DD>
+
+
+Invoke whatever exception handlers are installed.  You will need this if
+you have written a custom marshaler.  Uses the value of the global <FONT SIZE="-1">ERRSV.</FONT>
+</DL>
+<A NAME="lbAT">&nbsp;</A>
+<H3>GSignal</H3>
+
+
+
+<DL COMPACT>
+<DT id="93">void gperl_signal_set_marshaller_for (GType instance_type, char * detailed_signal, GClosureMarshal marshaller)<DD>
+
+
+You need this function only in rare cases, usually as workarounds for bad
+signal parameter types or to implement writable arguments.  Use the given
+<I>marshaller</I> to marshal all handlers for <I>detailed_signal</I> on
+<I>instance_type</I>.  <TT>&quot;gperl_signal_connect&quot;</TT> will look for marshallers
+registered here, and apply them to the GPerlClosure it creates for the given
+callback being connected.
+
+
+<P>
+
+
+A canonical form of <I>detailed_signal</I> will be used so that <I>marshaller</I> is
+applied for all possible spellings of the signal name.
+
+
+<P>
+
+
+Use the helper macros in gperl_marshal.h to help write your marshaller
+function.  That header, which is installed with the Glib module but not
+#included through gperl.h, includes commentary and examples which you
+should follow closely to avoid nasty bugs.  Use the Source, Luke.
+
+
+<P>
+
+
+<FONT SIZE="-1">WARNING:</FONT> Bend over backwards and turn your head around 720 degrees before
+attempting to write a GPerlClosure marshaller without using the macros in
+gperl_marshal.h.  If you absolutely cannot use those macros, be certain to
+understand what those macros do so you can get the semantics correct, and
+keep your code synchronized with them, or you may miss very important
+bugfixes.
+<DT id="94">gulong gperl_signal_connect (<FONT SIZE="-1">SV</FONT> * instance, char * detailed_signal, <FONT SIZE="-1">SV</FONT> * callback, <FONT SIZE="-1">SV</FONT> * data, GConnectFlags flags)<DD>
+
+
+The actual workhorse behind GObject::signal_connect, the binding for
+g_signal_connect, for use from within <FONT SIZE="-1">XS.</FONT>  This creates a <TT>&quot;GPerlClosure&quot;</TT>
+wrapper for the given <I>callback</I> and <I>data</I>, and connects that closure to the
+signal named <I>detailed_signal</I> on the given GObject <I>instance</I>.  This is only
+good for named signals.  <I>flags</I> is the same as for <B>g_signal_connect()</B>.
+<I>data</I> may be <FONT SIZE="-1">NULL,</FONT> but <I>callback</I> must not be.
+
+
+<P>
+
+
+Returns the id of the installed callback.
+</DL>
+<A NAME="lbAU">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+
+<B><A HREF="/cgi-bin/man/man2html?1+perlapi">perlapi</A></B>(1), <B><A HREF="/cgi-bin/man/man2html?1+perlguts">perlguts</A></B>(1), GLib Reference Manual, <B><A HREF="/cgi-bin/man/man2html?3pm+Glib">Glib</A></B>(3pm), <B><A HREF="/cgi-bin/man/man2html?3pm+Glib::devel">Glib::devel</A></B>(3pm).
+<A NAME="lbAV">&nbsp;</A>
+<H2>AUTHORS</H2>
+
+
+
+This file was automatically generated from the source code of the Glib module,
+which is maintained by the gtk2-perl team.
+<A NAME="lbAW">&nbsp;</A>
+<H2>LICENSE</H2>
+
+
+
+Copyright (C) 2003 by the gtk2-perl team (see the file <FONT SIZE="-1">AUTHORS</FONT> for the
+full list)
+<P>
+
+This library is free software; you can redistribute it and/or modify it under
+the terms of the <FONT SIZE="-1">GNU</FONT> Library General Public License as published by the Free
+Software Foundation; either version 2.1 of the License, or (at your option) any
+later version.
+<P>
+
+This library is distributed in the hope that it will be useful, but <FONT SIZE="-1">WITHOUT ANY
+WARRANTY</FONT>; without even the implied warranty of <FONT SIZE="-1">MERCHANTABILITY</FONT> or <FONT SIZE="-1">FITNESS FOR A
+PARTICULAR PURPOSE.</FONT>  See the <FONT SIZE="-1">GNU</FONT> Library General Public License for more
+details.
+<P>
+
+You should have received a copy of the <FONT SIZE="-1">GNU</FONT> Library General Public License along
+with this library; if not, write to the Free Software Foundation, Inc., 
+51 Franklin Street, Fifth Floor, Boston, <FONT SIZE="-1">MA 02110-1301 USA.</FONT>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="95"><A HREF="#lbAB">NAME</A><DD>
+<DT id="96"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="97"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="98"><A HREF="#lbAE">API</A><DD>
+<DL>
+<DT id="99"><A HREF="#lbAF">Miscellaneous</A><DD>
+<DT id="100"><A HREF="#lbAG">GError Exception Objects</A><DD>
+<DT id="101"><A HREF="#lbAH">GLog</A><DD>
+<DT id="102"><A HREF="#lbAI">GType / GEnum / GFlags</A><DD>
+<DT id="103"><A HREF="#lbAJ">Inheritance management</A><DD>
+<DT id="104"><A HREF="#lbAK">Boxed type support for <FONT SIZE="-1">SV</FONT></A><DD>
+<DT id="105"><A HREF="#lbAL"><FONT SIZE="-1">UTF-8</FONT> strings with gchar</A><DD>
+<DT id="106"><A HREF="#lbAM">64 bit integers</A><DD>
+<DT id="107"><A HREF="#lbAN">GBoxed</A><DD>
+<DT id="108"><A HREF="#lbAO">GObject</A><DD>
+<DT id="109"><A HREF="#lbAP">GValue</A><DD>
+<DT id="110"><A HREF="#lbAQ">GClosure / GPerlClosure</A><DD>
+<DT id="111"><A HREF="#lbAR">GPerlCallback</A><DD>
+<DT id="112"><A HREF="#lbAS">Exception Handling</A><DD>
+<DT id="113"><A HREF="#lbAT">GSignal</A><DD>
+</DL>
+<DT id="114"><A HREF="#lbAU">SEE ALSO</A><DD>
+<DT id="115"><A HREF="#lbAV">AUTHORS</A><DD>
+<DT id="116"><A HREF="#lbAW">LICENSE</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:45 GMT, March 31, 2021
+</BODY>
+</HTML>

@@ -1,0 +1,243 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of Tunnel metadata manipulation action in tc</TITLE>
+</HEAD><BODY>
+<H1>Tunnel metadata manipulation action in tc</H1>
+Section: Linux (8)<BR>Updated: 10 Nov 2016<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<P>
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+tunnel_key - Tunnel metadata manipulation
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+
+<BR>
+
+<B>tc</B> ... <B>action tunnel_key</B> { <B>unset</B> | 
+
+<I>SET</I> }
+
+<P>
+<BR>
+
+<I>SET</I> := 
+
+<B>set</B> <B>src_ip</B>
+
+<I>ADDRESS</I>
+
+<B>dst_ip</B>
+
+<I>ADDRESS</I>
+
+<B>id</B><I> KEY_ID</I>
+
+<B>dst_port</B><I> UDP_PORT</I>
+
+<B>tos</B><I> TOS</I>
+
+<B>ttl</B><I> TTL</I>
+
+[ <B>csum</B> | <B>nocsum</B> ]
+
+<P>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+The
+<B>tunnel_key</B>
+
+action combined with a shared IP tunnel device, allows to perform IP tunnel en-
+or decapsulation on a packet, reflected by
+the operation modes
+<I>UNSET</I> and <I>SET</I>.
+
+The
+<I>UNSET</I>
+
+mode is optional - even without using it, the metadata information will be
+released automatically when packet processing will be finished.
+<I>UNSET</I>
+
+function could be used in cases when traffic is forwarded between two tunnels,
+where the metadata from the first tunnel will be used for encapsulation done by
+the second tunnel.
+<I>SET</I>
+
+mode requires the source and destination ip
+<I>ADDRESS</I>
+
+and the tunnel key id
+<I>KEY_ID</I>
+
+which will be used by the ip tunnel shared device to create the tunnel header. The
+<B>tunnel_key</B>
+
+action is useful only in combination with a
+<B>mirred redirect</B>
+
+action to a shared IP tunnel device which will use the metadata (for
+<I>SET</I>
+
+) and unset the metadata created by it (for
+<I>UNSET</I>
+
+).
+<P>
+<A NAME="lbAE">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<DL COMPACT>
+<DT id="1"><B>unset</B>
+
+<DD>
+Unset the tunnel metadata created by the IP tunnel device.  This function is
+not mandatory and might be used only in some specific use cases (as explained
+above).
+<DT id="2"><B>set</B>
+
+<DD>
+Set tunnel metadata to be used by the IP tunnel device. Requires
+<B>src_ip</B>
+
+and
+<B>dst_ip</B>
+
+options.
+<B>id</B>
+
+,
+<B>dst_port</B>
+
+and
+<B>geneve_opts</B>
+
+are optional.
+<DL COMPACT><DT id="3"><DD>
+<DL COMPACT>
+<DT id="4"><B>id</B>
+
+<DD>
+Tunnel ID (for example VNI in VXLAN tunnel)
+<DT id="5"><B>src_ip</B>
+
+<DD>
+Outer header source IP address (IPv4 or IPv6)
+<DT id="6"><B>dst_ip</B>
+
+<DD>
+Outer header destination IP address (IPv4 or IPv6)
+<DT id="7"><B>dst_port</B>
+
+<DD>
+Outer header destination UDP port
+<DT id="8"><B>geneve_opts</B>
+
+<DD>
+Geneve variable length options.
+<B>geneve_opts</B>
+
+is specified in the form CLASS:TYPE:DATA, where CLASS is represented as a
+16bit hexadecimal value, TYPE as an 8bit hexadecimal value and DATA as a
+variable length hexadecimal value. Additionally multiple options may be
+listed using a comma delimiter.
+<DT id="9"><B>tos</B>
+
+<DD>
+Outer header TOS
+<DT id="10"><B>ttl</B>
+
+<DD>
+Outer header TTL
+<DT id="11">[<B>no</B>]<B>csum</B>
+
+<DD>
+Controls outer UDP checksum. When set to
+<B>csum</B>
+
+(which is default), the outer UDP checksum is calculated and included in the
+packets. When set to
+<B>nocsum</B>,
+
+outer UDP checksum is zero. Note that when using zero UDP checksums with
+IPv6, the other tunnel endpoint must be configured to accept such packets.
+In Linux, this would be the
+<B>udp6zerocsumrx</B>
+
+option for the VXLAN tunnel interface.
+<DT id="12"><DD>
+If using
+<B>nocsum</B>
+
+with IPv6, be sure you know what you are doing. Zero UDP checksums provide
+weaker protection against corrupted packets. See RFC6935 for details.
+</DL>
+</DL>
+
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+The following example encapsulates incoming ICMP packets on eth0 into a vxlan
+tunnel, by setting metadata to VNI 11, source IP 11.11.0.1 and destination IP
+11.11.0.2, and by redirecting the packet with the metadata to device vxlan0,
+which will do the actual encapsulation using the metadata:
+<P>
+<DL COMPACT><DT id="13"><DD>
+
+#tc qdisc add dev eth0 handle ffff: ingress
+#tc filter add dev eth0 protocol ip parent ffff: \
+<BR>&nbsp;&nbsp;flower&nbsp;\
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;ip_proto&nbsp;icmp&nbsp;\
+<BR>&nbsp;&nbsp;action&nbsp;tunnel_key&nbsp;set&nbsp;\
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;src_ip&nbsp;11.11.0.1&nbsp;\
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;dst_ip&nbsp;11.11.0.2&nbsp;\
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;id&nbsp;11&nbsp;\
+<BR>&nbsp;&nbsp;action&nbsp;mirred&nbsp;egress&nbsp;redirect&nbsp;dev&nbsp;vxlan0
+
+</DL>
+
+<P>
+Here is an example of the
+<B>unset</B>
+
+function: Incoming VXLAN traffic with outer IP's and VNI 11 is decapsulated by
+vxlan0 and metadata is unset before redirecting to tunl1 device:
+<P>
+<DL COMPACT><DT id="14"><DD>
+
+#tc qdisc add dev eth0 handle ffff: ingress
+#tc filter add dev vxlan0 protocol ip parent ffff: <BR>&nbsp;&nbsp;flower&nbsp;\
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>  enc_src_ip 11.11.0.2 enc_dst_ip 11.11.0.1 enc_key_id 11 <TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>action tunnel_key unset action mirred egress redirect dev tunl1<BR>
+
+</DL>
+
+<P>
+<A NAME="lbAG">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?8+tc">tc</A></B>(8)
+
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="15"><A HREF="#lbAB">NAME</A><DD>
+<DT id="16"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="17"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="18"><A HREF="#lbAE">OPTIONS</A><DD>
+<DT id="19"><A HREF="#lbAF">EXAMPLES</A><DD>
+<DT id="20"><A HREF="#lbAG">SEE ALSO</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:18 GMT, March 31, 2021
+</BODY>
+</HTML>

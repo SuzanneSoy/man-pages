@@ -1,0 +1,461 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SD_NOTIFY</TITLE>
+</HEAD><BODY>
+<H1>SD_NOTIFY</H1>
+Section: sd_notify (3)<BR>Updated: <BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+sd_notify, sd_notifyf, sd_pid_notify, sd_pid_notifyf, sd_pid_notify_with_fds - Notify service manager about start-up completion and other service status changes
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+<B>
+</B><PRE>
+#include &lt;<A HREF="file:///usr/include/systemd/sd-daemon.h">systemd/sd-daemon.h</A>&gt;
+</PRE>
+
+
+<DL COMPACT>
+<DT id="1">
+<B>int sd_notify(int&nbsp;</B><I>unset_environment</I><B>, const&nbsp;char&nbsp;*</B><I>state</I><B>);</B>
+
+<DT id="2">
+<B>int sd_notifyf(int&nbsp;</B><I>unset_environment</I><B>, const&nbsp;char&nbsp;*</B><I>format</I><B>, ...);</B>
+
+<DT id="3">
+<B>int sd_pid_notify(pid_t&nbsp;</B><I>pid</I><B>, int&nbsp;</B><I>unset_environment</I><B>, const&nbsp;char&nbsp;*</B><I>state</I><B>);</B>
+
+<DT id="4">
+<B>int sd_pid_notifyf(pid_t&nbsp;</B><I>pid</I><B>, int&nbsp;</B><I>unset_environment</I><B>, const&nbsp;char&nbsp;*</B><I>format</I><B>, ...);</B>
+
+<DT id="5">
+<B>int sd_pid_notify_with_fds(pid_t&nbsp;</B><I>pid</I><B>, int&nbsp;</B><I>unset_environment</I><B>, const&nbsp;char&nbsp;*</B><I>state</I><B>, const&nbsp;int&nbsp;*</B><I>fds</I><B>, unsigned&nbsp;</B><I>n_fds</I><B>);</B>
+
+</DL>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+<B>sd_notify()</B>
+<DD>may be called by a service to notify the service manager about state changes. It can be used to send arbitrary information, encoded in an environment-block-like string. Most importantly, it can be used for start-up completion notification.
+<P>
+
+If the
+<I>unset_environment</I>
+parameter is non-zero,
+<B>sd_notify()</B>
+will unset the
+<I>$NOTIFY_SOCKET</I>
+environment variable before returning (regardless of whether the function call itself succeeded or not). Further calls to
+<B>sd_notify()</B>
+will then fail, but the variable is no longer inherited by child processes.
+<P>
+
+The
+<I>state</I>
+parameter should contain a newline-separated list of variable assignments, similar in style to an environment block. A trailing newline is implied if none is specified. The string may contain any kind of variable assignments, but the following shall be considered well-known:
+<P>
+
+READY=1
+<DL COMPACT><DT id="6"><DD>
+Tells the service manager that service startup is finished, or the service finished loading its configuration. This is only used by systemd if the service definition file has
+<I>Type=notify</I>
+set. Since there is little value in signaling non-readiness, the only value services should send is
+&quot;READY=1&quot;
+(i.e.
+&quot;READY=0&quot;
+is not defined).
+</DL>
+
+<P>
+
+RELOADING=1
+<DL COMPACT><DT id="7"><DD>
+Tells the service manager that the service is reloading its configuration. This is useful to allow the service manager to track the service's internal state, and present it to the user. Note that a service that sends this notification must also send a
+&quot;READY=1&quot;
+notification when it completed reloading its configuration. Reloads are propagated in the same way as they are when initiated by the user.
+</DL>
+
+<P>
+
+STOPPING=1
+<DL COMPACT><DT id="8"><DD>
+Tells the service manager that the service is beginning its shutdown. This is useful to allow the service manager to track the service's internal state, and present it to the user.
+</DL>
+
+<P>
+
+STATUS=...
+<DL COMPACT><DT id="9"><DD>
+Passes a single-line UTF-8 status string back to the service manager that describes the service state. This is free-form and can be used for various purposes: general state feedback, fsck-like programs could pass completion percentages and failing programs could pass a human-readable error message. Example:
+&quot;STATUS=Completed 66% of file system check...&quot;
+</DL>
+
+<P>
+
+ERRNO=...
+<DL COMPACT><DT id="10"><DD>
+If a service fails, the errno-style error code, formatted as string. Example:
+&quot;ERRNO=2&quot;
+for ENOENT.
+</DL>
+
+<P>
+
+BUSERROR=...
+<DL COMPACT><DT id="11"><DD>
+If a service fails, the D-Bus error-style error code. Example:
+&quot;BUSERROR=org.freedesktop.DBus.Error.TimedOut&quot;
+</DL>
+
+<P>
+
+MAINPID=...
+<DL COMPACT><DT id="12"><DD>
+The main process ID (PID) of the service, in case the service manager did not fork off the process itself. Example:
+&quot;MAINPID=4711&quot;
+</DL>
+
+<P>
+
+WATCHDOG=1
+<DL COMPACT><DT id="13"><DD>
+Tells the service manager to update the watchdog timestamp. This is the keep-alive ping that services need to issue in regular intervals if
+<I>WatchdogSec=</I>
+is enabled for it. See
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.service">systemd.service</A></B>(5)
+for information how to enable this functionality and
+<B><A HREF="/cgi-bin/man/man2html?3+sd_watchdog_enabled">sd_watchdog_enabled</A></B>(3)
+for the details of how the service can check whether the watchdog is enabled.
+</DL>
+
+<P>
+
+WATCHDOG=trigger
+<DL COMPACT><DT id="14"><DD>
+Tells the service manager that the service detected an internal error that should be handled by the configured watchdog options. This will trigger the same behaviour as if
+<I>WatchdogSec=</I>
+is enabled and the service did not send
+&quot;WATCHDOG=1&quot;
+in time. Note that
+<I>WatchdogSec=</I>
+does not need to be enabled for
+&quot;WATCHDOG=trigger&quot;
+to trigger the watchdog action. See
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.service">systemd.service</A></B>(5)
+for information about the watchdog behavior.
+</DL>
+
+<P>
+
+WATCHDOG_USEC=...
+<DL COMPACT><DT id="15"><DD>
+Reset
+<I>watchdog_usec</I>
+value during runtime. Notice that this is not available when using
+<B>sd_event_set_watchdog()</B>
+or
+<B>sd_watchdog_enabled()</B>. Example :
+&quot;WATCHDOG_USEC=20000000&quot;
+</DL>
+
+<P>
+
+EXTEND_TIMEOUT_USEC=...
+<DL COMPACT><DT id="16"><DD>
+Tells the service manager to extend the startup, runtime or shutdown service timeout corresponding the current state. The value specified is a time in microseconds during which the service must send a new message. A service timeout will occur if the message isn't received, but only if the runtime of the current state is beyond the original maximum times of
+<I>TimeoutStartSec=</I>,
+<I>RuntimeMaxSec=</I>, and
+<I>TimeoutStopSec=</I>. See
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.service">systemd.service</A></B>(5)
+for effects on the service timeouts.
+</DL>
+
+<P>
+
+FDSTORE=1
+<DL COMPACT><DT id="17"><DD>
+Stores additional file descriptors in the service manager. File descriptors sent this way will be maintained per-service by the service manager and will later be handed back using the usual file descriptor passing logic at the next invocation of the service, see
+<B><A HREF="/cgi-bin/man/man2html?3+sd_listen_fds">sd_listen_fds</A></B>(3). This is useful for implementing services that can restart after an explicit request or a crash without losing state. Any open sockets and other file descriptors which should not be closed during the restart may be stored this way. Application state can either be serialized to a file in
+/run, or better, stored in a
+<B><A HREF="/cgi-bin/man/man2html?2+memfd_create">memfd_create</A></B>(2)
+memory file descriptor. Note that the service manager will accept messages for a service only if its
+<I>FileDescriptorStoreMax=</I>
+setting is non-zero (defaults to zero, see
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.service">systemd.service</A></B>(5)). If file descriptors sent are pollable (see
+<B><A HREF="/cgi-bin/man/man2html?2+epoll_ctl">epoll_ctl</A></B>(2)), then any
+<B>EPOLLHUP</B>
+or
+<B>EPOLLERR</B>
+event seen on them will result in their automatic removal from the store. Multiple arrays of file descriptors may be sent in separate messages, in which case the arrays are combined. Note that the service manager removes duplicate (pointing to the same object) file descriptors before passing them to the service. Use
+<B>sd_pid_notify_with_fds()</B>
+to send messages with
+&quot;FDSTORE=1&quot;, see below.
+</DL>
+
+<P>
+
+FDSTOREREMOVE=1
+<DL COMPACT><DT id="18"><DD>
+Removes file descriptors from the file descriptor store. This field needs to be combined with
+<I>FDNAME=</I>
+to specify the name of the file descriptors to remove.
+</DL>
+
+<P>
+
+FDNAME=...
+<DL COMPACT><DT id="19"><DD>
+When used in combination with
+<I>FDSTORE=1</I>, specifies a name for the submitted file descriptors. When used with
+<I>FDSTOREREMOVE=1</I>, specifies the name for the file descriptors to remove. This name is passed to the service during activation, and may be queried using
+<B><A HREF="/cgi-bin/man/man2html?3+sd_listen_fds_with_names">sd_listen_fds_with_names</A></B>(3). File descriptors submitted without this field set, will implicitly get the name
+&quot;stored&quot;
+assigned. Note that, if multiple file descriptors are submitted at once, the specified name will be assigned to all of them. In order to assign different names to submitted file descriptors, submit them in separate invocations of
+<B>sd_pid_notify_with_fds()</B>. The name may consist of arbitrary ASCII characters except control characters or
+&quot;:&quot;. It may not be longer than 255 characters. If a submitted name does not follow these restrictions, it is ignored.
+</DL>
+
+<P>
+
+It is recommended to prefix variable names that are not listed above with
+<I>X_</I>
+to avoid namespace clashes.
+<P>
+
+Note that systemd will accept status data sent from a service only if the
+<I>NotifyAccess=</I>
+option is correctly set in the service definition file. See
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.service">systemd.service</A></B>(5)
+for details.
+<P>
+
+Note that
+<B>sd_notify()</B>
+notifications may be attributed to units correctly only if either the sending process is still around at the time PID 1 processes the message, or if the sending process is explicitly runtime-tracked by the service manager. The latter is the case if the service manager originally forked off the process, i.e. on all processes that match
+<I>NotifyAccess=</I><B>main</B>
+or
+<I>NotifyAccess=</I><B>exec</B>. Conversely, if an auxiliary process of the unit sends an
+<B>sd_notify()</B>
+message and immediately exits, the service manager might not be able to properly attribute the message to the unit, and thus will ignore it, even if
+<I>NotifyAccess=</I><B>all</B>
+is set for it.
+<P>
+
+<B>sd_notifyf()</B>
+is similar to
+<B>sd_notify()</B>
+but takes a
+<B>printf()</B>-like format string plus arguments.
+<P>
+
+<B>sd_pid_notify()</B>
+and
+<B>sd_pid_notifyf()</B>
+are similar to
+<B>sd_notify()</B>
+and
+<B>sd_notifyf()</B>
+but take a process ID (PID) to use as originating PID for the message as first argument. This is useful to send notification messages on behalf of other processes, provided the appropriate privileges are available. If the PID argument is specified as 0, the process ID of the calling process is used, in which case the calls are fully equivalent to
+<B>sd_notify()</B>
+and
+<B>sd_notifyf()</B>.
+<P>
+
+<B>sd_pid_notify_with_fds()</B>
+is similar to
+<B>sd_pid_notify()</B>
+but takes an additional array of file descriptors. These file descriptors are sent along the notification message to the service manager. This is particularly useful for sending
+&quot;FDSTORE=1&quot;
+messages, as described above. The additional arguments are a pointer to the file descriptor array plus the number of file descriptors in the array. If the number of file descriptors is passed as 0, the call is fully equivalent to
+<B>sd_pid_notify()</B>, i.e. no file descriptors are passed. Note that sending file descriptors to the service manager on messages that do not expect them (i.e. without
+&quot;FDSTORE=1&quot;) they are immediately closed on reception.
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+<P>
+
+On failure, these calls return a negative errno-style error code. If
+<I>$NOTIFY_SOCKET</I>
+was not set and hence no status message could be sent, 0 is returned. If the status was sent, these functions return a positive value. In order to support both service managers that implement this scheme and those which do not, it is generally recommended to ignore the return value of this call. Note that the return value simply indicates whether the notification message was enqueued properly, it does not reflect whether the message could be processed successfully. Specifically, no error is returned when a file descriptor is attempted to be stored using
+<I>FDSTORE=1</I>
+but the service is not actually configured to permit storing of file descriptors (see above).
+<A NAME="lbAF">&nbsp;</A>
+<H2>NOTES</H2>
+
+<P>
+
+These APIs are implemented as a shared library, which can be compiled and linked to with the
+<B>libsystemd</B>&nbsp;<B><A HREF="/cgi-bin/man/man2html?1+pkg-config">pkg-config</A></B>(1)
+file.
+<P>
+
+These functions send a single datagram with the state string as payload to the
+<B>AF_UNIX</B>
+socket referenced in the
+<I>$NOTIFY_SOCKET</I>
+environment variable. If the first character of
+<I>$NOTIFY_SOCKET</I>
+is
+&quot;@&quot;, the string is understood as Linux abstract namespace socket. The datagram is accompanied by the process credentials of the sending service, using SCM_CREDENTIALS.
+<A NAME="lbAG">&nbsp;</A>
+<H2>ENVIRONMENT</H2>
+
+<P>
+
+<I>$NOTIFY_SOCKET</I>
+<DL COMPACT><DT id="20"><DD>
+Set by the service manager for supervised processes for status and start-up completion notification. This environment variable specifies the socket
+<B>sd_notify()</B>
+talks to. See above for details.
+</DL>
+
+<A NAME="lbAH">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+<P>
+
+<B>Example&nbsp;1.&nbsp;Start-up Notification</B>
+<P>
+
+When a service finished starting up, it might issue the following call to notify the service manager:
+<P>
+<DL COMPACT><DT id="21"><DD>
+
+
+
+<PRE>
+sd_notify(0, &quot;READY=1&quot;);
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+<B>Example&nbsp;2.&nbsp;Extended Start-up Notification</B>
+<P>
+
+A service could send the following after completing initialization:
+<P>
+<DL COMPACT><DT id="22"><DD>
+
+
+
+<PRE>
+sd_notifyf(0, &quot;READY=1\n&quot;
+        &quot;STATUS=Processing requests...\n&quot;
+        &quot;MAINPID=%lu&quot;,
+        (unsigned long) getpid());
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+<B>Example&nbsp;3.&nbsp;Error Cause Notification</B>
+<P>
+
+A service could send the following shortly before exiting, on failure:
+<P>
+<DL COMPACT><DT id="23"><DD>
+
+
+
+<PRE>
+sd_notifyf(0, &quot;STATUS=Failed to start up: %s\n&quot;
+        &quot;ERRNO=%i&quot;,
+        strerror(errno),
+        errno);
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+<B>Example&nbsp;4.&nbsp;Store a File Descriptor in the Service Manager</B>
+<P>
+
+To store an open file descriptor in the service manager, in order to continue operation after a service restart without losing state, use
+&quot;FDSTORE=1&quot;:
+<P>
+<DL COMPACT><DT id="24"><DD>
+
+
+
+<PRE>
+sd_pid_notify_with_fds(0, 0, &quot;FDSTORE=1\nFDNAME=foobar&quot;, &amp;fd, 1);
+</PRE>
+
+</DL>
+
+
+
+
+<A NAME="lbAI">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?3+sd-daemon">sd-daemon</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_listen_fds">sd_listen_fds</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_listen_fds_with_names">sd_listen_fds_with_names</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_watchdog_enabled">sd_watchdog_enabled</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?7+daemon">daemon</A></B>(7),
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.service">systemd.service</A></B>(5)
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="25"><A HREF="#lbAB">NAME</A><DD>
+<DT id="26"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="27"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="28"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DT id="29"><A HREF="#lbAF">NOTES</A><DD>
+<DT id="30"><A HREF="#lbAG">ENVIRONMENT</A><DD>
+<DT id="31"><A HREF="#lbAH">EXAMPLES</A><DD>
+<DT id="32"><A HREF="#lbAI">SEE ALSO</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:55 GMT, March 31, 2021
+</BODY>
+</HTML>

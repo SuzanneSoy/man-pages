@@ -1,0 +1,636 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of NSSWITCH.CONF</TITLE>
+</HEAD><BODY>
+<H1>NSSWITCH.CONF</H1>
+Section: Linux Programmer's Manual (5)<BR>Updated: 2017-05-03<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+nsswitch.conf - Name Service Switch configuration file
+<A NAME="lbAC">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+The Name Service Switch (NSS) configuration file,
+<I>/etc/nsswitch.conf</I>,
+
+is used by the GNU C Library and certain other applications to determine
+the sources from which to obtain name-service information in
+a range of categories,
+and in what order.
+Each category of information is identified by a database name.
+<P>
+
+The file is plain ASCII text, with columns separated by spaces or tab
+characters.
+The first column specifies the database name.
+The remaining columns describe the order of sources to query and a
+limited set of actions that can be performed by lookup result.
+<P>
+
+The following databases are understood by the GNU C Library:
+<DL COMPACT>
+<DT id="1"><B>aliases</B>
+
+<DD>
+Mail aliases, used by
+<B><A HREF="/cgi-bin/man/man2html?3+getaliasent">getaliasent</A></B>(3)
+
+and related functions.
+<DT id="2"><B>ethers</B>
+
+<DD>
+Ethernet numbers.
+<DT id="3"><B>group</B>
+
+<DD>
+Groups of users, used by
+<B><A HREF="/cgi-bin/man/man2html?3+getgrent">getgrent</A></B>(3)
+
+and related functions.
+<DT id="4"><B>hosts</B>
+
+<DD>
+Host names and numbers, used by
+<B><A HREF="/cgi-bin/man/man2html?3+gethostbyname">gethostbyname</A></B>(3)
+
+and related functions.
+<DT id="5"><B>initgroups</B>
+
+<DD>
+Supplementary group access list, used by
+<B><A HREF="/cgi-bin/man/man2html?3+getgrouplist">getgrouplist</A></B>(3)
+
+function.
+<DT id="6"><B>netgroup</B>
+
+<DD>
+Network-wide list of hosts and users, used for access rules.
+C libraries before glibc 2.1 supported netgroups only over NIS.
+<DT id="7"><B>networks</B>
+
+<DD>
+Network names and numbers, used by
+<B><A HREF="/cgi-bin/man/man2html?3+getnetent">getnetent</A></B>(3)
+
+and related functions.
+<DT id="8"><B>passwd</B>
+
+<DD>
+User passwords, used by
+<B><A HREF="/cgi-bin/man/man2html?3+getpwent">getpwent</A></B>(3)
+
+and related functions.
+<DT id="9"><B>protocols</B>
+
+<DD>
+Network protocols, used by
+<B><A HREF="/cgi-bin/man/man2html?3+getprotoent">getprotoent</A></B>(3)
+
+and related functions.
+<DT id="10"><B>publickey</B>
+
+<DD>
+Public and secret keys for Secure_RPC used by NFS and NIS+.
+<DT id="11"><B>rpc</B>
+
+<DD>
+Remote procedure call names and numbers, used by
+<B><A HREF="/cgi-bin/man/man2html?3+getrpcbyname">getrpcbyname</A></B>(3)
+
+and related functions.
+<DT id="12"><B>services</B>
+
+<DD>
+Network services, used by
+<B><A HREF="/cgi-bin/man/man2html?3+getservent">getservent</A></B>(3)
+
+and related functions.
+<DT id="13"><B>shadow</B>
+
+<DD>
+Shadow user passwords, used by
+<B><A HREF="/cgi-bin/man/man2html?3+getspnam">getspnam</A></B>(3)
+
+and related functions.
+</DL>
+<P>
+
+The GNU C Library ignores databases with unknown names.  Some
+applications use this to implement special handling for their own
+databases.  For example,
+<B><A HREF="/cgi-bin/man/man2html?8+sudo">sudo</A></B>(8)
+
+consults the
+<B>sudoers</B>
+
+database.
+<P>
+
+Here is an example
+<I>/etc/nsswitch.conf</I>
+
+file:
+<P>
+
+
+
+passwd:         compat
+group:          compat
+shadow:         compat
+<P>
+hosts:          dns [!UNAVAIL=return] files
+networks:       nis [NOTFOUND=return] files
+ethers:         nis [NOTFOUND=return] files
+protocols:      nis [NOTFOUND=return] files
+rpc:            nis [NOTFOUND=return] files
+services:       nis [NOTFOUND=return] files
+
+
+<P>
+
+The first column is the database name.
+The remaining columns specify:
+<DL COMPACT>
+<DT id="14">*<DD>
+One or more service specifications, for example, &quot;files&quot;, &quot;db&quot;, or &quot;nis&quot;.
+The order of the services on the line determines the order in which
+those services will be queried, in turn, until a result is found.
+<DT id="15">*<DD>
+Optional actions to perform if a particular result is obtained
+from the preceding service, for example, &quot;[NOTFOUND=return]&quot;.
+</DL>
+<P>
+
+The service specifications supported on your system depend on the
+presence of shared libraries, and are therefore extensible.
+Libraries called
+<I>/lib/libnss_SERVICE.so.</I><B>X</B>
+
+will provide the named
+<I>SERVICE</I>.
+
+On a standard installation, you can use
+&quot;files&quot;, &quot;db&quot;, &quot;nis&quot;, and &quot;nisplus&quot;.
+For the
+<B>hosts</B>
+
+database, you can additionally specify &quot;dns&quot;.
+For the
+<B>passwd</B>,
+
+<B>group</B>,
+
+and
+<B>shadow</B>
+
+databases, you can additionally specify
+&quot;compat&quot; (see
+<B>Compatibility mode</B>
+
+below).
+The version number
+<B>X</B>
+
+may be 1 for glibc 2.0, or 2 for glibc 2.1 and later.
+On systems with additional libraries installed, you may have access to
+further services such as &quot;hesiod&quot;, &quot;ldap&quot;, &quot;winbind&quot; and &quot;wins&quot;.
+<P>
+
+An action may also be specified following a service specification.
+The action modifies the behavior following a result obtained
+from the preceding data source.
+Action items take the general form:
+<P>
+
+<DL COMPACT><DT id="16"><DD>
+[<I>STATUS</I>=<I>ACTION</I>]
+
+<BR>
+
+[!<I>STATUS</I>=<I>ACTION</I>]
+
+</DL>
+
+<P>
+
+where
+<P>
+
+<DL COMPACT><DT id="17"><DD>
+<I>STATUS</I>
+
+=&gt;
+<B>success</B>
+
+|
+<B>notfound</B>
+
+|
+<B>unavail</B>
+
+|
+<B>tryagain</B>
+
+<BR>
+
+<I>ACTION</I>
+
+=&gt;
+<B>return</B>
+
+|
+<B>continue</B>
+
+|
+<B>merge</B>
+
+</DL>
+
+<P>
+
+The ! negates the test, matching all possible results except the
+one specified.
+The case of the keywords is not significant.
+<P>
+
+The
+<I>STATUS</I>
+
+value is matched against the result of the lookup function called by
+the preceding service specification, and can be one of:
+<DL COMPACT><DT id="18"><DD>
+<DL COMPACT>
+<DT id="19"><B>success</B>
+
+<DD>
+No error occurred and the requested entry is returned.
+The default action for this condition is &quot;return&quot;.
+<DT id="20"><B>notfound</B>
+
+<DD>
+The lookup succeeded, but the requested entry was not found.
+The default action for this condition is &quot;continue&quot;.
+<DT id="21"><B>unavail</B>
+
+<DD>
+The service is permanently unavailable.
+This can mean either that the
+required file cannot be read, or, for network services, that the server
+is not available or does not allow queries.
+The default action for this condition is &quot;continue&quot;.
+<DT id="22"><B>tryagain</B>
+
+<DD>
+The service is temporarily unavailable.
+This could mean a file is
+locked or a server currently cannot accept more connections.
+The default action for this condition is &quot;continue&quot;.
+</DL>
+</DL>
+
+<P>
+
+The
+<I>ACTION</I>
+
+value can be one of:
+<DL COMPACT><DT id="23"><DD>
+<DL COMPACT>
+<DT id="24"><B>return</B>
+
+<DD>
+Return a result now.
+Do not call any further lookup functions.
+However, for compatibility reasons, if this is the selected action for the
+<B>group</B>
+
+database and the
+<B>notfound</B>
+
+status, and the configuration file does not contain the
+<B>initgroups</B>
+
+line, the next lookup function is always called,
+without affecting the search result.
+<DT id="25"><B>continue</B>
+
+<DD>
+Call the next lookup function.
+<DT id="26"><B>merge</B>
+
+<DD>
+<I>[SUCCESS=merge]</I>
+
+is used between two database entries.
+When a group is located in the first of the two group entries,
+processing will continue on to the next one.
+If the group is also found in the next entry (and the group name and GID
+are an exact match), the member list of the second entry will be added
+to the group object to be returned.
+Available since glibc 2.24.
+Note that merging will not be done for
+<B><A HREF="/cgi-bin/man/man2html?3+getgrent">getgrent</A></B>(3)
+
+nor will duplicate members be pruned when they occur in both entries
+being merged.
+</DL>
+</DL>
+
+<A NAME="lbAD">&nbsp;</A>
+<H3>Compatibility mode (compat)</H3>
+
+The NSS &quot;compat&quot; service is similar to &quot;files&quot; except that it
+additionally permits special entries in corresponding files
+for granting users or members of netgroups access to the system.
+The following entries are valid in this mode:
+<DL COMPACT><DT id="27"><DD>
+<P>
+
+For
+<B>passwd</B>
+
+and
+<B>shadow</B>
+
+databases:
+<DL COMPACT><DT id="28"><DD>
+<DL COMPACT>
+<DT id="29"><B>+</B><I>user</I>
+
+<DD>
+Include the specified
+<I>user</I>
+
+from the NIS passwd/shadow map.
+<DT id="30"><B>+</B><I>user::::::</I>
+
+<DD>
+Include the specified
+<I>user</I>
+
+from the NIS passwd map, but override with non-empty passwd fields.
+<DT id="31"><B>+@</B><I>netgroup</I>
+
+<DD>
+Include all users in the given
+<I>netgroup</I>.
+
+<DT id="32"><B>-</B><I>user</I>
+
+<DD>
+Exclude the specified
+<I>user</I>
+
+from the NIS passwd/shadow map.
+<DT id="33"><B>-@</B><I>netgroup</I>
+
+<DD>
+Exclude all users in the given
+<I>netgroup</I>.
+
+<DT id="34"><B>+</B>
+
+<DD>
+Include every user, except previously excluded ones, from the
+NIS passwd/shadow map.
+</DL>
+</DL>
+
+<P>
+
+For
+<B>group</B>
+
+database:
+<DL COMPACT><DT id="35"><DD>
+<DL COMPACT>
+<DT id="36"><B>+</B><I>group</I>
+
+<DD>
+Include the specified
+<I>group</I>
+
+from the NIS group map.
+<DT id="37"><B>-</B><I>group</I>
+
+<DD>
+Exclude the specified
+<I>group</I>
+
+from the NIS group map.
+<DT id="38"><B>+</B>
+
+<DD>
+Include every group, except previously excluded ones, from the
+NIS group map.
+</DL>
+</DL>
+
+</DL>
+
+<P>
+
+By default, the source is &quot;nis&quot;, but this may be
+overridden by specifying any NSS service except &quot;compat&quot; itself
+as the source for the pseudo-databases
+<B>passwd_compat</B>,
+
+<B>group_compat</B>,
+
+and
+<B>shadow_compat</B>.
+
+<A NAME="lbAE">&nbsp;</A>
+<H2>FILES</H2>
+
+A service named
+<I>SERVICE</I>
+
+is implemented by a shared object library named
+<I>libnss_SERVICE.so.</I><B>X</B>
+
+that resides in
+<I>/lib</I>.
+
+<DL COMPACT><DT id="39"><DD>
+<DL COMPACT>
+<DT id="40">
+<DD>
+<I>/etc/nsswitch.conf</I>
+
+NSS configuration file.
+<DT id="41"><I>/lib/libnss_compat.so.</I><B>X</B>
+
+<DD>
+implements &quot;compat&quot; source.
+<DT id="42"><I>/lib/libnss_db.so.</I><B>X</B>
+
+<DD>
+implements &quot;db&quot; source.
+<DT id="43"><I>/lib/libnss_dns.so.</I><B>X</B>
+
+<DD>
+implements &quot;dns&quot; source.
+<DT id="44"><I>/lib/libnss_files.so.</I><B>X</B>
+
+<DD>
+implements &quot;files&quot; source.
+<DT id="45"><I>/lib/libnss_hesiod.so.</I><B>X</B>
+
+<DD>
+implements &quot;hesiod&quot; source.
+<DT id="46"><I>/lib/libnss_nis.so.</I><B>X</B>
+
+<DD>
+implements &quot;nis&quot; source.
+<DT id="47"><I>/lib/libnss_nisplus.so.</I><B>X</B>
+
+<DD>
+implements &quot;nisplus&quot; source.
+
+</DL>
+</DL>
+
+<P>
+
+The following files are read when &quot;files&quot; source is specified
+for respective databases:
+<DL COMPACT><DT id="48"><DD>
+<DL COMPACT>
+<DT id="49">
+<DD>
+<B>aliases</B>
+
+<I>/etc/aliases</I>
+
+<DT id="50"><B>ethers</B>
+
+<DD>
+<I>/etc/ethers</I>
+
+<DT id="51"><B>group</B>
+
+<DD>
+<I>/etc/group</I>
+
+<DT id="52"><B>hosts</B>
+
+<DD>
+<I>/etc/hosts</I>
+
+<DT id="53"><B>initgroups</B>
+
+<DD>
+<I>/etc/group</I>
+
+<DT id="54"><B>netgroup</B>
+
+<DD>
+<I>/etc/netgroup</I>
+
+<DT id="55"><B>networks</B>
+
+<DD>
+<I>/etc/networks</I>
+
+<DT id="56"><B>passwd</B>
+
+<DD>
+<I>/etc/passwd</I>
+
+<DT id="57"><B>protocols</B>
+
+<DD>
+<I>/etc/protocols</I>
+
+<DT id="58"><B>publickey</B>
+
+<DD>
+<I>/etc/publickey</I>
+
+<DT id="59"><B>rpc</B>
+
+<DD>
+<I>/etc/rpc</I>
+
+<DT id="60"><B>services</B>
+
+<DD>
+<I>/etc/services</I>
+
+<DT id="61"><B>shadow</B>
+
+<DD>
+<I>/etc/shadow</I>
+
+
+</DL>
+</DL>
+
+<A NAME="lbAF">&nbsp;</A>
+<H2>NOTES</H2>
+
+Within each process that uses
+<B>nsswitch.conf</B>,
+
+the entire file is read only once.
+If the file is later changed, the
+process will continue using the old configuration.
+<P>
+
+Traditionally, there was only a single source for service information,
+often in the form of a single configuration
+file (e.g., <I>/etc/passwd</I>).
+However, as other name services, such as the Network Information
+Service (NIS) and the Domain Name Service (DNS), became popular,
+a method was needed
+that would be more flexible than fixed search orders coded into
+the C library.
+The Name Service Switch mechanism,
+which was based on the mechanism used by
+Sun Microsystems in the Solaris 2 C library,
+introduced a cleaner solution to the problem.
+<A NAME="lbAG">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?1+getent">getent</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?5+nss">nss</A></B>(5)
+
+<A NAME="lbAH">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="62"><A HREF="#lbAB">NAME</A><DD>
+<DT id="63"><A HREF="#lbAC">DESCRIPTION</A><DD>
+<DL>
+<DT id="64"><A HREF="#lbAD">Compatibility mode (compat)</A><DD>
+</DL>
+<DT id="65"><A HREF="#lbAE">FILES</A><DD>
+<DT id="66"><A HREF="#lbAF">NOTES</A><DD>
+<DT id="67"><A HREF="#lbAG">SEE ALSO</A><DD>
+<DT id="68"><A HREF="#lbAH">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:04 GMT, March 31, 2021
+</BODY>
+</HTML>

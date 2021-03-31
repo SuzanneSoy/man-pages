@@ -1,0 +1,1092 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of LD.SO</TITLE>
+</HEAD><BODY>
+<H1>LD.SO</H1>
+Section: Linux Programmer's Manual (8)<BR>Updated: 2019-08-02<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+ld.so, ld-linux.so - dynamic linker/loader
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+The dynamic linker can be run either indirectly by running some
+dynamically linked program or shared object
+(in which case no command-line options
+to the dynamic linker can be passed and, in the ELF case, the dynamic linker
+which is stored in the
+<B>.interp</B>
+
+section of the program is executed) or directly by running:
+<P>
+
+<I>/lib/ld-linux.so.*</I>
+
+[OPTIONS] [PROGRAM [ARGUMENTS]]
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+The programs
+<B>ld.so</B>
+
+and
+<B>ld-linux.so*</B>
+
+find and load the shared objects (shared libraries) needed by a program,
+prepare the program to run, and then run it.
+<P>
+
+Linux binaries require dynamic linking (linking at run time)
+unless the
+<B>-static</B>
+
+option was given to
+<B><A HREF="/cgi-bin/man/man2html?1+ld">ld</A></B>(1)
+
+during compilation.
+<P>
+
+The program
+<B>ld.so</B>
+
+handles a.out binaries, a binary format used long ago.
+The program
+<B>ld-linux.so*</B>
+
+(<I>/lib/ld-linux.so.1</I> for libc5, <I>/lib/ld-linux.so.2</I> for glibc2)
+handles binaries that are in the more modern ELF format.
+Both programs have the same behavior, and use the same
+support files and programs
+(<B><A HREF="/cgi-bin/man/man2html?1+ldd">ldd</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?8+ldconfig">ldconfig</A></B>(8),
+
+and
+<I>/etc/ld.so.conf</I>).
+
+<P>
+
+When resolving shared object dependencies,
+the dynamic linker first inspects each dependency
+string to see if it contains a slash (this can occur if
+a shared object pathname containing slashes was specified at link time).
+If a slash is found, then the dependency string is interpreted as
+a (relative or absolute) pathname,
+and the shared object is loaded using that pathname.
+<P>
+
+If a shared object dependency does not contain a slash,
+then it is searched for in the following order:
+<DL COMPACT>
+<DT id="1">o<DD>
+Using the directories specified in the
+DT_RPATH dynamic section attribute
+of the binary if present and DT_RUNPATH attribute does not exist.
+Use of DT_RPATH is deprecated.
+<DT id="2">o<DD>
+Using the environment variable
+<B>LD_LIBRARY_PATH</B>,
+
+unless the executable is being run in secure-execution mode (see below),
+in which case this variable is ignored.
+<DT id="3">o<DD>
+Using the directories specified in the
+DT_RUNPATH dynamic section attribute
+of the binary if present.
+Such directories are searched only to
+find those objects required by DT_NEEDED (direct dependencies) entries
+and do not apply to those objects' children,
+which must themselves have their own DT_RUNPATH entries.
+This is unlike DT_RPATH, which is applied
+to searches for all children in the dependency tree.
+<DT id="4">o<DD>
+From the cache file
+<I>/etc/ld.so.cache</I>,
+
+which contains a compiled list of candidate shared objects previously found
+in the augmented library path.
+If, however, the binary was linked with the
+<B>-z nodeflib</B>
+
+linker option, shared objects in the default paths are skipped.
+Shared objects installed in hardware capability directories (see below)
+are preferred to other shared objects.
+<DT id="5">o<DD>
+In the default path
+<I>/lib</I>,
+
+and then
+<I>/usr/lib</I>.
+
+(On some 64-bit architectures, the default paths for 64-bit shared objects are
+<I>/lib64</I>,
+
+and then
+<I>/usr/lib64</I>.)
+
+If the binary was linked with the
+<B>-z nodeflib</B>
+
+linker option, this step is skipped.
+</DL>
+<A NAME="lbAE">&nbsp;</A>
+<H3>Rpath token expansion</H3>
+
+<P>
+
+The dynamic linker
+understands certain token strings in an rpath specification
+(DT_RPATH or DT_RUNPATH).
+Those strings are substituted as follows:
+<DL COMPACT>
+<DT id="6"><I>$ORIGIN</I> (or equivalently <I>${ORIGIN}</I>)
+
+<DD>
+This expands to
+the directory containing the program or shared object.
+Thus, an application located in
+<I>somedir/app</I>
+
+could be compiled with
+<DT id="7"><DD>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;gcc&nbsp;-Wl,-rpath,'$ORIGIN/../lib'
+<DT id="8"><DD>
+so that it finds an associated shared object in
+<I>somedir/lib</I>
+
+no matter where
+<I>somedir</I>
+
+is located in the directory hierarchy.
+This facilitates the creation of &quot;turn-key&quot; applications that
+do not need to be installed into special directories,
+but can instead be unpacked into any directory
+and still find their own shared objects.
+<DT id="9"><I>$LIB</I> (or equivalently <I>${LIB}</I>)
+
+<DD>
+This expands to
+<I>lib</I>
+
+or
+<I>lib64</I>
+
+depending on the architecture
+(e.g., on x86-64, it expands to
+<I>lib64</I>
+
+and
+on x86-32, it expands to
+<I>lib</I>).
+
+<DT id="10"><I>$PLATFORM</I> (or equivalently <I>${PLATFORM}</I>)
+
+<DD>
+This expands to a string corresponding to the processor type
+of the host system (e.g., &quot;x86_64&quot;).
+On some architectures, the Linux kernel doesn't provide a platform
+string to the dynamic linker.
+The value of this string is taken from the
+<B>AT_PLATFORM</B>
+
+value in the auxiliary vector (see
+<B><A HREF="/cgi-bin/man/man2html?3+getauxval">getauxval</A></B>(3)).
+
+
+
+
+
+
+
+
+
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<DL COMPACT>
+<DT id="11"><B>--audit</B><I> list</I>
+
+<DD>
+Use objects named in
+<I>list</I>
+
+as auditors.
+The objects in
+<I>list</I>
+
+are delimited by colons.
+<DT id="12"><B>--inhibit-cache</B>
+
+<DD>
+Do not use
+<I>/etc/ld.so.cache</I>.
+
+<DT id="13"><B>--library-path</B><I> path</I>
+
+<DD>
+Use
+<I>path</I>
+
+instead of
+<B>LD_LIBRARY_PATH</B>
+
+environment variable setting (see below).
+The names
+<I>ORIGIN</I>,
+
+<I>LIB</I>,
+
+and
+<I>PLATFORM</I>
+
+are interpreted as for the
+<B>LD_LIBRARY_PATH</B>
+
+environment variable.
+<DT id="14"><B>--inhibit-rpath</B><I> list</I>
+
+<DD>
+Ignore RPATH and RUNPATH information in object names in
+<I>list</I>.
+
+This option is ignored when running in secure-execution mode (see below).
+The objects in
+<I>list</I>
+
+are delimited by colons or spaces.
+<DT id="15"><B>--list</B>
+
+<DD>
+List all dependencies and how they are resolved.
+<DT id="16"><B>--preload</B> <I>list</I> (since glibc 2.30)
+
+<DD>
+Preload the objects specified in
+<I>list</I>.
+
+The objects in
+<I>list</I>
+
+are delimited by colons or spaces.
+The objects are preloaded as explained in the description of the
+<B>LD_PRELOAD</B>
+
+environment variable below.
+<DT id="17"><DD>
+By contrast with
+<B>LD_PRELOAD</B>,
+
+the
+<B>--preload</B>
+
+option provides a way to perform preloading for a single executable
+without affecting preloading performed in any child process that executes
+a new program.
+<DT id="18"><B>--verify</B>
+
+<DD>
+Verify that program is dynamically linked and this dynamic linker can handle
+it.
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H2>ENVIRONMENT</H2>
+
+Various environment variables influence the operation of the dynamic linker.
+
+<A NAME="lbAH">&nbsp;</A>
+<H3>Secure-execution mode</H3>
+
+For security reasons,
+if the dynamic linker determines that a binary should be
+run in secure-execution mode,
+the effects of some environment variables are voided or modified,
+and furthermore those environment variables are stripped from the environment,
+so that the program does not even see the definitions.
+Some of these environment variables affect the operation of
+the dynamic linker itself, and are described below.
+Other environment variables treated in this way include:
+<B>GCONV_PATH</B>,
+
+<B>GETCONF_DIR</B>,
+
+<B>HOSTALIASES</B>,
+
+<B>LOCALDOMAIN</B>,
+
+<B>LOCPATH</B>,
+
+<B>MALLOC_TRACE</B>,
+
+<B>NIS_PATH</B>,
+
+<B>NLSPATH</B>,
+
+<B>RESOLV_HOST_CONF</B>,
+
+<B>RES_OPTIONS</B>,
+
+<B>TMPDIR</B>,
+
+and
+<B>TZDIR</B>.
+
+<P>
+
+A binary is executed in secure-execution mode if the
+<B>AT_SECURE</B>
+
+entry in the auxiliary vector (see
+<B><A HREF="/cgi-bin/man/man2html?3+getauxval">getauxval</A></B>(3))
+
+has a nonzero value.
+This entry may have a nonzero value for various reasons, including:
+<DL COMPACT>
+<DT id="19">*<DD>
+The process's real and effective user IDs differ,
+or the real and effective group IDs differ.
+This typically occurs as a result of executing
+a set-user-ID or set-group-ID program.
+<DT id="20">*<DD>
+A process with a non-root user ID executed a binary that
+conferred capabilities to the process.
+<DT id="21">*<DD>
+A nonzero value may have been set by a Linux Security Module.
+
+</DL>
+<A NAME="lbAI">&nbsp;</A>
+<H3>Environment variables</H3>
+
+Among the more important environment variables are the following:
+<DL COMPACT>
+<DT id="22"><B>LD_ASSUME_KERNEL</B> (since glibc 2.2.3)
+
+<DD>
+Each shared object can inform the dynamic linker of the minimum kernel ABI
+version that it requires.
+(This requirement is encoded in an ELF note section that is viewable via
+<I>readelf&nbsp;-n</I>
+
+as a section labeled
+<B>NT_GNU_ABI_TAG</B>.)
+
+At run time,
+the dynamic linker determines the ABI version of the running kernel and
+will reject loading shared objects that specify minimum ABI versions
+that exceed that ABI version.
+<DT id="23"><DD>
+<B>LD_ASSUME_KERNEL</B>
+
+can be used to
+cause the dynamic linker to assume that it is running on a system with
+a different kernel ABI version.
+For example, the following command line causes the
+dynamic linker to assume it is running on Linux 2.2.5 when loading
+the shared objects required by
+<I>myprog</I>:
+
+<DT id="24"><DD>
+
+
+$ <B>LD_ASSUME_KERNEL=2.2.5 ./myprog</B>
+
+
+<DT id="25"><DD>
+On systems that provide multiple versions of a shared object
+(in different directories in the search path) that have
+different minimum kernel ABI version requirements,
+<B>LD_ASSUME_KERNEL</B>
+
+can be used to select the version of the object that is used
+(dependent on the directory search order).
+<DT id="26"><DD>
+Historically, the most common use of the
+<B>LD_ASSUME_KERNEL</B>
+
+feature was to manually select the older
+LinuxThreads POSIX threads implementation on systems that provided both
+LinuxThreads and NPTL
+(which latter was typically the default on such systems);
+see
+<B><A HREF="/cgi-bin/man/man2html?7+pthreads">pthreads</A></B>(7).
+
+<DT id="27"><B>LD_BIND_NOW</B> (since glibc 2.1.1)
+
+<DD>
+If set to a nonempty string,
+causes the dynamic linker to resolve all symbols
+at program startup instead of deferring function call resolution to the point
+when they are first referenced.
+This is useful when using a debugger.
+<DT id="28"><B>LD_LIBRARY_PATH</B>
+
+<DD>
+A list of directories in which to search for
+ELF libraries at execution time.
+The items in the list are separated by either colons or semicolons,
+and there is no support for escaping either separator.
+<DT id="29"><DD>
+This variable is ignored in secure-execution mode.
+<DT id="30"><DD>
+Within the pathnames specified in
+<B>LD_LIBRARY_PATH</B>,
+
+the dynamic linker expands the tokens
+<I>$ORIGIN</I>,
+
+<I>$LIB</I>,
+
+and
+<I>$PLATFORM</I>
+
+(or the versions using curly braces around the names)
+as described above in
+<I>Rpath token expansion</I>.
+
+Thus, for example,
+the following would cause a library to be searched for in either the
+<I>lib</I>
+
+or
+<I>lib64</I>
+
+subdirectory below the directory containing the program to be executed:
+<DT id="31"><DD>
+
+
+$ <B>LD_LIBRARY_PATH='$ORIGIN/$LIB' prog</B>
+
+
+<DT id="32"><DD>
+(Note the use of single quotes, which prevent expansion of
+<I>$ORIGIN</I>
+
+and
+<I>$LIB</I>
+
+as shell variables!)
+<DT id="33"><B>LD_PRELOAD</B>
+
+<DD>
+A list of additional, user-specified, ELF shared
+objects to be loaded before all others.
+This feature can be used to selectively override functions
+in other shared objects.
+<DT id="34"><DD>
+The items of the list can be separated by spaces or colons,
+and there is no support for escaping either separator.
+The objects are searched for using the rules given under DESCRIPTION.
+Objects are searched for and added to the link map in the left-to-right
+order specified in the list.
+<DT id="35"><DD>
+In secure-execution mode,
+preload pathnames containing slashes are ignored.
+Furthermore, shared objects are preloaded only
+from the standard search directories and only
+if they have set-user-ID mode bit enabled (which is not typical).
+<DT id="36"><DD>
+Within the names specified in the
+<B>LD_PRELOAD</B>
+
+list, the dynamic linker understands the tokens
+<I>$ORIGIN</I>,
+
+<I>$LIB</I>,
+
+and
+<I>$PLATFORM</I>
+
+(or the versions using curly braces around the names)
+as described above in
+<I>Rpath token expansion</I>.
+
+(See also the discussion of quoting under the description of
+<B>LD_LIBRARY_PATH</B>.)
+
+
+
+
+
+
+
+<DT id="37"><DD>
+There are various methods of specifying libraries to be preloaded,
+and these are handled in the following order:
+<DL COMPACT><DT id="38"><DD>
+<DL COMPACT>
+<DT id="39">(1)<DD>
+The
+<B>LD_PRELOAD</B>
+
+environment variable.
+<DT id="40">(2)<DD>
+The
+<B>--preload</B>
+
+command-line option when invoking the dynamic linker directly.
+<DT id="41">(3)<DD>
+The
+<I>/etc/ld.so.preload</I>
+
+file (described below).
+</DL>
+</DL>
+
+<DT id="42"><B>LD_TRACE_LOADED_OBJECTS</B>
+
+<DD>
+If set (to any value), causes the program to list its dynamic
+dependencies, as if run by
+<B><A HREF="/cgi-bin/man/man2html?1+ldd">ldd</A></B>(1),
+
+instead of running normally.
+</DL>
+<P>
+
+Then there are lots of more or less obscure variables,
+many obsolete or only for internal use.
+<DL COMPACT>
+<DT id="43"><B>LD_AUDIT</B> (since glibc 2.4)
+
+<DD>
+A list of user-specified, ELF shared objects
+to be loaded before all others in a separate linker namespace
+(i.e., one that does not intrude upon the normal symbol bindings that
+would occur in the process)
+These objects can be used to audit the operation of the dynamic linker.
+The items in the list are colon-separated,
+and there is no support for escaping the separator.
+<DT id="44"><DD>
+<B>LD_AUDIT</B>
+
+is ignored in secure-execution mode.
+<DT id="45"><DD>
+The dynamic linker will notify the audit
+shared objects at so-called auditing checkpoints---for example,
+loading a new shared object, resolving a symbol,
+or calling a symbol from another shared object---by
+calling an appropriate function within the audit shared object.
+For details, see
+<B><A HREF="/cgi-bin/man/man2html?7+rtld-audit">rtld-audit</A></B>(7).
+
+The auditing interface is largely compatible with that provided on Solaris,
+as described in its
+<I>Linker and Libraries Guide</I>,
+
+in the chapter
+<I>Runtime Linker Auditing Interface</I>.
+
+<DT id="46"><DD>
+Within the names specified in the
+<B>LD_AUDIT</B>
+
+list, the dynamic linker understands the tokens
+<I>$ORIGIN</I>,
+
+<I>$LIB</I>,
+
+and
+<I>$PLATFORM</I>
+
+(or the versions using curly braces around the names)
+as described above in
+<I>Rpath token expansion</I>.
+
+(See also the discussion of quoting under the description of
+<B>LD_LIBRARY_PATH</B>.)
+
+<DT id="47"><DD>
+Since glibc 2.13,
+
+in secure-execution mode,
+names in the audit list that contain slashes are ignored,
+and only shared objects in the standard search directories that
+have the set-user-ID mode bit enabled are loaded.
+<DT id="48"><B>LD_BIND_NOT</B> (since glibc 2.1.95)
+
+<DD>
+If this environment variable is set to a nonempty string,
+do not update the GOT (global offset table) and PLT (procedure linkage table)
+after resolving a function symbol.
+By combining the use of this variable with
+<B>LD_DEBUG</B>
+
+(with the categories
+<I>bindings</I>
+
+and
+<I>symbols</I>),
+
+one can observe all run-time function bindings.
+<DT id="49"><B>LD_DEBUG</B> (since glibc 2.1)
+
+<DD>
+Output verbose debugging information about operation of the dynamic linker.
+The content of this variable is one of more of the following categories,
+separated by colons, commas, or (if the value is quoted) spaces:
+<DL COMPACT><DT id="50"><DD>
+<DL COMPACT>
+<DT id="51"><I>help</I>
+
+<DD>
+Specifying
+<I>help</I>
+
+in the value of this variable does not run the specified program,
+and displays a help message about which categories can be specified in this
+environment variable.
+<DT id="52"><I>all</I>
+
+<DD>
+Print all debugging information (except
+<I>statistics</I>
+
+and
+<I>unused</I>;
+
+see below).
+<DT id="53"><I>bindings</I>
+
+<DD>
+Display information about which definition each symbol is bound to.
+<DT id="54"><I>files</I>
+
+<DD>
+Display progress for input file.
+<DT id="55"><I>libs</I>
+
+<DD>
+Display library search paths.
+<DT id="56"><I>reloc</I>
+
+<DD>
+Display relocation processing.
+<DT id="57"><I>scopes</I>
+
+<DD>
+Display scope information.
+<DT id="58"><I>statistics</I>
+
+<DD>
+Display relocation statistics.
+<DT id="59"><I>symbols</I>
+
+<DD>
+Display search paths for each symbol look-up.
+<DT id="60"><I>unused</I>
+
+<DD>
+Determine unused DSOs.
+<DT id="61"><I>versions</I>
+
+<DD>
+Display version dependencies.
+</DL>
+</DL>
+
+<DT id="62"><DD>
+Since glibc 2.3.4,
+<B>LD_DEBUG</B>
+
+is ignored in secure-execution mode, unless the file
+<I>/etc/suid-debug</I>
+
+exists (the content of the file is irrelevant).
+<DT id="63"><B>LD_DEBUG_OUTPUT</B> (since glibc 2.1)
+
+<DD>
+By default,
+<B>LD_DEBUG</B>
+
+output is written to standard error.
+If
+<B>LD_DEBUG_OUTPUT</B>
+
+is defined, then output is written to the pathname specified by its value,
+with the suffix &quot;.&quot; (dot) followed by the process ID appended to the pathname.
+<DT id="64"><DD>
+<B>LD_DEBUG_OUTPUT</B>
+
+is ignored in secure-execution mode.
+<DT id="65"><B>LD_DYNAMIC_WEAK</B> (since glibc 2.1.91)
+
+<DD>
+By default, when searching shared libraries to resolve a symbol reference,
+the dynamic linker will resolve to the first definition it finds.
+<DT id="66"><DD>
+Old glibc versions (before 2.2), provided a different behavior:
+if the linker found a symbol that was weak,
+it would remember that symbol and
+keep searching in the remaining shared libraries.
+If it subsequently found a strong definition of the same symbol,
+then it would instead use that definition.
+(If no further symbol was found,
+then the dynamic linker would use the weak symbol that it initially found.)
+<DT id="67"><DD>
+The old glibc behavior was nonstandard.
+(Standard practice is that the distinction between
+weak and strong symbols should have effect only at static link time.)
+In glibc 2.2,
+
+
+
+
+
+
+
+
+the dynamic linker was modified to provide the current behavior
+(which was the behavior that was provided by most other implementations
+at that time).
+<DT id="68"><DD>
+Defining the
+<B>LD_DYNAMIC_WEAK</B>
+
+environment variable (with any value) provides
+the old (nonstandard) glibc behavior,
+whereby a weak symbol in one shared library may be overridden by
+a strong symbol subsequently discovered in another shared library.
+(Note that even when this variable is set,
+a strong symbol in a shared library will not override
+a weak definition of the same symbol in the main program.)
+<DT id="69"><DD>
+Since glibc 2.3.4,
+<B>LD_DYNAMIC_WEAK</B>
+
+is ignored in secure-execution mode.
+<DT id="70"><B>LD_HWCAP_MASK</B> (since glibc 2.1)
+
+<DD>
+Mask for hardware capabilities.
+<DT id="71"><B>LD_ORIGIN_PATH</B> (since glibc 2.1)
+
+<DD>
+Path where the binary is found.
+
+
+<DT id="72"><DD>
+Since glibc 2.4,
+<B>LD_ORIGIN_PATH</B>
+
+is ignored in secure-execution mode.
+<DT id="73"><B>LD_POINTER_GUARD</B> (glibc from 2.4 to 2.22)
+
+<DD>
+Set to 0 to disable pointer guarding.
+Any other value enables pointer guarding, which is also the default.
+Pointer guarding is a security mechanism whereby some pointers to code
+stored in writable program memory (return addresses saved by
+<B><A HREF="/cgi-bin/man/man2html?3+setjmp">setjmp</A></B>(3)
+
+or function pointers used by various glibc internals) are mangled
+semi-randomly to make it more difficult for an attacker to hijack
+the pointers for use in the event of a buffer overrun or
+stack-smashing attack.
+Since glibc 2.23,
+
+<B>LD_POINTER_GUARD</B>
+
+can no longer be used to disable pointer guarding,
+which is now always enabled.
+<DT id="74"><B>LD_PROFILE</B> (since glibc 2.1)
+
+<DD>
+The name of a (single) shared object to be profiled,
+specified either as a pathname or a soname.
+Profiling output is appended to the file whose name is:
+&quot;<I>$LD_PROFILE_OUTPUT</I>/<I>$LD_PROFILE</I>.profile&quot;.
+<DT id="75"><DD>
+Since glibc 2.2.5,
+<B>LD_PROFILE</B>
+
+is ignored in secure-execution mode.
+<DT id="76"><B>LD_PROFILE_OUTPUT</B> (since glibc 2.1)
+
+<DD>
+Directory where
+<B>LD_PROFILE</B>
+
+output should be written.
+If this variable is not defined, or is defined as an empty string,
+then the default is
+<I>/var/tmp</I>.
+
+<DT id="77"><DD>
+<B>LD_PROFILE_OUTPUT</B>
+
+is ignored in secure-execution mode; instead
+<I>/var/profile</I>
+
+is always used.
+(This detail is relevant only before glibc 2.2.5,
+since in later glibc versions,
+<B>LD_PROFILE</B>
+
+is also ignored in secure-execution mode.)
+<DT id="78"><B>LD_SHOW_AUXV</B> (since glibc 2.1)
+
+<DD>
+If this environment variable is defined (with any value),
+show the auxiliary array passed up from the kernel (see also
+<B><A HREF="/cgi-bin/man/man2html?3+getauxval">getauxval</A></B>(3)).
+
+<DT id="79"><DD>
+Since glibc 2.3.4,
+<B>LD_SHOW_AUXV</B>
+
+is ignored in secure-execution mode.
+<DT id="80"><B>LD_TRACE_PRELINKING</B> (since glibc 2.4)
+
+<DD>
+If this environment variable is defined,
+trace prelinking of the object whose name is assigned to
+this environment variable.
+(Use
+<B><A HREF="/cgi-bin/man/man2html?1+ldd">ldd</A></B>(1)
+
+to get a list of the objects that might be traced.)
+If the object name is not recognized,
+
+then all prelinking activity is traced.
+<DT id="81"><B>LD_USE_LOAD_BIAS</B> (since glibc 2.3.3)
+
+<DD>
+
+
+
+By default (i.e., if this variable is not defined),
+executables and prelinked
+shared objects will honor base addresses of their dependent shared objects
+and (nonprelinked) position-independent executables (PIEs)
+and other shared objects will not honor them.
+If
+<B>LD_USE_LOAD_BIAS</B>
+
+is defined with the value 1, both executables and PIEs
+will honor the base addresses.
+If
+<B>LD_USE_LOAD_BIAS</B>
+
+is defined with the value 0,
+neither executables nor PIEs will honor the base addresses.
+<DT id="82"><DD>
+Since glibc 2.3.3, this variable is ignored in secure-execution mode.
+<DT id="83"><B>LD_VERBOSE</B> (since glibc 2.1)
+
+<DD>
+If set to a nonempty string,
+output symbol versioning information about the
+program if the
+<B>LD_TRACE_LOADED_OBJECTS</B>
+
+environment variable has been set.
+<DT id="84"><B>LD_WARN</B> (since glibc 2.1.3)
+
+<DD>
+If set to a nonempty string, warn about unresolved symbols.
+<DT id="85"><B>LD_PREFER_MAP_32BIT_EXEC</B> (x86-64 only; since glibc 2.23)
+
+<DD>
+According to the Intel Silvermont software optimization guide, for 64-bit
+applications, branch prediction performance can be negatively impacted
+when the target of a branch is more than 4&nbsp;GB away from the branch.
+If this environment variable is set (to any value),
+the dynamic linker
+will first try to map executable pages using the
+<B><A HREF="/cgi-bin/man/man2html?2+mmap">mmap</A></B>(2)
+
+<B>MAP_32BIT</B>
+
+flag, and fall back to mapping without that flag if that attempt fails.
+NB: MAP_32BIT will map to the low 2&nbsp;GB (not 4&nbsp;GB) of the address space.
+<DT id="86"><DD>
+Because
+<B>MAP_32BIT</B>
+
+reduces the address range available for address space layout
+randomization (ASLR),
+<B>LD_PREFER_MAP_32BIT_EXEC</B>
+
+is always disabled in secure-execution mode.
+</DL>
+<A NAME="lbAJ">&nbsp;</A>
+<H2>FILES</H2>
+
+
+<DL COMPACT>
+<DT id="87"><I>/lib/ld.so</I>
+
+<DD>
+a.out dynamic linker/loader
+<DT id="88"><I>/lib/ld-linux.so.</I>{<I>1</I>,<I>2</I>}
+
+<DD>
+ELF dynamic linker/loader
+<DT id="89"><I>/etc/ld.so.cache</I>
+
+<DD>
+File containing a compiled list of directories in which to search for
+shared objects and an ordered list of candidate shared objects.
+See
+<B><A HREF="/cgi-bin/man/man2html?8+ldconfig">ldconfig</A></B>(8).
+
+<DT id="90"><I>/etc/ld.so.preload</I>
+
+<DD>
+File containing a whitespace-separated list of ELF shared objects to
+be loaded before the program.
+See the discussion of
+<B>LD_PRELOAD</B>
+
+above.
+If both
+<B>LD_PRELOAD</B>
+
+and
+<I>/etc/ld.so.preload</I>
+
+are employed, the libraries specified by
+<B>LD_PRELOAD</B>
+
+are preloaded first.
+<I>/etc/ld.so.preload</I>
+
+has a system-wide effect,
+causing the specified libraries to be preloaded for
+all programs that are executed on the system.
+(This is usually undesirable,
+and is typically employed only as an emergency remedy, for example,
+as a temporary workaround to a library misconfiguration issue.)
+<DT id="91"><I>lib*.so*</I>
+
+<DD>
+shared objects
+
+</DL>
+<A NAME="lbAK">&nbsp;</A>
+<H2>NOTES</H2>
+
+<A NAME="lbAL">&nbsp;</A>
+<H3>Hardware capabilities</H3>
+
+Some shared objects are compiled using hardware-specific instructions which do
+not exist on every CPU.
+Such objects should be installed in directories whose names define the
+required hardware capabilities, such as
+<I>/usr/lib/sse2/</I>.
+
+The dynamic linker checks these directories against the hardware of the
+machine and selects the most suitable version of a given shared object.
+Hardware capability directories can be cascaded to combine CPU features.
+The list of supported hardware capability names depends on the CPU.
+The following names are currently recognized:
+
+
+<DL COMPACT>
+<DT id="92"><B>Alpha</B>
+
+<DD>
+ev4, ev5, ev56, ev6, ev67
+<DT id="93"><B>MIPS</B>
+
+<DD>
+loongson2e, loongson2f, octeon, octeon2
+<DT id="94"><B>PowerPC</B>
+
+<DD>
+4xxmac, altivec, arch_2_05, arch_2_06, booke, cellbe, dfp, efpdouble, efpsingle,
+fpu, ic_snoop, mmu, notb, pa6t, power4, power5, power5+, power6x, ppc32, ppc601,
+ppc64, smt, spe, ucache, vsx
+<DT id="95"><B>SPARC</B>
+
+<DD>
+flush, muldiv, stbar, swap, ultra3, v9, v9v, v9v2
+<DT id="96"><B>s390</B>
+
+<DD>
+dfp, eimm, esan3, etf3enh, g5, highgprs, hpage, ldisp, msa, stfle,
+z900, z990, z9-109, z10, zarch
+<DT id="97"><B>x86 (32-bit only)</B>
+
+<DD>
+acpi, apic, clflush, cmov, cx8, dts, fxsr, ht, i386, i486, i586, i686, mca, mmx,
+mtrr, pat, pbe, pge, pn, pse36, sep, ss, sse, sse2, tm
+</DL>
+<A NAME="lbAM">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?1+ld">ld</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?1+ldd">ldd</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?1+pldd">pldd</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?1+sprof">sprof</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?3+dlopen">dlopen</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+getauxval">getauxval</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?5+elf">elf</A></B>(5),
+
+<B><A HREF="/cgi-bin/man/man2html?7+capabilities">capabilities</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+rtld-audit">rtld-audit</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?8+ldconfig">ldconfig</A></B>(8),
+
+<B><A HREF="/cgi-bin/man/man2html?8+sln">sln</A></B>(8)
+
+
+
+
+
+
+
+<A NAME="lbAN">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="98"><A HREF="#lbAB">NAME</A><DD>
+<DT id="99"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="100"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DL>
+<DT id="101"><A HREF="#lbAE">Rpath token expansion</A><DD>
+</DL>
+<DT id="102"><A HREF="#lbAF">OPTIONS</A><DD>
+<DT id="103"><A HREF="#lbAG">ENVIRONMENT</A><DD>
+<DL>
+<DT id="104"><A HREF="#lbAH">Secure-execution mode</A><DD>
+<DT id="105"><A HREF="#lbAI">Environment variables</A><DD>
+</DL>
+<DT id="106"><A HREF="#lbAJ">FILES</A><DD>
+<DT id="107"><A HREF="#lbAK">NOTES</A><DD>
+<DL>
+<DT id="108"><A HREF="#lbAL">Hardware capabilities</A><DD>
+</DL>
+<DT id="109"><A HREF="#lbAM">SEE ALSO</A><DD>
+<DT id="110"><A HREF="#lbAN">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:13 GMT, March 31, 2021
+</BODY>
+</HTML>

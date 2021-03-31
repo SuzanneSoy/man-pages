@@ -1,0 +1,543 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of ACCEPT</TITLE>
+</HEAD><BODY>
+<H1>ACCEPT</H1>
+Section: Linux Programmer's Manual (2)<BR>Updated: 2019-03-06<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+accept, accept4 - accept a connection on a socket
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<PRE>
+<B>#include &lt;<A HREF="file:///usr/include/sys/types.h">sys/types.h</A>&gt;</B>          /* See NOTES */
+<B>#include &lt;<A HREF="file:///usr/include/sys/socket.h">sys/socket.h</A>&gt;</B>
+
+<B>int accept(int </B><I>sockfd</I><B>, struct sockaddr *</B><I>addr</I><B>, socklen_t *</B><I>addrlen</I><B>);</B>
+
+<B>#define _GNU_SOURCE</B>             /* See <A HREF="/cgi-bin/man/man2html?7+feature_test_macros">feature_test_macros</A>(7) */
+<B>#include &lt;<A HREF="file:///usr/include/sys/socket.h">sys/socket.h</A>&gt;</B>
+
+<B>int accept4(int </B><I>sockfd</I><B>, struct sockaddr *</B><I>addr</I><B>,</B>
+<B>            socklen_t *</B><I>addrlen</I><B>, int </B><I>flags</I><B>);</B>
+</PRE>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+The
+<B>accept</B>()
+
+system call is used with connection-based socket types
+(<B>SOCK_STREAM</B>,
+
+<B>SOCK_SEQPACKET</B>).
+
+It extracts the first connection request on the queue of pending
+connections for the listening socket,
+<I>sockfd</I>,
+
+creates a new connected socket, and returns a new file
+descriptor referring to that socket.
+The newly created socket is not in the listening state.
+The original socket
+<I>sockfd</I>
+
+is unaffected by this call.
+<P>
+
+The argument
+<I>sockfd</I>
+
+is a socket that has been created with
+<B><A HREF="/cgi-bin/man/man2html?2+socket">socket</A></B>(2),
+
+bound to a local address with
+<B><A HREF="/cgi-bin/man/man2html?2+bind">bind</A></B>(2),
+
+and is listening for connections after a
+<B><A HREF="/cgi-bin/man/man2html?2+listen">listen</A></B>(2).
+
+<P>
+
+The argument
+<I>addr</I>
+
+is a pointer to a
+<I>sockaddr</I>
+
+structure.
+This structure is filled in with the address of the peer socket,
+as known to the communications layer.
+The exact format of the address returned
+<I>addr</I>
+
+is determined by the socket's address family (see
+<B><A HREF="/cgi-bin/man/man2html?2+socket">socket</A></B>(2)
+
+and the respective protocol man pages).
+When
+<I>addr</I>
+
+is NULL, nothing is filled in; in this case,
+<I>addrlen</I>
+
+is not used, and should also be NULL.
+<P>
+
+The
+<I>addrlen</I>
+
+argument is a value-result argument:
+the caller must initialize it to contain the
+size (in bytes) of the structure pointed to by
+<I>addr</I>;
+
+on return it will contain the actual size of the peer address.
+<P>
+
+The returned address is truncated if the buffer provided is too small;
+in this case,
+<I>addrlen</I>
+
+will return a value greater than was supplied to the call.
+<P>
+
+If no pending
+connections are present on the queue, and the socket is not marked as
+nonblocking,
+<B>accept</B>()
+
+blocks the caller until a connection is present.
+If the socket is marked
+nonblocking and no pending connections are present on the queue,
+<B>accept</B>()
+
+fails with the error
+<B>EAGAIN</B>
+
+or
+<B>EWOULDBLOCK</B>.
+
+<P>
+
+In order to be notified of incoming connections on a socket, you can use
+<B><A HREF="/cgi-bin/man/man2html?2+select">select</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+poll">poll</A></B>(2),
+
+or
+<B><A HREF="/cgi-bin/man/man2html?7+epoll">epoll</A></B>(7).
+
+A readable event will be delivered when a new connection is attempted and you
+may then call
+<B>accept</B>()
+
+to get a socket for that connection.
+Alternatively, you can set the socket to deliver
+<B>SIGIO</B>
+
+when activity occurs on a socket; see
+<B><A HREF="/cgi-bin/man/man2html?7+socket">socket</A></B>(7)
+
+for details.
+<P>
+
+If
+<I>flags</I>
+
+is 0, then
+<B>accept4</B>()
+
+is the same as
+<B>accept</B>().
+
+The following values can be bitwise ORed in
+<I>flags</I>
+
+to obtain different behavior:
+<DL COMPACT>
+<DT id="1"><B>SOCK_NONBLOCK</B>
+
+<DD>
+Set the
+<B>O_NONBLOCK</B>
+
+file status flag on the open file description (see
+<B><A HREF="/cgi-bin/man/man2html?2+open">open</A></B>(2))
+
+referred to by the new file descriptor.
+Using this flag saves extra calls to
+<B><A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A></B>(2)
+
+to achieve the same result.
+<DT id="2"><B>SOCK_CLOEXEC</B>
+
+<DD>
+Set the close-on-exec
+(<B>FD_CLOEXEC</B>)
+
+flag on the new file descriptor.
+See the description of the
+<B>O_CLOEXEC</B>
+
+flag in
+<B><A HREF="/cgi-bin/man/man2html?2+open">open</A></B>(2)
+
+for reasons why this may be useful.
+</DL>
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+On success,
+these system calls return a nonnegative integer that is a file descriptor
+for the accepted socket.
+On error, -1 is returned,
+<I>errno</I>
+
+is set appropriately, and
+<I>addrlen</I>
+
+is left unchanged.
+<A NAME="lbAF">&nbsp;</A>
+<H3>Error handling</H3>
+
+Linux
+<B>accept</B>()
+
+(and
+<B>accept4</B>())
+
+passes already-pending network errors on the new socket
+as an error code from
+<B>accept</B>().
+
+This behavior differs from other BSD socket
+implementations.
+For reliable operation the application should detect
+the network errors defined for the protocol after
+<B>accept</B>()
+
+and treat
+them like
+<B>EAGAIN</B>
+
+by retrying.
+In the case of TCP/IP, these are
+<B>ENETDOWN</B>,
+
+<B>EPROTO</B>,
+
+<B>ENOPROTOOPT</B>,
+
+<B>EHOSTDOWN</B>,
+
+<B>ENONET</B>,
+
+<B>EHOSTUNREACH</B>,
+
+<B>EOPNOTSUPP</B>,
+
+and
+<B>ENETUNREACH</B>.
+
+<A NAME="lbAG">&nbsp;</A>
+<H2>ERRORS</H2>
+
+<DL COMPACT>
+<DT id="3"><B>EAGAIN</B> or <B>EWOULDBLOCK</B>
+
+<DD>
+
+The socket is marked nonblocking and no connections are
+present to be accepted.
+POSIX.1-2001 and POSIX.1-2008
+allow either error to be returned for this case,
+and do not require these constants to have the same value,
+so a portable application should check for both possibilities.
+<DT id="4"><B>EBADF</B>
+
+<DD>
+<I>sockfd</I>
+
+is not an open file descriptor.
+<DT id="5"><B>ECONNABORTED</B>
+
+<DD>
+A connection has been aborted.
+<DT id="6"><B>EFAULT</B>
+
+<DD>
+The
+<I>addr</I>
+
+argument is not in a writable part of the user address space.
+<DT id="7"><B>EINTR</B>
+
+<DD>
+The system call was interrupted by a signal that was caught
+before a valid connection arrived; see
+<B><A HREF="/cgi-bin/man/man2html?7+signal">signal</A></B>(7).
+
+<DT id="8"><B>EINVAL</B>
+
+<DD>
+Socket is not listening for connections, or
+<I>addrlen</I>
+
+is invalid (e.g., is negative).
+<DT id="9"><B>EINVAL</B>
+
+<DD>
+(<B>accept4</B>())
+
+invalid value in
+<I>flags</I>.
+
+<DT id="10"><B>EMFILE</B>
+
+<DD>
+The per-process limit on the number of open file descriptors has been reached.
+<DT id="11"><B>ENFILE</B>
+
+<DD>
+The system-wide limit on the total number of open files has been reached.
+<DT id="12"><B>ENOBUFS</B>, <B>ENOMEM</B>
+
+<DD>
+Not enough free memory.
+This often means that the memory allocation is limited by the socket buffer
+limits, not by the system memory.
+<DT id="13"><B>ENOTSOCK</B>
+
+<DD>
+The file descriptor
+<I>sockfd</I>
+
+does not refer to a socket.
+<DT id="14"><B>EOPNOTSUPP</B>
+
+<DD>
+The referenced socket is not of type
+<B>SOCK_STREAM</B>.
+
+<DT id="15"><B>EPROTO</B>
+
+<DD>
+Protocol error.
+</DL>
+<P>
+
+In addition, Linux
+<B>accept</B>()
+
+may fail if:
+<DL COMPACT>
+<DT id="16"><B>EPERM</B>
+
+<DD>
+Firewall rules forbid connection.
+</DL>
+<P>
+
+In addition, network errors for the new socket and as defined
+for the protocol may be returned.
+Various Linux kernels can
+return other errors such as
+<B>ENOSR</B>,
+
+<B>ESOCKTNOSUPPORT</B>,
+
+<B>EPROTONOSUPPORT</B>,
+
+<B>ETIMEDOUT</B>.
+
+The value
+<B>ERESTARTSYS</B>
+
+may be seen during a trace.
+<A NAME="lbAH">&nbsp;</A>
+<H2>VERSIONS</H2>
+
+The
+<B>accept4</B>()
+
+system call is available starting with Linux 2.6.28;
+support in glibc is available starting with version 2.10.
+<A NAME="lbAI">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+<B>accept</B>():
+
+POSIX.1-2001, POSIX.1-2008,
+SVr4, 4.4BSD
+(<B>accept</B>()
+
+first appeared in 4.2BSD).
+
+
+
+
+
+
+<P>
+
+<B>accept4</B>()
+
+is a nonstandard Linux extension.
+<P>
+
+On Linux, the new socket returned by
+<B>accept</B>()
+
+does <I>not</I> inherit file status flags such as
+<B>O_NONBLOCK</B>
+
+and
+<B>O_ASYNC</B>
+
+from the listening socket.
+This behavior differs from the canonical BSD sockets implementation.
+
+
+Portable programs should not rely on inheritance or noninheritance
+of file status flags and always explicitly set all required flags on
+the socket returned from
+<B>accept</B>().
+
+<A NAME="lbAJ">&nbsp;</A>
+<H2>NOTES</H2>
+
+POSIX.1-2001 does not require the inclusion of
+<I>&lt;<A HREF="file:///usr/include/sys/types.h">sys/types.h</A>&gt;</I>,
+
+and this header file is not required on Linux.
+However, some historical (BSD) implementations required this header
+file, and portable applications are probably wise to include it.
+<P>
+
+There may not always be a connection waiting after a
+<B>SIGIO</B>
+
+is delivered or
+<B><A HREF="/cgi-bin/man/man2html?2+select">select</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+poll">poll</A></B>(2),
+
+or
+<B><A HREF="/cgi-bin/man/man2html?7+epoll">epoll</A></B>(7)
+
+return a readability event because the connection might have been
+removed by an asynchronous network error or another thread before
+<B>accept</B>()
+
+is called.
+If this happens, then the call will block waiting for the next
+connection to arrive.
+To ensure that
+<B>accept</B>()
+
+never blocks, the passed socket
+<I>sockfd</I>
+
+needs to have the
+<B>O_NONBLOCK</B>
+
+flag set (see
+<B><A HREF="/cgi-bin/man/man2html?7+socket">socket</A></B>(7)).
+
+<P>
+
+For certain protocols which require an explicit confirmation,
+such as DECnet,
+<B>accept</B>()
+
+can be thought of as merely dequeuing the next connection request and not
+implying confirmation.
+Confirmation can be implied by
+a normal read or write on the new file descriptor, and rejection can be
+implied by closing the new socket.
+Currently, only DECnet has these semantics on Linux.
+
+<A NAME="lbAK">&nbsp;</A>
+<H3>The socklen_t type</H3>
+
+In the original BSD sockets implementation (and on other older systems)
+
+the third argument of
+<B>accept</B>()
+
+was declared as an <I>int&nbsp;*</I>.
+A POSIX.1g draft
+standard wanted to change it into a <I>size_t&nbsp;*</I>C;
+
+later POSIX standards and glibc 2.x have
+<I>socklen_t&nbsp;* .</I>
+
+<A NAME="lbAL">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+See
+<B><A HREF="/cgi-bin/man/man2html?2+bind">bind</A></B>(2).
+
+<A NAME="lbAM">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?2+bind">bind</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+connect">connect</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+listen">listen</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+select">select</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+socket">socket</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?7+socket">socket</A></B>(7)
+
+<A NAME="lbAN">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="17"><A HREF="#lbAB">NAME</A><DD>
+<DT id="18"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="19"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="20"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DL>
+<DT id="21"><A HREF="#lbAF">Error handling</A><DD>
+</DL>
+<DT id="22"><A HREF="#lbAG">ERRORS</A><DD>
+<DT id="23"><A HREF="#lbAH">VERSIONS</A><DD>
+<DT id="24"><A HREF="#lbAI">CONFORMING TO</A><DD>
+<DT id="25"><A HREF="#lbAJ">NOTES</A><DD>
+<DL>
+<DT id="26"><A HREF="#lbAK">The socklen_t type</A><DD>
+</DL>
+<DT id="27"><A HREF="#lbAL">EXAMPLE</A><DD>
+<DT id="28"><A HREF="#lbAM">SEE ALSO</A><DD>
+<DT id="29"><A HREF="#lbAN">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:31 GMT, March 31, 2021
+</BODY>
+</HTML>

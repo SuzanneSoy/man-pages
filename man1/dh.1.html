@@ -1,0 +1,602 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of DH</TITLE>
+</HEAD><BODY>
+<H1>DH</H1>
+Section: Debhelper (1)<BR>Updated: 2020-03-27<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+dh - debhelper command sequencer
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+
+
+<B>dh</B> <I>sequence</I> [<B>--with</B> <I>addon</I>[<B>,</B><I>addon</I> ...]] [<B>--list</B>] [<I>debhelper options</I>]
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+
+<B>dh</B> runs a sequence of debhelper commands. The supported <I>sequence</I>s
+correspond to the targets of a <I>debian/rules</I> file: <B>build-arch</B>,
+<B>build-indep</B>, <B>build</B>, <B>clean</B>, <B>install-indep</B>, <B>install-arch</B>,
+<B>install</B>, <B>binary-arch</B>, <B>binary-indep</B>, and <B>binary</B>.
+<A NAME="lbAE">&nbsp;</A>
+<H2>OVERRIDE AND HOOK TARGETS</H2>
+
+
+
+A <I>debian/rules</I> file using <B>dh</B> can override the command that is run
+at any step in a sequence, by defining an override target.  It is also
+possible to inject a commands before or after any step without affecting
+the step itself.
+<A NAME="lbAF">&nbsp;</A>
+<H3>Injecting commands before or after a step</H3>
+
+
+
+<I>Note</I>: This feature requires debhelper 12.8 or later plus the package must
+use compatibility mode 10 or later.
+<P>
+
+To inject commands before <I>dh_command</I>, add a target named
+<B>execute_before_</B><I>dh_command</I> to the rules files.  Similarly, if you
+want to inject commands after <I>dh_command</I>, add the target
+<B>execute_after_</B><I>dh_command</I>.  Both targets can be used for the same
+<I>dh_command</I> and also even if the command is overridden (as described in
+``Overriding a command'' below).
+<P>
+
+When these targets are defined, <B>dh</B> will call the targets respectively
+before or after it would invoke <I>dh_command</I> (or its override target).
+<A NAME="lbAG">&nbsp;</A>
+<H3>Overriding a command</H3>
+
+
+
+To override <I>dh_command</I>, add a target named <B>override_</B><I>dh_command</I> to
+the rules file. When it would normally run <I>dh_command</I>, <B>dh</B> will
+instead call that target. The override target can then run the command with
+additional options, or run entirely different commands instead. See
+examples below.
+<A NAME="lbAH">&nbsp;</A>
+<H3>Architecture dependent/independent override and hook targets</H3>
+
+
+
+The override and hook targets can also be defined to run only
+when building architecture dependent or architecture independent
+packages. Use targets with names like <B>override_</B><I>dh_command</I><B>-arch</B>
+and <B>execute_after</B><I>dh_command</I><B>-indep</B>.
+<P>
+
+This feature is available since debhelper 8.9.7 (for override targets)
+and 12.8 (for hook targets).
+<A NAME="lbAI">&nbsp;</A>
+<H3>Completely empty targets</H3>
+
+
+
+As a special optimization, <B>dh</B> will skip a target if it is completely empty.
+This is mostly useful for override targets, where the command will simply be
+skipped without the overhead of invoking a dummy target.
+<P>
+
+Note that the target has to be completely empty for this to work:
+<P>
+
+
+
+<PRE>
+     # Skip dh_bar - the good and optimized way
+     # Some rationale for skipping dh_bar goes here
+     override_dh_bar:
+
+
+     # Skip dh_foo - the slow way
+     override_dh_foo:
+        # Some rationale for skipping dh_foo goes here
+        # (these comments causes a dummy target to be run)
+
+</PRE>
+
+
+<A NAME="lbAJ">&nbsp;</A>
+<H3>Verifying targets are picked up by dh</H3>
+
+
+
+If you want to confirm that <B>dh</B> has seen an override or a hook target, you
+can use the following command as an example:
+<P>
+
+
+
+<PRE>
+    $ dh binary --no-act | grep dh_install | head -n5
+         dh_installdirs
+         dh_install
+         debian/rules execute_after_dh_install
+         dh_installdocs
+         dh_installchangelogs
+
+</PRE>
+
+
+<P>
+
+The <B>debian/rules execute_after_dh_install</B> in the output, which signals
+that <B>dh</B> registered a <B>execute_after_dh_install</B> target and would
+run it directly after <B><A HREF="/cgi-bin/man/man2html?1+dh_install">dh_install</A></B>(1).
+<P>
+
+Note that ``Completely empty targets'' will be omitted in the listing above.
+This makes it a bit harder to spot as you are looking for the omission of
+a command name.  But otherwise, the principle remains the same.
+<A NAME="lbAK">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+
+
+<DL COMPACT>
+<DT id="1"><B>--with</B> <I>addon</I>[<B>,</B><I>addon</I> ...]<DD>
+
+
+Add the debhelper commands specified by the given addon to appropriate places
+in the sequence of commands that is run. This option can be repeated more
+than once, or multiple addons can be listed, separated by commas.
+This is used when there is a third-party package that provides
+debhelper commands. See the <I></I><FONT SIZE="-1"><I>PROGRAMMING</I></FONT><I></I> file for documentation about
+the sequence addon interface.
+
+
+<P>
+
+
+A <B>Build-Depends</B> relation on the package <B>dh-sequence-</B><I>addon</I>
+implies a <B>--with</B> <I>addon</I>. This avoids the need for an explicit
+<B>--with</B> in <I>debian/rules</I> that only duplicates what is already
+declared via the build dependencies in <I>debian/control</I>.  The
+relation can (since 12.5) be made optional via e.g.
+build-profiles.  This enables you to easily disable an addon that
+is only useful with certain profiles (e.g. to facilitate
+bootstrapping).
+
+
+<P>
+
+
+Since debhelper 12.5, addons can also be activated in <B>indep</B>-only
+mode (via <B>Build-Depends-Indep</B>) or <B>arch</B>-only mode (via
+<B>Build-Depends-Arch</B>). Such addons are only active in the particular
+sequence (e.g. <B>binary-indep</B>) which simplifies dependency
+management for cross-builds.
+
+
+<P>
+
+
+Please note that addons activated via <B>Build-Depends-Indep</B> or
+<B>Build-Depends-Arch</B> are subject to additional limitations to
+ensure the result is deterministic even when the addon is
+unavailable (e.g. during clean).  This implies that some addons
+are incompatible with these restrictions and can only be used via
+<B>Build-Depends</B> (or manually via <I>debian/rules</I>).  Currently,
+such addons can only add commands to sequences.
+<DT id="2"><B>--without</B> <I>addon</I><DD>
+
+
+The inverse of <B>--with</B>, disables using the given addon. This option
+can be repeated more than once, or multiple addons to disable can be
+listed, separated by commas.
+<DT id="3"><B>--list</B>, <B>-l</B><DD>
+
+
+List all available addons.
+
+
+<P>
+
+
+When called only with this option, <B>dh</B> can be called from any
+directory (i.e. it does not need access to files from a source
+package).
+<DT id="4"><B>--no-act</B><DD>
+
+
+Prints commands that would run for a given sequence, but does not run them.
+
+
+<P>
+
+
+Note that dh normally skips running commands that it knows will do nothing.
+With --no-act, the full list of commands in a sequence is printed.
+</DL>
+<P>
+
+Other options passed to <B>dh</B> are passed on to each command it runs. This
+can be used to set an option like <B>-v</B> or <B>-X</B> or <B>-N</B>, as well as for more
+specialised options.
+<A NAME="lbAL">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+
+
+To see what commands are included in a sequence, without actually doing
+anything:
+<P>
+
+
+
+<PRE>
+        dh binary-arch --no-act
+
+</PRE>
+
+
+<P>
+
+This is a very simple rules file, for packages where the default sequences of
+commands work with no additional options.
+<P>
+
+
+
+<PRE>
+        #!/usr/bin/make -f
+        %:
+                dh $@
+
+</PRE>
+
+
+<P>
+
+Often you'll want to pass an option to a specific debhelper command. The
+easy way to do with is by adding an override target for that command.
+<P>
+
+
+
+<PRE>
+        #!/usr/bin/make -f
+        %:
+                dh $@
+
+        override_dh_strip:
+                dh_strip -Xfoo
+
+        override_dh_auto_configure:
+                dh_auto_configure -- --with-foo --disable-bar
+
+</PRE>
+
+
+<P>
+
+Sometimes the automated <B><A HREF="/cgi-bin/man/man2html?1+dh_auto_configure">dh_auto_configure</A></B>(1) and <B><A HREF="/cgi-bin/man/man2html?1+dh_auto_build">dh_auto_build</A></B>(1)
+can't guess what to do for a strange package. Here's how to avoid running
+either and instead run your own commands.
+<P>
+
+
+
+<PRE>
+        #!/usr/bin/make -f
+        %:
+                dh $@
+
+        override_dh_auto_configure:
+                ./mondoconfig
+
+        override_dh_auto_build:
+                make universe-explode-in-delight
+
+</PRE>
+
+
+<P>
+
+Another common case is wanting to do something manually before or
+after a particular debhelper command is run.
+<P>
+
+
+
+<PRE>
+        #!/usr/bin/make -f
+        %:
+                dh $@
+
+        # Example assumes debhelper/12.8 and compat 10+
+        execute_after_dh_fixperms:
+                chmod 4755 debian/foo/usr/bin/foo
+
+</PRE>
+
+
+<P>
+
+If you are on an older debhelper or compatibility level, the above
+example would have to be written as.
+<P>
+
+
+
+<PRE>
+        #!/usr/bin/make -f
+        %:
+                dh $@
+
+        # Older debhelper versions or using compat 9 or lower.
+        override_dh_fixperms:
+                dh_fixperms
+                chmod 4755 debian/foo/usr/bin/foo
+
+</PRE>
+
+
+<P>
+
+Python tools are not run by dh by default, due to the continual change
+in that area. Here is how to use <B>dh_python2</B>.
+<P>
+
+
+
+<PRE>
+        #!/usr/bin/make -f
+        %:
+                dh $@ --with python2
+
+</PRE>
+
+
+<P>
+
+Here is how to force use of Perl's <B>Module::Build</B> build system,
+which can be necessary if debhelper wrongly detects that the package
+uses MakeMaker.
+<P>
+
+
+
+<PRE>
+        #!/usr/bin/make -f
+        %:
+                dh $@ --buildsystem=perl_build
+
+</PRE>
+
+
+<P>
+
+Here is an example of overriding where the <B>dh_auto_</B><I>*</I> commands find
+the package's source, for a package where the source is located in a
+subdirectory.
+<P>
+
+
+
+<PRE>
+        #!/usr/bin/make -f
+        %:
+                dh $@ --sourcedirectory=src
+
+</PRE>
+
+
+<P>
+
+And here is an example of how to tell the <B>dh_auto_</B><I>*</I> commands to build
+in a subdirectory, which will be removed on <B>clean</B>.
+<P>
+
+
+
+<PRE>
+        #!/usr/bin/make -f
+        %:
+                dh $@ --builddirectory=build
+
+</PRE>
+
+
+<P>
+
+If your package can be built in parallel, please either use compat 10 or
+pass <B>--parallel</B> to dh. Then <B>dpkg-buildpackage -j</B> will work.
+<P>
+
+
+
+<PRE>
+        #!/usr/bin/make -f
+        %:
+                dh $@ --parallel
+
+</PRE>
+
+
+<P>
+
+If your package cannot be built reliably while using multiple threads,
+please pass <B>--no-parallel</B> to dh (or the relevant <B>dh_auto_</B><I>*</I>
+command):
+<P>
+
+
+
+<PRE>
+        #!/usr/bin/make -f
+        %:
+                dh $@ --no-parallel
+
+</PRE>
+
+
+<P>
+
+Here is a way to prevent <B>dh</B> from running several commands that you don't
+want it to run, by defining empty override targets for each command.
+<P>
+
+
+
+<PRE>
+        #!/usr/bin/make -f
+        %:
+                dh $@
+
+        # Commands not to run:
+        override_dh_auto_test override_dh_compress override_dh_fixperms:
+
+</PRE>
+
+
+<P>
+
+A long build process for a separate documentation package can
+be separated out using architecture independent overrides.
+These will be skipped when running build-arch and binary-arch sequences.
+<P>
+
+
+
+<PRE>
+        #!/usr/bin/make -f
+        %:
+                dh $@
+
+        override_dh_auto_build-indep:
+                $(MAKE) -C docs
+
+        # No tests needed for docs
+        override_dh_auto_test-indep:
+
+        override_dh_auto_install-indep:
+                $(MAKE) -C docs install
+
+</PRE>
+
+
+<P>
+
+Adding to the example above, suppose you need to chmod a file, but only
+when building the architecture dependent package, as it's not present
+when building only documentation.
+<P>
+
+
+
+<PRE>
+        # Example assumes debhelper/12.8 and compat 10+
+        execute_after_dh_fixperms-arch:
+                chmod 4755 debian/foo/usr/bin/foo
+
+</PRE>
+
+
+<A NAME="lbAM">&nbsp;</A>
+<H2>INTERNALS</H2>
+
+
+
+If you're curious about <B>dh</B>'s internals, here's how it works under the hood.
+<P>
+
+In compat 10 (or later), <B>dh</B> creates a stamp file
+<I>debian/debhelper-build-stamp</I> after the build step(s) are complete
+to avoid re-running them.  It is possible to avoid the stamp file by
+passing <B>--without=build-stamp</B> to <B>dh</B>.  This makes ``no clean''
+builds behave more like what some people expect at the expense of
+possibly running the build and test twice (the second time as root or
+under <B><A HREF="/cgi-bin/man/man2html?1+fakeroot">fakeroot</A></B>(1)).
+<P>
+
+Inside an override target, <B>dh_*</B> commands will create a log file
+<I>debian/package.debhelper.log</I> to keep track of which packages the
+command(s) have been run for.  These log files are then removed once
+the override target is complete.
+<P>
+
+In compat 9 or earlier, each debhelper command will record
+when it's successfully run in <I>debian/package.debhelper.log</I>. (Which
+<B>dh_clean</B> deletes.) So <B>dh</B> can tell which commands have already
+been run, for which packages, and skip running those commands again.
+<P>
+
+Each time <B>dh</B> is run (in compat 9 or earlier), it examines the log,
+and finds the last logged command that is in the specified
+sequence. It then continues with the next command in the sequence.
+<P>
+
+A sequence can also run dependent targets in debian/rules.  For
+example, the ``binary'' sequence runs the ``install'' target.
+<P>
+
+<B>dh</B> uses the <B></B><FONT SIZE="-1"><B>DH_INTERNAL_OPTIONS</B></FONT><B></B> environment variable to pass information
+through to debhelper commands that are run inside override targets. The
+contents (and indeed, existence) of this environment variable, as the name
+might suggest, is subject to change at any time.
+<P>
+
+Commands in the <B>build-indep</B>, <B>install-indep</B> and <B>binary-indep</B>
+sequences are passed the <B>-i</B> option to ensure they only work on
+architecture independent packages, and commands in the <B>build-arch</B>,
+<B>install-arch</B> and <B>binary-arch</B> sequences are passed the <B>-a</B>
+option to ensure they only work on architecture dependent packages.
+<A NAME="lbAN">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+
+<B><A HREF="/cgi-bin/man/man2html?7+debhelper">debhelper</A></B>(7)
+<P>
+
+This program is a part of debhelper.
+<A NAME="lbAO">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+
+
+Joey Hess &lt;<A HREF="mailto:joeyh@debian.org">joeyh@debian.org</A>&gt;
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="5"><A HREF="#lbAB">NAME</A><DD>
+<DT id="6"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="7"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="8"><A HREF="#lbAE">OVERRIDE AND HOOK TARGETS</A><DD>
+<DL>
+<DT id="9"><A HREF="#lbAF">Injecting commands before or after a step</A><DD>
+<DT id="10"><A HREF="#lbAG">Overriding a command</A><DD>
+<DT id="11"><A HREF="#lbAH">Architecture dependent/independent override and hook targets</A><DD>
+<DT id="12"><A HREF="#lbAI">Completely empty targets</A><DD>
+<DT id="13"><A HREF="#lbAJ">Verifying targets are picked up by dh</A><DD>
+</DL>
+<DT id="14"><A HREF="#lbAK">OPTIONS</A><DD>
+<DT id="15"><A HREF="#lbAL">EXAMPLES</A><DD>
+<DT id="16"><A HREF="#lbAM">INTERNALS</A><DD>
+<DT id="17"><A HREF="#lbAN">SEE ALSO</A><DD>
+<DT id="18"><A HREF="#lbAO">AUTHOR</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:10 GMT, March 31, 2021
+</BODY>
+</HTML>

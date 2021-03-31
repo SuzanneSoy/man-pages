@@ -1,0 +1,578 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of dpkg-gensymbols</TITLE>
+</HEAD><BODY>
+<H1>dpkg-gensymbols</H1>
+Section: Dpkg-sviten (1)<BR>Updated: 2020-03-23<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAMN</H2>
+
+dpkg-gensymbols - generera symbolfiler (information om delade bibliotek)
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPS</H2>
+
+<B>dpkg-gensymbols</B> [<I>flagga</I>...]
+<A NAME="lbAD">&nbsp;</A>
+<H2>BESKRIVNING</H2>
+
+<B>dpkg-gensymbols</B> s&ouml;ker genom en tempor&auml;rt byggtr&auml;d (som standard
+debian/tmp) efter bibliotek och skapar en <I>symbols</I>-fil som beskriver
+dem. Denna fil kommer sedan, s&aring;vida den inte &auml;r tom, att installeras i
+DEBIAN-underkatalogen i byggtr&auml;det s&aring; att den hamnar i styrinformationen i
+paketet.
+<P>
+
+N&auml;r dessa filer skapas, anv&auml;nds ett par symbolfiler fr&aring;n paketansvariga som
+indata. Programmet s&ouml;ker efter f&ouml;ljande filer (och anv&auml;nder den f&ouml;rsta det
+finner):
+<DL COMPACT>
+<DT id="1">&bull;<DD>
+debian/<I>paket</I>.symbols.<I>arkitektur</I>
+<DT id="2">&bull;<DD>
+debian/symbols.<I>arkitektur</I>
+<DT id="3">&bull;<DD>
+debian/<I>paket</I>.symbols
+<DT id="4">&bull;<DD>
+debian/symbols
+</DL>
+<P>
+
+Dessa filer &auml;r i huvudsak intressanta f&ouml;r att kunna tillhandah&aring;lla den
+minimala version associerad med varje symbol i biblioteken. Detta motsvarar
+normalt den f&ouml;rsta version av paketet som tillhandah&ouml;ll symbolen, men det
+kan manuellt inkrementeras av de ansvariga om symbolens ABI ut&ouml;kas med
+bibeh&aring;llen bak&aring;tkompatibilitet. Det &auml;r den ansvarigas ansvar att h&aring;lla dessa
+filer &agrave;jourf&ouml;rda och korrekta, men <B>dpkg-gensymbols</B> kan hj&auml;lpa till med
+detta.
+<P>
+
+N&auml;r den genererade symbolfilen skiljer sig mot den version som
+tillhandah&aring;llits av de paketansvariga kommer <B>dpkg-gensymbols</B> att skriva
+ut en differens mellan de tv&aring; versionerna. Om &auml;ndringarna &auml;r f&ouml;r stora
+kommer programmet dessutom att misslyckas (du kan justera hur stora
+&auml;ndringar du kan tolerera, se flaggan <B>-c</B>).
+<A NAME="lbAE">&nbsp;</A>
+<H2>UNDERH&Aring;LLA SYMBOLFILER</H2>
+
+The symbols files are really useful only if they reflect the evolution of
+the package through several releases. Thus the maintainer has to update them
+every time that a new symbol is added so that its associated minimal version
+matches reality.  The diffs contained in the build logs can be used as a
+starting point, but the maintainer, additionally, has to make sure that the
+behaviour of those symbols has not changed in a way that would make anything
+using those symbols and linking against the new version, stop working with
+the old version.  In most cases, the diff applies directly to the
+debian/<I>package</I>.symbols file. That said, further tweaks are usually
+needed: it's recommended for example to drop the Debian revision from the
+minimal version so that backports with a lower version number but the same
+upstream version still satisfy the generated dependencies.  If the Debian
+revision can't be dropped because the symbol really got added by the Debian
+specific change, then one should suffix the version with '<B>~</B>'.
+<P>
+
+Innan man applicerar en patch p&aring; symbolfilen b&ouml;r de ansvariga dubbelchecka
+att den &auml;r korrekt. Publicerade symboler b&ouml;r inte f&ouml;rsvinna, s&aring; patchen b&ouml;r
+ideellt sett bara l&auml;gga till nya rader.
+<P>
+
+Note that you can put comments in symbols files: any line with '#' as the
+first character is a comment except if it starts with '#include' (see
+section <B>Using includes</B>).  Lines starting with '#MISSING:' are special
+comments documenting symbols that have disappeared.
+<P>
+
+Gl&ouml;m inte att kontrollera om de gamla symbolversionerna m&aring;ste &ouml;kas. Det
+finns inget s&auml;tt f&ouml;r <B>dpkg-gensymbols</B> att varna om detta. Att blint
+applicera diffen eller utg&aring; fr&aring;n att inget har &auml;ndrats om diffen &auml;r tom,
+utan att se efter s&aring;dana &auml;ndringar, kan leda till att paket med l&ouml;sa
+beroenden kan deklarera att de fungerar med &auml;ldre paket de inte kan fungera
+tillsammans med. Detta kommer introducera sv&aring;rfunna problem vid (delvisa)
+uppgraderingar.{
+<A NAME="lbAF">&nbsp;</A>
+<H3>Anv&auml;nda #PACKAGE#-substituering</H3>
+
+<P>
+
+I n&aring;gra s&auml;llsynta fall skiljer sig namnet p&aring; biblioteket mellan
+arkitekturer. F&ouml;r att undvika att h&aring;rdkoda namnet p&aring; paketet i symbolfilen
+kan du anv&auml;nda mark&ouml;ren <I>#PACKAGE#</I>. Den ers&auml;tts av det faktiska
+paketnamnet n&auml;r symbolfilen installeras. Till skillnad fr&aring;n
+<I>#MINVER#</I>-mark&ouml;ren kommer <I>#PACKAGE#</I> aldrig att dyka upp i en symbolfil
+i ett bin&auml;rpaket.
+<A NAME="lbAG">&nbsp;</A>
+<H3>Anv&auml;nda symboltaggar</H3>
+
+<P>
+
+Symboltaggning &auml;r nyttigt f&ouml;r att markera symboler som &auml;r speciella p&aring; n&aring;got
+s&auml;tt. Alla symboler kan ha ett godtyckligt antal taggar associerade med
+sig. Medan alla taggar tolkas och lagras &auml;r det bara ett par av dem som
+f&ouml;rst&aring;s av <B>dpkg-gensymbols</B> och som utl&ouml;ser specialhantering av
+symbolerna. Se undersymbolen <B>Standardsymboltaggar</B> f&ouml;r mer information om
+dessa taggar.
+<P>
+
+Taggarna anges precis f&ouml;re symbolnamnet (inga blanksteg till&aring;ts mellan). Den
+b&ouml;rjar alltid med en v&auml;nsterparentes <B>(</B>, slutar med en h&ouml;gerparentes <B>)</B>,
+och m&aring;ste inneh&aring;lla minst en tagg. Ytterligare taggar avdelas med tecknet
+<B>|</B>. En tagg kan ha ett v&auml;rde, vilket separeras fr&aring;n taggnamnet med tecknet
+<B>=</B>. Taggnamn och v&auml;rden kan vara godtyckliga str&auml;ngar, f&ouml;rutom att de inte
+kan inneh&aring;lla de speciella tecknen <B>)</B> <B>|</B> <B>=</B>. Symbolnamn som f&ouml;ljer en
+taggangivelse kan, om s&aring; &ouml;nskas, citeras med antingen <B>'</B> eller <B>&quot;</B> f&ouml;r
+att till&aring;ta blanksteg. Om inga taggar anges f&ouml;r symbolen tolkas dock
+citattecken som en del av symbolnamnet, vilket forts&auml;tter till det f&ouml;rsta
+blanksteget.
+<P>
+
+<BR>&nbsp;(tag1=jag&nbsp;&auml;r&nbsp;markerad|taggnamn&nbsp;med&nbsp;blanksteg)&quot;taggad&nbsp;citerad&nbsp;symbol&quot;@Bas&nbsp;1.0
+<BR>&nbsp;(optional)taggad_ociterad_symbol@Bas&nbsp;1.0&nbsp;1
+<BR>&nbsp;ociterad_symbol@Bas&nbsp;1.0
+<P>
+
+Den f&ouml;rsta symbolen i exemplet &auml;r heter <I>taggad citerad symbol</I> och har tv&aring;
+taggar: <I>tag1</I> med v&auml;rdet <I>jag &auml;r markerad</I> och <I>taggnamn med blanksteg</I>
+som inte har n&aring;got v&auml;rde. Den andra symbolen heter <I>taggad_ociterad_symbol</I>
+och &auml;r bara taggad med taggen som heter <I>optional</I>. Den sista symbolen &auml;r
+ett exempel p&aring; en normal, otaggad symbol.
+<P>
+
+Eftersom symboltaggar er en ut&ouml;kning av formatet i <I><A HREF="/cgi-bin/man/man2html?5+deb-symbols">deb-symbols</A>(5)</I> kan de
+bara anv&auml;ndas i symbolfiler i k&auml;llkodspaket (dessa filer &auml;r att anse som
+mallar som anv&auml;nds f&ouml;r att bygga symbolfilerna som finns i
+bin&auml;rpaketen). N&auml;r <B>dpkg-gensymbols</B> anropas utan flaggan <B>-t</B> kommer det
+att mata ut symbolfiler kompatibla med <B><A HREF="/cgi-bin/man/man2html?5+deb-symbols">deb-symbols</A></B>(5)-formatet: det
+hanterar symboler helt beroende p&aring; vad som beskrivs av standardtaggarna och
+tar bort alla taggar fr&aring;n utdata. I mall-l&auml;ge (<B>-t</B>) kommer d&auml;remot alla
+symboler och deras taggar (b&aring;de standard och ok&auml;nda) att beh&aring;llas i utdata
+och skrivas i sin originalform s&aring; som de l&auml;stes in.
+<A NAME="lbAH">&nbsp;</A>
+<H3>Standardsymboltaggar</H3>
+
+<DL COMPACT>
+<DT id="5"><B>optional</B><DD>
+A symbol marked as optional can disappear from the library at any time and
+that will never cause <B>dpkg-gensymbols</B> to fail. However, disappeared
+optional symbols will continuously appear as MISSING in the diff in each new
+package revision.  This behaviour serves as a reminder for the maintainer
+that such a symbol needs to be removed from the symbol file or readded to
+the library. When the optional symbol, which was previously declared as
+MISSING, suddenly reappears in the next revision, it will be upgraded back
+to the "existing" status with its minimum version unchanged.
+<P>
+Taggen &auml;r anv&auml;ndbar f&ouml;r symboler som &auml;r privata och vars f&ouml;rsvinnande inte
+g&ouml;r att ABI:et g&aring;r s&ouml;nder. De flesta C++-mallinstansieringar faller till
+exempel in under denna kategori. Som andra taggar kan den h&auml;r &auml;ven ha ett
+godtyckligt v&auml;rde: det kan anv&auml;ndas f&ouml;r att indikera varf&ouml;r symbolen &auml;r att
+anse som valfri.
+<DT id="6"><B>arch=</B><I>architecture-list</I><DD>
+
+<B>arch-bits=</B><I>architecture-bits</I>
+
+<B>arch-endian=</B><I>architecture-endianness</I>
+These tags allow one to restrict the set of architectures where the symbol
+is supposed to exist. The <B>arch-bits</B> and <B>arch-endian</B> tags are supported
+since dpkg 1.18.0. When the symbols list is updated with the symbols
+discovered in the library, all arch-specific symbols which do not concern
+the current host architecture are treated as if they did not exist. If an
+arch-specific symbol matching the current host architecture does not exist
+in the library, normal procedures for missing symbols apply and it may cause
+<B>dpkg-gensymbols</B> to fail. On the other hand, if the arch-specific symbol
+is found when it was not supposed to exist (because the current host
+architecture is not listed in the tag or does not match the endianness and
+bits), it is made arch neutral (i.e. the arch, arch-bits and arch-endian
+tags are dropped and the symbol will appear in the diff due to this change),
+but it is not considered as new.
+<P>
+I det vanliga icke-mall-l&auml;get skrivs endast de arkitekturspecifika symboler
+som motsvarar den aktuella v&auml;rdarkitekturen till symbolfilen. &Aring; andra sidan
+skrivs alla arkitekturspecifika symboler (inklusive de fr&aring;n andra
+arkitekturer) till symbolfilen i mall-l&auml;get.
+<P>
+The format of <I>architecture-list</I> is the same as the one used in the
+<B>Build-Depends</B> field of <I>debian/control</I> (except the enclosing square
+brackets []). For example, the first symbol from the list below will be
+considered only on alpha, any-amd64 and ia64 architectures, the second only
+on linux architectures, while the third one anywhere except on armel.
+<P>
+<BR>&nbsp;(arch=alpha&nbsp;any-amd64&nbsp;ia64)<A HREF="mailto:64bit_specific_symbol@Base">64bit_specific_symbol@Base</A>&nbsp;1.0
+<BR>&nbsp;(arch=linux-any)<A HREF="mailto:linux_specific_symbol@Base">linux_specific_symbol@Base</A>&nbsp;1.0
+<BR>&nbsp;(arch=!armel)<A HREF="mailto:symbol_armel_does_not_have@Base">symbol_armel_does_not_have@Base</A>&nbsp;1.0
+<P>
+The <I>architecture-bits</I> is either <B>32</B> or <B>64</B>.
+<P>
+<BR>&nbsp;(arch-bits=32)<A HREF="mailto:32bit_specific_symbol@Base">32bit_specific_symbol@Base</A>&nbsp;1.0
+<BR>&nbsp;(arch-bits=64)<A HREF="mailto:64bit_specific_symbol@Base">64bit_specific_symbol@Base</A>&nbsp;1.0
+<P>
+The <I>architecture-endianness</I> is either <B>little</B> or <B>big</B>.
+<P>
+<BR>&nbsp;(arch-endian=little)<A HREF="mailto:little_endian_specific_symbol@Base">little_endian_specific_symbol@Base</A>&nbsp;1.0
+<BR>&nbsp;(arch-endian=big)<A HREF="mailto:big_endian_specific_symbol@Base">big_endian_specific_symbol@Base</A>&nbsp;1.0
+<P>
+Multiple restrictions can be chained.
+<P>
+<BR>&nbsp;(arch-bits=32|arch-endian=little)<A HREF="mailto:32bit_le_symbol@Base">32bit_le_symbol@Base</A>&nbsp;1.0
+<DT id="7"><B>ignore-blacklist</B><DD>
+dpkg-gensymbols har en intern svartlista &ouml;ver symboler som inte skall
+f&ouml;rekomma i symbolfiler eftersom de oftast bara &auml;r sidoeffekter fr&aring;n
+implementationsdetaljer i verktygskedjan. Om du, av n&aring;gon orsak, verkligen
+vill att en av dessa symboler skall tas med i symbolfilen m&aring;ste du tagga
+symbolen med <B>ignore-blacklist</B>. Det kan vara n&ouml;dv&auml;ndigt f&ouml;r
+l&aring;gniv&aring;-verktygskedjebibliotek som libgcc.
+<DT id="8"><B>c++</B><DD>
+Betecknar <I>c++</I>-symbolm&ouml;nster. Se stycket <B>Anv&auml;nda symbolm&ouml;nster</B> nedan.
+<DT id="9"><B>symver</B><DD>
+Anger <I>symver</I> (symbolversion)-symbolm&ouml;nstret. Se stycket <B>Anv&auml;nda
+symbolm&ouml;nster</B> nedan.
+<DT id="10"><B>regex</B><DD>
+Anger <I>regex</I>-symbolm&ouml;nstret. Se stycket <I>Anv&auml;nda symbolm&ouml;nster</I> nedan.
+</DL>
+<A NAME="lbAI">&nbsp;</A>
+<H3>Anv&auml;nda symbolm&ouml;nster</H3>
+
+<P>
+
+Till skillnad fr&aring;n vanliga symbolspecifikationer kan ett m&ouml;nster t&auml;cka flera
+faktiska symboler fr&aring;n biblioteket. <B>dpkg-gensymbols</B> kommer f&ouml;rs&ouml;ka matcha
+varje m&ouml;nster mot varje faktisk symbol som <I>inte</I> har en motsvarande
+specifik symbol definierad i symbolfilen. S&aring; fort det f&ouml;rsta m&ouml;nster som
+motsvarar symbolen hittas kommer alla dess taggar och egenskaper att
+anv&auml;ndas som en basspecifikation f&ouml;r symbolen. Om inget m&ouml;nster motsvarar
+symbolen kommer den att tolkas som ny.
+<P>
+Ett m&ouml;nster anses som tappat om det inte motsvarar n&aring;gra symboler i
+biblioteket. Som standard kommer detta f&aring; <B>dpkg-genchanges</B> att misslyckas
+om <B>-c1</B> eller h&ouml;gre anges. Om ett s&aring;dant misslyckande inte &auml;r &ouml;nskv&auml;rt kan
+m&ouml;nstret dock m&auml;rkas med taggen <I>optional</I>. Om m&ouml;nstret d&aring; inte motsvarar
+n&aring;gonting kommer det bara dyka upp i differensen som saknas
+(MISSING). M&ouml;nstret kan dessutom, precis som andra symboler, begr&auml;nsas till
+specifika arkitekturer med hj&auml;lp av <I>arch</I>-taggen. Se stycket
+<B>Standardsymboltaggar</B> ovan f&ouml;r mer information.
+<P>
+M&ouml;nster &auml;r en ut&ouml;kning av <B><A HREF="/cgi-bin/man/man2html?5+deb-symbols">deb-symbols</A>(5)</B>-formatet och &auml;r d&auml;rf&ouml;r endast
+till&aring;tna i symbolfilmallar. Syntax f&ouml;r angivelse av m&ouml;nster skiljer sig inte
+fr&aring;n den f&ouml;r en specifik symbol. Symbolnamnsdelen av specifikationen
+fungerar dock som ett uttryck som skall j&auml;mf&ouml;ras mot <I><A HREF="mailto:namn@version">namn@version</A></I> f&ouml;r den
+faktiska symbolen. F&ouml;r att skilja mellan olika sorters m&ouml;nster, taggas
+m&ouml;nster normalt med en speciell tagg.
+<P>
+F&ouml;r n&auml;rvarande st&ouml;der <B>dpkg-gensymbols</B> tre grundl&auml;ggande m&ouml;nstertyper:
+<DL COMPACT>
+<DT id="11"><B>c++</B><DD>
+Detta m&ouml;nster anges med taggen <I>c++</I>. Den matchar enbart C++-symboler med
+deras avmanglade symbolnamn (som det skrivs ut av
+<B>c++<A HREF="/cgi-bin/man/man2html?1+filt">filt</A></B>(1)-verktyget). Det h&auml;r m&ouml;nstret &auml;r v&auml;ldigt nyttigt f&ouml;r att matcha
+symboler vars manglade namn kan skilja sig mellan olika arkitekturer, medan
+deras avmanglade namn &auml;r desamma. En grupp dylika symboler &auml;r
+<I>icke-virtuella &quot;thunks&quot;</I> som har arkitekturspecifika offsetv&auml;rden inbyggda
+i sina manglade namn. En vanlig instans av detta fall &auml;r en virtuell
+destrukt&ouml;r som under diamantarv beh&ouml;ver en icke-virtuell
+&quot;thunk&quot;-symbol. &Auml;ven om till exempel <A HREF="mailto:ZThn8_N3NSB6ClassDD1Ev@Base">ZThn8_N3NSB6ClassDD1Ev@Base</A> p&aring;
+32-bitarsarkitekturer troligtvis &auml;r <A HREF="mailto:_ZThn16_N3NSB6ClassDD1Ev@Base">_ZThn16_N3NSB6ClassDD1Ev@Base</A>
+p&aring;64-bitarsarkitekturer, s&aring; kan de matchas med ett enda <I>c++</I>-m&ouml;nster:
+<P>
+libdummy.so.1 libdummy1 #MINVER#
+<BR>&nbsp;[...]
+<BR>&nbsp;(c++)&quot;non-virtual&nbsp;thunk&nbsp;to&nbsp;NSB::ClassD::~ClassD()@Base&quot;&nbsp;1.0
+<BR>&nbsp;[...]
+<P>
+Det avmanglade namnet ovan kan h&auml;mtas genom att utf&ouml;ra f&ouml;ljande kommando:
+<P>
+<BR>&nbsp;$&nbsp;echo&nbsp;'<A HREF="mailto:_ZThn8_N3NSB6ClassDD1Ev@Base">_ZThn8_N3NSB6ClassDD1Ev@Base</A>'&nbsp;|&nbsp;c++filt
+<P>
+Observera att &auml;ven om det manglade namnet per definition &auml;r unikt i
+biblioteket g&auml;ller inte detta f&ouml;r avmanglade namn. Flera distinkta verkliga
+symboler kan ha samma avmanglade namn. Det g&auml;ller till exempel f&ouml;r
+icke-virtuella &quot;thunk&quot;-symboler i konfigurationer med komplexa arv eller f&ouml;r
+de flesta konstrukt&ouml;rer och destrukt&ouml;rer (eftersom g++ normalt genererar tv&aring;
+symboler f&ouml;r dem). Eftersom dessa kollisioner sker p&aring; ABI-niv&aring;n b&ouml;r de dock
+inte s&auml;nka kvaliteten p&aring; symbolfilen.
+<DT id="12"><B>symver</B><DD>
+Detta m&ouml;nster anges med taggen <I>symver</I>. V&auml;lunderh&aring;llna bibliotek har
+versionshanterade symboler d&auml;r varje version motsvarar uppstr&ouml;msversionen
+d&auml;r symbolen lades till. Om det &auml;r fallet kan du anv&auml;nda ett
+<I>symver</I>-m&ouml;ster f&ouml;r att matcha alla symboler som matchar den specifika
+versionen. Till exempel:
+<P>
+libc.so.6 libc6 #MINVER#
+<BR>&nbsp;(symver)GLIBC_2.0&nbsp;2.0
+<BR>&nbsp;[...]
+<BR>&nbsp;(symver)GLIBC_2.7&nbsp;2.7
+<BR>&nbsp;<A HREF="mailto:access@GLIBC_2.0">access@GLIBC_2.0</A>&nbsp;2.2
+<P>
+Alla symboler associerade med versionerna GLIBC_2.0 och GLIBC_2.7 kommer
+leda till den minimal version 2.0 respektive 2.7, med undantag av symbolen
+<A HREF="mailto:access@GLIBC_2.0">access@GLIBC_2.0</A>. Den sistn&auml;mnda kommer leda till ett minsta beroende p&aring;
+libc6 version 2.2 trots att den motsvarar m&ouml;nstret
+&quot;(symver)GLIBC_2.0&quot;-m&ouml;nstret, eftersom specifika symboler g&auml;ller f&ouml;re
+m&ouml;nster.
+<P>
+Observera att &auml;ven om den gamla sortens jokerteckenm&ouml;nster (anges med
+&quot;*@version&quot; i symbolnamnf&auml;ltet) fortfarande st&ouml;ds s&aring; rekommenderas de inte
+l&auml;ngre i och med den nya sortens syntax &quot;(symver|optional)version&quot;. Till
+exempel b&ouml;r &quot;*@GLIBC_2.0 2.0&quot; skrivas som &quot;(symver|optional)GLIBC_2.0 2.0&quot;
+om samma beteende beh&ouml;vs.
+<DT id="13"><B>regex</B><DD>
+M&ouml;nster med regulj&auml;ra uttryck anges med taggen <I>regex</I>. De matchar med det
+regulj&auml;ra uttrycket p&aring; perl-form som anges i symbolnamnsf&auml;ltet. Ett
+regulj&auml;rt uttryck matchar som det st&aring;r, gl&ouml;m d&auml;rf&ouml;r inte att inleda det med
+tecknet <I>^</I>, annars kommer det matcha godtycklig del av den verkliga
+symbolens <I><A HREF="mailto:namn@version">namn@version</A></I>-str&auml;ng. Till exempel:
+<P>
+libdummy.so.1 libdummy1 #MINVER#
+<BR>&nbsp;(regex)&quot;^mystack_.*@Base$&quot;&nbsp;1.0
+<BR>&nbsp;(regex|optional)&quot;private&quot;&nbsp;1.0
+<P>
+Symboler som &quot;<A HREF="mailto:mystack_new@Base">mystack_new@Base</A>&quot;, &quot;<A HREF="mailto:mystack_push@Base">mystack_push@Base</A>&quot;, &quot;<A HREF="mailto:mystack_pop@Base">mystack_pop@Base</A>&quot;
+osv. kommer att tr&auml;ffas av det f&ouml;rsta m&ouml;nstret medan t.ex
+&quot;<A HREF="mailto:ng_mystack_new@Base">ng_mystack_new@Base</A>&quot; inte g&ouml;r det. Det andra m&ouml;nstret motsvarar alla
+symbolen som inneh&aring;ller str&auml;ngen &quot;private&quot; i sina namn och tr&auml;ffar kommer
+att &auml;rva <I>optional</I>-taggen fr&aring;n m&ouml;nstret.
+</DL>
+<P>
+
+Grundl&auml;ggande m&ouml;nster som anges ovan kan kombineras d&auml;r det &auml;r vettigt. I s&aring;
+fall behandlas de i den ordning taggarna anges. Till exempel kommer b&aring;de
+<P>
+<BR>&nbsp;(c++|regex)&quot;^NSA::ClassA::Private::privmethod\d\(int\)@Base&quot;&nbsp;1.0
+<BR>&nbsp;(regex|c++)N3NSA6ClassA7Private11privmethod\<A HREF="mailto:dEi@Base">dEi@Base</A>&nbsp;1.0
+<P>
+att tr&auml;ffa symbolerna &quot;<A HREF="mailto:_ZN3NSA6ClassA7Private11privmethod1Ei@Base">_ZN3NSA6ClassA7Private11privmethod1Ei@Base</A>&quot; och
+&quot;<A HREF="mailto:_ZN3NSA6ClassA7Private11privmethod2Ei@Base">_ZN3NSA6ClassA7Private11privmethod2Ei@Base</A>&quot;. N&auml;r det f&ouml;rsta m&ouml;nstret
+j&auml;mf&ouml;rs avmanglas f&ouml;rst symbolen som en C++-symbol, varefter det avmanglade
+namnet j&auml;mf&ouml;rs med det regulj&auml;ra uttrycket. N&auml;r det andra m&ouml;nstret j&auml;mf&ouml;rs,
+&aring; andra sidan, j&auml;mf&ouml;rs det regulj&auml;ra uttrycket mot det r&aring;a symbolnamnet,
+varefter symbolen testas f&ouml;r att se om det &auml;r av C++-typ genom att f&ouml;rs&ouml;ka
+avmangla det. Om ett grundl&auml;ggande m&ouml;nster misslyckas kommer hela uttrycket
+att misslyckas. D&auml;rf&ouml;r kommer, till exempel
+&quot;__N3NSA6ClassA7Private11privmethod\<A HREF="mailto:dEi@Base">dEi@Base</A>&quot; inte att tr&auml;ffas av n&aring;got av
+m&ouml;nstrena eftersom det inte &auml;r en giltig C++-symbol.
+<P>
+I allm&auml;nhet delas alla m&ouml;nster in i tv&aring; grupper. alias (grundl&auml;ggande <I>c++</I>
+och <I>symver</I>) och generella m&ouml;nster (<I>regex</I>, samtliga kombinationer av
+multipla grundl&auml;ggande m&ouml;nster). Det g&aring;r snabbt att tr&auml;ffa grundl&auml;ggande
+aliasbaserade m&ouml;nster (<A HREF="/cgi-bin/man/man2html?1+O">O</A>(1)) medan generella m&ouml;nster &auml;r O(N) (N - antal
+generella m&ouml;nster) f&ouml;r varje symbol. Det rekommenderas d&auml;rf&ouml;r inte att
+anv&auml;nda f&ouml;r m&aring;nga generella m&ouml;nster.
+<P>
+N&auml;r flera m&ouml;nster tr&auml;ffar samma verkliga symbol f&ouml;redras alias (f&ouml;rst
+<I>c++</I>, sedan <I>symver</I>) framf&ouml;r generella m&ouml;nster. Generella m&ouml;nster
+tr&auml;ffas i den ordning de uppt&auml;cktes i symbolfilmallen fram till den f&ouml;rsta
+lyckade tr&auml;ffen. Observera dock att manuell omsortering av poster i
+mallfilen inte rekommenderas d&aring; <B>dpkg-gensymbols</B> genererar differensfiler
+baserad p&aring; den alfanumeriska sorteringsordningen av dess namn.
+<A NAME="lbAJ">&nbsp;</A>
+<H3>Anv&auml;nda inkluderingar</H3>
+
+<P>
+
+N&auml;r upps&auml;ttningen av exporterade symboler skiljer sig mellan arkitekturer
+kan det vara ineffektivt att anv&auml;nda en enda symbolfil. I dessa fall kan ett
+inkluderingsdirektiv vara nyttigt p&aring; flera s&auml;tt:
+<DL COMPACT>
+<DT id="14">&bull;<DD>
+Du kan faktorisera de gemensamma delarna i en extern fil och inkludera den
+filen i din <I>paket</I>.symbols.<I>arkitektur</I>-fil genom att anv&auml;nda ett
+inkluderingsdirektiv som detta:
+<P>
+#include &quot;<I>paket</I>.symbols.common&quot;
+<DT id="15">&bull;<DD>
+Inkluderingsdirektivet kan &auml;ven taggas som alla andra symboler:
+<P>
+(tag|...|tagN)#include &quot;fil-att-inkludera&quot;
+<P>
+Alla symboler som inkluderas fr&aring;n <I>fil-att-inkludera</I> kommer att anses som
+standard vara taggade med <I>tag</I> ... <I>tagN</I>. Du kan anv&auml;nda denna funktion
+f&ouml;r att skapa en gemensam <I>paket</I>.symbols-fil som inkluderar
+arkitekturspecifika filer:
+<P>
+<BR>&nbsp;&nbsp;<A HREF="mailto:gemensam_symbol1@Base">gemensam_symbol1@Base</A>&nbsp;1.0
+<BR>&nbsp;(arch=amd64&nbsp;ia64&nbsp;alpha)#include&nbsp;&quot;paket.symbols.64bit&quot;
+<BR>&nbsp;(arch=!amd64&nbsp;!ia64&nbsp;!alpha)#include&nbsp;&quot;paket.symbols.32bit&quot;
+<BR>&nbsp;&nbsp;<A HREF="mailto:gemensam_symbol2@Base">gemensam_symbol2@Base</A>&nbsp;1.0
+</DL>
+<P>
+
+Symbolfilerna l&auml;ses radvis, och inkluderingsdirektiv utf&ouml;rs s&aring; fort de
+uppt&auml;cks. Det betyder att inneh&aring;llet i den inkluderade filen kan &ouml;verstyra
+allt inneh&aring;ll som f&ouml;rekom f&ouml;re inkluderingsdirektivet och att inneh&aring;ll efter
+direktivet kan &ouml;verstyra allt fr&aring;n den inkluderade filen. Alla symboler
+(&auml;ven andra #include-direktiv) i den inkluderade filen kan ange ytterligare
+taggar eller &ouml;verstyra v&auml;rden f&ouml;r de &auml;rvda taggarna i sin
+taggspecifikation. Det finns dock inte n&aring;got s&auml;tt f&ouml;r en symbol att ta bort
+n&aring;gon av sina &auml;rvda taggar.
+<P>
+
+En inkluderad fil kan repetera huvudraden som inneh&aring;ller SONAMNet f&ouml;r
+biblioteket. I s&aring; fall &ouml;verstyr den en eventuell huvudrad som l&auml;sts in
+tidigare. Det &auml;r vanligtvis dock b&auml;st att undvika att duplicera
+huvudrader. Ett s&auml;tt att g&ouml;ra det &auml;r som f&ouml;ljer:
+<P>
+
+#include &quot;libn&aring;gonting1.symbols.common&quot;
+<BR>&nbsp;<A HREF="mailto:arkitekturspecifik_symbol@Base">arkitekturspecifik_symbol@Base</A>&nbsp;1.0
+<A NAME="lbAK">&nbsp;</A>
+<H3>God hantering av bibliotek</H3>
+
+<P>
+
+Ett v&auml;lunderh&aring;llet bibliotek har f&ouml;ljande funktioner:
+<DL COMPACT>
+<DT id="16">&bull;<DD>
+dess API &auml;r stabilt (publika symboler tas aldrig bort, endast nya publika
+symboler l&auml;ggs till) och inkompatibla &auml;ndringar g&ouml;rs endast n&auml;r SONAMNet
+&auml;ndras;
+<DT id="17">&bull;<DD>
+ideellt anv&auml;nder det en versionhanterade symboler f&ouml;r att uppr&auml;tth&aring;lla
+ABI-stabilitet trots interna &auml;ndringar och API-ut&ouml;kningar;
+<DT id="18">&bull;<DD>
+det exporterar inte privata symboler (s&aring;dana symboler kan taggas med
+&quot;optional&quot; f&ouml;r att g&aring; runt detta).
+</DL>
+<P>
+
+N&auml;r man underh&aring;ller symbolfilen &auml;r det l&auml;tt att uppt&auml;cka symboler som dyker
+upp och f&ouml;rsvinner. Det &auml;r sv&aring;rare att uppt&auml;cka inkompatibla API- och
+ABI-&auml;ndringar. Den paketansvarige b&ouml;r d&auml;rf&ouml;r noggrant l&auml;sa igenom
+uppstr&ouml;ms&auml;ndringsloggen f&ouml;r fall d&aring; reglerna f&ouml;r god hantering av bibliotek
+bryts. Om ett m&ouml;jligt fel uppt&auml;cks b&ouml;r uppstr&ouml;msf&ouml;rfattaren meddelas, d&aring; det
+alltid &auml;r b&auml;ttre att problemet r&auml;ttas uppstr&ouml;ms &auml;n specifikt i Debian.
+<A NAME="lbAL">&nbsp;</A>
+<H2>FLAGGOR</H2>
+
+<DL COMPACT>
+<DT id="19"><B>-P</B><I>paketbyggkatalog</I><DD>
+S&ouml;k <I>paketbyggkatalog</I> ist&auml;llet f&ouml;r debian/tmp.
+<DT id="20"><B>-p</B><I>paket</I><DD>
+Definiera paketnamnet. Kr&auml;vs om mer &auml;n ett bin&auml;rpaket listas i
+debian/control (eller om det inte finns n&aring;gon debian/control-fil).
+<DT id="21"><B>-v</B><I>version</I><DD>
+Definiera paketversion. Standardv&auml;rdet &auml;r versionen som h&auml;mtas fr&aring;n
+debian/changelog. Kr&auml;vs om programmet anropas utanf&ouml;r ett k&auml;llkodspakettr&auml;d.
+<DT id="22"><B>-e</B><I>biblioteksfil</I><DD>
+Analyserar endast bibliotek som listats explicit ist&auml;llet f&ouml;r att hitta alla
+publika bibliotek. Du kan anv&auml;nda ett jokertecken f&ouml;r filnamn (se
+manualsidan <B>File::Glob</B>(3perl) f&ouml;r detaljer) i <I>biblioteksfil</I> f&ouml;r att
+tr&auml;ffa multipla bibliotek med ett enda argument (annars beh&ouml;ver du flera
+<B>-e</B>).
+<DT id="23"><B>-l</B><I>katalog</I><DD>
+Prepend <I>directory</I> to the list of directories to search for private shared
+libraries (since dpkg 1.19.1). This option can be used multiple times.
+<P>
+Observera: Anv&auml;nd den h&auml;r flaggan ist&auml;llet f&ouml;r att s&auml;tta <B>LD_LIBRARY_PATH</B>,
+eftersom milj&ouml;variabeln anv&auml;nds f&ouml;r att styra k&ouml;rtidsl&auml;nkaren, och genom att
+utnyttja det f&ouml;r att ange s&ouml;kv&auml;gen till delade bibliotek vid kompilering kan
+det uppst&aring; problem, till exempel vid korskompilering.
+<DT id="24"><B>-I</B><I>filnamn</I><DD>
+Anv&auml;nd <I>filnamn</I> som referensfil f&ouml;r att generera symbolfilen som
+integreras i sj&auml;lva paketet.
+<DT id="25"><B>-O</B>[<I>filnamn</I>]<DD>
+Visa den genererade symbolfilen p&aring; standard ut eller spara som <I>filnamn</I> om
+det anges, ist&auml;llet f&ouml;r <B>debian/tmp/DEBIAN/symbols</B> (eller
+<I>paketbyggkatalog</I><B>/DEBIAN/symbols</B> om <B>-P</B> anv&auml;ndes). Om <I>filnamn</I>
+redan existerar kommer dess inneh&aring;ll att anv&auml;ndas som bas f&ouml;r den genererade
+symbolfilen. Du kan anv&auml;nda den h&auml;r funktionen f&ouml;r att uppdatera en
+symbolfil s&aring; att den motsvarar en nyare uppstr&ouml;msversion av ditt bibliotek.
+<DT id="26"><B>-t</B><DD>
+Skriv symbolfilen i mall-l&auml;ge ist&auml;llet f&ouml;r i formatet kompatibelt med
+<B><A HREF="/cgi-bin/man/man2html?5+deb-symbols">deb-symbols</A></B>(5). Huvudskillnaden &auml;r att symbolnamn och taggar skrivs i sin
+originalform i mall-l&auml;get, till skillnad fr&aring;n de efterbehandlade
+symbolnamnen med borttagna taggar som skrivs i det kompatibla
+l&auml;get. Dessutom kan vissa symboler uteslutas n&auml;r en vanlig
+<B><A HREF="/cgi-bin/man/man2html?5+deb-symbols">deb-symbols</A></B>(5)-fil skrivs (i enlighet med tagghanteringsreglerna) medan
+alla symboler alltid skrivs till symbolfilsmallen.
+<DT id="27"><B>-c</B><I>[0-4]</I><DD>
+Definiera vilka kontroller som skall utf&ouml;ras n&auml;r den genererade symbolfilen
+j&auml;mf&ouml;rs med den mallfil som anv&auml;nds som startpunkt. Som standard &auml;r niv&aring;n
+1. Genom att &ouml;ka niv&aring;n utf&ouml;rs flera kontroller, inklusive alla kontroller p&aring;
+l&auml;gre niv&aring;. Niv&aring; 2 misslyckas om nya symboler har introducerats. Niv&aring; 3
+misslyckas om n&aring;gra bibliotek har f&ouml;rsvunnit. Niv&aring; 4 misslyckas om n&aring;gra
+bibliotek har introducerats.
+<P>
+V&auml;rdet kan &ouml;verstyras med milj&ouml;variabeln <B>DPKG_GENSYMBOLS_CHECK_LEVEL</B>.
+<DT id="28"><B>-q</B><DD>
+H&aring;ll tyst och generera aldrig en differens mellan den genererade symbolfilen
+och mallfilen som anv&auml;ndes som startpunkt eller visa varningar om
+nya/f&ouml;rlorade bibliotek eller nya/f&ouml;rlorade symboler. Den h&auml;r flaggan tar
+endast bort informationsutdata, inte sj&auml;lva kontrolleran (se flaggan <B>-c</B>).
+<DT id="29"><B>-a</B><I>arkitektur</I><DD>
+Anta <I>arkitektur</I> som v&auml;rdarkitektur vid hantering av symbolfiler. Anv&auml;nd
+den h&auml;r flaggan f&ouml;r att generera en symbolfil eller differens f&ouml;r valfri
+arkitektur s&aring; l&auml;nge dess bin&auml;rer &auml;r tillg&auml;ngliga.
+<DT id="30"><B>-d</B><DD>
+Aktiverar fels&ouml;kningsl&auml;ge. Flera meddelanden visas f&ouml;r att f&ouml;rklara vad
+<B>dpkg-gensymbols</B> g&ouml;r.
+<DT id="31"><B>-V</B><DD>
+Aktivera pratsamt l&auml;ge. Den genererade symbolfilen inneh&aring;ller ej l&auml;ngre
+rekommenderade symboler som kommentarer. I mall-l&auml;ge f&ouml;ljs dessutom
+m&ouml;nstersymboler av kommentarer som visar vilka verkliga symboler som har
+tr&auml;ffats av m&ouml;nstret.
+<DT id="32"><B>-?</B>, <B>--help</B><DD>
+Visar hj&auml;lpsk&auml;rm och avslutar.
+<DT id="33"><B>--version</B><DD>
+Visar version och avslutar.
+</DL>
+<A NAME="lbAM">&nbsp;</A>
+<H2>MILJ&Ouml;VARIABLER</H2>
+
+<DL COMPACT>
+<DT id="34"><B>DPKG_GENSYMBOLS_CHECK_LEVEL</B><DD>
+Overrides the command check level, even if the <B>-c</B> command-line argument
+was given (note that this goes against the common convention of command-line
+arguments having precedence over environment variables).
+<DT id="35"><B>DPKG_COLORS</B><DD>
+Sets the color mode (since dpkg 1.18.5).  The currently accepted values are:
+<B>auto</B> (default), <B>always</B> and <B>never</B>.
+<DT id="36"><B>DPKG_NLS</B><DD>
+If set, it will be used to decide whether to activate Native Language
+Support, also known as internationalization (or i18n) support (since dpkg
+1.19.0).  The accepted values are: <B>0</B> and <B>1</B> (default).
+</DL>
+<A NAME="lbAN">&nbsp;</A>
+<H2>SE &Auml;VEN</H2>
+
+<B><A HREF="https://people.redhat.com/drepper/symbol-versioning">https://people.redhat.com/drepper/symbol-versioning</A></B>
+<BR>
+
+<B><A HREF="https://people.redhat.com/drepper/goodpractice.pdf">https://people.redhat.com/drepper/goodpractice.pdf</A></B>
+<BR>
+
+<B><A HREF="https://people.redhat.com/drepper/dsohowto.pdf">https://people.redhat.com/drepper/dsohowto.pdf</A></B>
+<BR>
+
+<B><A HREF="/cgi-bin/man/man2html?5+deb-symbols">deb-symbols</A></B>(5), <B><A HREF="/cgi-bin/man/man2html?1+dpkg-shlibdeps">dpkg-shlibdeps</A></B>(1).
+<A NAME="lbAO">&nbsp;</A>
+<H2>&Ouml;VERS&Auml;TTNING</H2>
+
+Peter Krefting och Daniel Nylander.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="37"><A HREF="#lbAB">NAMN</A><DD>
+<DT id="38"><A HREF="#lbAC">SYNOPS</A><DD>
+<DT id="39"><A HREF="#lbAD">BESKRIVNING</A><DD>
+<DT id="40"><A HREF="#lbAE">UNDERH&Aring;LLA SYMBOLFILER</A><DD>
+<DL>
+<DT id="41"><A HREF="#lbAF">Anv&auml;nda #PACKAGE#-substituering</A><DD>
+<DT id="42"><A HREF="#lbAG">Anv&auml;nda symboltaggar</A><DD>
+<DT id="43"><A HREF="#lbAH">Standardsymboltaggar</A><DD>
+<DT id="44"><A HREF="#lbAI">Anv&auml;nda symbolm&ouml;nster</A><DD>
+<DT id="45"><A HREF="#lbAJ">Anv&auml;nda inkluderingar</A><DD>
+<DT id="46"><A HREF="#lbAK">God hantering av bibliotek</A><DD>
+</DL>
+<DT id="47"><A HREF="#lbAL">FLAGGOR</A><DD>
+<DT id="48"><A HREF="#lbAM">MILJ&Ouml;VARIABLER</A><DD>
+<DT id="49"><A HREF="#lbAN">SE &Auml;VEN</A><DD>
+<DT id="50"><A HREF="#lbAO">&Ouml;VERS&Auml;TTNING</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:23 GMT, March 31, 2021
+</BODY>
+</HTML>

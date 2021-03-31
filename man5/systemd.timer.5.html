@@ -1,0 +1,381 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SYSTEMD.TIMER</TITLE>
+</HEAD><BODY>
+<H1>SYSTEMD.TIMER</H1>
+Section: systemd.timer (5)<BR>Updated: <BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+systemd.timer - Timer unit configuration
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+
+<I>timer</I>.timer
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+A unit configuration file whose name ends in
+&quot;.timer&quot;
+encodes information about a timer controlled and supervised by systemd, for timer-based activation.
+<P>
+
+This man page lists the configuration options specific to this unit type. See
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.unit">systemd.unit</A></B>(5)
+for the common options of all unit configuration files. The common configuration items are configured in the generic
+&quot;[Unit]&quot;
+and
+&quot;[Install]&quot;
+sections. The timer specific configuration options are configured in the
+&quot;[Timer]&quot;
+section.
+<P>
+
+For each timer file, a matching unit file must exist, describing the unit to activate when the timer elapses. By default, a service by the same name as the timer (except for the suffix) is activated. Example: a timer file
+foo.timer
+activates a matching service
+foo.service. The unit to activate may be controlled by
+<I>Unit=</I>
+(see below).
+<P>
+
+Note that in case the unit to activate is already active at the time the timer elapses it is not restarted, but simply left running. There is no concept of spawning new service instances in this case. Due to this, services with
+<I>RemainAfterExit=</I>
+set (which stay around continuously even after the service's main process exited) are usually not suitable for activation via repetitive timers, as they will only be activated once, and then stay around forever.
+<A NAME="lbAE">&nbsp;</A>
+<H2>AUTOMATIC DEPENDENCIES</H2>
+
+<A NAME="lbAF">&nbsp;</A>
+<H3>Implicit Dependencies</H3>
+
+<P>
+
+The following dependencies are implicitly added:
+<P>
+<DL COMPACT><DT id="1"><DD>
+&bull;
+
+
+Timer units automatically gain a
+<I>Before=</I>
+dependency on the service they are supposed to activate.
+</DL>
+
+<A NAME="lbAG">&nbsp;</A>
+<H3>Default Dependencies</H3>
+
+<P>
+
+The following dependencies are added unless
+<I>DefaultDependencies=no</I>
+is set:
+<P>
+<DL COMPACT><DT id="2"><DD>
+&bull;
+
+
+Timer units will automatically have dependencies of type
+<I>Requires=</I>
+and
+<I>After=</I>
+on
+sysinit.target, a dependency of type
+<I>Before=</I>
+on
+timers.target, as well as
+<I>Conflicts=</I>
+and
+<I>Before=</I>
+on
+shutdown.target
+to ensure that they are stopped cleanly prior to system shutdown. Only timer units involved with early boot or late system shutdown should disable the
+<I>DefaultDependencies=</I>
+option.
+</DL>
+
+<P>
+<DL COMPACT><DT id="3"><DD>
+&bull;
+
+
+Timer units with at least one
+<I>OnCalendar=</I>
+directive will have an additional
+<I>After=</I>
+dependency on
+time-sync.target
+to avoid being started before the system clock has been correctly set.
+</DL>
+
+<A NAME="lbAH">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<P>
+
+Timer files must include a [Timer] section, which carries information about the timer it defines. The options specific to the [Timer] section of timer units are the following:
+<P>
+
+<I>OnActiveSec=</I>, <I>OnBootSec=</I>, <I>OnStartupSec=</I>, <I>OnUnitActiveSec=</I>, <I>OnUnitInactiveSec=</I>
+<DL COMPACT><DT id="4"><DD>
+Defines monotonic timers relative to different starting points:
+<P>
+
+
+
+<BR>
+
+<B>Table&nbsp;1.&nbsp;Settings and their starting points</B>
+
+<TABLE BORDER>
+<TR VALIGN=top><TD><B>
+Setting
+</B></TD><TD><B>
+Meaning
+</B><BR></TD></TR>
+<TR VALIGN=top><TD>
+<I>OnActiveSec=</I>
+</TD><TD>
+Defines a timer relative to the moment the timer unit itself is activated.
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+<I>OnBootSec=</I>
+</TD><TD>
+Defines a timer relative to when the machine was booted up. In containers, for the system manager instance, this is mapped to <I>OnStartupSec=</I>, making both equivalent.
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+<I>OnStartupSec=</I>
+</TD><TD>
+Defines a timer relative to when the service manager was first started. For system timer units this is very similar to <I>OnBootSec=</I> as the system service manager is generally started very early at boot. It's primarily useful when configured in units running in the per-user service manager, as the user service manager is generally started on first login only, not already during boot.
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+<I>OnUnitActiveSec=</I>
+</TD><TD>
+Defines a timer relative to when the unit the timer unit is activating was last activated.
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+<I>OnUnitInactiveSec=</I>
+</TD><TD>
+Defines a timer relative to when the unit the timer unit is activating was last deactivated.
+<BR></TD></TR>
+</TABLE>
+
+<P>
+Multiple directives may be combined of the same and of different types, in which case the timer unit will trigger whenever any of the specified timer expressions elapse. For example, by combining
+<I>OnBootSec=</I>
+and
+<I>OnUnitActiveSec=</I>, it is possible to define a timer that elapses in regular intervals and activates a specific service each time. Moreover, both monotonic time expressions and
+<I>OnCalendar=</I>
+calendar expressions may be combined in the same timer unit.
+<P>
+The arguments to the directives are time spans configured in seconds. Example: &quot;OnBootSec=50&quot; means 50s after boot-up. The argument may also include time units. Example: &quot;OnBootSec=5h 30min&quot; means 5 hours and 30 minutes after boot-up. For details about the syntax of time spans, see
+<B><A HREF="/cgi-bin/man/man2html?7+systemd.time">systemd.time</A></B>(7).
+<P>
+If a timer configured with
+<I>OnBootSec=</I>
+or
+<I>OnStartupSec=</I>
+is already in the past when the timer unit is activated, it will immediately elapse and the configured unit is started. This is not the case for timers defined in the other directives.
+<P>
+These are monotonic timers, independent of wall-clock time and timezones. If the computer is temporarily suspended, the monotonic clock generally pauses, too. Note that if
+<I>WakeSystem=</I>
+is used, a different monotonic clock is selected that continues to advance while the system is suspended and thus can be used as the trigger to resume the system.
+<P>
+If the empty string is assigned to any of these options, the list of timers is reset (both monotonic timers and
+<I>OnCalendar=</I>
+timers, see below), and all prior assignments will have no effect.
+<P>
+Note that timers do not necessarily expire at the precise time configured with these settings, as they are subject to the
+<I>AccuracySec=</I>
+setting below.
+</DL>
+
+<P>
+
+<I>OnCalendar=</I>
+<DL COMPACT><DT id="5"><DD>
+Defines realtime (i.e. wallclock) timers with calendar event expressions. See
+<B><A HREF="/cgi-bin/man/man2html?7+systemd.time">systemd.time</A></B>(7)
+for more information on the syntax of calendar event expressions. Otherwise, the semantics are similar to
+<I>OnActiveSec=</I>
+and related settings.
+<P>
+Note that timers do not necessarily expire at the precise time configured with this setting, as it is subject to the
+<I>AccuracySec=</I>
+setting below.
+<P>
+May be specified more than once, in which case the timer unit will trigger whenever any of the specified expressions elapse. Moreover calendar timers and monotonic timers (see above) may be combined within the same timer unit.
+<P>
+If the empty string is assigned to any of these options, the list of timers is reset (both
+<I>OnCalendar=</I>
+timers and monotonic timers, see above), and all prior assignments will have no effect.
+</DL>
+
+<P>
+
+<I>AccuracySec=</I>
+<DL COMPACT><DT id="6"><DD>
+Specify the accuracy the timer shall elapse with. Defaults to 1min. The timer is scheduled to elapse within a time window starting with the time specified in
+<I>OnCalendar=</I>,
+<I>OnActiveSec=</I>,
+<I>OnBootSec=</I>,
+<I>OnStartupSec=</I>,
+<I>OnUnitActiveSec=</I>
+or
+<I>OnUnitInactiveSec=</I>
+and ending the time configured with
+<I>AccuracySec=</I>
+later. Within this time window, the expiry time will be placed at a host-specific, randomized, but stable position that is synchronized between all local timer units. This is done in order to optimize power consumption to suppress unnecessary CPU wake-ups. To get best accuracy, set this option to 1us. Note that the timer is still subject to the timer slack configured via
+<B><A HREF="/cgi-bin/man/man2html?5+systemd-system.conf">systemd-system.conf</A></B>(5)'s
+<I>TimerSlackNSec=</I>
+setting. See
+<B><A HREF="/cgi-bin/man/man2html?2+prctl">prctl</A></B>(2)
+for details. To optimize power consumption, make sure to set this value as high as possible and as low as necessary.
+<P>
+Note that this setting is primarily a power saving option that allows coalescing CPU wake-ups. It should not be confused with
+<I>RandomizedDelaySec=</I>
+(see below) which adds a random value to the time the timer shall elapse next and whose purpose is the opposite: to stretch elapsing of timer events over a longer period to reduce workload spikes. For further details and explanations and how both settings play together, see below.
+</DL>
+
+<P>
+
+<I>RandomizedDelaySec=</I>
+<DL COMPACT><DT id="7"><DD>
+Delay the timer by a randomly selected, evenly distributed amount of time between 0 and the specified time value. Defaults to 0, indicating that no randomized delay shall be applied. Each timer unit will determine this delay randomly before each iteration, and the delay will simply be added on top of the next determined elapsing time. This is useful to stretch dispatching of similarly configured timer events over a certain amount time, to avoid that they all fire at the same time, possibly resulting in resource congestion. Note the relation to
+<I>AccuracySec=</I>
+above: the latter allows the service manager to coalesce timer events within a specified time range in order to minimize wakeups, the former does the opposite: it stretches timer events over a time range, to make it unlikely that they fire simultaneously. If
+<I>RandomizedDelaySec=</I>
+and
+<I>AccuracySec=</I>
+are used in conjunction, first the randomized delay is added, and then the result is possibly further shifted to coalesce it with other timer events happening on the system. As mentioned above
+<I>AccuracySec=</I>
+defaults to 1min and
+<I>RandomizedDelaySec=</I>
+to 0, thus encouraging coalescing of timer events. In order to optimally stretch timer events over a certain range of time, make sure to set
+<I>RandomizedDelaySec=</I>
+to a higher value, and
+<I>AccuracySec=1us</I>.
+</DL>
+
+<P>
+
+<I>OnClockChange=</I>, <I>OnTimezoneChange=</I>
+<DL COMPACT><DT id="8"><DD>
+These options take boolean arguments. When true, the service unit will be triggered when the system clock (<B>CLOCK_REALTIME</B>) jumps relative to the monotonic clock (<B>CLOCK_MONOTONIC</B>), or when the local system timezone is modified. These options can be used alone or in combination with other timer expressions (see above) within the same timer unit. These options default to false.
+</DL>
+
+<P>
+
+<I>Unit=</I>
+<DL COMPACT><DT id="9"><DD>
+The unit to activate when this timer elapses. The argument is a unit name, whose suffix is not
+&quot;.timer&quot;. If not specified, this value defaults to a service that has the same name as the timer unit, except for the suffix. (See above.) It is recommended that the unit name that is activated and the unit name of the timer unit are named identically, except for the suffix.
+</DL>
+
+<P>
+
+<I>Persistent=</I>
+<DL COMPACT><DT id="10"><DD>
+Takes a boolean argument. If true, the time when the service unit was last triggered is stored on disk. When the timer is activated, the service unit is triggered immediately if it would have been triggered at least once during the time when the timer was inactive. This is useful to catch up on missed runs of the service when the system was powered down. Note that this setting only has an effect on timers configured with
+<I>OnCalendar=</I>. Defaults to
+<I>false</I>.
+<P>
+Use
+<B>systemctl clean --what=state ...</B>
+on the timer unit to remove the timestamp file maintained by this option from disk. In particular, use this command before uninstalling a timer unit. See
+<B><A HREF="/cgi-bin/man/man2html?1+systemctl">systemctl</A></B>(1)
+for details.
+</DL>
+
+<P>
+
+<I>WakeSystem=</I>
+<DL COMPACT><DT id="11"><DD>
+Takes a boolean argument. If true, an elapsing timer will cause the system to resume from suspend, should it be suspended and if the system supports this. Note that this option will only make sure the system resumes on the appropriate times, it will not take care of suspending it again after any work that is to be done is finished. Defaults to
+<I>false</I>.
+<P>
+Note that this functionality requires privileges and is thus generally only available in the system service manager.
+<P>
+Note that behaviour of monotonic clock timers (as configured with
+<I>OnActiveSec=</I>,
+<I>OnBootSec=</I>,
+<I>OnStartupSec=</I>,
+<I>OnUnitActiveSec=</I>,
+<I>OnUnitInactiveSec=</I>, see above) is altered depending on this option. If false, a monotonic clock is used that is paused during system suspend (<B>CLOCK_MONOTONIC</B>), if true a different monotonic clock is used that continues advancing during system suspend (<B>CLOCK_BOOTTIME</B>), see
+<B><A HREF="/cgi-bin/man/man2html?2+clock_getres">clock_getres</A></B>(2)
+for details.
+</DL>
+
+<P>
+
+<I>RemainAfterElapse=</I>
+<DL COMPACT><DT id="12"><DD>
+Takes a boolean argument. If true, an elapsed timer will stay loaded, and its state remains queryable. If false, an elapsed timer unit that cannot elapse anymore is unloaded. Turning this off is particularly useful for transient timer units that shall disappear after they first elapse. Note that this setting has an effect on repeatedly starting a timer unit that only elapses once: if
+<I>RemainAfterElapse=</I>
+is on, it will not be started again, and is guaranteed to elapse only once. However, if
+<I>RemainAfterElapse=</I>
+is off, it might be started again if it is already elapsed, and thus be triggered multiple times. Defaults to
+<I>yes</I>.
+</DL>
+
+<A NAME="lbAI">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?1+systemctl">systemctl</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.unit">systemd.unit</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.service">systemd.service</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?7+systemd.time">systemd.time</A></B>(7),
+<B><A HREF="/cgi-bin/man/man2html?7+systemd.directives">systemd.directives</A></B>(7),
+<B><A HREF="/cgi-bin/man/man2html?5+systemd-system.conf">systemd-system.conf</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?2+prctl">prctl</A></B>(2)
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="13"><A HREF="#lbAB">NAME</A><DD>
+<DT id="14"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="15"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="16"><A HREF="#lbAE">AUTOMATIC DEPENDENCIES</A><DD>
+<DL>
+<DT id="17"><A HREF="#lbAF">Implicit Dependencies</A><DD>
+<DT id="18"><A HREF="#lbAG">Default Dependencies</A><DD>
+</DL>
+<DT id="19"><A HREF="#lbAH">OPTIONS</A><DD>
+<DT id="20"><A HREF="#lbAI">SEE ALSO</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:06 GMT, March 31, 2021
+</BODY>
+</HTML>

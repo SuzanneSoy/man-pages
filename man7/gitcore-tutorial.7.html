@@ -1,0 +1,2479 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of GITCORE-TUTORIAL</TITLE>
+</HEAD><BODY>
+<H1>GITCORE-TUTORIAL</H1>
+Section: Git Manual (7)<BR>Updated: 03/04/2021<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+gitcore-tutorial - A Git core tutorial for developers
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+git *
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+This tutorial explains how to use the &quot;core&quot; Git commands to set up and work with a Git repository.
+<P>
+If you just need to use Git as a revision control system you may prefer to start with &quot;A Tutorial Introduction to Git&quot; (<B><A HREF="/cgi-bin/man/man2html?7+gittutorial">gittutorial</A></B>(7)) or m[blue]<B>the Git User Manual</B>m[]<FONT SIZE="-2">[1]</FONT>.
+<P>
+However, an understanding of these low-level tools can be helpful if you want to understand Git's internals.
+<P>
+The core Git is often called &quot;plumbing&quot;, with the prettier user interfaces on top of it called &quot;porcelain&quot;. You may not want to use the plumbing directly very often, but it can be good to know what the plumbing does when the porcelain isn't flushing.
+<P>
+Back when this document was originally written, many porcelain commands were shell scripts. For simplicity, it still uses them as examples to illustrate how plumbing is fit together to form the porcelain commands. The source tree includes some of these scripts in contrib/examples/ for reference. Although these are not implemented as shell scripts anymore, the description of what the plumbing layer commands do is still valid.
+<P>
+
+
+
+<DL COMPACT><DT id="1"><DD>
+
+
+
+<BR>
+
+<FONT SIZE="+1">
+<B>Note</B>
+</FONT>
+<BR>
+
+<P>
+Deeper technical details are often marked as Notes, which you can skip on your first reading.
+<P>
+</DL>
+
+<A NAME="lbAE">&nbsp;</A>
+<H2>CREATING A GIT REPOSITORY</H2>
+
+<P>
+Creating a new Git repository couldn't be easier: all Git repositories start out empty, and the only thing you need to do is find yourself a subdirectory that you want to use as a working tree - either an empty one for a totally new project, or an existing working tree that you want to import into Git.
+<P>
+For our first example, we're going to start a totally new repository from scratch, with no pre-existing files, and we'll call it <I>git-tutorial</I>. To start up, create a subdirectory for it, change into that subdirectory, and initialize the Git infrastructure with <I>git init</I>:
+<P>
+<DL COMPACT><DT id="2"><DD>
+
+
+
+<PRE>
+$ mkdir git-tutorial
+$ cd git-tutorial
+$ git init
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+to which Git will reply
+<P>
+<DL COMPACT><DT id="3"><DD>
+
+
+
+<PRE>
+Initialized empty Git repository in .git/
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+which is just Git's way of saying that you haven't been doing anything strange, and that it will have created a local <B>.git</B> directory setup for your new project. You will now have a <B>.git</B> directory, and you can inspect that with <I>ls</I>. For your new empty project, it should show you three entries, among other things:
+<P>
+<DL COMPACT><DT id="4"><DD>
+&bull;
+
+
+a file called
+<B>HEAD</B>, that has
+<B>ref: refs/heads/master</B>
+in it. This is similar to a symbolic link and points at
+<B>refs/heads/master</B>
+relative to the
+<B>HEAD</B>
+file.
+<P>
+Don't worry about the fact that the file that the
+<B>HEAD</B>
+link points to doesn't even exist yet --- you haven't created the commit that will start your
+<B>HEAD</B>
+development branch yet.
+</DL>
+
+<P>
+<DL COMPACT><DT id="5"><DD>
+&bull;
+
+
+a subdirectory called
+<B>objects</B>, which will contain all the objects of your project. You should never have any real reason to look at the objects directly, but you might want to know that these objects are what contains all the real
+<I>data</I>
+in your repository.
+</DL>
+
+<P>
+<DL COMPACT><DT id="6"><DD>
+&bull;
+
+
+a subdirectory called
+<B>refs</B>, which contains references to objects.
+</DL>
+
+<P>
+In particular, the <B>refs</B> subdirectory will contain two other subdirectories, named <B>heads</B> and <B>tags</B> respectively. They do exactly what their names imply: they contain references to any number of different <I>heads</I> of development (aka <I>branches</I>), and to any <I>tags</I> that you have created to name specific versions in your repository.
+<P>
+One note: the special <B>master</B> head is the default branch, which is why the <B>.git/HEAD</B> file was created points to it even if it doesn't yet exist. Basically, the <B>HEAD</B> link is supposed to always point to the branch you are working on right now, and you always start out expecting to work on the <B>master</B> branch.
+<P>
+However, this is only a convention, and you can name your branches anything you want, and don't have to ever even <I>have</I> a <B>master</B> branch. A number of the Git tools will assume that <B>.git/HEAD</B> is valid, though.
+<P>
+
+
+
+<DL COMPACT><DT id="7"><DD>
+
+
+
+<BR>
+
+<FONT SIZE="+1">
+<B>Note</B>
+</FONT>
+<BR>
+
+<P>
+An <I>object</I> is identified by its 160-bit SHA-1 hash, aka <I>object name</I>, and a reference to an object is always the 40-byte hex representation of that SHA-1 name. The files in the <B>refs</B> subdirectory are expected to contain these hex references (usually with a final <B>\n</B> at the end), and you should thus expect to see a number of 41-byte files containing these references in these <B>refs</B> subdirectories when you actually start populating your tree.
+<P>
+</DL>
+
+<P>
+
+
+
+<DL COMPACT><DT id="8"><DD>
+
+
+
+<BR>
+
+<FONT SIZE="+1">
+<B>Note</B>
+</FONT>
+<BR>
+
+<P>
+An advanced user may want to take a look at <B><A HREF="/cgi-bin/man/man2html?5+gitrepository-layout">gitrepository-layout</A></B>(5) after finishing this tutorial.
+<P>
+</DL>
+
+<P>
+You have now created your first Git repository. Of course, since it's empty, that's not very useful, so let's start populating it with data.
+<A NAME="lbAF">&nbsp;</A>
+<H2>POPULATING A GIT REPOSITORY</H2>
+
+<P>
+We'll keep this simple and stupid, so we'll start off with populating a few trivial files just to get a feel for it.
+<P>
+Start off with just creating any random files that you want to maintain in your Git repository. We'll start off with a few bad examples, just to get a feel for how this works:
+<P>
+<DL COMPACT><DT id="9"><DD>
+
+
+
+<PRE>
+$ echo &quot;Hello World&quot; &gt;hello
+$ echo &quot;Silly example&quot; &gt;example
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+you have now created two files in your working tree (aka <I>working directory</I>), but to actually check in your hard work, you will have to go through two steps:
+<P>
+<DL COMPACT><DT id="10"><DD>
+&bull;
+
+
+fill in the
+<I>index</I>
+file (aka
+<I>cache</I>) with the information about your working tree state.
+</DL>
+
+<P>
+<DL COMPACT><DT id="11"><DD>
+&bull;
+
+
+commit that index file as an object.
+</DL>
+
+<P>
+The first step is trivial: when you want to tell Git about any changes to your working tree, you use the <I>git update-index</I> program. That program normally just takes a list of filenames you want to update, but to avoid trivial mistakes, it refuses to add new entries to the index (or remove existing ones) unless you explicitly tell it that you're adding a new entry with the <B>--add</B> flag (or removing an entry with the <B>--remove</B>) flag.
+<P>
+So to populate the index with the two files you just created, you can do
+<P>
+<DL COMPACT><DT id="12"><DD>
+
+
+
+<PRE>
+$ git update-index --add hello example
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+and you have now told Git to track those two files.
+<P>
+In fact, as you did that, if you now look into your object directory, you'll notice that Git will have added two new objects to the object database. If you did exactly the steps above, you should now be able to do
+<P>
+<DL COMPACT><DT id="13"><DD>
+
+
+
+<PRE>
+$ ls .git/objects/??/*
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+and see two files:
+<P>
+<DL COMPACT><DT id="14"><DD>
+
+
+
+<PRE>
+.git/objects/55/7db03de997c86a4a028e1ebd3a1ceb225be238
+.git/objects/f2/4c74a2e500f5ee1332c86b94199f52b1d1d962
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+which correspond with the objects with names of <B>557db...</B> and <B>f24c7...</B> respectively.
+<P>
+If you want to, you can use <I>git cat-file</I> to look at those objects, but you'll have to use the object name, not the filename of the object:
+<P>
+<DL COMPACT><DT id="15"><DD>
+
+
+
+<PRE>
+$ git cat-file -t 557db03de997c86a4a028e1ebd3a1ceb225be238
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+where the <B>-t</B> tells <I>git cat-file</I> to tell you what the &quot;type&quot; of the object is. Git will tell you that you have a &quot;blob&quot; object (i.e., just a regular file), and you can see the contents with
+<P>
+<DL COMPACT><DT id="16"><DD>
+
+
+
+<PRE>
+$ git cat-file blob 557db03
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+which will print out &quot;Hello World&quot;. The object <B>557db03</B> is nothing more than the contents of your file <B>hello</B>.
+<P>
+
+
+
+<DL COMPACT><DT id="17"><DD>
+
+
+
+<BR>
+
+<FONT SIZE="+1">
+<B>Note</B>
+</FONT>
+<BR>
+
+<P>
+Don't confuse that object with the file <B>hello</B> itself. The object is literally just those specific <B>contents</B> of the file, and however much you later change the contents in file <B>hello</B>, the object we just looked at will never change. Objects are immutable.
+<P>
+</DL>
+
+<P>
+
+
+
+<DL COMPACT><DT id="18"><DD>
+
+
+
+<BR>
+
+<FONT SIZE="+1">
+<B>Note</B>
+</FONT>
+<BR>
+
+<P>
+The second example demonstrates that you can abbreviate the object name to only the first several hexadecimal digits in most places.
+<P>
+</DL>
+
+<P>
+Anyway, as we mentioned previously, you normally never actually take a look at the objects themselves, and typing long 40-character hex names is not something you'd normally want to do. The above digression was just to show that <I>git update-index</I> did something magical, and actually saved away the contents of your files into the Git object database.
+<P>
+Updating the index did something else too: it created a <B>.git/index</B> file. This is the index that describes your current working tree, and something you should be very aware of. Again, you normally never worry about the index file itself, but you should be aware of the fact that you have not actually really &quot;checked in&quot; your files into Git so far, you've only <B>told</B> Git about them.
+<P>
+However, since Git knows about them, you can now start using some of the most basic Git commands to manipulate the files or look at their status.
+<P>
+In particular, let's not even check in the two files into Git yet, we'll start off by adding another line to <B>hello</B> first:
+<P>
+<DL COMPACT><DT id="19"><DD>
+
+
+
+<PRE>
+$ echo &quot;It's a new day for git&quot; &gt;&gt;hello
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+and you can now, since you told Git about the previous state of <B>hello</B>, ask Git what has changed in the tree compared to your old index, using the <I>git diff-files</I> command:
+<P>
+<DL COMPACT><DT id="20"><DD>
+
+
+
+<PRE>
+$ git diff-files
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+Oops. That wasn't very readable. It just spit out its own internal version of a <I>diff</I>, but that internal version really just tells you that it has noticed that &quot;hello&quot; has been modified, and that the old object contents it had have been replaced with something else.
+<P>
+To make it readable, we can tell <I>git diff-files</I> to output the differences as a patch, using the <B>-p</B> flag:
+<P>
+<DL COMPACT><DT id="21"><DD>
+
+
+
+<PRE>
+$ git diff-files -p
+diff --git a/hello b/hello
+index 557db03..263414f 100644
+--- a/hello
++++ b/hello
+@@ -1 +1,2 @@
+ Hello World
++It's a new day for git
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+i.e. the diff of the change we caused by adding another line to <B>hello</B>.
+<P>
+In other words, <I>git diff-files</I> always shows us the difference between what is recorded in the index, and what is currently in the working tree. That's very useful.
+<P>
+A common shorthand for <B>git diff-files -p</B> is to just write <B>git diff</B>, which will do the same thing.
+<P>
+<DL COMPACT><DT id="22"><DD>
+
+
+
+<PRE>
+$ git diff
+diff --git a/hello b/hello
+index 557db03..263414f 100644
+--- a/hello
++++ b/hello
+@@ -1 +1,2 @@
+ Hello World
++It's a new day for git
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<A NAME="lbAG">&nbsp;</A>
+<H2>COMMITTING GIT STATE</H2>
+
+<P>
+Now, we want to go to the next stage in Git, which is to take the files that Git knows about in the index, and commit them as a real tree. We do that in two phases: creating a <I>tree</I> object, and committing that <I>tree</I> object as a <I>commit</I> object together with an explanation of what the tree was all about, along with information of how we came to that state.
+<P>
+Creating a tree object is trivial, and is done with <I>git write-tree</I>. There are no options or other input: <B>git write-tree</B> will take the current index state, and write an object that describes that whole index. In other words, we're now tying together all the different filenames with their contents (and their permissions), and we're creating the equivalent of a Git &quot;directory&quot; object:
+<P>
+<DL COMPACT><DT id="23"><DD>
+
+
+
+<PRE>
+$ git write-tree
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+and this will just output the name of the resulting tree, in this case (if you have done exactly as I've described) it should be
+<P>
+<DL COMPACT><DT id="24"><DD>
+
+
+
+<PRE>
+8988da15d077d4829fc51d8544c097def6644dbb
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+which is another incomprehensible object name. Again, if you want to, you can use <B>git cat-file -t 8988d...</B> to see that this time the object is not a &quot;blob&quot; object, but a &quot;tree&quot; object (you can also use <B>git cat-file</B> to actually output the raw object contents, but you'll see mainly a binary mess, so that's less interesting).
+<P>
+However --- normally you'd never use <I>git write-tree</I> on its own, because normally you always commit a tree into a commit object using the <I>git commit-tree</I> command. In fact, it's easier to not actually use <I>git write-tree</I> on its own at all, but to just pass its result in as an argument to <I>git commit-tree</I>.
+<P>
+<I>git commit-tree</I> normally takes several arguments --- it wants to know what the <I>parent</I> of a commit was, but since this is the first commit ever in this new repository, and it has no parents, we only need to pass in the object name of the tree. However, <I>git commit-tree</I> also wants to get a commit message on its standard input, and it will write out the resulting object name for the commit to its standard output.
+<P>
+And this is where we create the <B>.git/refs/heads/master</B> file which is pointed at by <B>HEAD</B>. This file is supposed to contain the reference to the top-of-tree of the master branch, and since that's exactly what <I>git commit-tree</I> spits out, we can do this all with a sequence of simple shell commands:
+<P>
+<DL COMPACT><DT id="25"><DD>
+
+
+
+<PRE>
+$ tree=$(git write-tree)
+$ commit=$(echo 'Initial commit' | git commit-tree $tree)
+$ git update-ref HEAD $commit
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+In this case this creates a totally new commit that is not related to anything else. Normally you do this only <B>once</B> for a project ever, and all later commits will be parented on top of an earlier commit.
+<P>
+Again, normally you'd never actually do this by hand. There is a helpful script called <B>git commit</B> that will do all of this for you. So you could have just written <B>git commit</B> instead, and it would have done the above magic scripting for you.
+<A NAME="lbAH">&nbsp;</A>
+<H2>MAKING A CHANGE</H2>
+
+<P>
+Remember how we did the <I>git update-index</I> on file <B>hello</B> and then we changed <B>hello</B> afterward, and could compare the new state of <B>hello</B> with the state we saved in the index file?
+<P>
+Further, remember how I said that <I>git write-tree</I> writes the contents of the <B>index</B> file to the tree, and thus what we just committed was in fact the <B>original</B> contents of the file <B>hello</B>, not the new ones. We did that on purpose, to show the difference between the index state, and the state in the working tree, and how they don't have to match, even when we commit things.
+<P>
+As before, if we do <B>git diff-files -p</B> in our git-tutorial project, we'll still see the same difference we saw last time: the index file hasn't changed by the act of committing anything. However, now that we have committed something, we can also learn to use a new command: <I>git diff-index</I>.
+<P>
+Unlike <I>git diff-files</I>, which showed the difference between the index file and the working tree, <I>git diff-index</I> shows the differences between a committed <B>tree</B> and either the index file or the working tree. In other words, <I>git diff-index</I> wants a tree to be diffed against, and before we did the commit, we couldn't do that, because we didn't have anything to diff against.
+<P>
+But now we can do
+<P>
+<DL COMPACT><DT id="26"><DD>
+
+
+
+<PRE>
+$ git diff-index -p HEAD
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+(where <B>-p</B> has the same meaning as it did in <I>git diff-files</I>), and it will show us the same difference, but for a totally different reason. Now we're comparing the working tree not against the index file, but against the tree we just wrote. It just so happens that those two are obviously the same, so we get the same result.
+<P>
+Again, because this is a common operation, you can also just shorthand it with
+<P>
+<DL COMPACT><DT id="27"><DD>
+
+
+
+<PRE>
+$ git diff HEAD
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+which ends up doing the above for you.
+<P>
+In other words, <I>git diff-index</I> normally compares a tree against the working tree, but when given the <B>--cached</B> flag, it is told to instead compare against just the index cache contents, and ignore the current working tree state entirely. Since we just wrote the index file to HEAD, doing <B>git diff-index --cached -p HEAD</B> should thus return an empty set of differences, and that's exactly what it does.
+<P>
+
+
+
+<DL COMPACT><DT id="28"><DD>
+
+
+
+<BR>
+
+<FONT SIZE="+1">
+<B>Note</B>
+</FONT>
+<BR>
+
+<P>
+<I>git diff-index</I> really always uses the index for its comparisons, and saying that it compares a tree against the working tree is thus not strictly accurate. In particular, the list of files to compare (the &quot;meta-data&quot;) <B>always</B> comes from the index file, regardless of whether the <B>--cached</B> flag is used or not. The <B>--cached</B> flag really only determines whether the file <B>contents</B> to be compared come from the working tree or not.
+<P>
+This is not hard to understand, as soon as you realize that Git simply never knows (or cares) about files that it is not told about explicitly. Git will never go <B>looking</B> for files to compare, it expects you to tell it what the files are, and that's what the index is there for.
+<P>
+</DL>
+
+<P>
+However, our next step is to commit the <B>change</B> we did, and again, to understand what's going on, keep in mind the difference between &quot;working tree contents&quot;, &quot;index file&quot; and &quot;committed tree&quot;. We have changes in the working tree that we want to commit, and we always have to work through the index file, so the first thing we need to do is to update the index cache:
+<P>
+<DL COMPACT><DT id="29"><DD>
+
+
+
+<PRE>
+$ git update-index hello
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+(note how we didn't need the <B>--add</B> flag this time, since Git knew about the file already).
+<P>
+Note what happens to the different <I>git diff-*</I> versions here. After we've updated <B>hello</B> in the index, <B>git diff-files -p</B> now shows no differences, but <B>git diff-index -p HEAD</B> still <B>does</B> show that the current state is different from the state we committed. In fact, now <I>git diff-index</I> shows the same difference whether we use the <B>--cached</B> flag or not, since now the index is coherent with the working tree.
+<P>
+Now, since we've updated <B>hello</B> in the index, we can commit the new version. We could do it by writing the tree by hand again, and committing the tree (this time we'd have to use the <B>-p HEAD</B> flag to tell commit that the HEAD was the <B>parent</B> of the new commit, and that this wasn't an initial commit any more), but you've done that once already, so let's just use the helpful script this time:
+<P>
+<DL COMPACT><DT id="30"><DD>
+
+
+
+<PRE>
+$ git commit
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+which starts an editor for you to write the commit message and tells you a bit about what you have done.
+<P>
+Write whatever message you want, and all the lines that start with <I>#</I> will be pruned out, and the rest will be used as the commit message for the change. If you decide you don't want to commit anything after all at this point (you can continue to edit things and update the index), you can just leave an empty message. Otherwise <B>git commit</B> will commit the change for you.
+<P>
+You've now made your first real Git commit. And if you're interested in looking at what <B>git commit</B> really does, feel free to investigate: it's a few very simple shell scripts to generate the helpful (?) commit message headers, and a few one-liners that actually do the commit itself (<I>git commit</I>).
+<A NAME="lbAI">&nbsp;</A>
+<H2>INSPECTING CHANGES</H2>
+
+<P>
+While creating changes is useful, it's even more useful if you can tell later what changed. The most useful command for this is another of the <I>diff</I> family, namely <I>git diff-tree</I>.
+<P>
+<I>git diff-tree</I> can be given two arbitrary trees, and it will tell you the differences between them. Perhaps even more commonly, though, you can give it just a single commit object, and it will figure out the parent of that commit itself, and show the difference directly. Thus, to get the same diff that we've already seen several times, we can now do
+<P>
+<DL COMPACT><DT id="31"><DD>
+
+
+
+<PRE>
+$ git diff-tree -p HEAD
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+(again, <B>-p</B> means to show the difference as a human-readable patch), and it will show what the last commit (in <B>HEAD</B>) actually changed.
+<P>
+
+
+
+<DL COMPACT><DT id="32"><DD>
+
+
+
+<BR>
+
+<FONT SIZE="+1">
+<B>Note</B>
+</FONT>
+<BR>
+
+<P>
+Here is an ASCII art by Jon Loeliger that illustrates how various <I>diff-*</I> commands compare things.
+<P>
+<DL COMPACT><DT id="33"><DD>
+
+
+
+<PRE>
+            diff-tree
+             +----+
+             |    |
+             |    |
+             V    V
+          +-----------+
+          | Object DB |
+          |  Backing  |
+          |   Store   |
+          +-----------+
+            ^    ^
+            |    |
+            |    |  diff-index --cached
+            |    |
+diff-index  |    V
+            |  +-----------+
+            |  |   Index   |
+            |  |  &quot;cache&quot;  |
+            |  +-----------+
+            |    ^
+            |    |
+            |    |  diff-files
+            |    |
+            V    V
+          +-----------+
+          |  Working  |
+          | Directory |
+          +-----------+
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+</DL>
+
+<P>
+More interestingly, you can also give <I>git diff-tree</I> the <B>--pretty</B> flag, which tells it to also show the commit message and author and date of the commit, and you can tell it to show a whole series of diffs. Alternatively, you can tell it to be &quot;silent&quot;, and not show the diffs at all, but just show the actual commit message.
+<P>
+In fact, together with the <I>git rev-list</I> program (which generates a list of revisions), <I>git diff-tree</I> ends up being a veritable fount of changes. You can emulate <B>git log</B>, <B>git log -p</B>, etc. with a trivial script that pipes the output of <B>git rev-list</B> to <B>git diff-tree --stdin</B>, which was exactly how early versions of <B>git log</B> were implemented.
+<A NAME="lbAJ">&nbsp;</A>
+<H2>TAGGING A VERSION</H2>
+
+<P>
+In Git, there are two kinds of tags, a &quot;light&quot; one, and an &quot;annotated tag&quot;.
+<P>
+A &quot;light&quot; tag is technically nothing more than a branch, except we put it in the <B>.git/refs/tags/</B> subdirectory instead of calling it a <B>head</B>. So the simplest form of tag involves nothing more than
+<P>
+<DL COMPACT><DT id="34"><DD>
+
+
+
+<PRE>
+$ git tag my-first-tag
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+which just writes the current <B>HEAD</B> into the <B>.git/refs/tags/my-first-tag</B> file, after which point you can then use this symbolic name for that particular state. You can, for example, do
+<P>
+<DL COMPACT><DT id="35"><DD>
+
+
+
+<PRE>
+$ git diff my-first-tag
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+to diff your current state against that tag which at this point will obviously be an empty diff, but if you continue to develop and commit stuff, you can use your tag as an &quot;anchor-point&quot; to see what has changed since you tagged it.
+<P>
+An &quot;annotated tag&quot; is actually a real Git object, and contains not only a pointer to the state you want to tag, but also a small tag name and message, along with optionally a PGP signature that says that yes, you really did that tag. You create these annotated tags with either the <B>-a</B> or <B>-s</B> flag to <I>git tag</I>:
+<P>
+<DL COMPACT><DT id="36"><DD>
+
+
+
+<PRE>
+$ git tag -s &lt;tagname&gt;
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+which will sign the current <B>HEAD</B> (but you can also give it another argument that specifies the thing to tag, e.g., you could have tagged the current <B>mybranch</B> point by using <B>git tag &lt;tagname&gt; mybranch</B>).
+<P>
+You normally only do signed tags for major releases or things like that, while the light-weight tags are useful for any marking you want to do --- any time you decide that you want to remember a certain point, just create a private tag for it, and you have a nice symbolic name for the state at that point.
+<A NAME="lbAK">&nbsp;</A>
+<H2>COPYING REPOSITORIES</H2>
+
+<P>
+Git repositories are normally totally self-sufficient and relocatable. Unlike CVS, for example, there is no separate notion of &quot;repository&quot; and &quot;working tree&quot;. A Git repository normally <B>is</B> the working tree, with the local Git information hidden in the <B>.git</B> subdirectory. There is nothing else. What you see is what you got.
+<P>
+
+
+
+<DL COMPACT><DT id="37"><DD>
+
+
+
+<BR>
+
+<FONT SIZE="+1">
+<B>Note</B>
+</FONT>
+<BR>
+
+<P>
+You can tell Git to split the Git internal information from the directory that it tracks, but we'll ignore that for now: it's not how normal projects work, and it's really only meant for special uses. So the mental model of &quot;the Git information is always tied directly to the working tree that it describes&quot; may not be technically 100% accurate, but it's a good model for all normal use.
+<P>
+</DL>
+
+<P>
+This has two implications:
+<P>
+<DL COMPACT><DT id="38"><DD>
+&bull;
+
+
+if you grow bored with the tutorial repository you created (or you've made a mistake and want to start all over), you can just do simple
+<P>
+<DL COMPACT><DT id="39"><DD>
+
+
+
+<PRE>
+$ rm -rf git-tutorial
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+and it will be gone. There's no external repository, and there's no history outside the project you created.
+</DL>
+
+<P>
+<DL COMPACT><DT id="40"><DD>
+&bull;
+
+
+if you want to move or duplicate a Git repository, you can do so. There is
+<I>git clone</I>
+command, but if all you want to do is just to create a copy of your repository (with all the full history that went along with it), you can do so with a regular
+<B>cp -a git-tutorial new-git-tutorial</B>.
+<P>
+Note that when you've moved or copied a Git repository, your Git index file (which caches various information, notably some of the &quot;stat&quot; information for the files involved) will likely need to be refreshed. So after you do a
+<B>cp -a</B>
+to create a new copy, you'll want to do
+<P>
+<DL COMPACT><DT id="41"><DD>
+
+
+
+<PRE>
+$ git update-index --refresh
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+in the new repository to make sure that the index file is up to date.
+</DL>
+
+<P>
+Note that the second point is true even across machines. You can duplicate a remote Git repository with <B>any</B> regular copy mechanism, be it <I>scp</I>, <I>rsync</I> or <I>wget</I>.
+<P>
+When copying a remote repository, you'll want to at a minimum update the index cache when you do this, and especially with other peoples' repositories you often want to make sure that the index cache is in some known state (you don't know <B>what</B> they've done and not yet checked in), so usually you'll precede the <I>git update-index</I> with a
+<P>
+<DL COMPACT><DT id="42"><DD>
+
+
+
+<PRE>
+$ git read-tree --reset HEAD
+$ git update-index --refresh
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+which will force a total index re-build from the tree pointed to by <B>HEAD</B>. It resets the index contents to <B>HEAD</B>, and then the <I>git update-index</I> makes sure to match up all index entries with the checked-out files. If the original repository had uncommitted changes in its working tree, <B>git update-index --refresh</B> notices them and tells you they need to be updated.
+<P>
+The above can also be written as simply
+<P>
+<DL COMPACT><DT id="43"><DD>
+
+
+
+<PRE>
+$ git reset
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+and in fact a lot of the common Git command combinations can be scripted with the <B>git xyz</B> interfaces. You can learn things by just looking at what the various git scripts do. For example, <B>git reset</B> used to be the above two lines implemented in <I>git reset</I>, but some things like <I>git status</I> and <I>git commit</I> are slightly more complex scripts around the basic Git commands.
+<P>
+Many (most?) public remote repositories will not contain any of the checked out files or even an index file, and will <B>only</B> contain the actual core Git files. Such a repository usually doesn't even have the <B>.git</B> subdirectory, but has all the Git files directly in the repository.
+<P>
+To create your own local live copy of such a &quot;raw&quot; Git repository, you'd first create your own subdirectory for the project, and then copy the raw repository contents into the <B>.git</B> directory. For example, to create your own copy of the Git repository, you'd do the following
+<P>
+<DL COMPACT><DT id="44"><DD>
+
+
+
+<PRE>
+$ mkdir my-git
+$ cd my-git
+$ rsync -rL <A HREF="rsync://rsync.kernel.org/pub/scm/git/git.git/">rsync://rsync.kernel.org/pub/scm/git/git.git/</A> .git
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+followed by
+<P>
+<DL COMPACT><DT id="45"><DD>
+
+
+
+<PRE>
+$ git read-tree HEAD
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+to populate the index. However, now you have populated the index, and you have all the Git internal files, but you will notice that you don't actually have any of the working tree files to work on. To get those, you'd check them out with
+<P>
+<DL COMPACT><DT id="46"><DD>
+
+
+
+<PRE>
+$ git checkout-index -u -a
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+where the <B>-u</B> flag means that you want the checkout to keep the index up to date (so that you don't have to refresh it afterward), and the <B>-a</B> flag means &quot;check out all files&quot; (if you have a stale copy or an older version of a checked out tree you may also need to add the <B>-f</B> flag first, to tell <I>git checkout-index</I> to <B>force</B> overwriting of any old files).
+<P>
+Again, this can all be simplified with
+<P>
+<DL COMPACT><DT id="47"><DD>
+
+
+
+<PRE>
+$ git clone <A HREF="git://git.kernel.org/pub/scm/git/git.git/">git://git.kernel.org/pub/scm/git/git.git/</A> my-git
+$ cd my-git
+$ git checkout
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+which will end up doing all of the above for you.
+<P>
+You have now successfully copied somebody else's (mine) remote repository, and checked it out.
+<A NAME="lbAL">&nbsp;</A>
+<H2>CREATING A NEW BRANCH</H2>
+
+<P>
+Branches in Git are really nothing more than pointers into the Git object database from within the <B>.git/refs/</B> subdirectory, and as we already discussed, the <B>HEAD</B> branch is nothing but a symlink to one of these object pointers.
+<P>
+You can at any time create a new branch by just picking an arbitrary point in the project history, and just writing the SHA-1 name of that object into a file under <B>.git/refs/heads/</B>. You can use any filename you want (and indeed, subdirectories), but the convention is that the &quot;normal&quot; branch is called <B>master</B>. That's just a convention, though, and nothing enforces it.
+<P>
+To show that as an example, let's go back to the git-tutorial repository we used earlier, and create a branch in it. You do that by simply just saying that you want to check out a new branch:
+<P>
+<DL COMPACT><DT id="48"><DD>
+
+
+
+<PRE>
+$ git switch -c mybranch
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+will create a new branch based at the current <B>HEAD</B> position, and switch to it.
+<P>
+
+
+
+<DL COMPACT><DT id="49"><DD>
+
+
+
+<BR>
+
+<FONT SIZE="+1">
+<B>Note</B>
+</FONT>
+<BR>
+
+<P>
+If you make the decision to start your new branch at some other point in the history than the current <B>HEAD</B>, you can do so by just telling <I>git switch</I> what the base of the checkout would be. In other words, if you have an earlier tag or branch, you'd just do
+<P>
+<DL COMPACT><DT id="50"><DD>
+
+
+
+<PRE>
+$ git switch -c mybranch earlier-commit
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+and it would create the new branch <B>mybranch</B> at the earlier commit, and check out the state at that time.
+<P>
+</DL>
+
+<P>
+You can always just jump back to your original <B>master</B> branch by doing
+<P>
+<DL COMPACT><DT id="51"><DD>
+
+
+
+<PRE>
+$ git switch master
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+(or any other branch-name, for that matter) and if you forget which branch you happen to be on, a simple
+<P>
+<DL COMPACT><DT id="52"><DD>
+
+
+
+<PRE>
+$ cat .git/HEAD
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+will tell you where it's pointing. To get the list of branches you have, you can say
+<P>
+<DL COMPACT><DT id="53"><DD>
+
+
+
+<PRE>
+$ git branch
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+which used to be nothing more than a simple script around <B>ls .git/refs/heads</B>. There will be an asterisk in front of the branch you are currently on.
+<P>
+Sometimes you may wish to create a new branch <I>without</I> actually checking it out and switching to it. If so, just use the command
+<P>
+<DL COMPACT><DT id="54"><DD>
+
+
+
+<PRE>
+$ git branch &lt;branchname&gt; [startingpoint]
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+which will simply <I>create</I> the branch, but will not do anything further. You can then later --- once you decide that you want to actually develop on that branch --- switch to that branch with a regular <I>git switch</I> with the branchname as the argument.
+<A NAME="lbAM">&nbsp;</A>
+<H2>MERGING TWO BRANCHES</H2>
+
+<P>
+One of the ideas of having a branch is that you do some (possibly experimental) work in it, and eventually merge it back to the main branch. So assuming you created the above <B>mybranch</B> that started out being the same as the original <B>master</B> branch, let's make sure we're in that branch, and do some work there.
+<P>
+<DL COMPACT><DT id="55"><DD>
+
+
+
+<PRE>
+$ git switch mybranch
+$ echo &quot;Work, work, work&quot; &gt;&gt;hello
+$ git commit -m &quot;Some work.&quot; -i hello
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+Here, we just added another line to <B>hello</B>, and we used a shorthand for doing both <B>git update-index hello</B> and <B>git commit</B> by just giving the filename directly to <B>git commit</B>, with an <B>-i</B> flag (it tells Git to <I>include</I> that file in addition to what you have done to the index file so far when making the commit). The <B>-m</B> flag is to give the commit log message from the command line.
+<P>
+Now, to make it a bit more interesting, let's assume that somebody else does some work in the original branch, and simulate that by going back to the master branch, and editing the same file differently there:
+<P>
+<DL COMPACT><DT id="56"><DD>
+
+
+
+<PRE>
+$ git switch master
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+Here, take a moment to look at the contents of <B>hello</B>, and notice how they don't contain the work we just did in <B>mybranch</B> --- because that work hasn't happened in the <B>master</B> branch at all. Then do
+<P>
+<DL COMPACT><DT id="57"><DD>
+
+
+
+<PRE>
+$ echo &quot;Play, play, play&quot; &gt;&gt;hello
+$ echo &quot;Lots of fun&quot; &gt;&gt;example
+$ git commit -m &quot;Some fun.&quot; -i hello example
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+since the master branch is obviously in a much better mood.
+<P>
+Now, you've got two branches, and you decide that you want to merge the work done. Before we do that, let's introduce a cool graphical tool that helps you view what's going on:
+<P>
+<DL COMPACT><DT id="58"><DD>
+
+
+
+<PRE>
+$ gitk --all
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+will show you graphically both of your branches (that's what the <B>--all</B> means: normally it will just show you your current <B>HEAD</B>) and their histories. You can also see exactly how they came to be from a common source.
+<P>
+Anyway, let's exit <I>gitk</I> (<B>^Q</B> or the File menu), and decide that we want to merge the work we did on the <B>mybranch</B> branch into the <B>master</B> branch (which is currently our <B>HEAD</B> too). To do that, there's a nice script called <I>git merge</I>, which wants to know which branches you want to resolve and what the merge is all about:
+<P>
+<DL COMPACT><DT id="59"><DD>
+
+
+
+<PRE>
+$ git merge -m &quot;Merge work in mybranch&quot; mybranch
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+where the first argument is going to be used as the commit message if the merge can be resolved automatically.
+<P>
+Now, in this case we've intentionally created a situation where the merge will need to be fixed up by hand, though, so Git will do as much of it as it can automatically (which in this case is just merge the <B>example</B> file, which had no differences in the <B>mybranch</B> branch), and say:
+<P>
+<DL COMPACT><DT id="60"><DD>
+
+
+
+<PRE>
+        Auto-merging hello
+        CONFLICT (content): Merge conflict in hello
+        Automatic merge failed; fix conflicts and then commit the result.
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+It tells you that it did an &quot;Automatic merge&quot;, which failed due to conflicts in <B>hello</B>.
+<P>
+Not to worry. It left the (trivial) conflict in <B>hello</B> in the same form you should already be well used to if you've ever used CVS, so let's just open <B>hello</B> in our editor (whatever that may be), and fix it up somehow. I'd suggest just making it so that <B>hello</B> contains all four lines:
+<P>
+<DL COMPACT><DT id="61"><DD>
+
+
+
+<PRE>
+Hello World
+It's a new day for git
+Play, play, play
+Work, work, work
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+and once you're happy with your manual merge, just do a
+<P>
+<DL COMPACT><DT id="62"><DD>
+
+
+
+<PRE>
+$ git commit -i hello
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+which will very loudly warn you that you're now committing a merge (which is correct, so never mind), and you can write a small merge message about your adventures in <I>git merge</I>-land.
+<P>
+After you're done, start up <B>gitk --all</B> to see graphically what the history looks like. Notice that <B>mybranch</B> still exists, and you can switch to it, and continue to work with it if you want to. The <B>mybranch</B> branch will not contain the merge, but next time you merge it from the <B>master</B> branch, Git will know how you merged it, so you'll not have to do <I>that</I> merge again.
+<P>
+Another useful tool, especially if you do not always work in X-Window environment, is <B>git show-branch</B>.
+<P>
+<DL COMPACT><DT id="63"><DD>
+
+
+
+<PRE>
+$ git show-branch --topo-order --more=1 master mybranch
+* [master] Merge work in mybranch
+ ! [mybranch] Some work.
+--
+-  [master] Merge work in mybranch
+*+ [mybranch] Some work.
+*  [master^] Some fun.
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+The first two lines indicate that it is showing the two branches with the titles of their top-of-the-tree commits, you are currently on <B>master</B> branch (notice the asterisk <B>*</B> character), and the first column for the later output lines is used to show commits contained in the <B>master</B> branch, and the second column for the <B>mybranch</B> branch. Three commits are shown along with their titles. All of them have non blank characters in the first column (<B>*</B> shows an ordinary commit on the current branch, <B>-</B> is a merge commit), which means they are now part of the <B>master</B> branch. Only the &quot;Some work&quot; commit has the plus <B>+</B> character in the second column, because <B>mybranch</B> has not been merged to incorporate these commits from the master branch. The string inside brackets before the commit log message is a short name you can use to name the commit. In the above example, <I>master</I> and <I>mybranch</I> are branch heads. <I>master^</I> is the first parent of <I>master</I> branch head. Please see <B><A HREF="/cgi-bin/man/man2html?7+gitrevisions">gitrevisions</A></B>(7) if you want to see more complex cases.
+<P>
+
+
+
+<DL COMPACT><DT id="64"><DD>
+
+
+
+<BR>
+
+<FONT SIZE="+1">
+<B>Note</B>
+</FONT>
+<BR>
+
+<P>
+Without the <I>--more=1</I> option, <I>git show-branch</I> would not output the <I>[master^]</I> commit, as <I>[mybranch]</I> commit is a common ancestor of both <I>master</I> and <I>mybranch</I> tips. Please see <B><A HREF="/cgi-bin/man/man2html?1+git-show-branch">git-show-branch</A></B>(1) for details.
+<P>
+</DL>
+
+<P>
+
+
+
+<DL COMPACT><DT id="65"><DD>
+
+
+
+<BR>
+
+<FONT SIZE="+1">
+<B>Note</B>
+</FONT>
+<BR>
+
+<P>
+If there were more commits on the <I>master</I> branch after the merge, the merge commit itself would not be shown by <I>git show-branch</I> by default. You would need to provide <B>--sparse</B> option to make the merge commit visible in this case.
+<P>
+</DL>
+
+<P>
+Now, let's pretend you are the one who did all the work in <B>mybranch</B>, and the fruit of your hard work has finally been merged to the <B>master</B> branch. Let's go back to <B>mybranch</B>, and run <I>git merge</I> to get the &quot;upstream changes&quot; back to your branch.
+<P>
+<DL COMPACT><DT id="66"><DD>
+
+
+
+<PRE>
+$ git switch mybranch
+$ git merge -m &quot;Merge upstream changes.&quot; master
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+This outputs something like this (the actual commit object names would be different)
+<P>
+<DL COMPACT><DT id="67"><DD>
+
+
+
+<PRE>
+Updating from ae3a2da... to a80b4aa....
+Fast-forward (no commit created; -m option ignored)
+ example | 1 +
+ hello   | 1 +
+ 2 files changed, 2 insertions(+)
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+Because your branch did not contain anything more than what had already been merged into the <B>master</B> branch, the merge operation did not actually do a merge. Instead, it just updated the top of the tree of your branch to that of the <B>master</B> branch. This is often called <I>fast-forward</I> merge.
+<P>
+You can run <B>gitk --all</B> again to see how the commit ancestry looks like, or run <I>show-branch</I>, which tells you this.
+<P>
+<DL COMPACT><DT id="68"><DD>
+
+
+
+<PRE>
+$ git show-branch master mybranch
+! [master] Merge work in mybranch
+ * [mybranch] Merge work in mybranch
+--
+-- [master] Merge work in mybranch
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<A NAME="lbAN">&nbsp;</A>
+<H2>MERGING EXTERNAL WORK</H2>
+
+<P>
+It's usually much more common that you merge with somebody else than merging with your own branches, so it's worth pointing out that Git makes that very easy too, and in fact, it's not that different from doing a <I>git merge</I>. In fact, a remote merge ends up being nothing more than &quot;fetch the work from a remote repository into a temporary tag&quot; followed by a <I>git merge</I>.
+<P>
+Fetching from a remote repository is done by, unsurprisingly, <I>git fetch</I>:
+<P>
+<DL COMPACT><DT id="69"><DD>
+
+
+
+<PRE>
+$ git fetch &lt;remote-repository&gt;
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+One of the following transports can be used to name the repository to download from:
+<P>
+
+SSH
+<DL COMPACT><DT id="70"><DD>
+<B>remote.machine:/path/to/repo.git/</B>
+or
+<P>
+<B><A HREF="ssh://remote.machine/path/to/repo.git/">ssh://remote.machine/path/to/repo.git/</A></B>
+<P>
+This transport can be used for both uploading and downloading, and requires you to have a log-in privilege over
+<B>ssh</B>
+to the remote machine. It finds out the set of objects the other side lacks by exchanging the head commits both ends have and transfers (close to) minimum set of objects. It is by far the most efficient way to exchange Git objects between repositories.
+</DL>
+
+<P>
+
+Local directory
+<DL COMPACT><DT id="71"><DD>
+<B>/path/to/repo.git/</B>
+<P>
+This transport is the same as SSH transport but uses
+<I>sh</I>
+to run both ends on the local machine instead of running other end on the remote machine via
+<I>ssh</I>.
+</DL>
+
+<P>
+
+Git Native
+<DL COMPACT><DT id="72"><DD>
+<B><A HREF="git://remote.machine/path/to/repo.git/">git://remote.machine/path/to/repo.git/</A></B>
+<P>
+This transport was designed for anonymous downloading. Like SSH transport, it finds out the set of objects the downstream side lacks and transfers (close to) minimum set of objects.
+</DL>
+
+<P>
+
+HTTP(S)
+<DL COMPACT><DT id="73"><DD>
+<B><A HREF="http://remote.machine/path/to/repo.git/">http://remote.machine/path/to/repo.git/</A></B>
+<P>
+Downloader from http and https URL first obtains the topmost commit object name from the remote site by looking at the specified refname under
+<B>repo.git/refs/</B>
+directory, and then tries to obtain the commit object by downloading from
+<B>repo.git/objects/xx/xxx...</B>
+using the object name of that commit object. Then it reads the commit object to find out its parent commits and the associate tree object; it repeats this process until it gets all the necessary objects. Because of this behavior, they are sometimes also called
+<I>commit walkers</I>.
+<P>
+The
+<I>commit walkers</I>
+are sometimes also called
+<I>dumb transports</I>, because they do not require any Git aware smart server like Git Native transport does. Any stock HTTP server that does not even support directory index would suffice. But you must prepare your repository with
+<I>git update-server-info</I>
+to help dumb transport downloaders.
+</DL>
+
+<P>
+Once you fetch from the remote repository, you <B>merge</B> that with your current branch.
+<P>
+However --- it's such a common thing to <B>fetch</B> and then immediately <B>merge</B>, that it's called <B>git pull</B>, and you can simply do
+<P>
+<DL COMPACT><DT id="74"><DD>
+
+
+
+<PRE>
+$ git pull &lt;remote-repository&gt;
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+and optionally give a branch-name for the remote end as a second argument.
+<P>
+
+
+
+<DL COMPACT><DT id="75"><DD>
+
+
+
+<BR>
+
+<FONT SIZE="+1">
+<B>Note</B>
+</FONT>
+<BR>
+
+<P>
+You could do without using any branches at all, by keeping as many local repositories as you would like to have branches, and merging between them with <I>git pull</I>, just like you merge between branches. The advantage of this approach is that it lets you keep a set of files for each <B>branch</B> checked out and you may find it easier to switch back and forth if you juggle multiple lines of development simultaneously. Of course, you will pay the price of more disk usage to hold multiple working trees, but disk space is cheap these days.
+<P>
+</DL>
+
+<P>
+It is likely that you will be pulling from the same remote repository from time to time. As a short hand, you can store the remote repository URL in the local repository's config file like this:
+<P>
+<DL COMPACT><DT id="76"><DD>
+
+
+
+<PRE>
+$ git config remote.linus.url <A HREF="http://www.kernel.org/pub/scm/git/git.git/">http://www.kernel.org/pub/scm/git/git.git/</A>
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+and use the &quot;linus&quot; keyword with <I>git pull</I> instead of the full URL.
+<P>
+Examples.
+<P>
+<DL COMPACT><DT id="77"><DD>
+ 1.
+
+
+<B>git pull linus</B>
+</DL>
+
+<P>
+<DL COMPACT><DT id="78"><DD>
+ 2.
+
+
+<B>git pull linus tag v0.99.1</B>
+</DL>
+
+<P>
+the above are equivalent to:
+<P>
+<DL COMPACT><DT id="79"><DD>
+ 1.
+
+
+<B>git pull <A HREF="http://www.kernel.org/pub/scm/git/git.git/">http://www.kernel.org/pub/scm/git/git.git/</A> HEAD</B>
+</DL>
+
+<P>
+<DL COMPACT><DT id="80"><DD>
+ 2.
+
+
+<B>git pull <A HREF="http://www.kernel.org/pub/scm/git/git.git/">http://www.kernel.org/pub/scm/git/git.git/</A> tag v0.99.1</B>
+</DL>
+
+<A NAME="lbAO">&nbsp;</A>
+<H2>HOW DOES THE MERGE WORK?</H2>
+
+<P>
+We said this tutorial shows what plumbing does to help you cope with the porcelain that isn't flushing, but we so far did not talk about how the merge really works. If you are following this tutorial the first time, I'd suggest to skip to &quot;Publishing your work&quot; section and come back here later.
+<P>
+OK, still with me? To give us an example to look at, let's go back to the earlier repository with &quot;hello&quot; and &quot;example&quot; file, and bring ourselves back to the pre-merge state:
+<P>
+<DL COMPACT><DT id="81"><DD>
+
+
+
+<PRE>
+$ git show-branch --more=2 master mybranch
+! [master] Merge work in mybranch
+ * [mybranch] Merge work in mybranch
+--
+-- [master] Merge work in mybranch
++* [master^2] Some work.
++* [master^] Some fun.
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+Remember, before running <I>git merge</I>, our <B>master</B> head was at &quot;Some fun.&quot; commit, while our <B>mybranch</B> head was at &quot;Some work.&quot; commit.
+<P>
+<DL COMPACT><DT id="82"><DD>
+
+
+
+<PRE>
+$ git switch -C mybranch master^2
+$ git switch master
+$ git reset --hard master^
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+After rewinding, the commit structure should look like this:
+<P>
+<DL COMPACT><DT id="83"><DD>
+
+
+
+<PRE>
+$ git show-branch
+* [master] Some fun.
+ ! [mybranch] Some work.
+--
+*  [master] Some fun.
+ + [mybranch] Some work.
+*+ [master^] Initial commit
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+Now we are ready to experiment with the merge by hand.
+<P>
+<B>git merge</B> command, when merging two branches, uses 3-way merge algorithm. First, it finds the common ancestor between them. The command it uses is <I>git merge-base</I>:
+<P>
+<DL COMPACT><DT id="84"><DD>
+
+
+
+<PRE>
+$ mb=$(git merge-base HEAD mybranch)
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+The command writes the commit object name of the common ancestor to the standard output, so we captured its output to a variable, because we will be using it in the next step. By the way, the common ancestor commit is the &quot;Initial commit&quot; commit in this case. You can tell it by:
+<P>
+<DL COMPACT><DT id="85"><DD>
+
+
+
+<PRE>
+$ git name-rev --name-only --tags $mb
+my-first-tag
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+After finding out a common ancestor commit, the second step is this:
+<P>
+<DL COMPACT><DT id="86"><DD>
+
+
+
+<PRE>
+$ git read-tree -m -u $mb HEAD mybranch
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+This is the same <I>git read-tree</I> command we have already seen, but it takes three trees, unlike previous examples. This reads the contents of each tree into different <I>stage</I> in the index file (the first tree goes to stage 1, the second to stage 2, etc.). After reading three trees into three stages, the paths that are the same in all three stages are <I>collapsed</I> into stage 0. Also paths that are the same in two of three stages are collapsed into stage 0, taking the SHA-1 from either stage 2 or stage 3, whichever is different from stage 1 (i.e. only one side changed from the common ancestor).
+<P>
+After <I>collapsing</I> operation, paths that are different in three trees are left in non-zero stages. At this point, you can inspect the index file with this command:
+<P>
+<DL COMPACT><DT id="87"><DD>
+
+
+
+<PRE>
+$ git ls-files --stage
+100644 7f8b141b65fdcee47321e399a2598a235a032422 0       example
+100644 557db03de997c86a4a028e1ebd3a1ceb225be238 1       hello
+100644 ba42a2a96e3027f3333e13ede4ccf4498c3ae942 2       hello
+100644 cc44c73eb783565da5831b4d820c962954019b69 3       hello
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+In our example of only two files, we did not have unchanged files so only <I>example</I> resulted in collapsing. But in real-life large projects, when only a small number of files change in one commit, this <I>collapsing</I> tends to trivially merge most of the paths fairly quickly, leaving only a handful of real changes in non-zero stages.
+<P>
+To look at only non-zero stages, use <B>--unmerged</B> flag:
+<P>
+<DL COMPACT><DT id="88"><DD>
+
+
+
+<PRE>
+$ git ls-files --unmerged
+100644 557db03de997c86a4a028e1ebd3a1ceb225be238 1       hello
+100644 ba42a2a96e3027f3333e13ede4ccf4498c3ae942 2       hello
+100644 cc44c73eb783565da5831b4d820c962954019b69 3       hello
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+The next step of merging is to merge these three versions of the file, using 3-way merge. This is done by giving <I>git merge-one-file</I> command as one of the arguments to <I>git merge-index</I> command:
+<P>
+<DL COMPACT><DT id="89"><DD>
+
+
+
+<PRE>
+$ git merge-index git-merge-one-file hello
+Auto-merging hello
+ERROR: Merge conflict in hello
+fatal: merge program failed
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+<I>git merge-one-file</I> script is called with parameters to describe those three versions, and is responsible to leave the merge results in the working tree. It is a fairly straightforward shell script, and eventually calls <I>merge</I> program from RCS suite to perform a file-level 3-way merge. In this case, <I>merge</I> detects conflicts, and the merge result with conflict marks is left in the working tree.. This can be seen if you run <B>ls-files --stage</B> again at this point:
+<P>
+<DL COMPACT><DT id="90"><DD>
+
+
+
+<PRE>
+$ git ls-files --stage
+100644 7f8b141b65fdcee47321e399a2598a235a032422 0       example
+100644 557db03de997c86a4a028e1ebd3a1ceb225be238 1       hello
+100644 ba42a2a96e3027f3333e13ede4ccf4498c3ae942 2       hello
+100644 cc44c73eb783565da5831b4d820c962954019b69 3       hello
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+This is the state of the index file and the working file after <I>git merge</I> returns control back to you, leaving the conflicting merge for you to resolve. Notice that the path <B>hello</B> is still unmerged, and what you see with <I>git diff</I> at this point is differences since stage 2 (i.e. your version).
+<A NAME="lbAP">&nbsp;</A>
+<H2>PUBLISHING YOUR WORK</H2>
+
+<P>
+So, we can use somebody else's work from a remote repository, but how can <B>you</B> prepare a repository to let other people pull from it?
+<P>
+You do your real work in your working tree that has your primary repository hanging under it as its <B>.git</B> subdirectory. You <B>could</B> make that repository accessible remotely and ask people to pull from it, but in practice that is not the way things are usually done. A recommended way is to have a public repository, make it reachable by other people, and when the changes you made in your primary working tree are in good shape, update the public repository from it. This is often called <I>pushing</I>.
+<P>
+
+
+
+<DL COMPACT><DT id="91"><DD>
+
+
+
+<BR>
+
+<FONT SIZE="+1">
+<B>Note</B>
+</FONT>
+<BR>
+
+<P>
+This public repository could further be mirrored, and that is how Git repositories at <B>kernel.org</B> are managed.
+<P>
+</DL>
+
+<P>
+Publishing the changes from your local (private) repository to your remote (public) repository requires a write privilege on the remote machine. You need to have an SSH account there to run a single command, <I>git-receive-pack</I>.
+<P>
+First, you need to create an empty repository on the remote machine that will house your public repository. This empty repository will be populated and be kept up to date by pushing into it later. Obviously, this repository creation needs to be done only once.
+<P>
+
+
+
+<DL COMPACT><DT id="92"><DD>
+
+
+
+<BR>
+
+<FONT SIZE="+1">
+<B>Note</B>
+</FONT>
+<BR>
+
+<P>
+<I>git push</I> uses a pair of commands, <I>git send-pack</I> on your local machine, and <I>git-receive-pack</I> on the remote machine. The communication between the two over the network internally uses an SSH connection.
+<P>
+</DL>
+
+<P>
+Your private repository's Git directory is usually <B>.git</B>, but your public repository is often named after the project name, i.e. <B>&lt;project&gt;.git</B>. Let's create such a public repository for project <B>my-git</B>. After logging into the remote machine, create an empty directory:
+<P>
+<DL COMPACT><DT id="93"><DD>
+
+
+
+<PRE>
+$ mkdir my-git.git
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+Then, make that directory into a Git repository by running <I>git init</I>, but this time, since its name is not the usual <B>.git</B>, we do things slightly differently:
+<P>
+<DL COMPACT><DT id="94"><DD>
+
+
+
+<PRE>
+$ GIT_DIR=my-git.git git init
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+Make sure this directory is available for others you want your changes to be pulled via the transport of your choice. Also you need to make sure that you have the <I>git-receive-pack</I> program on the <B>$PATH</B>.
+<P>
+
+
+
+<DL COMPACT><DT id="95"><DD>
+
+
+
+<BR>
+
+<FONT SIZE="+1">
+<B>Note</B>
+</FONT>
+<BR>
+
+<P>
+Many installations of sshd do not invoke your shell as the login shell when you directly run programs; what this means is that if your login shell is <I>bash</I>, only <B>.bashrc</B> is read and not <B>.bash_profile</B>. As a workaround, make sure <B>.bashrc</B> sets up <B>$PATH</B> so that you can run <I>git-receive-pack</I> program.
+<P>
+</DL>
+
+<P>
+
+
+
+<DL COMPACT><DT id="96"><DD>
+
+
+
+<BR>
+
+<FONT SIZE="+1">
+<B>Note</B>
+</FONT>
+<BR>
+
+<P>
+If you plan to publish this repository to be accessed over http, you should do <B>mv my-git.git/hooks/post-update.sample my-git.git/hooks/post-update</B> at this point. This makes sure that every time you push into this repository, <B>git update-server-info</B> is run.
+<P>
+</DL>
+
+<P>
+Your &quot;public repository&quot; is now ready to accept your changes. Come back to the machine you have your private repository. From there, run this command:
+<P>
+<DL COMPACT><DT id="97"><DD>
+
+
+
+<PRE>
+$ git push &lt;public-host&gt;:/path/to/my-git.git master
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+This synchronizes your public repository to match the named branch head (i.e. <B>master</B> in this case) and objects reachable from them in your current repository.
+<P>
+As a real example, this is how I update my public Git repository. Kernel.org mirror network takes care of the propagation to other publicly visible machines:
+<P>
+<DL COMPACT><DT id="98"><DD>
+
+
+
+<PRE>
+$ git push master.kernel.org:/pub/scm/git/git.git/
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<A NAME="lbAQ">&nbsp;</A>
+<H2>PACKING YOUR REPOSITORY</H2>
+
+<P>
+Earlier, we saw that one file under <B>.git/objects/??/</B> directory is stored for each Git object you create. This representation is efficient to create atomically and safely, but not so convenient to transport over the network. Since Git objects are immutable once they are created, there is a way to optimize the storage by &quot;packing them together&quot;. The command
+<P>
+<DL COMPACT><DT id="99"><DD>
+
+
+
+<PRE>
+$ git repack
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+will do it for you. If you followed the tutorial examples, you would have accumulated about 17 objects in <B>.git/objects/??/</B> directories by now. <I>git repack</I> tells you how many objects it packed, and stores the packed file in the <B>.git/objects/pack</B> directory.
+<P>
+
+
+
+<DL COMPACT><DT id="100"><DD>
+
+
+
+<BR>
+
+<FONT SIZE="+1">
+<B>Note</B>
+</FONT>
+<BR>
+
+<P>
+You will see two files, <B>pack-*.pack</B> and <B>pack-*.idx</B>, in <B>.git/objects/pack</B> directory. They are closely related to each other, and if you ever copy them by hand to a different repository for whatever reason, you should make sure you copy them together. The former holds all the data from the objects in the pack, and the latter holds the index for random access.
+<P>
+</DL>
+
+<P>
+If you are paranoid, running <I>git verify-pack</I> command would detect if you have a corrupt pack, but do not worry too much. Our programs are always perfect ;-).
+<P>
+Once you have packed objects, you do not need to leave the unpacked objects that are contained in the pack file anymore.
+<P>
+<DL COMPACT><DT id="101"><DD>
+
+
+
+<PRE>
+$ git prune-packed
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+would remove them for you.
+<P>
+You can try running <B>find .git/objects -type f</B> before and after you run <B>git prune-packed</B> if you are curious. Also <B>git count-objects</B> would tell you how many unpacked objects are in your repository and how much space they are consuming.
+<P>
+
+
+
+<DL COMPACT><DT id="102"><DD>
+
+
+
+<BR>
+
+<FONT SIZE="+1">
+<B>Note</B>
+</FONT>
+<BR>
+
+<P>
+<B>git pull</B> is slightly cumbersome for HTTP transport, as a packed repository may contain relatively few objects in a relatively large pack. If you expect many HTTP pulls from your public repository you might want to repack &amp; prune often, or never.
+<P>
+</DL>
+
+<P>
+If you run <B>git repack</B> again at this point, it will say &quot;Nothing new to pack.&quot;. Once you continue your development and accumulate the changes, running <B>git repack</B> again will create a new pack, that contains objects created since you packed your repository the last time. We recommend that you pack your project soon after the initial import (unless you are starting your project from scratch), and then run <B>git repack</B> every once in a while, depending on how active your project is.
+<P>
+When a repository is synchronized via <B>git push</B> and <B>git pull</B> objects packed in the source repository are usually stored unpacked in the destination. While this allows you to use different packing strategies on both ends, it also means you may need to repack both repositories every once in a while.
+<A NAME="lbAR">&nbsp;</A>
+<H2>WORKING WITH OTHERS</H2>
+
+<P>
+Although Git is a truly distributed system, it is often convenient to organize your project with an informal hierarchy of developers. Linux kernel development is run this way. There is a nice illustration (page 17, &quot;Merges to Mainline&quot;) in m[blue]<B>Randy Dunlap's presentation</B>m[]<FONT SIZE="-2">[2]</FONT>.
+<P>
+It should be stressed that this hierarchy is purely <B>informal</B>. There is nothing fundamental in Git that enforces the &quot;chain of patch flow&quot; this hierarchy implies. You do not have to pull from only one remote repository.
+<P>
+A recommended workflow for a &quot;project lead&quot; goes like this:
+<P>
+<DL COMPACT><DT id="103"><DD>
+ 1.
+
+
+Prepare your primary repository on your local machine. Your work is done there.
+</DL>
+
+<P>
+<DL COMPACT><DT id="104"><DD>
+ 2.
+
+
+Prepare a public repository accessible to others.
+<P>
+If other people are pulling from your repository over dumb transport protocols (HTTP), you need to keep this repository
+<I>dumb transport friendly</I>. After
+<B>git init</B>,
+<B>$GIT_DIR/hooks/post-update.sample</B>
+copied from the standard templates would contain a call to
+<I>git update-server-info</I>
+but you need to manually enable the hook with
+<B>mv post-update.sample post-update</B>. This makes sure
+<I>git update-server-info</I>
+keeps the necessary files up to date.
+</DL>
+
+<P>
+<DL COMPACT><DT id="105"><DD>
+ 3.
+
+
+Push into the public repository from your primary repository.
+</DL>
+
+<P>
+<DL COMPACT><DT id="106"><DD>
+ 4.
+
+
+<I>git repack</I>
+the public repository. This establishes a big pack that contains the initial set of objects as the baseline, and possibly
+<I>git prune</I>
+if the transport used for pulling from your repository supports packed repositories.
+</DL>
+
+<P>
+<DL COMPACT><DT id="107"><DD>
+ 5.
+
+
+Keep working in your primary repository. Your changes include modifications of your own, patches you receive via e-mails, and merges resulting from pulling the &quot;public&quot; repositories of your &quot;subsystem maintainers&quot;.
+<P>
+You can repack this private repository whenever you feel like.
+</DL>
+
+<P>
+<DL COMPACT><DT id="108"><DD>
+ 6.
+
+
+Push your changes to the public repository, and announce it to the public.
+</DL>
+
+<P>
+<DL COMPACT><DT id="109"><DD>
+ 7.
+
+
+Every once in a while,
+<I>git repack</I>
+the public repository. Go back to step 5. and continue working.
+</DL>
+
+<P>
+A recommended work cycle for a &quot;subsystem maintainer&quot; who works on that project and has an own &quot;public repository&quot; goes like this:
+<P>
+<DL COMPACT><DT id="110"><DD>
+ 1.
+
+
+Prepare your work repository, by running
+<I>git clone</I>
+on the public repository of the &quot;project lead&quot;. The URL used for the initial cloning is stored in the remote.origin.url configuration variable.
+</DL>
+
+<P>
+<DL COMPACT><DT id="111"><DD>
+ 2.
+
+
+Prepare a public repository accessible to others, just like the &quot;project lead&quot; person does.
+</DL>
+
+<P>
+<DL COMPACT><DT id="112"><DD>
+ 3.
+
+
+Copy over the packed files from &quot;project lead&quot; public repository to your public repository, unless the &quot;project lead&quot; repository lives on the same machine as yours. In the latter case, you can use
+<B>objects/info/alternates</B>
+file to point at the repository you are borrowing from.
+</DL>
+
+<P>
+<DL COMPACT><DT id="113"><DD>
+ 4.
+
+
+Push into the public repository from your primary repository. Run
+<I>git repack</I>, and possibly
+<I>git prune</I>
+if the transport used for pulling from your repository supports packed repositories.
+</DL>
+
+<P>
+<DL COMPACT><DT id="114"><DD>
+ 5.
+
+
+Keep working in your primary repository. Your changes include modifications of your own, patches you receive via e-mails, and merges resulting from pulling the &quot;public&quot; repositories of your &quot;project lead&quot; and possibly your &quot;sub-subsystem maintainers&quot;.
+<P>
+You can repack this private repository whenever you feel like.
+</DL>
+
+<P>
+<DL COMPACT><DT id="115"><DD>
+ 6.
+
+
+Push your changes to your public repository, and ask your &quot;project lead&quot; and possibly your &quot;sub-subsystem maintainers&quot; to pull from it.
+</DL>
+
+<P>
+<DL COMPACT><DT id="116"><DD>
+ 7.
+
+
+Every once in a while,
+<I>git repack</I>
+the public repository. Go back to step 5. and continue working.
+</DL>
+
+<P>
+A recommended work cycle for an &quot;individual developer&quot; who does not have a &quot;public&quot; repository is somewhat different. It goes like this:
+<P>
+<DL COMPACT><DT id="117"><DD>
+ 1.
+
+
+Prepare your work repository, by
+<I>git clone</I>
+the public repository of the &quot;project lead&quot; (or a &quot;subsystem maintainer&quot;, if you work on a subsystem). The URL used for the initial cloning is stored in the remote.origin.url configuration variable.
+</DL>
+
+<P>
+<DL COMPACT><DT id="118"><DD>
+ 2.
+
+
+Do your work in your repository on
+<I>master</I>
+branch.
+</DL>
+
+<P>
+<DL COMPACT><DT id="119"><DD>
+ 3.
+
+
+Run
+<B>git fetch origin</B>
+from the public repository of your upstream every once in a while. This does only the first half of
+<B>git pull</B>
+but does not merge. The head of the public repository is stored in
+<B>.git/refs/remotes/origin/master</B>.
+</DL>
+
+<P>
+<DL COMPACT><DT id="120"><DD>
+ 4.
+
+
+Use
+<B>git cherry origin</B>
+to see which ones of your patches were accepted, and/or use
+<B>git rebase origin</B>
+to port your unmerged changes forward to the updated upstream.
+</DL>
+
+<P>
+<DL COMPACT><DT id="121"><DD>
+ 5.
+
+
+Use
+<B>git format-patch origin</B>
+to prepare patches for e-mail submission to your upstream and send it out. Go back to step 2. and continue.
+</DL>
+
+<A NAME="lbAS">&nbsp;</A>
+<H2>WORKING WITH OTHERS, SHARED REPOSITORY STYLE</H2>
+
+<P>
+If you are coming from a CVS background, the style of cooperation suggested in the previous section may be new to you. You do not have to worry. Git supports the &quot;shared public repository&quot; style of cooperation you are probably more familiar with as well.
+<P>
+See <B><A HREF="/cgi-bin/man/man2html?7+gitcvs-migration">gitcvs-migration</A></B>(7) for the details.
+<A NAME="lbAT">&nbsp;</A>
+<H2>BUNDLING YOUR WORK TOGETHER</H2>
+
+<P>
+It is likely that you will be working on more than one thing at a time. It is easy to manage those more-or-less independent tasks using branches with Git.
+<P>
+We have already seen how branches work previously, with &quot;fun and work&quot; example using two branches. The idea is the same if there are more than two branches. Let's say you started out from &quot;master&quot; head, and have some new code in the &quot;master&quot; branch, and two independent fixes in the &quot;commit-fix&quot; and &quot;diff-fix&quot; branches:
+<P>
+<DL COMPACT><DT id="122"><DD>
+
+
+
+<PRE>
+$ git show-branch
+! [commit-fix] Fix commit message normalization.
+ ! [diff-fix] Fix rename detection.
+  * [master] Release candidate #1
+---
+ +  [diff-fix] Fix rename detection.
+ +  [diff-fix~1] Better common substring algorithm.
++   [commit-fix] Fix commit message normalization.
+  * [master] Release candidate #1
+++* [diff-fix~2] Pretty-print messages.
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+Both fixes are tested well, and at this point, you want to merge in both of them. You could merge in <I>diff-fix</I> first and then <I>commit-fix</I> next, like this:
+<P>
+<DL COMPACT><DT id="123"><DD>
+
+
+
+<PRE>
+$ git merge -m &quot;Merge fix in diff-fix&quot; diff-fix
+$ git merge -m &quot;Merge fix in commit-fix&quot; commit-fix
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+Which would result in:
+<P>
+<DL COMPACT><DT id="124"><DD>
+
+
+
+<PRE>
+$ git show-branch
+! [commit-fix] Fix commit message normalization.
+ ! [diff-fix] Fix rename detection.
+  * [master] Merge fix in commit-fix
+---
+  - [master] Merge fix in commit-fix
++ * [commit-fix] Fix commit message normalization.
+  - [master~1] Merge fix in diff-fix
+ +* [diff-fix] Fix rename detection.
+ +* [diff-fix~1] Better common substring algorithm.
+  * [master~2] Release candidate #1
+++* [master~3] Pretty-print messages.
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+However, there is no particular reason to merge in one branch first and the other next, when what you have are a set of truly independent changes (if the order mattered, then they are not independent by definition). You could instead merge those two branches into the current branch at once. First let's undo what we just did and start over. We would want to get the master branch before these two merges by resetting it to <I>master~2</I>:
+<P>
+<DL COMPACT><DT id="125"><DD>
+
+
+
+<PRE>
+$ git reset --hard master~2
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+You can make sure <B>git show-branch</B> matches the state before those two <I>git merge</I> you just did. Then, instead of running two <I>git merge</I> commands in a row, you would merge these two branch heads (this is known as <I>making an Octopus</I>):
+<P>
+<DL COMPACT><DT id="126"><DD>
+
+
+
+<PRE>
+$ git merge commit-fix diff-fix
+$ git show-branch
+! [commit-fix] Fix commit message normalization.
+ ! [diff-fix] Fix rename detection.
+  * [master] Octopus merge of branches 'diff-fix' and 'commit-fix'
+---
+  - [master] Octopus merge of branches 'diff-fix' and 'commit-fix'
++ * [commit-fix] Fix commit message normalization.
+ +* [diff-fix] Fix rename detection.
+ +* [diff-fix~1] Better common substring algorithm.
+  * [master~1] Release candidate #1
+++* [master~2] Pretty-print messages.
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+Note that you should not do Octopus just because you can. An octopus is a valid thing to do and often makes it easier to view the commit history if you are merging more than two independent changes at the same time. However, if you have merge conflicts with any of the branches you are merging in and need to hand resolve, that is an indication that the development happened in those branches were not independent after all, and you should merge two at a time, documenting how you resolved the conflicts, and the reason why you preferred changes made in one side over the other. Otherwise it would make the project history harder to follow, not easier.
+<A NAME="lbAU">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+<B><A HREF="/cgi-bin/man/man2html?7+gittutorial">gittutorial</A></B>(7), <B><A HREF="/cgi-bin/man/man2html?7+gittutorial-2">gittutorial-2</A></B>(7), <B><A HREF="/cgi-bin/man/man2html?7+gitcvs-migration">gitcvs-migration</A></B>(7), <B><A HREF="/cgi-bin/man/man2html?1+git-help">git-help</A></B>(1), <B><A HREF="/cgi-bin/man/man2html?7+giteveryday">giteveryday</A></B>(7), m[blue]<B>The Git User's Manual</B>m[]<FONT SIZE="-2">[1]</FONT>
+<A NAME="lbAV">&nbsp;</A>
+<H2>GIT</H2>
+
+<P>
+Part of the <B><A HREF="/cgi-bin/man/man2html?1+git">git</A></B>(1) suite
+<A NAME="lbAW">&nbsp;</A>
+<H2>NOTES</H2>
+
+<DL COMPACT>
+<DT id="127"> 1.<DD>
+the Git User Manual
+<DL COMPACT><DT id="128"><DD>
+<A HREF="file:///usr/share/doc/git/html/user-manual.html">file:///usr/share/doc/git/html/user-manual.html</A>
+</DL>
+
+<DT id="129"> 2.<DD>
+Randy Dunlap's presentation
+<DL COMPACT><DT id="130"><DD>
+<A HREF="https://web.archive.org/web/20120915203609/http://www.xenotime.net/linux/mentor/linux-mentoring-2006.pdf">https://web.archive.org/web/20120915203609/http://www.xenotime.net/linux/mentor/linux-mentoring-2006.pdf</A>
+</DL>
+
+<P>
+</DL>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="131"><A HREF="#lbAB">NAME</A><DD>
+<DT id="132"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="133"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="134"><A HREF="#lbAE">CREATING A GIT REPOSITORY</A><DD>
+<DT id="135"><A HREF="#lbAF">POPULATING A GIT REPOSITORY</A><DD>
+<DT id="136"><A HREF="#lbAG">COMMITTING GIT STATE</A><DD>
+<DT id="137"><A HREF="#lbAH">MAKING A CHANGE</A><DD>
+<DT id="138"><A HREF="#lbAI">INSPECTING CHANGES</A><DD>
+<DT id="139"><A HREF="#lbAJ">TAGGING A VERSION</A><DD>
+<DT id="140"><A HREF="#lbAK">COPYING REPOSITORIES</A><DD>
+<DT id="141"><A HREF="#lbAL">CREATING A NEW BRANCH</A><DD>
+<DT id="142"><A HREF="#lbAM">MERGING TWO BRANCHES</A><DD>
+<DT id="143"><A HREF="#lbAN">MERGING EXTERNAL WORK</A><DD>
+<DT id="144"><A HREF="#lbAO">HOW DOES THE MERGE WORK?</A><DD>
+<DT id="145"><A HREF="#lbAP">PUBLISHING YOUR WORK</A><DD>
+<DT id="146"><A HREF="#lbAQ">PACKING YOUR REPOSITORY</A><DD>
+<DT id="147"><A HREF="#lbAR">WORKING WITH OTHERS</A><DD>
+<DT id="148"><A HREF="#lbAS">WORKING WITH OTHERS, SHARED REPOSITORY STYLE</A><DD>
+<DT id="149"><A HREF="#lbAT">BUNDLING YOUR WORK TOGETHER</A><DD>
+<DT id="150"><A HREF="#lbAU">SEE ALSO</A><DD>
+<DT id="151"><A HREF="#lbAV">GIT</A><DD>
+<DT id="152"><A HREF="#lbAW">NOTES</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:08 GMT, March 31, 2021
+</BODY>
+</HTML>

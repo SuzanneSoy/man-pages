@@ -1,0 +1,4528 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of PERF_EVENT_OPEN</TITLE>
+</HEAD><BODY>
+<H1>PERF_EVENT_OPEN</H1>
+Section: Linux Programmer's Manual (2)<BR>Updated: 2020-02-09<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+perf_event_open - set up performance monitoring
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<PRE>
+<B>#include &lt;<A HREF="file:///usr/include/linux/perf_event.h">linux/perf_event.h</A>&gt;</B>
+<B>#include &lt;<A HREF="file:///usr/include/linux/hw_breakpoint.h">linux/hw_breakpoint.h</A>&gt;</B>
+
+<B>int perf_event_open(struct perf_event_attr *</B><I>attr</I><B>,</B>
+<B>                    pid_t </B><I>pid</I><B>, int </B><I>cpu</I><B>, int </B><I>group_fd</I><B>,</B>
+<B>                    unsigned long </B><I>flags</I><B>);</B>
+</PRE>
+
+<P>
+
+<I>Note</I>:
+
+There is no glibc wrapper for this system call; see NOTES.
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+Given a list of parameters,
+<B>perf_event_open</B>()
+
+returns a file descriptor, for use in subsequent system calls
+(<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2), <B><A HREF="/cgi-bin/man/man2html?2+mmap">mmap</A></B>(2), <B><A HREF="/cgi-bin/man/man2html?2+prctl">prctl</A></B>(2), <B><A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A></B>(2), etc.).
+
+<P>
+
+A call to
+<B>perf_event_open</B>()
+
+creates a file descriptor that allows measuring performance
+information.
+Each file descriptor corresponds to one
+event that is measured; these can be grouped together
+to measure multiple events simultaneously.
+<P>
+
+Events can be enabled and disabled in two ways: via
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+and via
+<B><A HREF="/cgi-bin/man/man2html?2+prctl">prctl</A></B>(2).
+
+When an event is disabled it does not count or generate overflows but does
+continue to exist and maintain its count value.
+<P>
+
+Events come in two flavors: counting and sampled.
+A
+<I>counting</I>
+
+event is one that is used for counting the aggregate number of events
+that occur.
+In general, counting event results are gathered with a
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)
+
+call.
+A
+<I>sampling</I>
+
+event periodically writes measurements to a buffer that can then
+be accessed via
+<B><A HREF="/cgi-bin/man/man2html?2+mmap">mmap</A></B>(2).
+
+<A NAME="lbAE">&nbsp;</A>
+<H3>Arguments</H3>
+
+<P>
+
+The
+<I>pid</I>
+
+and
+<I>cpu</I>
+
+arguments allow specifying which process and CPU to monitor:
+<DL COMPACT>
+<DT id="1"><B>pid == 0</B> and <B>cpu == -1</B>
+
+<DD>
+This measures the calling process/thread on any CPU.
+<DT id="2"><B>pid == 0</B> and <B>cpu &gt;= 0</B>
+
+<DD>
+This measures the calling process/thread only
+when running on the specified CPU.
+<DT id="3"><B>pid &gt; 0</B> and <B>cpu == -1</B>
+
+<DD>
+This measures the specified process/thread on any CPU.
+<DT id="4"><B>pid &gt; 0</B> and <B>cpu &gt;= 0</B>
+
+<DD>
+This measures the specified process/thread only
+when running on the specified CPU.
+<DT id="5"><B>pid == -1</B> and <B>cpu &gt;= 0</B>
+
+<DD>
+This measures all processes/threads on the specified CPU.
+This requires
+<B>CAP_SYS_ADMIN</B>
+
+capability or a
+<I>/proc/sys/kernel/perf_event_paranoid</I>
+
+value of less than 1.
+<DT id="6"><B>pid == -1</B> and <B>cpu == -1</B>
+
+<DD>
+This setting is invalid and will return an error.
+</DL>
+<P>
+
+When
+<I>pid</I>
+
+is greater than zero, permission to perform this system call
+is governed by a ptrace access mode
+<B>PTRACE_MODE_READ_REALCREDS</B>
+
+check; see
+<B><A HREF="/cgi-bin/man/man2html?2+ptrace">ptrace</A></B>(2).
+
+<P>
+
+The
+<I>group_fd</I>
+
+argument allows event groups to be created.
+An event group has one event which is the group leader.
+The leader is created first, with
+<I>group_fd</I> = -1.
+
+The rest of the group members are created with subsequent
+<B>perf_event_open</B>()
+
+calls with
+<I>group_fd</I>
+
+being set to the file descriptor of the group leader.
+(A single event on its own is created with
+<I>group_fd</I> = -1
+
+and is considered to be a group with only 1 member.)
+An event group is scheduled onto the CPU as a unit: it will
+be put onto the CPU only if all of the events in the group can be put onto
+the CPU.
+This means that the values of the member events can be
+meaningfully compared---added, divided (to get ratios), and so on---with each
+other, since they have counted events for the same set of executed
+instructions.
+<P>
+
+The
+<I>flags</I>
+
+argument is formed by ORing together zero or more of the following values:
+<DL COMPACT>
+<DT id="7"><B>PERF_FLAG_FD_CLOEXEC</B> (since Linux 3.14)
+
+<DD>
+
+This flag enables the close-on-exec flag for the created
+event file descriptor,
+so that the file descriptor is automatically closed on
+<B><A HREF="/cgi-bin/man/man2html?2+execve">execve</A></B>(2).
+
+Setting the close-on-exec flags at creation time, rather than later with
+<B><A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A></B>(2),
+
+avoids potential race conditions where the calling thread invokes
+<B>perf_event_open</B>()
+
+and
+<B><A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A></B>(2)
+
+at the same time as another thread calls
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2)
+
+then
+<B><A HREF="/cgi-bin/man/man2html?2+execve">execve</A></B>(2).
+
+<DT id="8"><B>PERF_FLAG_FD_NO_GROUP</B>
+
+<DD>
+This flag tells the event to ignore the
+<I>group_fd</I>
+
+parameter except for the purpose of setting up output redirection
+using the
+<B>PERF_FLAG_FD_OUTPUT</B>
+
+flag.
+<DT id="9"><B>PERF_FLAG_FD_OUTPUT</B> (broken since Linux 2.6.35)
+
+<DD>
+
+This flag re-routes the event's sampled output to instead
+be included in the mmap buffer of the event specified by
+<I>group_fd</I>.
+
+<DT id="10"><B>PERF_FLAG_PID_CGROUP</B> (since Linux 2.6.39)
+
+<DD>
+
+This flag activates per-container system-wide monitoring.
+A container
+is an abstraction that isolates a set of resources for finer-grained
+control (CPUs, memory, etc.).
+In this mode, the event is measured
+only if the thread running on the monitored CPU belongs to the designated
+container (cgroup).
+The cgroup is identified by passing a file descriptor
+opened on its directory in the cgroupfs filesystem.
+For instance, if the
+cgroup to monitor is called
+<I>test</I>,
+
+then a file descriptor opened on
+<I>/dev/cgroup/test</I>
+
+(assuming cgroupfs is mounted on
+<I>/dev/cgroup</I>)
+
+must be passed as the
+<I>pid</I>
+
+parameter.
+cgroup monitoring is available only
+for system-wide events and may therefore require extra permissions.
+</DL>
+<P>
+
+The
+<I>perf_event_attr</I>
+
+structure provides detailed configuration information
+for the event being created.
+<P>
+
+
+
+struct perf_event_attr {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u32&nbsp;type;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Type&nbsp;of&nbsp;event&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u32&nbsp;size;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Size&nbsp;of&nbsp;attribute&nbsp;structure&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;config;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Type-specific&nbsp;configuration&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;union&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;sample_period;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Period&nbsp;of&nbsp;sampling&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;sample_freq;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Frequency&nbsp;of&nbsp;sampling&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;};
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;sample_type;&nbsp;&nbsp;/*&nbsp;Specifies&nbsp;values&nbsp;included&nbsp;in&nbsp;sample&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;read_format;&nbsp;&nbsp;/*&nbsp;Specifies&nbsp;values&nbsp;returned&nbsp;in&nbsp;read&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;disabled&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;1,&nbsp;&nbsp;&nbsp;/*&nbsp;off&nbsp;by&nbsp;default&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;inherit&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;1,&nbsp;&nbsp;&nbsp;/*&nbsp;children&nbsp;inherit&nbsp;it&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pinned&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;1,&nbsp;&nbsp;&nbsp;/*&nbsp;must&nbsp;always&nbsp;be&nbsp;on&nbsp;PMU&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exclusive&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;1,&nbsp;&nbsp;&nbsp;/*&nbsp;only&nbsp;group&nbsp;on&nbsp;PMU&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exclude_user&nbsp;&nbsp;&nbsp;:&nbsp;1,&nbsp;&nbsp;&nbsp;/*&nbsp;don't&nbsp;count&nbsp;user&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exclude_kernel&nbsp;:&nbsp;1,&nbsp;&nbsp;&nbsp;/*&nbsp;don't&nbsp;count&nbsp;kernel&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exclude_hv&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;1,&nbsp;&nbsp;&nbsp;/*&nbsp;don't&nbsp;count&nbsp;hypervisor&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exclude_idle&nbsp;&nbsp;&nbsp;:&nbsp;1,&nbsp;&nbsp;&nbsp;/*&nbsp;don't&nbsp;count&nbsp;when&nbsp;idle&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mmap&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;1,&nbsp;&nbsp;&nbsp;/*&nbsp;include&nbsp;mmap&nbsp;data&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;comm&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;1,&nbsp;&nbsp;&nbsp;/*&nbsp;include&nbsp;comm&nbsp;data&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;freq&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;1,&nbsp;&nbsp;&nbsp;/*&nbsp;use&nbsp;freq,&nbsp;not&nbsp;period&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;inherit_stat&nbsp;&nbsp;&nbsp;:&nbsp;1,&nbsp;&nbsp;&nbsp;/*&nbsp;per&nbsp;task&nbsp;counts&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;enable_on_exec&nbsp;:&nbsp;1,&nbsp;&nbsp;&nbsp;/*&nbsp;next&nbsp;exec&nbsp;enables&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;task&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;1,&nbsp;&nbsp;&nbsp;/*&nbsp;trace&nbsp;fork/exit&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;watermark&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;1,&nbsp;&nbsp;&nbsp;/*&nbsp;wakeup_watermark&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;precise_ip&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;2,&nbsp;&nbsp;&nbsp;/*&nbsp;skid&nbsp;constraint&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mmap_data&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;1,&nbsp;&nbsp;&nbsp;/*&nbsp;non-exec&nbsp;mmap&nbsp;data&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sample_id_all&nbsp;&nbsp;:&nbsp;1,&nbsp;&nbsp;&nbsp;/*&nbsp;sample_type&nbsp;all&nbsp;events&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exclude_host&nbsp;&nbsp;&nbsp;:&nbsp;1,&nbsp;&nbsp;&nbsp;/*&nbsp;don't&nbsp;count&nbsp;in&nbsp;host&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exclude_guest&nbsp;&nbsp;:&nbsp;1,&nbsp;&nbsp;&nbsp;/*&nbsp;don't&nbsp;count&nbsp;in&nbsp;guest&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exclude_callchain_kernel&nbsp;:&nbsp;1,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;exclude&nbsp;kernel&nbsp;callchains&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exclude_callchain_user&nbsp;&nbsp;&nbsp;:&nbsp;1,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;exclude&nbsp;user&nbsp;callchains&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mmap2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;&nbsp;1,&nbsp;&nbsp;/*&nbsp;include&nbsp;mmap&nbsp;with&nbsp;inode&nbsp;data&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;comm_exec&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;&nbsp;1,&nbsp;&nbsp;/*&nbsp;flag&nbsp;comm&nbsp;events&nbsp;that&nbsp;are
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;due&nbsp;to&nbsp;exec&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;use_clockid&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;&nbsp;1,&nbsp;&nbsp;/*&nbsp;use&nbsp;clockid&nbsp;for&nbsp;time&nbsp;fields&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;context_switch&nbsp;:&nbsp;&nbsp;1,&nbsp;&nbsp;/*&nbsp;context&nbsp;switch&nbsp;data&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;__reserved_1&nbsp;&nbsp;&nbsp;:&nbsp;37;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;union&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;__u32&nbsp;wakeup_events;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;wakeup&nbsp;every&nbsp;n&nbsp;events&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;__u32&nbsp;wakeup_watermark;&nbsp;/*&nbsp;bytes&nbsp;before&nbsp;wakeup&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;};
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u32&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bp_type;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;breakpoint&nbsp;type&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;union&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;bp_addr;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;breakpoint&nbsp;address&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;kprobe_func;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;for&nbsp;perf_kprobe&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;uprobe_path;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;for&nbsp;perf_uprobe&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;config1;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;extension&nbsp;of&nbsp;config&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;};
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;union&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;bp_len;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;breakpoint&nbsp;length&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;kprobe_addr;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;with&nbsp;kprobe_func&nbsp;==&nbsp;NULL&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;probe_offset;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;for&nbsp;perf_[k,u]probe&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;config2;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;extension&nbsp;of&nbsp;config1&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;};
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;branch_sample_type;&nbsp;&nbsp;&nbsp;/*&nbsp;enum&nbsp;perf_branch_sample_type&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;sample_regs_user;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;user&nbsp;regs&nbsp;to&nbsp;dump&nbsp;on&nbsp;samples&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u32&nbsp;sample_stack_user;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;size&nbsp;of&nbsp;stack&nbsp;to&nbsp;dump&nbsp;on
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;samples&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__s32&nbsp;clockid;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;clock&nbsp;to&nbsp;use&nbsp;for&nbsp;time&nbsp;fields&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;sample_regs_intr;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;regs&nbsp;to&nbsp;dump&nbsp;on&nbsp;samples&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u32&nbsp;aux_watermark;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;aux&nbsp;bytes&nbsp;before&nbsp;wakeup&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u16&nbsp;sample_max_stack;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;max&nbsp;frames&nbsp;in&nbsp;callchain&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u16&nbsp;__reserved_2;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;align&nbsp;to&nbsp;u64&nbsp;*/
+<P>
+};
+
+
+<P>
+
+The fields of the
+<I>perf_event_attr</I>
+
+structure are described in more detail below:
+<DL COMPACT>
+<DT id="11"><I>type</I>
+
+<DD>
+This field specifies the overall event type.
+It has one of the following values:
+<DL COMPACT><DT id="12"><DD>
+<DL COMPACT>
+<DT id="13"><B>PERF_TYPE_HARDWARE</B>
+
+<DD>
+This indicates one of the &quot;generalized&quot; hardware events provided
+by the kernel.
+See the
+<I>config</I>
+
+field definition for more details.
+<DT id="14"><B>PERF_TYPE_SOFTWARE</B>
+
+<DD>
+This indicates one of the software-defined events provided by the kernel
+(even if no hardware support is available).
+<DT id="15"><B>PERF_TYPE_TRACEPOINT</B>
+
+<DD>
+This indicates a tracepoint
+provided by the kernel tracepoint infrastructure.
+<DT id="16"><B>PERF_TYPE_HW_CACHE</B>
+
+<DD>
+This indicates a hardware cache event.
+This has a special encoding, described in the
+<I>config</I>
+
+field definition.
+<DT id="17"><B>PERF_TYPE_RAW</B>
+
+<DD>
+This indicates a &quot;raw&quot; implementation-specific event in the
+<I>config</I> field.
+
+<DT id="18"><B>PERF_TYPE_BREAKPOINT</B> (since Linux 2.6.33)
+
+<DD>
+
+This indicates a hardware breakpoint as provided by the CPU.
+Breakpoints can be read/write accesses to an address as well as
+execution of an instruction address.
+<DT id="19">dynamic PMU<DD>
+Since Linux 2.6.38,
+
+<B>perf_event_open</B>()
+
+can support multiple PMUs.
+To enable this, a value exported by the kernel can be used in the
+<I>type</I>
+
+field to indicate which PMU to use.
+The value to use can be found in the sysfs filesystem:
+there is a subdirectory per PMU instance under
+<I>/sys/bus/event_source/devices</I>.
+
+In each subdirectory there is a
+<I>type</I>
+
+file whose content is an integer that can be used in the
+<I>type</I>
+
+field.
+For instance,
+<I>/sys/bus/event_source/devices/cpu/type</I>
+
+contains the value for the core CPU PMU, which is usually 4.
+<DT id="20"><B>kprobe</B> and <B>uprobe</B> (since Linux 4.17)
+
+<DD>
+
+
+
+These two dynamic PMUs create a kprobe/uprobe and attach it to the
+file descriptor generated by perf_event_open.
+The kprobe/uprobe will be destroyed on the destruction of the file descriptor.
+See fields
+<I>kprobe_func</I>, <I>uprobe_path</I>, <I>kprobe_addr</I>, and <I>probe_offset</I>
+
+for more details.
+</DL>
+</DL>
+
+<DT id="21"><I>size</I>
+
+<DD>
+The size of the
+<I>perf_event_attr</I>
+
+structure for forward/backward compatibility.
+Set this using
+<I>sizeof(struct perf_event_attr)</I>
+
+to allow the kernel to see
+the struct size at the time of compilation.
+<DT id="22"><DD>
+The related define
+<B>PERF_ATTR_SIZE_VER0</B>
+
+is set to 64; this was the size of the first published struct.
+<B>PERF_ATTR_SIZE_VER1</B>
+
+is 72, corresponding to the addition of breakpoints in Linux 2.6.33.
+
+
+
+<B>PERF_ATTR_SIZE_VER2</B>
+
+is 80 corresponding to the addition of branch sampling in Linux 3.4.
+
+<B>PERF_ATTR_SIZE_VER3</B>
+
+is 96 corresponding to the addition
+of
+<I>sample_regs_user</I>
+
+and
+<I>sample_stack_user</I>
+
+in Linux 3.7.
+
+<B>PERF_ATTR_SIZE_VER4</B>
+
+is 104 corresponding to the addition of
+<I>sample_regs_intr</I>
+
+in Linux 3.19.
+
+<B>PERF_ATTR_SIZE_VER5</B>
+
+is 112 corresponding to the addition of
+<I>aux_watermark</I>
+
+in Linux 4.1.
+
+<DT id="23"><I>config</I>
+
+<DD>
+This specifies which event you want, in conjunction with
+the
+<I>type</I>
+
+field.
+The
+<I>config1</I> and <I>config2</I>
+
+fields are also taken into account in cases where 64 bits is not
+enough to fully specify the event.
+The encoding of these fields are event dependent.
+<DT id="24"><DD>
+There are various ways to set the
+<I>config</I>
+
+field that are dependent on the value of the previously
+described
+<I>type</I>
+
+field.
+What follows are various possible settings for
+<I>config</I>
+
+separated out by
+<I>type</I>.
+
+<DT id="25"><DD>
+If
+<I>type</I>
+
+is
+<B>PERF_TYPE_HARDWARE</B>,
+
+we are measuring one of the generalized hardware CPU events.
+Not all of these are available on all platforms.
+Set
+<I>config</I>
+
+to one of the following:
+<DL COMPACT><DT id="26"><DD>
+<DL COMPACT>
+<DT id="27"><B>PERF_COUNT_HW_CPU_CYCLES</B>
+
+<DD>
+Total cycles.
+Be wary of what happens during CPU frequency scaling.
+<DT id="28"><B>PERF_COUNT_HW_INSTRUCTIONS</B>
+
+<DD>
+Retired instructions.
+Be careful, these can be affected by various
+issues, most notably hardware interrupt counts.
+<DT id="29"><B>PERF_COUNT_HW_CACHE_REFERENCES</B>
+
+<DD>
+Cache accesses.
+Usually this indicates Last Level Cache accesses but this may
+vary depending on your CPU.
+This may include prefetches and coherency messages; again this
+depends on the design of your CPU.
+<DT id="30"><B>PERF_COUNT_HW_CACHE_MISSES</B>
+
+<DD>
+Cache misses.
+Usually this indicates Last Level Cache misses; this is intended to be
+used in conjunction with the
+<B>PERF_COUNT_HW_CACHE_REFERENCES</B>
+
+event to calculate cache miss rates.
+<DT id="31"><B>PERF_COUNT_HW_BRANCH_INSTRUCTIONS</B>
+
+<DD>
+Retired branch instructions.
+Prior to Linux 2.6.35, this used
+the wrong event on AMD processors.
+
+<DT id="32"><B>PERF_COUNT_HW_BRANCH_MISSES</B>
+
+<DD>
+Mispredicted branch instructions.
+<DT id="33"><B>PERF_COUNT_HW_BUS_CYCLES</B>
+
+<DD>
+Bus cycles, which can be different from total cycles.
+<DT id="34"><B>PERF_COUNT_HW_STALLED_CYCLES_FRONTEND</B> (since Linux 3.0)
+
+<DD>
+
+Stalled cycles during issue.
+<DT id="35"><B>PERF_COUNT_HW_STALLED_CYCLES_BACKEND</B> (since Linux 3.0)
+
+<DD>
+
+Stalled cycles during retirement.
+<DT id="36"><B>PERF_COUNT_HW_REF_CPU_CYCLES</B> (since Linux 3.3)
+
+<DD>
+
+Total cycles; not affected by CPU frequency scaling.
+</DL>
+</DL>
+
+<DT id="37"><DD>
+If
+<I>type</I>
+
+is
+<B>PERF_TYPE_SOFTWARE</B>,
+
+we are measuring software events provided by the kernel.
+Set
+<I>config</I>
+
+to one of the following:
+<DL COMPACT><DT id="38"><DD>
+<DL COMPACT>
+<DT id="39"><B>PERF_COUNT_SW_CPU_CLOCK</B>
+
+<DD>
+This reports the CPU clock, a high-resolution per-CPU timer.
+<DT id="40"><B>PERF_COUNT_SW_TASK_CLOCK</B>
+
+<DD>
+This reports a clock count specific to the task that is running.
+<DT id="41"><B>PERF_COUNT_SW_PAGE_FAULTS</B>
+
+<DD>
+This reports the number of page faults.
+<DT id="42"><B>PERF_COUNT_SW_CONTEXT_SWITCHES</B>
+
+<DD>
+This counts context switches.
+Until Linux 2.6.34, these were all reported as user-space
+events, after that they are reported as happening in the kernel.
+
+<DT id="43"><B>PERF_COUNT_SW_CPU_MIGRATIONS</B>
+
+<DD>
+This reports the number of times the process
+has migrated to a new CPU.
+<DT id="44"><B>PERF_COUNT_SW_PAGE_FAULTS_MIN</B>
+
+<DD>
+This counts the number of minor page faults.
+These did not require disk I/O to handle.
+<DT id="45"><B>PERF_COUNT_SW_PAGE_FAULTS_MAJ</B>
+
+<DD>
+This counts the number of major page faults.
+These required disk I/O to handle.
+<DT id="46"><B>PERF_COUNT_SW_ALIGNMENT_FAULTS</B> (since Linux 2.6.33)
+
+<DD>
+
+This counts the number of alignment faults.
+These happen when unaligned memory accesses happen; the kernel
+can handle these but it reduces performance.
+This happens only on some architectures (never on x86).
+<DT id="47"><B>PERF_COUNT_SW_EMULATION_FAULTS</B> (since Linux 2.6.33)
+
+<DD>
+
+This counts the number of emulation faults.
+The kernel sometimes traps on unimplemented instructions
+and emulates them for user space.
+This can negatively impact performance.
+<DT id="48"><B>PERF_COUNT_SW_DUMMY</B> (since Linux 3.12)
+
+<DD>
+
+This is a placeholder event that counts nothing.
+Informational sample record types such as mmap or comm
+must be associated with an active event.
+This dummy event allows gathering such records without requiring
+a counting event.
+</DL>
+</DL>
+
+</DL>
+<P>
+
+<DL COMPACT><DT id="49"><DD>
+If
+<I>type</I>
+
+is
+<B>PERF_TYPE_TRACEPOINT</B>,
+
+then we are measuring kernel tracepoints.
+The value to use in
+<I>config</I>
+
+can be obtained from under debugfs
+<I>tracing/events/*/*/id</I>
+
+if ftrace is enabled in the kernel.
+</DL>
+
+<P>
+
+<DL COMPACT><DT id="50"><DD>
+If
+<I>type</I>
+
+is
+<B>PERF_TYPE_HW_CACHE</B>,
+
+then we are measuring a hardware CPU cache event.
+To calculate the appropriate
+<I>config</I>
+
+value use the following equation:
+<P>
+
+<DL COMPACT><DT id="51"><DD>
+<PRE>
+    (perf_hw_cache_id) | (perf_hw_cache_op_id &lt;&lt; 8) |
+    (perf_hw_cache_op_result_id &lt;&lt; 16)
+</PRE>
+
+<P>
+
+where
+<I>perf_hw_cache_id</I>
+
+is one of:
+<DL COMPACT><DT id="52"><DD>
+<DL COMPACT>
+<DT id="53"><B>PERF_COUNT_HW_CACHE_L1D</B>
+
+<DD>
+for measuring Level 1 Data Cache
+<DT id="54"><B>PERF_COUNT_HW_CACHE_L1I</B>
+
+<DD>
+for measuring Level 1 Instruction Cache
+<DT id="55"><B>PERF_COUNT_HW_CACHE_LL</B>
+
+<DD>
+for measuring Last-Level Cache
+<DT id="56"><B>PERF_COUNT_HW_CACHE_DTLB</B>
+
+<DD>
+for measuring the Data TLB
+<DT id="57"><B>PERF_COUNT_HW_CACHE_ITLB</B>
+
+<DD>
+for measuring the Instruction TLB
+<DT id="58"><B>PERF_COUNT_HW_CACHE_BPU</B>
+
+<DD>
+for measuring the branch prediction unit
+<DT id="59"><B>PERF_COUNT_HW_CACHE_NODE</B> (since Linux 3.1)
+
+<DD>
+
+for measuring local memory accesses
+</DL>
+</DL>
+
+<P>
+
+and
+<I>perf_hw_cache_op_id</I>
+
+is one of:
+<DL COMPACT><DT id="60"><DD>
+<DL COMPACT>
+<DT id="61"><B>PERF_COUNT_HW_CACHE_OP_READ</B>
+
+<DD>
+for read accesses
+<DT id="62"><B>PERF_COUNT_HW_CACHE_OP_WRITE</B>
+
+<DD>
+for write accesses
+<DT id="63"><B>PERF_COUNT_HW_CACHE_OP_PREFETCH</B>
+
+<DD>
+for prefetch accesses
+</DL>
+</DL>
+
+<P>
+
+and
+<I>perf_hw_cache_op_result_id</I>
+
+is one of:
+<DL COMPACT><DT id="64"><DD>
+<DL COMPACT>
+<DT id="65"><B>PERF_COUNT_HW_CACHE_RESULT_ACCESS</B>
+
+<DD>
+to measure accesses
+<DT id="66"><B>PERF_COUNT_HW_CACHE_RESULT_MISS</B>
+
+<DD>
+to measure misses
+</DL>
+</DL>
+
+</DL>
+
+<P>
+
+If
+<I>type</I>
+
+is
+<B>PERF_TYPE_RAW</B>,
+
+then a custom &quot;raw&quot;
+<I>config</I>
+
+value is needed.
+Most CPUs support events that are not covered by the &quot;generalized&quot; events.
+These are implementation defined; see your CPU manual (for example
+the Intel Volume 3B documentation or the AMD BIOS and Kernel Developer
+Guide).
+The libpfm4 library can be used to translate from the name in the
+architectural manuals to the raw hex value
+<B>perf_event_open</B>()
+
+expects in this field.
+<P>
+
+If
+<I>type</I>
+
+is
+<B>PERF_TYPE_BREAKPOINT</B>,
+
+then leave
+<I>config</I>
+
+set to zero.
+Its parameters are set in other places.
+<P>
+
+If
+<I>type</I>
+
+is
+<B>kprobe</B>
+
+or
+<B>uprobe</B>,
+
+set
+<I>retprobe</I>
+
+(bit 0 of
+<I>config</I>,
+
+see
+<I>/sys/bus/event_source/devices/[k,u]probe/format/retprobe</I>)
+
+for kretprobe/uretprobe.
+See fields
+<I>kprobe_func</I>, <I>uprobe_path</I>, <I>kprobe_addr</I>, and <I>probe_offset</I>
+
+for more details.
+</DL>
+
+<DL COMPACT>
+<DT id="67"><I>kprobe_func</I>, <I>uprobe_path</I>, <I>kprobe_addr</I>, and <I>probe_offset</I>
+
+<DD>
+These fields describe the kprobe/uprobe for dynamic PMUs
+<B>kprobe</B>
+
+and
+<B>uprobe</B>.
+
+For
+<B>kprobe</B>:
+
+use
+<I>kprobe_func</I>
+
+and
+<I>probe_offset</I>,
+
+or use
+<I>kprobe_addr</I>
+
+and leave
+<I>kprobe_func</I>
+
+as NULL.
+For
+<B>uprobe</B>:
+
+use
+<I>uprobe_path</I>
+
+and
+<I>probe_offset</I>.
+
+<DT id="68"><I>sample_period</I>, <I>sample_freq</I>
+
+<DD>
+A &quot;sampling&quot; event is one that generates an overflow notification
+every N events, where N is given by
+<I>sample_period</I>.
+
+A sampling event has
+<I>sample_period</I> &gt; 0.
+
+When an overflow occurs, requested data is recorded
+in the mmap buffer.
+The
+<I>sample_type</I>
+
+field controls what data is recorded on each overflow.
+<DT id="69"><DD>
+<I>sample_freq</I>
+
+can be used if you wish to use frequency rather than period.
+In this case, you set the
+<I>freq</I>
+
+flag.
+The kernel will adjust the sampling period
+to try and achieve the desired rate.
+The rate of adjustment is a
+timer tick.
+<DT id="70"><I>sample_type</I>
+
+<DD>
+The various bits in this field specify which values to include
+in the sample.
+They will be recorded in a ring-buffer,
+which is available to user space using
+<B><A HREF="/cgi-bin/man/man2html?2+mmap">mmap</A></B>(2).
+
+The order in which the values are saved in the
+sample are documented in the MMAP Layout subsection below;
+it is not the
+<I>enum perf_event_sample_format</I>
+
+order.
+<DL COMPACT><DT id="71"><DD>
+<DL COMPACT>
+<DT id="72"><B>PERF_SAMPLE_IP</B>
+
+<DD>
+Records instruction pointer.
+<DT id="73"><B>PERF_SAMPLE_TID</B>
+
+<DD>
+Records the process and thread IDs.
+<DT id="74"><B>PERF_SAMPLE_TIME</B>
+
+<DD>
+Records a timestamp.
+<DT id="75"><B>PERF_SAMPLE_ADDR</B>
+
+<DD>
+Records an address, if applicable.
+<DT id="76"><B>PERF_SAMPLE_READ</B>
+
+<DD>
+Record counter values for all events in a group, not just the group leader.
+<DT id="77"><B>PERF_SAMPLE_CALLCHAIN</B>
+
+<DD>
+Records the callchain (stack backtrace).
+<DT id="78"><B>PERF_SAMPLE_ID</B>
+
+<DD>
+Records a unique ID for the opened event's group leader.
+<DT id="79"><B>PERF_SAMPLE_CPU</B>
+
+<DD>
+Records CPU number.
+<DT id="80"><B>PERF_SAMPLE_PERIOD</B>
+
+<DD>
+Records the current sampling period.
+<DT id="81"><B>PERF_SAMPLE_STREAM_ID</B>
+
+<DD>
+Records a unique ID for the opened event.
+Unlike
+<B>PERF_SAMPLE_ID</B>
+
+the actual ID is returned, not the group leader.
+This ID is the same as the one returned by
+<B>PERF_FORMAT_ID</B>.
+
+<DT id="82"><B>PERF_SAMPLE_RAW</B>
+
+<DD>
+Records additional data, if applicable.
+Usually returned by tracepoint events.
+<DT id="83"><B>PERF_SAMPLE_BRANCH_STACK</B> (since Linux 3.4)
+
+<DD>
+
+This provides a record of recent branches, as provided
+by CPU branch sampling hardware (such as Intel Last Branch Record).
+Not all hardware supports this feature.
+<DT id="84"><DD>
+See the
+<I>branch_sample_type</I>
+
+field for how to filter which branches are reported.
+<DT id="85"><B>PERF_SAMPLE_REGS_USER</B> (since Linux 3.7)
+
+<DD>
+
+Records the current user-level CPU register state
+(the values in the process before the kernel was called).
+<DT id="86"><B>PERF_SAMPLE_STACK_USER</B> (since Linux 3.7)
+
+<DD>
+
+Records the user level stack, allowing stack unwinding.
+<DT id="87"><B>PERF_SAMPLE_WEIGHT</B> (since Linux 3.10)
+
+<DD>
+
+Records a hardware provided weight value that expresses how
+costly the sampled event was.
+This allows the hardware to highlight expensive events in
+a profile.
+<DT id="88"><B>PERF_SAMPLE_DATA_SRC</B> (since Linux 3.10)
+
+<DD>
+
+Records the data source: where in the memory hierarchy
+the data associated with the sampled instruction came from.
+This is available only if the underlying hardware
+supports this feature.
+<DT id="89"><B>PERF_SAMPLE_IDENTIFIER</B> (since Linux 3.12)
+
+<DD>
+
+Places the
+<B>SAMPLE_ID</B>
+
+value in a fixed position in the record,
+either at the beginning (for sample events) or at the end
+(if a non-sample event).
+<DT id="90"><DD>
+This was necessary because a sample stream may have
+records from various different event sources with different
+<I>sample_type</I>
+
+settings.
+Parsing the event stream properly was not possible because the
+format of the record was needed to find
+<B>SAMPLE_ID</B>,
+
+but
+the format could not be found without knowing what
+event the sample belonged to (causing a circular
+dependency).
+<DT id="91"><DD>
+The
+<B>PERF_SAMPLE_IDENTIFIER</B>
+
+setting makes the event stream always parsable
+by putting
+<B>SAMPLE_ID</B>
+
+in a fixed location, even though
+it means having duplicate
+<B>SAMPLE_ID</B>
+
+values in records.
+<DT id="92"><B>PERF_SAMPLE_TRANSACTION</B> (since Linux 3.13)
+
+<DD>
+
+Records reasons for transactional memory abort events
+(for example, from Intel TSX transactional memory support).
+<DT id="93"><DD>
+The
+<I>precise_ip</I>
+
+setting must be greater than 0 and a transactional memory abort
+event must be measured or no values will be recorded.
+Also note that some perf_event measurements, such as sampled
+cycle counting, may cause extraneous aborts (by causing an
+interrupt during a transaction).
+<DT id="94"><B>PERF_SAMPLE_REGS_INTR</B> (since Linux 3.19)
+
+<DD>
+
+Records a subset of the current CPU register state
+as specified by
+<I>sample_regs_intr</I>.
+
+Unlike
+<B>PERF_SAMPLE_REGS_USER</B>
+
+the register values will return kernel register
+state if the overflow happened while kernel
+code is running.
+If the CPU supports hardware sampling of
+register state (i.e., PEBS on Intel x86) and
+<I>precise_ip</I>
+
+is set higher than zero then the register
+values returned are those captured by
+hardware at the time of the sampled
+instruction's retirement.
+</DL>
+</DL>
+
+<DT id="95"><I>read_format</I>
+
+<DD>
+This field specifies the format of the data returned by
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)
+
+on a
+<B>perf_event_open</B>()
+
+file descriptor.
+<DL COMPACT><DT id="96"><DD>
+<DL COMPACT>
+<DT id="97"><B>PERF_FORMAT_TOTAL_TIME_ENABLED</B>
+
+<DD>
+Adds the 64-bit
+<I>time_enabled</I>
+
+field.
+This can be used to calculate estimated totals if
+the PMU is overcommitted and multiplexing is happening.
+<DT id="98"><B>PERF_FORMAT_TOTAL_TIME_RUNNING</B>
+
+<DD>
+Adds the 64-bit
+<I>time_running</I>
+
+field.
+This can be used to calculate estimated totals if
+the PMU is overcommitted and multiplexing is happening.
+<DT id="99"><B>PERF_FORMAT_ID</B>
+
+<DD>
+Adds a 64-bit unique value that corresponds to the event group.
+<DT id="100"><B>PERF_FORMAT_GROUP</B>
+
+<DD>
+Allows all counter values in an event group to be read with one read.
+</DL>
+</DL>
+
+<DT id="101"><I>disabled</I>
+
+<DD>
+The
+<I>disabled</I>
+
+bit specifies whether the counter starts out disabled or enabled.
+If disabled, the event can later be enabled by
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+prctl">prctl</A></B>(2),
+
+or
+<I>enable_on_exec</I>.
+
+<DT id="102"><DD>
+When creating an event group, typically the group leader is initialized
+with
+<I>disabled</I>
+
+set to 1 and any child events are initialized with
+<I>disabled</I>
+
+set to 0.
+Despite
+<I>disabled</I>
+
+being 0, the child events will not start until the group leader
+is enabled.
+<DT id="103"><I>inherit</I>
+
+<DD>
+The
+<I>inherit</I>
+
+bit specifies that this counter should count events of child
+tasks as well as the task specified.
+This applies only to new children, not to any existing children at
+the time the counter is created (nor to any new children of
+existing children).
+<DT id="104"><DD>
+Inherit does not work for some combinations of
+<I>read_format</I>
+
+values, such as
+<B>PERF_FORMAT_GROUP</B>.
+
+<DT id="105"><I>pinned</I>
+
+<DD>
+The
+<I>pinned</I>
+
+bit specifies that the counter should always be on the CPU if at all
+possible.
+It applies only to hardware counters and only to group leaders.
+If a pinned counter cannot be put onto the CPU (e.g., because there are
+not enough hardware counters or because of a conflict with some other
+event), then the counter goes into an 'error' state, where reads
+return end-of-file (i.e.,
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)
+
+returns 0) until the counter is subsequently enabled or disabled.
+<DT id="106"><I>exclusive</I>
+
+<DD>
+The
+<I>exclusive</I>
+
+bit specifies that when this counter's group is on the CPU,
+it should be the only group using the CPU's counters.
+In the future this may allow monitoring programs to
+support PMU features that need to run alone so that they do not
+disrupt other hardware counters.
+<DT id="107"><DD>
+Note that many unexpected situations may prevent events with the
+<I>exclusive</I>
+
+bit set from ever running.
+This includes any users running a system-wide
+measurement as well as any kernel use of the performance counters
+(including the commonly enabled NMI Watchdog Timer interface).
+<DT id="108"><I>exclude_user</I>
+
+<DD>
+If this bit is set, the count excludes events that happen in user space.
+<DT id="109"><I>exclude_kernel</I>
+
+<DD>
+If this bit is set, the count excludes events that happen in kernel space.
+<DT id="110"><I>exclude_hv</I>
+
+<DD>
+If this bit is set, the count excludes events that happen in the
+hypervisor.
+This is mainly for PMUs that have built-in support for handling this
+(such as POWER).
+Extra support is needed for handling hypervisor measurements on most
+machines.
+<DT id="111"><I>exclude_idle</I>
+
+<DD>
+If set, don't count when the CPU is running the idle task.
+While you can currently enable this for any event type, it is ignored
+for all but software events.
+<DT id="112"><I>mmap</I>
+
+<DD>
+The
+<I>mmap</I>
+
+bit enables generation of
+<B>PERF_RECORD_MMAP</B>
+
+samples for every
+<B><A HREF="/cgi-bin/man/man2html?2+mmap">mmap</A></B>(2)
+
+call that has
+<B>PROT_EXEC</B>
+
+set.
+This allows tools to notice new executable code being mapped into
+a program (dynamic shared libraries for example)
+so that addresses can be mapped back to the original code.
+<DT id="113"><I>comm</I>
+
+<DD>
+The
+<I>comm</I>
+
+bit enables tracking of process command name as modified by the
+<B><A HREF="/cgi-bin/man/man2html?2+exec">exec</A></B>(2)
+
+and
+<B>prctl</B>(PR_SET_NAME)
+
+system calls as well as writing to
+<I>/proc/self/comm</I>.
+
+If the
+<I>comm_exec</I>
+
+flag is also successfully set (possible since Linux 3.16),
+
+then the misc flag
+<B>PERF_RECORD_MISC_COMM_EXEC</B>
+
+can be used to differentiate the
+<B><A HREF="/cgi-bin/man/man2html?2+exec">exec</A></B>(2)
+
+case from the others.
+<DT id="114"><I>freq</I>
+
+<DD>
+If this bit is set, then
+<I>sample_frequency</I>
+
+not
+<I>sample_period</I>
+
+is used when setting up the sampling interval.
+<DT id="115"><I>inherit_stat</I>
+
+<DD>
+This bit enables saving of event counts on context switch for
+inherited tasks.
+This is meaningful only if the
+<I>inherit</I>
+
+field is set.
+<DT id="116"><I>enable_on_exec</I>
+
+<DD>
+If this bit is set, a counter is automatically
+enabled after a call to
+<B><A HREF="/cgi-bin/man/man2html?2+exec">exec</A></B>(2).
+
+<DT id="117"><I>task</I>
+
+<DD>
+If this bit is set, then
+fork/exit notifications are included in the ring buffer.
+<DT id="118"><I>watermark</I>
+
+<DD>
+If set, have an overflow notification happen when we cross the
+<I>wakeup_watermark</I>
+
+boundary.
+Otherwise, overflow notifications happen after
+<I>wakeup_events</I>
+
+samples.
+<DT id="119"><I>precise_ip</I> (since Linux 2.6.35)
+
+<DD>
+
+This controls the amount of skid.
+Skid is how many instructions
+execute between an event of interest happening and the kernel
+being able to stop and record the event.
+Smaller skid is
+better and allows more accurate reporting of which events
+correspond to which instructions, but hardware is often limited
+with how small this can be.
+<DT id="120"><DD>
+The possible values of this field are the following:
+<DL COMPACT><DT id="121"><DD>
+<DL COMPACT>
+<DT id="122">0<DD>
+<B>SAMPLE_IP</B>
+
+can have arbitrary skid.
+<DT id="123">1<DD>
+<B>SAMPLE_IP</B>
+
+must have constant skid.
+<DT id="124">2<DD>
+<B>SAMPLE_IP</B>
+
+requested to have 0 skid.
+<DT id="125">3<DD>
+<B>SAMPLE_IP</B>
+
+must have 0 skid.
+See also the description of
+<B>PERF_RECORD_MISC_EXACT_IP</B>.
+
+</DL>
+</DL>
+
+<DT id="126"><I>mmap_data</I> (since Linux 2.6.36)
+
+<DD>
+
+This is the counterpart of the
+<I>mmap</I>
+
+field.
+This enables generation of
+<B>PERF_RECORD_MMAP</B>
+
+samples for
+<B><A HREF="/cgi-bin/man/man2html?2+mmap">mmap</A></B>(2)
+
+calls that do not have
+<B>PROT_EXEC</B>
+
+set (for example data and SysV shared memory).
+<DT id="127"><I>sample_id_all</I> (since Linux 2.6.38)
+
+<DD>
+
+If set, then TID, TIME, ID, STREAM_ID, and CPU can
+additionally be included in
+non-<B>PERF_RECORD_SAMPLE</B>s
+
+if the corresponding
+<I>sample_type</I>
+
+is selected.
+<DT id="128"><DD>
+If
+<B>PERF_SAMPLE_IDENTIFIER</B>
+
+is specified, then an additional ID value is included
+as the last value to ease parsing the record stream.
+This may lead to the
+<I>id</I>
+
+value appearing twice.
+<DT id="129"><DD>
+The layout is described by this pseudo-structure:
+<DT id="130"><DD>
+
+
+struct sample_id {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;u32&nbsp;pid,&nbsp;tid;&nbsp;}&nbsp;&nbsp;&nbsp;/*&nbsp;if&nbsp;PERF_SAMPLE_TID&nbsp;set&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;u64&nbsp;time;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;&nbsp;&nbsp;/*&nbsp;if&nbsp;PERF_SAMPLE_TIME&nbsp;set&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;u64&nbsp;id;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;&nbsp;&nbsp;/*&nbsp;if&nbsp;PERF_SAMPLE_ID&nbsp;set&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;u64&nbsp;stream_id;}&nbsp;&nbsp;&nbsp;/*&nbsp;if&nbsp;PERF_SAMPLE_STREAM_ID&nbsp;set&nbsp;&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;u32&nbsp;cpu,&nbsp;res;&nbsp;}&nbsp;&nbsp;&nbsp;/*&nbsp;if&nbsp;PERF_SAMPLE_CPU&nbsp;set&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;u64&nbsp;id;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;&nbsp;&nbsp;/*&nbsp;if&nbsp;PERF_SAMPLE_IDENTIFIER&nbsp;set&nbsp;*/
+};
+
+
+<DT id="131"><I>exclude_host</I> (since Linux 3.2)
+
+<DD>
+
+When conducting measurements that include processes running
+VM instances (i.e., have executed a
+<B>KVM_RUN</B>
+
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)),
+
+only measure events happening inside a guest instance.
+This is only meaningful outside the guests; this setting does
+not change counts gathered inside of a guest.
+Currently, this functionality is x86 only.
+<DT id="132"><I>exclude_guest</I> (since Linux 3.2)
+
+<DD>
+
+When conducting measurements that include processes running
+VM instances (i.e., have executed a
+<B>KVM_RUN</B>
+
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)),
+
+do not measure events happening inside guest instances.
+This is only meaningful outside the guests; this setting does
+not change counts gathered inside of a guest.
+Currently, this functionality is x86 only.
+<DT id="133"><I>exclude_callchain_kernel</I> (since Linux 3.7)
+
+<DD>
+
+Do not include kernel callchains.
+<DT id="134"><I>exclude_callchain_user</I> (since Linux 3.7)
+
+<DD>
+
+Do not include user callchains.
+<DT id="135"><I>mmap2</I> (since Linux 3.16)
+
+<DD>
+
+
+
+
+
+
+Generate an extended executable mmap record that contains enough
+additional information to uniquely identify shared mappings.
+The
+<I>mmap</I>
+
+flag must also be set for this to work.
+<DT id="136"><I>comm_exec</I> (since Linux 3.16)
+
+<DD>
+
+This is purely a feature-detection flag, it does not change
+kernel behavior.
+If this flag can successfully be set, then, when
+<I>comm</I>
+
+is enabled, the
+<B>PERF_RECORD_MISC_COMM_EXEC</B>
+
+flag will be set in the
+<I>misc</I>
+
+field of a comm record header if the rename event being
+reported was caused by a call to
+<B><A HREF="/cgi-bin/man/man2html?2+exec">exec</A></B>(2).
+
+This allows tools to distinguish between the various
+types of process renaming.
+<DT id="137"><I>use_clockid</I> (since Linux 4.1)
+
+<DD>
+
+This allows selecting which internal Linux clock to use
+when generating timestamps via the
+<I>clockid</I>
+
+field.
+This can make it easier to correlate perf sample times with
+timestamps generated by other tools.
+<DT id="138"><I>context_switch</I> (since Linux 4.3)
+
+<DD>
+
+This enables the generation of
+<B>PERF_RECORD_SWITCH</B>
+
+records when a context switch occurs.
+It also enables the generation of
+<B>PERF_RECORD_SWITCH_CPU_WIDE</B>
+
+records when sampling in CPU-wide mode.
+This functionality is in addition to existing tracepoint and
+software events for measuring context switches.
+The advantage of this method is that it will give full
+information even with strict
+<I>perf_event_paranoid</I>
+
+settings.
+<DT id="139"><I>wakeup_events</I>, <I>wakeup_watermark</I>
+
+<DD>
+This union sets how many samples
+(<I>wakeup_events</I>)
+
+or bytes
+(<I>wakeup_watermark</I>)
+
+happen before an overflow notification happens.
+Which one is used is selected by the
+<I>watermark</I>
+
+bit flag.
+<DT id="140"><DD>
+<I>wakeup_events</I>
+
+counts only
+<B>PERF_RECORD_SAMPLE</B>
+
+record types.
+To receive overflow notification for all
+<B>PERF_RECORD</B>
+
+types choose watermark and set
+<I>wakeup_watermark</I>
+
+to 1.
+<DT id="141"><DD>
+Prior to Linux 3.0, setting
+
+<I>wakeup_events</I>
+
+to 0 resulted in no overflow notifications;
+more recent kernels treat 0 the same as 1.
+<DT id="142"><I>bp_type</I> (since Linux 2.6.33)
+
+<DD>
+
+This chooses the breakpoint type.
+It is one of:
+<DL COMPACT><DT id="143"><DD>
+<DL COMPACT>
+<DT id="144"><B>HW_BREAKPOINT_EMPTY</B>
+
+<DD>
+No breakpoint.
+<DT id="145"><B>HW_BREAKPOINT_R</B>
+
+<DD>
+Count when we read the memory location.
+<DT id="146"><B>HW_BREAKPOINT_W</B>
+
+<DD>
+Count when we write the memory location.
+<DT id="147"><B>HW_BREAKPOINT_RW</B>
+
+<DD>
+Count when we read or write the memory location.
+<DT id="148"><B>HW_BREAKPOINT_X</B>
+
+<DD>
+Count when we execute code at the memory location.
+</DL>
+<P>
+
+The values can be combined via a bitwise or, but the
+combination of
+<B>HW_BREAKPOINT_R</B>
+
+or
+<B>HW_BREAKPOINT_W</B>
+
+with
+<B>HW_BREAKPOINT_X</B>
+
+is not allowed.
+</DL>
+
+<DT id="149"><I>bp_addr</I> (since Linux 2.6.33)
+
+<DD>
+
+This is the address of the breakpoint.
+For execution breakpoints, this is the memory address of the instruction
+of interest; for read and write breakpoints, it is the memory address
+of the memory location of interest.
+<DT id="150"><I>config1</I> (since Linux 2.6.39)
+
+<DD>
+
+<I>config1</I>
+
+is used for setting events that need an extra register or otherwise
+do not fit in the regular config field.
+Raw OFFCORE_EVENTS on Nehalem/Westmere/SandyBridge use this field
+on Linux 3.3 and later kernels.
+<DT id="151"><I>bp_len</I> (since Linux 2.6.33)
+
+<DD>
+
+<I>bp_len</I>
+
+is the length of the breakpoint being measured if
+<I>type</I>
+
+is
+<B>PERF_TYPE_BREAKPOINT</B>.
+
+Options are
+<B>HW_BREAKPOINT_LEN_1</B>,
+
+<B>HW_BREAKPOINT_LEN_2</B>,
+
+<B>HW_BREAKPOINT_LEN_4</B>,
+
+and
+<B>HW_BREAKPOINT_LEN_8</B>.
+
+For an execution breakpoint, set this to
+<I>sizeof(long)</I>.
+
+<DT id="152"><I>config2</I> (since Linux 2.6.39)
+
+<DD>
+
+<I>config2</I>
+
+is a further extension of the
+<I>config1</I>
+
+field.
+<DT id="153"><I>branch_sample_type</I> (since Linux 3.4)
+
+<DD>
+
+If
+<B>PERF_SAMPLE_BRANCH_STACK</B>
+
+is enabled, then this specifies what branches to include
+in the branch record.
+<DT id="154"><DD>
+The first part of the value is the privilege level, which
+is a combination of one of the values listed below.
+If the user does not set privilege level explicitly, the kernel
+will use the event's privilege level.
+Event and branch privilege levels do not have to match.
+<DL COMPACT><DT id="155"><DD>
+<DL COMPACT>
+<DT id="156"><B>PERF_SAMPLE_BRANCH_USER</B>
+
+<DD>
+Branch target is in user space.
+<DT id="157"><B>PERF_SAMPLE_BRANCH_KERNEL</B>
+
+<DD>
+Branch target is in kernel space.
+<DT id="158"><B>PERF_SAMPLE_BRANCH_HV</B>
+
+<DD>
+Branch target is in hypervisor.
+<DT id="159"><B>PERF_SAMPLE_BRANCH_PLM_ALL</B>
+
+<DD>
+A convenience value that is the three preceding values ORed together.
+</DL>
+<P>
+
+In addition to the privilege value, at least one or more of the
+following bits must be set.
+<DL COMPACT>
+<DT id="160"><B>PERF_SAMPLE_BRANCH_ANY</B>
+
+<DD>
+Any branch type.
+<DT id="161"><B>PERF_SAMPLE_BRANCH_ANY_CALL</B>
+
+<DD>
+Any call branch (includes direct calls, indirect calls, and far jumps).
+<DT id="162"><B>PERF_SAMPLE_BRANCH_IND_CALL</B>
+
+<DD>
+Indirect calls.
+<DT id="163"><B>PERF_SAMPLE_BRANCH_CALL</B> (since Linux 4.4)
+
+<DD>
+
+Direct calls.
+<DT id="164"><B>PERF_SAMPLE_BRANCH_ANY_RETURN</B>
+
+<DD>
+Any return branch.
+<DT id="165"><B>PERF_SAMPLE_BRANCH_IND_JUMP</B> (since Linux 4.2)
+
+<DD>
+
+Indirect jumps.
+<DT id="166"><B>PERF_SAMPLE_BRANCH_COND</B> (since Linux 3.16)
+
+<DD>
+
+Conditional branches.
+<DT id="167"><B>PERF_SAMPLE_BRANCH_ABORT_TX</B> (since Linux 3.11)
+
+<DD>
+
+Transactional memory aborts.
+<DT id="168"><B>PERF_SAMPLE_BRANCH_IN_TX</B> (since Linux 3.11)
+
+<DD>
+
+Branch in transactional memory transaction.
+<DT id="169"><B>PERF_SAMPLE_BRANCH_NO_TX</B> (since Linux 3.11)
+
+<DD>
+
+Branch not in transactional memory transaction.
+<B>PERF_SAMPLE_BRANCH_CALL_STACK</B> (since Linux 4.1)
+
+
+Branch is part of a hardware-generated call stack.
+This requires hardware support, currently only found
+on Intel x86 Haswell or newer.
+</DL>
+</DL>
+
+<DT id="170"><I>sample_regs_user</I> (since Linux 3.7)
+
+<DD>
+
+This bit mask defines the set of user CPU registers to dump on samples.
+The layout of the register mask is architecture-specific and
+is described in the kernel header file
+<I>arch/ARCH/include/uapi/asm/perf_regs.h</I>.
+
+<DT id="171"><I>sample_stack_user</I> (since Linux 3.7)
+
+<DD>
+
+This defines the size of the user stack to dump if
+<B>PERF_SAMPLE_STACK_USER</B>
+
+is specified.
+<DT id="172"><I>clockid</I> (since Linux 4.1)
+
+<DD>
+
+If
+<I>use_clockid</I>
+
+is set, then this field selects which internal Linux timer to
+use for timestamps.
+The available timers are defined in
+<I>linux/time.h</I>,
+
+with
+<B>CLOCK_MONOTONIC</B>,
+
+<B>CLOCK_MONOTONIC_RAW</B>,
+
+<B>CLOCK_REALTIME</B>,
+
+<B>CLOCK_BOOTTIME</B>,
+
+and
+<B>CLOCK_TAI</B>
+
+currently supported.
+<DT id="173"><I>aux_watermark</I> (since Linux 4.1)
+
+<DD>
+
+This specifies how much data is required to trigger a
+<B>PERF_RECORD_AUX</B>
+
+sample.
+<DT id="174"><I>sample_max_stack</I> (since Linux 4.8)
+
+<DD>
+
+When
+<I>sample_type</I>
+
+includes
+<B>PERF_SAMPLE_CALLCHAIN</B>,
+
+this field specifies how many stack frames to report when
+generating the callchain.
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H3>Reading results</H3>
+
+Once a
+<B>perf_event_open</B>()
+
+file descriptor has been opened, the values
+of the events can be read from the file descriptor.
+The values that are there are specified by the
+<I>read_format</I>
+
+field in the
+<I>attr</I>
+
+structure at open time.
+<P>
+
+If you attempt to read into a buffer that is not big enough to hold the
+data, the error
+<B>ENOSPC</B>
+
+results.
+<P>
+
+Here is the layout of the data returned by a read:
+<DL COMPACT>
+<DT id="175">*<DD>
+If
+<B>PERF_FORMAT_GROUP</B>
+
+was specified to allow reading all events in a group at once:
+<DT id="176"><DD>
+
+
+struct read_format {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;nr;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;The&nbsp;number&nbsp;of&nbsp;events&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;time_enabled;&nbsp;&nbsp;/*&nbsp;if&nbsp;PERF_FORMAT_TOTAL_TIME_ENABLED&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;time_running;&nbsp;&nbsp;/*&nbsp;if&nbsp;PERF_FORMAT_TOTAL_TIME_RUNNING&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;value;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;The&nbsp;value&nbsp;of&nbsp;the&nbsp;event&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;id;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;if&nbsp;PERF_FORMAT_ID&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;values[nr];
+};
+
+
+<DT id="177">*<DD>
+If
+<B>PERF_FORMAT_GROUP</B>
+
+was
+<I>not</I>
+
+specified:
+<DT id="178"><DD>
+
+
+struct read_format {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;value;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;The&nbsp;value&nbsp;of&nbsp;the&nbsp;event&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;time_enabled;&nbsp;&nbsp;/*&nbsp;if&nbsp;PERF_FORMAT_TOTAL_TIME_ENABLED&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;time_running;&nbsp;&nbsp;/*&nbsp;if&nbsp;PERF_FORMAT_TOTAL_TIME_RUNNING&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;id;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;if&nbsp;PERF_FORMAT_ID&nbsp;*/
+};
+
+
+</DL>
+<P>
+
+The values read are as follows:
+<DL COMPACT>
+<DT id="179"><I>nr</I>
+
+<DD>
+The number of events in this file descriptor.
+Available only if
+<B>PERF_FORMAT_GROUP</B>
+
+was specified.
+<DT id="180"><I>time_enabled</I>, <I>time_running</I>
+
+<DD>
+Total time the event was enabled and running.
+Normally these values are the same.
+Multiplexing happens if the number of events is more than the
+number of available PMU counter slots.
+In that case the events run only part of the time and the
+<I>time_enabled</I>
+
+and
+<I>time running</I>
+
+values can be used to scale an estimated value for the count.
+<DT id="181"><I>value</I>
+
+<DD>
+An unsigned 64-bit value containing the counter result.
+<DT id="182"><I>id</I>
+
+<DD>
+A globally unique value for this particular event; only present if
+<B>PERF_FORMAT_ID</B>
+
+was specified in
+<I>read_format</I>.
+
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H3>MMAP layout</H3>
+
+When using
+<B>perf_event_open</B>()
+
+in sampled mode, asynchronous events
+(like counter overflow or
+<B>PROT_EXEC</B>
+
+mmap tracking)
+are logged into a ring-buffer.
+This ring-buffer is created and accessed through
+<B><A HREF="/cgi-bin/man/man2html?2+mmap">mmap</A></B>(2).
+
+<P>
+
+The mmap size should be 1+2^n pages, where the first page is a
+metadata page
+(<I>struct perf_event_mmap_page</I>)
+
+that contains various
+bits of information such as where the ring-buffer head is.
+<P>
+
+Before kernel 2.6.39, there is a bug that means you must allocate an mmap
+ring buffer when sampling even if you do not plan to access it.
+<P>
+
+The structure of the first metadata mmap page is as follows:
+<P>
+
+
+
+struct perf_event_mmap_page {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u32&nbsp;version;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;version&nbsp;number&nbsp;of&nbsp;this&nbsp;structure&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u32&nbsp;compat_version;&nbsp;/*&nbsp;lowest&nbsp;version&nbsp;this&nbsp;is&nbsp;compat&nbsp;with&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u32&nbsp;lock;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;seqlock&nbsp;for&nbsp;synchronization&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u32&nbsp;index;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;hardware&nbsp;counter&nbsp;identifier&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__s64&nbsp;offset;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;add&nbsp;to&nbsp;hardware&nbsp;counter&nbsp;value&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;time_enabled;&nbsp;&nbsp;&nbsp;/*&nbsp;time&nbsp;event&nbsp;active&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;time_running;&nbsp;&nbsp;&nbsp;/*&nbsp;time&nbsp;event&nbsp;on&nbsp;CPU&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;union&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;&nbsp;&nbsp;capabilities;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;cap_usr_time&nbsp;/&nbsp;cap_usr_rdpmc&nbsp;/&nbsp;cap_bit0&nbsp;:&nbsp;1,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cap_bit0_is_deprecated&nbsp;:&nbsp;1,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cap_user_rdpmc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;1,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cap_user_time&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;1,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cap_user_time_zero&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;1,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;};
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;};
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u16&nbsp;pmc_width;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u16&nbsp;time_shift;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u32&nbsp;time_mult;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;time_offset;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;__reserved[120];&nbsp;&nbsp;&nbsp;/*&nbsp;Pad&nbsp;to&nbsp;1&nbsp;k&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;data_head;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;head&nbsp;in&nbsp;the&nbsp;data&nbsp;section&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;data_tail;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;user-space&nbsp;written&nbsp;tail&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;data_offset;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;where&nbsp;the&nbsp;buffer&nbsp;starts&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;data_size;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;data&nbsp;buffer&nbsp;size&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;aux_head;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;aux_tail;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;aux_offset;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;aux_size;
+<P>
+}
+
+
+<P>
+
+The following list describes the fields in the
+<I>perf_event_mmap_page</I>
+
+structure in more detail:
+<DL COMPACT>
+<DT id="183"><I>version</I>
+
+<DD>
+Version number of this structure.
+<DT id="184"><I>compat_version</I>
+
+<DD>
+The lowest version this is compatible with.
+<DT id="185"><I>lock</I>
+
+<DD>
+A seqlock for synchronization.
+<DT id="186"><I>index</I>
+
+<DD>
+A unique hardware counter identifier.
+<DT id="187"><I>offset</I>
+
+<DD>
+When using rdpmc for reads this offset value
+must be added to the one returned by rdpmc to get
+the current total event count.
+<DT id="188"><I>time_enabled</I>
+
+<DD>
+Time the event was active.
+<DT id="189"><I>time_running</I>
+
+<DD>
+Time the event was running.
+<DT id="190"><I>cap_usr_time</I> / <I>cap_usr_rdpmc</I> / <I>cap_bit0</I> (since Linux 3.4)
+
+<DD>
+
+There was a bug in the definition of
+<I>cap_usr_time</I>
+
+and
+<I>cap_usr_rdpmc</I>
+
+from Linux 3.4 until Linux 3.11.
+Both bits were defined to point to the same location, so it was
+impossible to know if
+<I>cap_usr_time</I>
+
+or
+<I>cap_usr_rdpmc</I>
+
+were actually set.
+<DT id="191"><DD>
+Starting with Linux 3.12, these are renamed to
+
+<I>cap_bit0</I>
+
+and you should use the
+<I>cap_user_time</I>
+
+and
+<I>cap_user_rdpmc</I>
+
+fields instead.
+<DT id="192"><I>cap_bit0_is_deprecated</I> (since Linux 3.12)
+
+<DD>
+
+If set, this bit indicates that the kernel supports
+the properly separated
+<I>cap_user_time</I>
+
+and
+<I>cap_user_rdpmc</I>
+
+bits.
+<DT id="193"><DD>
+If not-set, it indicates an older kernel where
+<I>cap_usr_time</I>
+
+and
+<I>cap_usr_rdpmc</I>
+
+map to the same bit and thus both features should
+be used with caution.
+<DT id="194"><I>cap_user_rdpmc</I> (since Linux 3.12)
+
+<DD>
+
+If the hardware supports user-space read of performance counters
+without syscall (this is the &quot;rdpmc&quot; instruction on x86), then
+the following code can be used to do a read:
+<DT id="195"><DD>
+
+
+u32 seq, time_mult, time_shift, idx, width;
+u64 count, enabled, running;
+u64 cyc, time_offset;
+<P>
+do {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;seq&nbsp;=&nbsp;pc-&gt;lock;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;barrier();
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;enabled&nbsp;=&nbsp;pc-&gt;time_enabled;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;running&nbsp;=&nbsp;pc-&gt;time_running;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(pc-&gt;cap_usr_time&nbsp;&amp;&amp;&nbsp;enabled&nbsp;!=&nbsp;running)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cyc&nbsp;=&nbsp;rdtsc();
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;time_offset&nbsp;=&nbsp;pc-&gt;time_offset;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;time_mult&nbsp;&nbsp;&nbsp;=&nbsp;pc-&gt;time_mult;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;time_shift&nbsp;&nbsp;=&nbsp;pc-&gt;time_shift;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;idx&nbsp;=&nbsp;pc-&gt;index;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;count&nbsp;=&nbsp;pc-&gt;offset;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(pc-&gt;cap_usr_rdpmc&nbsp;&amp;&amp;&nbsp;idx)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;width&nbsp;=&nbsp;pc-&gt;pmc_width;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;count&nbsp;+=&nbsp;rdpmc(idx&nbsp;-&nbsp;1);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;barrier();
+} while (pc-&gt;lock != seq);
+
+
+<DT id="196"><I>cap_user_time</I> (since Linux 3.12)
+
+<DD>
+
+This bit indicates the hardware has a constant, nonstop
+timestamp counter (TSC on x86).
+<DT id="197"><I>cap_user_time_zero</I> (since Linux 3.12)
+
+<DD>
+
+Indicates the presence of
+<I>time_zero</I>
+
+which allows mapping timestamp values to
+the hardware clock.
+<DT id="198"><I>pmc_width</I>
+
+<DD>
+If
+<I>cap_usr_rdpmc</I>,
+
+this field provides the bit-width of the value
+read using the rdpmc or equivalent instruction.
+This can be used to sign extend the result like:
+<DT id="199"><DD>
+
+
+pmc &lt;&lt;= 64 - pmc_width;
+pmc &gt;&gt;= 64 - pmc_width; // signed shift right
+count += pmc;
+
+
+<DT id="200"><I>time_shift</I>, <I>time_mult</I>, <I>time_offset</I>
+
+<DD>
+<DT id="201"><DD>
+If
+<I>cap_usr_time</I>,
+
+these fields can be used to compute the time
+delta since
+<I>time_enabled</I>
+
+(in nanoseconds) using rdtsc or similar.
+<DT id="202"><DD>
+<PRE>
+    u64 quot, rem;
+    u64 delta;
+    quot = (cyc &gt;&gt; time_shift);
+    rem = cyc &amp; (((u64)1 &lt;&lt; time_shift) - 1);
+    delta = time_offset + quot * time_mult +
+            ((rem * time_mult) &gt;&gt; time_shift);
+</PRE>
+
+<DT id="203"><DD>
+Where
+<I>time_offset</I>,
+
+<I>time_mult</I>,
+
+<I>time_shift</I>,
+
+and
+<I>cyc</I>
+
+are read in the
+seqcount loop described above.
+This delta can then be added to
+enabled and possible running (if idx), improving the scaling:
+<DT id="204"><DD>
+<PRE>
+    enabled += delta;
+    if (idx)
+        running += delta;
+    quot = count / running;
+    rem  = count % running;
+    count = quot * enabled + (rem * enabled) / running;
+</PRE>
+
+<DT id="205"><I>time_zero</I> (since Linux 3.12)
+
+<DD>
+
+<DT id="206"><DD>
+If
+<I>cap_usr_time_zero</I>
+
+is set, then the hardware clock (the TSC timestamp counter on x86)
+can be calculated from the
+<I>time_zero</I>, <I>time_mult</I>, and <I>time_shift</I> values:
+
+<DT id="207"><DD>
+<PRE>
+    time = timestamp - time_zero;
+    quot = time / time_mult;
+    rem  = time % time_mult;
+    cyc = (quot &lt;&lt; time_shift) + (rem &lt;&lt; time_shift) / time_mult;
+</PRE>
+
+<DT id="208"><DD>
+And vice versa:
+<DT id="209"><DD>
+<PRE>
+    quot = cyc &gt;&gt; time_shift;
+    rem  = cyc &amp; (((u64)1 &lt;&lt; time_shift) - 1);
+    timestamp = time_zero + quot * time_mult +
+        ((rem * time_mult) &gt;&gt; time_shift);
+</PRE>
+
+<DT id="210"><I>data_head</I>
+
+<DD>
+This points to the head of the data section.
+The value continuously increases, it does not wrap.
+The value needs to be manually wrapped by the size of the mmap buffer
+before accessing the samples.
+<DT id="211"><DD>
+On SMP-capable platforms, after reading the
+<I>data_head</I>
+
+value,
+user space should issue an rmb().
+<DT id="212"><I>data_tail</I>
+
+<DD>
+When the mapping is
+<B>PROT_WRITE</B>,
+
+the
+<I>data_tail</I>
+
+value should be written by user space to reflect the last read data.
+In this case, the kernel will not overwrite unread data.
+<DT id="213"><I>data_offset</I> (since Linux 4.1)
+
+<DD>
+
+Contains the offset of the location in the mmap buffer
+where perf sample data begins.
+<DT id="214"><I>data_size</I> (since Linux 4.1)
+
+<DD>
+
+Contains the size of the perf sample region within
+the mmap buffer.
+<DT id="215"><I>aux_head</I>, <I>aux_tail</I>, <I>aux_offset</I>, <I>aux_size</I> (since Linux 4.1)
+
+<DD>
+
+The AUX region allows mmaping a separate sample buffer for
+high-bandwidth data streams (separate from the main perf sample buffer).
+An example of a high-bandwidth stream is instruction tracing support,
+as is found in newer Intel processors.
+<DT id="216"><DD>
+To set up an AUX area, first
+<I>aux_offset</I>
+
+needs to be set with an offset greater than
+<I>data_offset</I>+<I>data_size</I>
+
+and
+<I>aux_size</I>
+
+needs to be set to the desired buffer size.
+The desired offset and size must be page aligned, and the size
+must be a power of two.
+These values are then passed to mmap in order to map the AUX buffer.
+Pages in the AUX buffer are included as part of the
+<B>RLIMIT_MEMLOCK</B>
+
+resource limit (see
+<B><A HREF="/cgi-bin/man/man2html?2+setrlimit">setrlimit</A></B>(2)),
+
+and also as part of the
+<I>perf_event_mlock_kb</I>
+
+allowance.
+<DT id="217"><DD>
+By default, the AUX buffer will be truncated if it will not fit
+in the available space in the ring buffer.
+If the AUX buffer is mapped as a read only buffer, then it will
+operate in ring buffer mode where old data will be overwritten
+by new.
+In overwrite mode, it might not be possible to infer where the
+new data began, and it is the consumer's job to disable
+measurement while reading to avoid possible data races.
+<DT id="218"><DD>
+The
+<I>aux_head</I> and <I>aux_tail</I>
+
+ring buffer pointers have the same behavior and ordering
+rules as the previous described
+<I>data_head</I> and <I>data_tail</I>.
+
+</DL>
+<P>
+
+The following 2^n ring-buffer pages have the layout described below.
+<P>
+
+If
+<I>perf_event_attr.sample_id_all</I>
+
+is set, then all event types will
+have the sample_type selected fields related to where/when (identity)
+an event took place (TID, TIME, ID, CPU, STREAM_ID) described in
+<B>PERF_RECORD_SAMPLE</B>
+
+below, it will be stashed just after the
+<I>perf_event_header</I>
+
+and the fields already present for the existing
+fields, that is, at the end of the payload.
+This allows a newer perf.data
+file to be supported by older perf tools, with the new optional
+fields being ignored.
+<P>
+
+The mmap values start with a header:
+<P>
+
+
+
+struct perf_event_header {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u32&nbsp;&nbsp;&nbsp;type;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u16&nbsp;&nbsp;&nbsp;misc;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u16&nbsp;&nbsp;&nbsp;size;
+};
+
+
+<P>
+
+Below, we describe the
+<I>perf_event_header</I>
+
+fields in more detail.
+For ease of reading,
+the fields with shorter descriptions are presented first.
+<DL COMPACT>
+<DT id="219"><I>size</I>
+
+<DD>
+This indicates the size of the record.
+<DT id="220"><I>misc</I>
+
+<DD>
+The
+<I>misc</I>
+
+field contains additional information about the sample.
+<DT id="221"><DD>
+The CPU mode can be determined from this value by masking with
+<B>PERF_RECORD_MISC_CPUMODE_MASK</B>
+
+and looking for one of the following (note these are not
+bit masks, only one can be set at a time):
+<DL COMPACT><DT id="222"><DD>
+<DL COMPACT>
+<DT id="223"><B>PERF_RECORD_MISC_CPUMODE_UNKNOWN</B>
+
+<DD>
+Unknown CPU mode.
+<DT id="224"><B>PERF_RECORD_MISC_KERNEL</B>
+
+<DD>
+Sample happened in the kernel.
+<DT id="225"><B>PERF_RECORD_MISC_USER</B>
+
+<DD>
+Sample happened in user code.
+<DT id="226"><B>PERF_RECORD_MISC_HYPERVISOR</B>
+
+<DD>
+Sample happened in the hypervisor.
+<DT id="227"><B>PERF_RECORD_MISC_GUEST_KERNEL</B> (since Linux 2.6.35)
+
+<DD>
+
+Sample happened in the guest kernel.
+<DT id="228"><B>PERF_RECORD_MISC_GUEST_USER  (since Linux 2.6.35)</B>
+
+<DD>
+
+Sample happened in guest user code.
+</DL>
+</DL>
+
+</DL>
+<P>
+
+<DL COMPACT><DT id="229"><DD>
+Since the following three statuses are generated by
+different record types, they alias to the same bit:
+<DL COMPACT>
+<DT id="230"><B>PERF_RECORD_MISC_MMAP_DATA</B> (since Linux 3.10)
+
+<DD>
+
+This is set when the mapping is not executable;
+otherwise the mapping is executable.
+<DT id="231"><B>PERF_RECORD_MISC_COMM_EXEC</B> (since Linux 3.16)
+
+<DD>
+
+This is set for a
+<B>PERF_RECORD_COMM</B>
+
+record on kernels more recent than Linux 3.16
+if a process name change was caused by an
+<B><A HREF="/cgi-bin/man/man2html?2+exec">exec</A></B>(2)
+
+system call.
+<DT id="232"><B>PERF_RECORD_MISC_SWITCH_OUT</B> (since Linux 4.3)
+
+<DD>
+
+When a
+<B>PERF_RECORD_SWITCH</B>
+
+or
+<B>PERF_RECORD_SWITCH_CPU_WIDE</B>
+
+record is generated, this bit indicates that the
+context switch is away from the current process
+(instead of into the current process).
+</DL>
+</DL>
+
+<P>
+
+<DL COMPACT><DT id="233"><DD>
+In addition, the following bits can be set:
+<DL COMPACT>
+<DT id="234"><B>PERF_RECORD_MISC_EXACT_IP</B>
+
+<DD>
+This indicates that the content of
+<B>PERF_SAMPLE_IP</B>
+
+points
+to the actual instruction that triggered the event.
+See also
+<I>perf_event_attr.precise_ip</I>.
+
+<DT id="235"><B>PERF_RECORD_MISC_EXT_RESERVED</B> (since Linux 2.6.35)
+
+<DD>
+
+This indicates there is extended data available (currently not used).
+<DT id="236"><B>PERF_RECORD_MISC_PROC_MAP_PARSE_TIMEOUT</B>
+
+<DD>
+
+This bit is not set by the kernel.
+It is reserved for the user-space perf utility to indicate that
+<I>/proc/i[pid]/maps</I>
+
+parsing was taking too long and was stopped, and thus the mmap
+records may be truncated.
+</DL>
+</DL>
+
+<DL COMPACT>
+<DT id="237"><I>type</I>
+
+<DD>
+The
+<I>type</I>
+
+value is one of the below.
+The values in the corresponding record (that follows the header)
+depend on the
+<I>type</I>
+
+selected as shown.
+<DL COMPACT><DT id="238"><DD>
+<DL COMPACT>
+<DT id="239"><B>PERF_RECORD_MMAP</B>
+
+<DD>
+The MMAP events record the
+<B>PROT_EXEC</B>
+
+mappings so that we can correlate
+user-space IPs to code.
+They have the following structure:
+<DT id="240"><DD>
+
+
+struct {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;perf_event_header&nbsp;header;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u32&nbsp;&nbsp;&nbsp;&nbsp;pid,&nbsp;tid;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;&nbsp;&nbsp;&nbsp;addr;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;&nbsp;&nbsp;&nbsp;len;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;&nbsp;&nbsp;&nbsp;pgoff;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;&nbsp;&nbsp;filename[];
+};
+
+
+<DL COMPACT><DT id="241"><DD>
+<DL COMPACT>
+<DT id="242"><I>pid</I>
+
+<DD>
+is the process ID.
+<DT id="243"><I>tid</I>
+
+<DD>
+is the thread ID.
+<DT id="244"><I>addr</I>
+
+<DD>
+is the address of the allocated memory.
+<I>len</I>
+
+is the length of the allocated memory.
+<I>pgoff</I>
+
+is the page offset of the allocated memory.
+<I>filename</I>
+
+is a string describing the backing of the allocated memory.
+</DL>
+</DL>
+
+<DT id="245"><B>PERF_RECORD_LOST</B>
+
+<DD>
+This record indicates when events are lost.
+<DT id="246"><DD>
+
+
+struct {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;perf_event_header&nbsp;header;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;&nbsp;&nbsp;&nbsp;id;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;&nbsp;&nbsp;&nbsp;lost;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;sample_id&nbsp;sample_id;
+};
+
+
+<DL COMPACT><DT id="247"><DD>
+<DL COMPACT>
+<DT id="248"><I>id</I>
+
+<DD>
+is the unique event ID for the samples that were lost.
+<DT id="249"><I>lost</I>
+
+<DD>
+is the number of events that were lost.
+</DL>
+</DL>
+
+<DT id="250"><B>PERF_RECORD_COMM</B>
+
+<DD>
+This record indicates a change in the process name.
+<DT id="251"><DD>
+
+
+struct {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;perf_event_header&nbsp;header;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u32&nbsp;&nbsp;&nbsp;&nbsp;pid;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u32&nbsp;&nbsp;&nbsp;&nbsp;tid;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;&nbsp;&nbsp;comm[];
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;sample_id&nbsp;sample_id;
+};
+
+
+<DL COMPACT><DT id="252"><DD>
+<DL COMPACT>
+<DT id="253"><I>pid</I>
+
+<DD>
+is the process ID.
+<DT id="254"><I>tid</I>
+
+<DD>
+is the thread ID.
+<DT id="255"><I>comm</I>
+
+<DD>
+is a string containing the new name of the process.
+</DL>
+</DL>
+
+<DT id="256"><B>PERF_RECORD_EXIT</B>
+
+<DD>
+This record indicates a process exit event.
+<DT id="257"><DD>
+
+
+struct {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;perf_event_header&nbsp;header;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u32&nbsp;&nbsp;&nbsp;&nbsp;pid,&nbsp;ppid;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u32&nbsp;&nbsp;&nbsp;&nbsp;tid,&nbsp;ptid;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;&nbsp;&nbsp;&nbsp;time;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;sample_id&nbsp;sample_id;
+};
+
+
+<DT id="258"><B>PERF_RECORD_THROTTLE</B>, <B>PERF_RECORD_UNTHROTTLE</B>
+
+<DD>
+This record indicates a throttle/unthrottle event.
+<DT id="259"><DD>
+
+
+struct {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;perf_event_header&nbsp;header;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;&nbsp;&nbsp;&nbsp;time;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;&nbsp;&nbsp;&nbsp;id;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;&nbsp;&nbsp;&nbsp;stream_id;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;sample_id&nbsp;sample_id;
+};
+
+
+<DT id="260"><B>PERF_RECORD_FORK</B>
+
+<DD>
+This record indicates a fork event.
+<DT id="261"><DD>
+
+
+struct {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;perf_event_header&nbsp;header;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u32&nbsp;&nbsp;&nbsp;&nbsp;pid,&nbsp;ppid;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u32&nbsp;&nbsp;&nbsp;&nbsp;tid,&nbsp;ptid;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;&nbsp;&nbsp;&nbsp;time;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;sample_id&nbsp;sample_id;
+};
+
+
+<DT id="262"><B>PERF_RECORD_READ</B>
+
+<DD>
+This record indicates a read event.
+<DT id="263"><DD>
+
+
+struct {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;perf_event_header&nbsp;header;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u32&nbsp;&nbsp;&nbsp;&nbsp;pid,&nbsp;tid;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;read_format&nbsp;values;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;sample_id&nbsp;sample_id;
+};
+
+
+<DT id="264"><B>PERF_RECORD_SAMPLE</B>
+
+<DD>
+This record indicates a sample.
+<DT id="265"><DD>
+
+
+struct {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;perf_event_header&nbsp;header;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;&nbsp;&nbsp;&nbsp;sample_id;&nbsp;&nbsp;&nbsp;/*&nbsp;if&nbsp;PERF_SAMPLE_IDENTIFIER&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;&nbsp;&nbsp;&nbsp;ip;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;if&nbsp;PERF_SAMPLE_IP&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u32&nbsp;&nbsp;&nbsp;&nbsp;pid,&nbsp;tid;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;if&nbsp;PERF_SAMPLE_TID&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;&nbsp;&nbsp;&nbsp;time;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;if&nbsp;PERF_SAMPLE_TIME&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;&nbsp;&nbsp;&nbsp;addr;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;if&nbsp;PERF_SAMPLE_ADDR&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;&nbsp;&nbsp;&nbsp;id;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;if&nbsp;PERF_SAMPLE_ID&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;&nbsp;&nbsp;&nbsp;stream_id;&nbsp;&nbsp;&nbsp;/*&nbsp;if&nbsp;PERF_SAMPLE_STREAM_ID&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u32&nbsp;&nbsp;&nbsp;&nbsp;cpu,&nbsp;res;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;if&nbsp;PERF_SAMPLE_CPU&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;&nbsp;&nbsp;&nbsp;period;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;if&nbsp;PERF_SAMPLE_PERIOD&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;read_format&nbsp;v;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;if&nbsp;PERF_SAMPLE_READ&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;&nbsp;&nbsp;&nbsp;nr;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;if&nbsp;PERF_SAMPLE_CALLCHAIN&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;&nbsp;&nbsp;&nbsp;ips[nr];&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;if&nbsp;PERF_SAMPLE_CALLCHAIN&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u32&nbsp;&nbsp;&nbsp;&nbsp;size;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;if&nbsp;PERF_SAMPLE_RAW&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;&nbsp;data[size];&nbsp;&nbsp;&nbsp;/*&nbsp;if&nbsp;PERF_SAMPLE_RAW&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;&nbsp;&nbsp;&nbsp;bnr;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;if&nbsp;PERF_SAMPLE_BRANCH_STACK&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;perf_branch_entry&nbsp;lbr[bnr];
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;if&nbsp;PERF_SAMPLE_BRANCH_STACK&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;&nbsp;&nbsp;&nbsp;abi;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;if&nbsp;PERF_SAMPLE_REGS_USER&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;&nbsp;&nbsp;&nbsp;regs[weight(mask)];
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;if&nbsp;PERF_SAMPLE_REGS_USER&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;&nbsp;&nbsp;&nbsp;size;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;if&nbsp;PERF_SAMPLE_STACK_USER&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;&nbsp;&nbsp;data[size];&nbsp;&nbsp;/*&nbsp;if&nbsp;PERF_SAMPLE_STACK_USER&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;&nbsp;&nbsp;&nbsp;dyn_size;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;if&nbsp;PERF_SAMPLE_STACK_USER&nbsp;&amp;&amp;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;size&nbsp;!=&nbsp;0&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;&nbsp;&nbsp;&nbsp;weight;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;if&nbsp;PERF_SAMPLE_WEIGHT&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;&nbsp;&nbsp;&nbsp;data_src;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;if&nbsp;PERF_SAMPLE_DATA_SRC&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;&nbsp;&nbsp;&nbsp;transaction;&nbsp;/*&nbsp;if&nbsp;PERF_SAMPLE_TRANSACTION&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;&nbsp;&nbsp;&nbsp;abi;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;if&nbsp;PERF_SAMPLE_REGS_INTR&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;&nbsp;&nbsp;&nbsp;regs[weight(mask)];
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;if&nbsp;PERF_SAMPLE_REGS_INTR&nbsp;*/
+};
+
+<DL COMPACT><DT id="266"><DD>
+<DL COMPACT>
+<DT id="267"><I>sample_id</I>
+
+<DD>
+If
+<B>PERF_SAMPLE_IDENTIFIER</B>
+
+is enabled, a 64-bit unique ID is included.
+This is a duplication of the
+<B>PERF_SAMPLE_ID</B>
+
+<I>id</I>
+
+value, but included at the beginning of the sample
+so parsers can easily obtain the value.
+<DT id="268"><I>ip</I>
+
+<DD>
+If
+<B>PERF_SAMPLE_IP</B>
+
+is enabled, then a 64-bit instruction
+pointer value is included.
+<DT id="269"><I>pid</I>, <I>tid</I>
+
+<DD>
+If
+<B>PERF_SAMPLE_TID</B>
+
+is enabled, then a 32-bit process ID
+and 32-bit thread ID are included.
+<DT id="270"><I>time</I>
+
+<DD>
+If
+<B>PERF_SAMPLE_TIME</B>
+
+is enabled, then a 64-bit timestamp
+is included.
+This is obtained via local_clock() which is a hardware timestamp
+if available and the jiffies value if not.
+<DT id="271"><I>addr</I>
+
+<DD>
+If
+<B>PERF_SAMPLE_ADDR</B>
+
+is enabled, then a 64-bit address is included.
+This is usually the address of a tracepoint,
+breakpoint, or software event; otherwise the value is 0.
+<DT id="272"><I>id</I>
+
+<DD>
+If
+<B>PERF_SAMPLE_ID</B>
+
+is enabled, a 64-bit unique ID is included.
+If the event is a member of an event group, the group leader ID is returned.
+This ID is the same as the one returned by
+<B>PERF_FORMAT_ID</B>.
+
+<DT id="273"><I>stream_id</I>
+
+<DD>
+If
+<B>PERF_SAMPLE_STREAM_ID</B>
+
+is enabled, a 64-bit unique ID is included.
+Unlike
+<B>PERF_SAMPLE_ID</B>
+
+the actual ID is returned, not the group leader.
+This ID is the same as the one returned by
+<B>PERF_FORMAT_ID</B>.
+
+<DT id="274"><I>cpu</I>, <I>res</I>
+
+<DD>
+If
+<B>PERF_SAMPLE_CPU</B>
+
+is enabled, this is a 32-bit value indicating
+which CPU was being used, in addition to a reserved (unused)
+32-bit value.
+<DT id="275"><I>period</I>
+
+<DD>
+If
+<B>PERF_SAMPLE_PERIOD</B>
+
+is enabled, a 64-bit value indicating
+the current sampling period is written.
+<DT id="276"><I>v</I>
+
+<DD>
+If
+<B>PERF_SAMPLE_READ</B>
+
+is enabled, a structure of type read_format
+is included which has values for all events in the event group.
+The values included depend on the
+<I>read_format</I>
+
+value used at
+<B>perf_event_open</B>()
+
+time.
+<DT id="277"><I>nr</I>, <I>ips[nr]</I>
+
+<DD>
+If
+<B>PERF_SAMPLE_CALLCHAIN</B>
+
+is enabled, then a 64-bit number is included
+which indicates how many following 64-bit instruction pointers will
+follow.
+This is the current callchain.
+<DT id="278"><I>size</I>, <I>data[size]</I>
+
+<DD>
+If
+<B>PERF_SAMPLE_RAW</B>
+
+is enabled, then a 32-bit value indicating size
+is included followed by an array of 8-bit values of length size.
+The values are padded with 0 to have 64-bit alignment.
+<DT id="279"><DD>
+This RAW record data is opaque with respect to the ABI.
+The ABI doesn't make any promises with respect to the stability
+of its content, it may vary depending
+on event, hardware, and kernel version.
+<DT id="280"><I>bnr</I>, <I>lbr[bnr]</I>
+
+<DD>
+If
+<B>PERF_SAMPLE_BRANCH_STACK</B>
+
+is enabled, then a 64-bit value indicating
+the number of records is included, followed by
+<I>bnr</I>
+
+<I>perf_branch_entry</I>
+
+structures which each include the fields:
+<DL COMPACT><DT id="281"><DD>
+<DL COMPACT>
+<DT id="282"><I>from</I>
+
+<DD>
+This indicates the source instruction (may not be a branch).
+<DT id="283"><I>to</I>
+
+<DD>
+The branch target.
+<DT id="284"><I>mispred</I>
+
+<DD>
+The branch target was mispredicted.
+<DT id="285"><I>predicted</I>
+
+<DD>
+The branch target was predicted.
+<DT id="286"><I>in_tx</I> (since Linux 3.11)
+
+<DD>
+
+The branch was in a transactional memory transaction.
+<DT id="287"><I>abort</I> (since Linux 3.11)
+
+<DD>
+
+The branch was in an aborted transactional memory transaction.
+<DT id="288"><I>cycles</I> (since Linux 4.3)
+
+<DD>
+
+This reports the number of cycles elapsed since the
+previous branch stack update.
+</DL>
+<P>
+
+The entries are from most to least recent, so the first entry
+has the most recent branch.
+<P>
+
+Support for
+<I>mispred</I>,
+
+<I>predicted</I>,
+
+and
+<I>cycles</I>
+
+is optional; if not supported, those
+values will be 0.
+<P>
+
+The type of branches recorded is specified by the
+<I>branch_sample_type</I>
+
+field.
+</DL>
+
+<DT id="289"><I>abi</I>, <I>regs[weight(mask)]</I>
+
+<DD>
+If
+<B>PERF_SAMPLE_REGS_USER</B>
+
+is enabled, then the user CPU registers are recorded.
+<DT id="290"><DD>
+The
+<I>abi</I>
+
+field is one of
+<B>PERF_SAMPLE_REGS_ABI_NONE</B>, <B>PERF_SAMPLE_REGS_ABI_32</B> or 
+
+<B>PERF_SAMPLE_REGS_ABI_64</B>.
+
+<DT id="291"><DD>
+The
+<I>regs</I>
+
+field is an array of the CPU registers that were specified by
+the
+<I>sample_regs_user</I>
+
+attr field.
+The number of values is the number of bits set in the
+<I>sample_regs_user</I>
+
+bit mask.
+<DT id="292"><I>size</I>, <I>data[size]</I>, <I>dyn_size</I>
+
+<DD>
+If
+<B>PERF_SAMPLE_STACK_USER</B>
+
+is enabled, then the user stack is recorded.
+This can be used to generate stack backtraces.
+<I>size</I>
+
+is the size requested by the user in
+<I>sample_stack_user</I>
+
+or else the maximum record size.
+<I>data</I>
+
+is the stack data (a raw dump of the memory pointed to by the
+stack pointer at the time of sampling).
+<I>dyn_size</I>
+
+is the amount of data actually dumped (can be less than
+<I>size</I>).
+
+Note that
+<I>dyn_size</I>
+
+is omitted if
+<I>size</I>
+
+is 0.
+<DT id="293"><I>weight</I>
+
+<DD>
+If
+<B>PERF_SAMPLE_WEIGHT</B>
+
+is enabled, then a 64-bit value provided by the hardware
+is recorded that indicates how costly the event was.
+This allows expensive events to stand out more clearly
+in profiles.
+<DT id="294"><I>data_src</I>
+
+<DD>
+If
+<B>PERF_SAMPLE_DATA_SRC</B>
+
+is enabled, then a 64-bit value is recorded that is made up of
+the following fields:
+<DL COMPACT><DT id="295"><DD>
+<DL COMPACT>
+<DT id="296"><I>mem_op</I>
+
+<DD>
+Type of opcode, a bitwise combination of:
+<DT id="297"><DD>
+
+<DL COMPACT><DT id="298"><DD>
+<DL COMPACT>
+<DT id="299"><B>PERF_MEM_OP_NA</B>
+
+<DD>
+Not available
+<DT id="300"><B>PERF_MEM_OP_LOAD</B>
+
+<DD>
+Load instruction
+<DT id="301"><B>PERF_MEM_OP_STORE</B>
+
+<DD>
+Store instruction
+<DT id="302"><B>PERF_MEM_OP_PFETCH</B>
+
+<DD>
+Prefetch
+<DT id="303"><B>PERF_MEM_OP_EXEC</B>
+
+<DD>
+Executable code
+</DL>
+</DL>
+
+
+<DT id="304"><I>mem_lvl</I>
+
+<DD>
+Memory hierarchy level hit or miss, a bitwise combination of
+the following, shifted left by
+<B>PERF_MEM_LVL_SHIFT</B>:
+
+<DT id="305"><DD>
+
+<DL COMPACT><DT id="306"><DD>
+<DL COMPACT>
+<DT id="307"><B>PERF_MEM_LVL_NA</B>
+
+<DD>
+Not available
+<DT id="308"><B>PERF_MEM_LVL_HIT</B>
+
+<DD>
+Hit
+<DT id="309"><B>PERF_MEM_LVL_MISS</B>
+
+<DD>
+Miss
+<DT id="310"><B>PERF_MEM_LVL_L1</B>
+
+<DD>
+Level 1 cache
+<DT id="311"><B>PERF_MEM_LVL_LFB</B>
+
+<DD>
+Line fill buffer
+<DT id="312"><B>PERF_MEM_LVL_L2</B>
+
+<DD>
+Level 2 cache
+<DT id="313"><B>PERF_MEM_LVL_L3</B>
+
+<DD>
+Level 3 cache
+<DT id="314"><B>PERF_MEM_LVL_LOC_RAM</B>
+
+<DD>
+Local DRAM
+<DT id="315"><B>PERF_MEM_LVL_REM_RAM1</B>
+
+<DD>
+Remote DRAM 1 hop
+<DT id="316"><B>PERF_MEM_LVL_REM_RAM2</B>
+
+<DD>
+Remote DRAM 2 hops
+<DT id="317"><B>PERF_MEM_LVL_REM_CCE1</B>
+
+<DD>
+Remote cache 1 hop
+<DT id="318"><B>PERF_MEM_LVL_REM_CCE2</B>
+
+<DD>
+Remote cache 2 hops
+<DT id="319"><B>PERF_MEM_LVL_IO</B>
+
+<DD>
+I/O memory
+<DT id="320"><B>PERF_MEM_LVL_UNC</B>
+
+<DD>
+Uncached memory
+</DL>
+</DL>
+
+
+<DT id="321"><I>mem_snoop</I>
+
+<DD>
+Snoop mode, a bitwise combination of the following, shifted left by
+<B>PERF_MEM_SNOOP_SHIFT</B>:
+
+<DT id="322"><DD>
+
+<DL COMPACT><DT id="323"><DD>
+<DL COMPACT>
+<DT id="324"><B>PERF_MEM_SNOOP_NA</B>
+
+<DD>
+Not available
+<DT id="325"><B>PERF_MEM_SNOOP_NONE</B>
+
+<DD>
+No snoop
+<DT id="326"><B>PERF_MEM_SNOOP_HIT</B>
+
+<DD>
+Snoop hit
+<DT id="327"><B>PERF_MEM_SNOOP_MISS</B>
+
+<DD>
+Snoop miss
+<DT id="328"><B>PERF_MEM_SNOOP_HITM</B>
+
+<DD>
+Snoop hit modified
+</DL>
+</DL>
+
+
+<DT id="329"><I>mem_lock</I>
+
+<DD>
+Lock instruction, a bitwise combination of the following, shifted left by
+<B>PERF_MEM_LOCK_SHIFT</B>:
+
+<DT id="330"><DD>
+
+<DL COMPACT><DT id="331"><DD>
+<DL COMPACT>
+<DT id="332"><B>PERF_MEM_LOCK_NA</B>
+
+<DD>
+Not available
+<DT id="333"><B>PERF_MEM_LOCK_LOCKED</B>
+
+<DD>
+Locked transaction
+</DL>
+</DL>
+
+
+<DT id="334"><I>mem_dtlb</I>
+
+<DD>
+TLB access hit or miss, a bitwise combination of the following, shifted
+left by
+<B>PERF_MEM_TLB_SHIFT</B>:
+
+<DT id="335"><DD>
+
+<DL COMPACT><DT id="336"><DD>
+<DL COMPACT>
+<DT id="337"><B>PERF_MEM_TLB_NA</B>
+
+<DD>
+Not available
+<DT id="338"><B>PERF_MEM_TLB_HIT</B>
+
+<DD>
+Hit
+<DT id="339"><B>PERF_MEM_TLB_MISS</B>
+
+<DD>
+Miss
+<DT id="340"><B>PERF_MEM_TLB_L1</B>
+
+<DD>
+Level 1 TLB
+<DT id="341"><B>PERF_MEM_TLB_L2</B>
+
+<DD>
+Level 2 TLB
+<DT id="342"><B>PERF_MEM_TLB_WK</B>
+
+<DD>
+Hardware walker
+<DT id="343"><B>PERF_MEM_TLB_OS</B>
+
+<DD>
+OS fault handler
+</DL>
+</DL>
+
+
+</DL>
+</DL>
+
+<DT id="344"><I>transaction</I>
+
+<DD>
+If the
+<B>PERF_SAMPLE_TRANSACTION</B>
+
+flag is set, then a 64-bit field is recorded describing
+the sources of any transactional memory aborts.
+<DT id="345"><DD>
+The field is a bitwise combination of the following values:
+<DL COMPACT><DT id="346"><DD>
+<DL COMPACT>
+<DT id="347"><B>PERF_TXN_ELISION</B>
+
+<DD>
+Abort from an elision type transaction (Intel-CPU-specific).
+<DT id="348"><B>PERF_TXN_TRANSACTION</B>
+
+<DD>
+Abort from a generic transaction.
+<DT id="349"><B>PERF_TXN_SYNC</B>
+
+<DD>
+Synchronous abort (related to the reported instruction).
+<DT id="350"><B>PERF_TXN_ASYNC</B>
+
+<DD>
+Asynchronous abort (not related to the reported instruction).
+<DT id="351"><B>PERF_TXN_RETRY</B>
+
+<DD>
+Retryable abort (retrying the transaction may have succeeded).
+<DT id="352"><B>PERF_TXN_CONFLICT</B>
+
+<DD>
+Abort due to memory conflicts with other threads.
+<DT id="353"><B>PERF_TXN_CAPACITY_WRITE</B>
+
+<DD>
+Abort due to write capacity overflow.
+<DT id="354"><B>PERF_TXN_CAPACITY_READ</B>
+
+<DD>
+Abort due to read capacity overflow.
+</DL>
+</DL>
+
+<DT id="355"><DD>
+In addition, a user-specified abort code can be obtained from
+the high 32 bits of the field by shifting right by
+<B>PERF_TXN_ABORT_SHIFT</B>
+
+and masking with the value
+<B>PERF_TXN_ABORT_MASK</B>.
+
+<DT id="356"><I>abi</I>, <I>regs[weight(mask)]</I>
+
+<DD>
+If
+<B>PERF_SAMPLE_REGS_INTR</B>
+
+is enabled, then the user CPU registers are recorded.
+<DT id="357"><DD>
+The
+<I>abi</I>
+
+field is one of
+<B>PERF_SAMPLE_REGS_ABI_NONE</B>,
+
+<B>PERF_SAMPLE_REGS_ABI_32</B>,
+
+or
+<B>PERF_SAMPLE_REGS_ABI_64</B>.
+
+<DT id="358"><DD>
+The
+<I>regs</I>
+
+field is an array of the CPU registers that were specified by
+the
+<I>sample_regs_intr</I>
+
+attr field.
+The number of values is the number of bits set in the
+<I>sample_regs_intr</I>
+
+bit mask.
+</DL>
+</DL>
+
+<DT id="359"><B>PERF_RECORD_MMAP2</B>
+
+<DD>
+This record includes extended information on
+<B><A HREF="/cgi-bin/man/man2html?2+mmap">mmap</A></B>(2)
+
+calls returning executable mappings.
+The format is similar to that of the
+<B>PERF_RECORD_MMAP</B>
+
+record, but includes extra values that allow uniquely identifying
+shared mappings.
+<DT id="360"><DD>
+
+
+struct {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;perf_event_header&nbsp;header;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u32&nbsp;&nbsp;&nbsp;&nbsp;pid;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u32&nbsp;&nbsp;&nbsp;&nbsp;tid;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;&nbsp;&nbsp;&nbsp;addr;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;&nbsp;&nbsp;&nbsp;len;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;&nbsp;&nbsp;&nbsp;pgoff;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u32&nbsp;&nbsp;&nbsp;&nbsp;maj;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u32&nbsp;&nbsp;&nbsp;&nbsp;min;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;&nbsp;&nbsp;&nbsp;ino;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;&nbsp;&nbsp;&nbsp;ino_generation;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u32&nbsp;&nbsp;&nbsp;&nbsp;prot;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u32&nbsp;&nbsp;&nbsp;&nbsp;flags;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;&nbsp;&nbsp;filename[];
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;sample_id&nbsp;sample_id;
+};
+
+<DL COMPACT><DT id="361"><DD>
+<DL COMPACT>
+<DT id="362"><I>pid</I>
+
+<DD>
+is the process ID.
+<DT id="363"><I>tid</I>
+
+<DD>
+is the thread ID.
+<DT id="364"><I>addr</I>
+
+<DD>
+is the address of the allocated memory.
+<DT id="365"><I>len</I>
+
+<DD>
+is the length of the allocated memory.
+<DT id="366"><I>pgoff</I>
+
+<DD>
+is the page offset of the allocated memory.
+<DT id="367"><I>maj</I>
+
+<DD>
+is the major ID of the underlying device.
+<DT id="368"><I>min</I>
+
+<DD>
+is the minor ID of the underlying device.
+<DT id="369"><I>ino</I>
+
+<DD>
+is the inode number.
+<DT id="370"><I>ino_generation</I>
+
+<DD>
+is the inode generation.
+<DT id="371"><I>prot</I>
+
+<DD>
+is the protection information.
+<DT id="372"><I>flags</I>
+
+<DD>
+is the flags information.
+<DT id="373"><I>filename</I>
+
+<DD>
+is a string describing the backing of the allocated memory.
+</DL>
+</DL>
+
+<DT id="374"><B>PERF_RECORD_AUX</B> (since Linux 4.1)
+
+<DD>
+This record reports that new data is available in the separate
+AUX buffer region.
+<DT id="375"><DD>
+
+
+struct {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;perf_event_header&nbsp;header;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;&nbsp;&nbsp;&nbsp;aux_offset;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;&nbsp;&nbsp;&nbsp;aux_size;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;&nbsp;&nbsp;&nbsp;flags;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;sample_id&nbsp;sample_id;
+};
+
+<DL COMPACT><DT id="376"><DD>
+<DL COMPACT>
+<DT id="377"><I>aux_offset</I>
+
+<DD>
+offset in the AUX mmap region where the new data begins.
+<DT id="378"><I>aux_size</I>
+
+<DD>
+size of the data made available.
+<DT id="379"><I>flags</I>
+
+<DD>
+describes the AUX update.
+<DL COMPACT><DT id="380"><DD>
+<DL COMPACT>
+<DT id="381"><B>PERF_AUX_FLAG_TRUNCATED</B>
+
+<DD>
+if set, then the data returned was truncated to fit the available
+buffer size.
+<DT id="382"><B>PERF_AUX_FLAG_OVERWRITE</B>
+
+<DD>
+
+if set, then the data returned has overwritten previous data.
+</DL>
+</DL>
+
+</DL>
+</DL>
+
+<DT id="383"><B>PERF_RECORD_ITRACE_START</B> (since Linux 4.1)
+
+<DD>
+This record indicates which process has initiated an instruction
+trace event, allowing tools to properly correlate the instruction
+addresses in the AUX buffer with the proper executable.
+<DT id="384"><DD>
+
+
+struct {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;perf_event_header&nbsp;header;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u32&nbsp;&nbsp;&nbsp;&nbsp;pid;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u32&nbsp;&nbsp;&nbsp;&nbsp;tid;
+};
+
+<DL COMPACT><DT id="385"><DD>
+<DL COMPACT>
+<DT id="386"><I>pid</I>
+
+<DD>
+process ID of the thread starting an instruction trace.
+<DT id="387"><I>tid</I>
+
+<DD>
+thread ID of the thread starting an instruction trace.
+</DL>
+</DL>
+
+<DT id="388"><B>PERF_RECORD_LOST_SAMPLES</B> (since Linux 4.2)
+
+<DD>
+When using hardware sampling (such as Intel PEBS) this record
+indicates some number of samples that may have been lost.
+<DT id="389"><DD>
+
+
+struct {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;perf_event_header&nbsp;header;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;&nbsp;&nbsp;&nbsp;lost;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;sample_id&nbsp;sample_id;
+};
+
+<DL COMPACT><DT id="390"><DD>
+<DL COMPACT>
+<DT id="391"><I>lost</I>
+
+<DD>
+the number of potentially lost samples.
+</DL>
+</DL>
+
+<DT id="392"><B>PERF_RECORD_SWITCH</B> (since Linux 4.3)
+
+<DD>
+This record indicates a context switch has happened.
+The
+<B>PERF_RECORD_MISC_SWITCH_OUT</B>
+
+bit in the
+<I>misc</I>
+
+field indicates whether it was a context switch into
+or away from the current process.
+<DT id="393"><DD>
+
+
+struct {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;perf_event_header&nbsp;header;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;sample_id&nbsp;sample_id;
+};
+
+<DT id="394"><B>PERF_RECORD_SWITCH_CPU_WIDE</B> (since Linux 4.3)
+
+<DD>
+As with
+<B>PERF_RECORD_SWITCH</B>
+
+this record indicates a context switch has happened,
+but it only occurs when sampling in CPU-wide mode
+and provides additional information on the process
+being switched to/from.
+The
+<B>PERF_RECORD_MISC_SWITCH_OUT</B>
+
+bit in the
+<I>misc</I>
+
+field indicates whether it was a context switch into
+or away from the current process.
+<DT id="395"><DD>
+
+
+struct {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;perf_event_header&nbsp;header;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u32&nbsp;next_prev_pid;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u32&nbsp;next_prev_tid;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;sample_id&nbsp;sample_id;
+};
+
+<DL COMPACT><DT id="396"><DD>
+<DL COMPACT>
+<DT id="397"><I>next_prev_pid</I>
+
+<DD>
+The process ID of the previous (if switching in)
+or next (if switching out) process on the CPU.
+<DT id="398"><I>next_prev_tid</I>
+
+<DD>
+The thread ID of the previous (if switching in)
+or next (if switching out) thread on the CPU.
+</DL>
+</DL>
+
+</DL>
+</DL>
+
+</DL>
+<A NAME="lbAH">&nbsp;</A>
+<H3>Overflow handling</H3>
+
+Events can be set to notify when a threshold is crossed,
+indicating an overflow.
+Overflow conditions can be captured by monitoring the
+event file descriptor with
+<B><A HREF="/cgi-bin/man/man2html?2+poll">poll</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+select">select</A></B>(2),
+
+or
+<B><A HREF="/cgi-bin/man/man2html?7+epoll">epoll</A></B>(7).
+
+Alternatively, the overflow events can be captured via sa signal handler,
+by enabling I/O signaling on the file descriptor; see the discussion of the
+<B>F_SETOWN</B>
+
+and
+<B>F_SETSIG</B>
+
+operations in
+<B><A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A></B>(2).
+
+<P>
+
+Overflows are generated only by sampling events
+(<I>sample_period</I>
+
+must have a nonzero value).
+<P>
+
+There are two ways to generate overflow notifications.
+<P>
+
+The first is to set a
+<I>wakeup_events</I>
+
+or
+<I>wakeup_watermark</I>
+
+value that will trigger if a certain number of samples
+or bytes have been written to the mmap ring buffer.
+In this case,
+<B>POLL_IN</B>
+
+is indicated.
+<P>
+
+The other way is by use of the
+<B>PERF_EVENT_IOC_REFRESH</B>
+
+ioctl.
+This ioctl adds to a counter that decrements each time the event overflows.
+When nonzero,
+<B>POLL_IN</B>
+
+is indicated, but
+once the counter reaches 0
+<B>POLL_HUP</B>
+
+is indicated and
+the underlying event is disabled.
+<P>
+
+Refreshing an event group leader refreshes all siblings and
+refreshing with a parameter of 0 currently enables infinite
+refreshes;
+these behaviors are unsupported and should not be relied on.
+
+<P>
+
+Starting with Linux 3.18,
+
+<B>POLL_HUP</B>
+
+is indicated if the event being monitored is attached to a different
+process and that process exits.
+<A NAME="lbAI">&nbsp;</A>
+<H3>rdpmc instruction</H3>
+
+Starting with Linux 3.4 on x86, you can use the
+
+<I>rdpmc</I>
+
+instruction to get low-latency reads without having to enter the kernel.
+Note that using
+<I>rdpmc</I>
+
+is not necessarily faster than other methods for reading event values.
+<P>
+
+Support for this can be detected with the
+<I>cap_usr_rdpmc</I>
+
+field in the mmap page; documentation on how
+to calculate event values can be found in that section.
+<P>
+
+Originally, when rdpmc support was enabled, any process (not just ones
+with an active perf event) could use the rdpmc instruction to access
+the counters.
+Starting with Linux 4.0,
+
+rdpmc support is only allowed if an event is currently enabled
+in a process's context.
+To restore the old behavior, write the value 2 to
+<I>/sys/devices/cpu/rdpmc</I>.
+
+<A NAME="lbAJ">&nbsp;</A>
+<H3>perf_event ioctl calls</H3>
+
+<P>
+
+Various ioctls act on
+<B>perf_event_open</B>()
+
+file descriptors:
+<DL COMPACT>
+<DT id="399"><B>PERF_EVENT_IOC_ENABLE</B>
+
+<DD>
+This enables the individual event or event group specified by the
+file descriptor argument.
+<DT id="400"><DD>
+If the
+<B>PERF_IOC_FLAG_GROUP</B>
+
+bit is set in the ioctl argument, then all events in a group are
+enabled, even if the event specified is not the group leader
+(but see BUGS).
+<DT id="401"><B>PERF_EVENT_IOC_DISABLE</B>
+
+<DD>
+This disables the individual counter or event group specified by the
+file descriptor argument.
+<DT id="402"><DD>
+Enabling or disabling the leader of a group enables or disables the
+entire group; that is, while the group leader is disabled, none of the
+counters in the group will count.
+Enabling or disabling a member of a group other than the leader
+affects only that counter; disabling a non-leader
+stops that counter from counting but doesn't affect any other counter.
+<DT id="403"><DD>
+If the
+<B>PERF_IOC_FLAG_GROUP</B>
+
+bit is set in the ioctl argument, then all events in a group are
+disabled, even if the event specified is not the group leader
+(but see BUGS).
+<DT id="404"><B>PERF_EVENT_IOC_REFRESH</B>
+
+<DD>
+Non-inherited overflow counters can use this
+to enable a counter for a number of overflows specified by the argument,
+after which it is disabled.
+Subsequent calls of this ioctl add the argument value to the current
+count.
+An overflow notification with
+<B>POLL_IN</B>
+
+set will happen on each overflow until the
+count reaches 0; when that happens a notification with
+<B>POLL_HUP</B>
+
+set is sent and the event is disabled.
+Using an argument of 0 is considered undefined behavior.
+<DT id="405"><B>PERF_EVENT_IOC_RESET</B>
+
+<DD>
+Reset the event count specified by the
+file descriptor argument to zero.
+This resets only the counts; there is no way to reset the
+multiplexing
+<I>time_enabled</I>
+
+or
+<I>time_running</I>
+
+values.
+<DT id="406"><DD>
+If the
+<B>PERF_IOC_FLAG_GROUP</B>
+
+bit is set in the ioctl argument, then all events in a group are
+reset, even if the event specified is not the group leader
+(but see BUGS).
+<DT id="407"><B>PERF_EVENT_IOC_PERIOD</B>
+
+<DD>
+This updates the overflow period for the event.
+<DT id="408"><DD>
+Since Linux 3.7 (on ARM)
+
+and Linux 3.14 (all other architectures),
+
+the new period takes effect immediately.
+On older kernels, the new period did not take effect until
+after the next overflow.
+<DT id="409"><DD>
+The argument is a pointer to a 64-bit value containing the
+desired new period.
+<DT id="410"><DD>
+Prior to Linux 2.6.36,
+
+this ioctl always failed due to a bug
+in the kernel.
+<DT id="411"><B>PERF_EVENT_IOC_SET_OUTPUT</B>
+
+<DD>
+This tells the kernel to report event notifications to the specified
+file descriptor rather than the default one.
+The file descriptors must all be on the same CPU.
+<DT id="412"><DD>
+The argument specifies the desired file descriptor, or -1 if
+output should be ignored.
+<DT id="413"><B>PERF_EVENT_IOC_SET_FILTER</B> (since Linux 2.6.33)
+
+<DD>
+
+This adds an ftrace filter to this event.
+<DT id="414"><DD>
+The argument is a pointer to the desired ftrace filter.
+<DT id="415"><B>PERF_EVENT_IOC_ID</B> (since Linux 3.12)
+
+<DD>
+
+This returns the event ID value for the given event file descriptor.
+<DT id="416"><DD>
+The argument is a pointer to a 64-bit unsigned integer
+to hold the result.
+<DT id="417"><B>PERF_EVENT_IOC_SET_BPF</B> (since Linux 4.1)
+
+<DD>
+
+This allows attaching a Berkeley Packet Filter (BPF)
+program to an existing kprobe tracepoint event.
+You need
+<B>CAP_SYS_ADMIN</B>
+
+privileges to use this ioctl.
+<DT id="418"><DD>
+The argument is a BPF program file descriptor that was created by
+a previous
+<B><A HREF="/cgi-bin/man/man2html?2+bpf">bpf</A></B>(2)
+
+system call.
+<DT id="419"><B>PERF_EVENT_IOC_PAUSE_OUTPUT</B> (since Linux 4.7)
+
+<DD>
+
+This allows pausing and resuming the event's ring-buffer.
+A paused ring-buffer does not prevent generation of samples,
+but simply discards them.
+The discarded samples are considered lost, and cause a
+<B>PERF_RECORD_LOST</B>
+
+sample to be generated when possible.
+An overflow signal may still be triggered by the discarded sample
+even though the ring-buffer remains empty.
+<DT id="420"><DD>
+The argument is an unsigned 32-bit integer.
+A nonzero value pauses the ring-buffer, while a
+zero value resumes the ring-buffer.
+<DT id="421"><B>PERF_EVENT_MODIFY_ATTRIBUTES</B> (since Linux 4.17)
+
+<DD>
+
+This allows modifying an existing event without the overhead
+of closing and reopening a new event.
+Currently this is supported only for breakpoint events.
+<DT id="422"><DD>
+The argument is a pointer to a
+<I>perf_event_attr</I>
+
+structure containing the updated event settings.
+<DT id="423"><B>PERF_EVENT_IOC_QUERY_BPF</B> (since Linux 4.16)
+
+<DD>
+
+This allows querying which Berkeley Packet Filter (BPF)
+programs are attached to an existing kprobe tracepoint.
+You can only attach one BPF program per event, but you can
+have multiple events attached to a tracepoint.
+Querying this value on one tracepoint event returns the id
+of all BPF programs in all events attached to the tracepoint.
+You need
+<B>CAP_SYS_ADMIN</B>
+
+privileges to use this ioctl.
+<DT id="424"><DD>
+The argument is a pointer to a structure
+
+
+struct perf_event_query_bpf {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u32&nbsp;&nbsp;&nbsp;&nbsp;ids_len;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u32&nbsp;&nbsp;&nbsp;&nbsp;prog_cnt;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u32&nbsp;&nbsp;&nbsp;&nbsp;ids[0];
+};
+
+<DT id="425"><DD>
+The
+<I>ids_len</I>
+
+field indicates the number of ids that can fit in the provided
+<I>ids</I>
+
+array.
+The
+<I>prog_cnt</I>
+
+value is filled in by the kernel with the number of attached
+BPF programs.
+The
+<I>ids</I>
+
+array is filled with the id of each attached BPF program.
+If there are more programs than will fit in the array, then the
+kernel will return
+<B>ENOSPC</B>
+
+and
+<I>ids_len</I>
+
+will indicate the number of program IDs that were successfully copied.
+
+</DL>
+<A NAME="lbAK">&nbsp;</A>
+<H3>Using <A HREF="/cgi-bin/man/man2html?2+prctl">prctl</A>(2)</H3>
+
+A process can enable or disable all currently open event groups
+using the
+<B><A HREF="/cgi-bin/man/man2html?2+prctl">prctl</A></B>(2)
+
+<B>PR_TASK_PERF_EVENTS_ENABLE</B>
+
+and
+<B>PR_TASK_PERF_EVENTS_DISABLE</B>
+
+operations.
+This applies only to events created locally by the calling process.
+This does not apply to events created by other processes attached
+to the calling process or inherited events from a parent process.
+Only group leaders are enabled and disabled,
+not any other members of the groups.
+<A NAME="lbAL">&nbsp;</A>
+<H3>perf_event related configuration files</H3>
+
+<P>
+
+Files in
+<I>/proc/sys/kernel/</I>
+
+<DL COMPACT><DT id="426"><DD>
+<DL COMPACT>
+<DT id="427"><I>/proc/sys/kernel/perf_event_paranoid</I>
+
+<DD>
+The
+<I>perf_event_paranoid</I>
+
+file can be set to restrict access to the performance counters.
+<DT id="428"><DD>
+
+<DL COMPACT><DT id="429"><DD>
+<DL COMPACT>
+<DT id="430">2<DD>
+allow only user-space measurements (default since Linux 4.6).
+
+<DT id="431">1<DD>
+allow both kernel and user measurements (default before Linux 4.6).
+<DT id="432">0<DD>
+allow access to CPU-specific data but not raw tracepoint samples.
+<DT id="433">-1<DD>
+no restrictions.
+</DL>
+</DL>
+
+
+<DT id="434"><DD>
+The existence of the
+<I>perf_event_paranoid</I>
+
+file is the official method for determining if a kernel supports
+<B>perf_event_open</B>().
+
+<DT id="435"><I>/proc/sys/kernel/perf_event_max_sample_rate</I>
+
+<DD>
+This sets the maximum sample rate.
+Setting this too high can allow
+users to sample at a rate that impacts overall machine performance
+and potentially lock up the machine.
+The default value is
+100000 (samples per second).
+<DT id="436"><I>/proc/sys/kernel/perf_event_max_stack</I>
+
+<DD>
+
+This file sets the maximum depth of stack frame entries reported
+when generating a call trace.
+<DT id="437"><I>/proc/sys/kernel/perf_event_mlock_kb</I>
+
+<DD>
+Maximum number of pages an unprivileged user can
+<B><A HREF="/cgi-bin/man/man2html?2+mlock">mlock</A></B>(2).
+
+The default is 516 (kB).
+</DL>
+</DL>
+
+<P>
+
+Files in
+<I>/sys/bus/event_source/devices/</I>
+
+<P>
+
+<DL COMPACT><DT id="438"><DD>
+Since Linux 2.6.34, the kernel supports having multiple PMUs
+available for monitoring.
+Information on how to program these PMUs can be found under
+<I>/sys/bus/event_source/devices/</I>.
+
+Each subdirectory corresponds to a different PMU.
+<DL COMPACT>
+<DT id="439"><I>/sys/bus/event_source/devices/*/type</I> (since Linux 2.6.38)
+
+<DD>
+
+This contains an integer that can be used in the
+<I>type</I>
+
+field of
+<I>perf_event_attr</I>
+
+to indicate that you wish to use this PMU.
+<DT id="440"><I>/sys/bus/event_source/devices/cpu/rdpmc</I> (since Linux 3.4)
+
+<DD>
+
+If this file is 1, then direct user-space access to the
+performance counter registers is allowed via the rdpmc instruction.
+This can be disabled by echoing 0 to the file.
+<DT id="441"><DD>
+As of Linux 4.0
+
+
+the behavior has changed, so that 1 now means only allow access
+to processes with active perf events, with 2 indicating the old
+allow-anyone-access behavior.
+<DT id="442"><I>/sys/bus/event_source/devices/*/format/</I> (since Linux 3.4)
+
+<DD>
+
+This subdirectory contains information on the architecture-specific
+subfields available for programming the various
+<I>config</I>
+
+fields in the
+<I>perf_event_attr</I>
+
+struct.
+<DT id="443"><DD>
+The content of each file is the name of the config field, followed
+by a colon, followed by a series of integer bit ranges separated by
+commas.
+For example, the file
+<I>event</I>
+
+may contain the value
+<I>config1:1,6-10,44</I>
+
+which indicates that event is an attribute that occupies bits 1,6-10, and 44
+of
+<I>perf_event_attr::config1</I>.
+
+<DT id="444"><I>/sys/bus/event_source/devices/*/events/</I> (since Linux 3.4)
+
+<DD>
+
+This subdirectory contains files with predefined events.
+The contents are strings describing the event settings
+expressed in terms of the fields found in the previously mentioned
+<I>./format/</I>
+
+directory.
+These are not necessarily complete lists of all events supported by
+a PMU, but usually a subset of events deemed useful or interesting.
+<DT id="445"><DD>
+The content of each file is a list of attribute names
+separated by commas.
+Each entry has an optional value (either hex or decimal).
+If no value is specified, then it is assumed to be a single-bit
+field with a value of 1.
+An example entry may look like this:
+<I>event=0x2,inv,ldlat=3</I>.
+
+<DT id="446"><I>/sys/bus/event_source/devices/*/uevent</I>
+
+<DD>
+This file is the standard kernel device interface
+for injecting hotplug events.
+<DT id="447"><I>/sys/bus/event_source/devices/*/cpumask</I> (since Linux 3.7)
+
+<DD>
+
+The
+<I>cpumask</I>
+
+file contains a comma-separated list of integers that
+indicate a representative CPU number for each socket (package)
+on the motherboard.
+This is needed when setting up uncore or northbridge events, as
+those PMUs present socket-wide events.
+</DL>
+</DL>
+
+<A NAME="lbAM">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+<B>perf_event_open</B>()
+
+returns the new file descriptor, or -1 if an error occurred
+(in which case,
+<I>errno</I>
+
+is set appropriately).
+<A NAME="lbAN">&nbsp;</A>
+<H2>ERRORS</H2>
+
+The errors returned by
+<B>perf_event_open</B>()
+
+can be inconsistent, and may
+vary across processor architectures and performance monitoring units.
+<DL COMPACT>
+<DT id="448"><B>E2BIG</B>
+
+<DD>
+Returned if the
+<I>perf_event_attr</I>
+
+<I>size</I>
+
+value is too small
+(smaller than
+<B>PERF_ATTR_SIZE_VER0</B>),
+
+too big (larger than the page size),
+or larger than the kernel supports and the extra bytes are not zero.
+When
+<B>E2BIG</B>
+
+is returned, the
+<I>perf_event_attr</I>
+
+<I>size</I>
+
+field is overwritten by the kernel to be the size of the structure
+it was expecting.
+<DT id="449"><B>EACCES</B>
+
+<DD>
+Returned when the requested event requires
+<B>CAP_SYS_ADMIN</B>
+
+permissions (or a more permissive perf_event paranoid setting).
+Some common cases where an unprivileged process
+may encounter this error:
+attaching to a process owned by a different user;
+monitoring all processes on a given CPU (i.e., specifying the
+<I>pid</I>
+
+argument as -1);
+and not setting
+<I>exclude_kernel</I>
+
+when the paranoid setting requires it.
+<DT id="450"><B>EBADF</B>
+
+<DD>
+Returned if the
+<I>group_fd</I>
+
+file descriptor is not valid, or, if
+<B>PERF_FLAG_PID_CGROUP</B>
+
+is set,
+the cgroup file descriptor in
+<I>pid</I>
+
+is not valid.
+<DT id="451"><B>EBUSY</B> (since Linux 4.1)
+
+<DD>
+
+Returned if another event already has exclusive
+access to the PMU.
+<DT id="452"><B>EFAULT</B>
+
+<DD>
+Returned if the
+<I>attr</I>
+
+pointer points at an invalid memory address.
+<DT id="453"><B>EINVAL</B>
+
+<DD>
+Returned if the specified event is invalid.
+There are many possible reasons for this.
+A not-exhaustive list:
+<I>sample_freq</I>
+
+is higher than the maximum setting;
+the
+<I>cpu</I>
+
+to monitor does not exist;
+<I>read_format</I>
+
+is out of range;
+<I>sample_type</I>
+
+is out of range;
+the
+<I>flags</I>
+
+value is out of range;
+<I>exclusive</I>
+
+or
+<I>pinned</I>
+
+set and the event is not a group leader;
+the event
+<I>config</I>
+
+values are out of range or set reserved bits;
+the generic event selected is not supported; or
+there is not enough room to add the selected event.
+<DT id="454"><B>EINTR</B>
+
+<DD>
+Returned when trying to mix perf and ftrace handling
+for a uprobe.
+<DT id="455"><B>EMFILE</B>
+
+<DD>
+Each opened event uses one file descriptor.
+If a large number of events are opened,
+the per-process limit on the number of open file descriptors will be reached,
+and no more events can be created.
+<DT id="456"><B>ENODEV</B>
+
+<DD>
+Returned when the event involves a feature not supported
+by the current CPU.
+<DT id="457"><B>ENOENT</B>
+
+<DD>
+Returned if the
+<I>type</I>
+
+setting is not valid.
+This error is also returned for
+some unsupported generic events.
+<DT id="458"><B>ENOSPC</B>
+
+<DD>
+Prior to Linux 3.3, if there was not enough room for the event,
+
+<B>ENOSPC</B>
+
+was returned.
+In Linux 3.3, this was changed to
+<B>EINVAL</B>.
+
+<B>ENOSPC</B>
+
+is still returned if you try to add more breakpoint events
+than supported by the hardware.
+<DT id="459"><B>ENOSYS</B>
+
+<DD>
+Returned if
+<B>PERF_SAMPLE_STACK_USER</B>
+
+is set in
+<I>sample_type</I>
+
+and it is not supported by hardware.
+<DT id="460"><B>EOPNOTSUPP</B>
+
+<DD>
+Returned if an event requiring a specific hardware feature is
+requested but there is no hardware support.
+This includes requesting low-skid events if not supported,
+branch tracing if it is not available, sampling if no PMU
+interrupt is available, and branch stacks for software events.
+<DT id="461"><B>EOVERFLOW</B> (since Linux 4.8)
+
+<DD>
+
+Returned if
+<B>PERF_SAMPLE_CALLCHAIN</B>
+
+is requested and
+<I>sample_max_stack</I>
+
+is larger than the maximum specified in
+<I>/proc/sys/kernel/perf_event_max_stack</I>.
+
+<DT id="462"><B>EPERM</B>
+
+<DD>
+Returned on many (but not all) architectures when an unsupported
+<I>exclude_hv</I>, <I>exclude_idle</I>, <I>exclude_user</I>, or <I>exclude_kernel</I>
+
+setting is specified.
+<DT id="463"><DD>
+It can also happen, as with
+<B>EACCES</B>,
+
+when the requested event requires
+<B>CAP_SYS_ADMIN</B>
+
+permissions (or a more permissive perf_event paranoid setting).
+This includes setting a breakpoint on a kernel address,
+and (since Linux 3.13) setting a kernel function-trace tracepoint.
+
+<DT id="464"><B>ESRCH</B>
+
+<DD>
+Returned if attempting to attach to a process that does not exist.
+</DL>
+<A NAME="lbAO">&nbsp;</A>
+<H2>VERSION</H2>
+
+<B>perf_event_open</B>()
+
+was introduced in Linux 2.6.31 but was called
+
+<B>perf_counter_open</B>().
+
+It was renamed in Linux 2.6.32.
+
+<A NAME="lbAP">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+This
+<B>perf_event_open</B>()
+
+system call Linux-specific
+and should not be used in programs intended to be portable.
+<A NAME="lbAQ">&nbsp;</A>
+<H2>NOTES</H2>
+
+Glibc does not provide a wrapper for this system call; call it using
+<B><A HREF="/cgi-bin/man/man2html?2+syscall">syscall</A></B>(2).
+
+See the example below.
+<P>
+
+The official way of knowing if
+<B>perf_event_open</B>()
+
+support is enabled is checking
+for the existence of the file
+<I>/proc/sys/kernel/perf_event_paranoid</I>.
+
+<A NAME="lbAR">&nbsp;</A>
+<H2>BUGS</H2>
+
+The
+<B>F_SETOWN_EX</B>
+
+option to
+<B><A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A></B>(2)
+
+is needed to properly get overflow signals in threads.
+This was introduced in Linux 2.6.32.
+
+<P>
+
+Prior to Linux 2.6.33 (at least for x86),
+
+the kernel did not check
+if events could be scheduled together until read time.
+The same happens on all known kernels if the NMI watchdog is enabled.
+This means to see if a given set of events works you have to
+<B>perf_event_open</B>(),
+
+start, then read before you know for sure you
+can get valid measurements.
+<P>
+
+Prior to Linux 2.6.34,
+
+event constraints were not enforced by the kernel.
+In that case, some events would silently return &quot;0&quot; if the kernel
+scheduled them in an improper counter slot.
+<P>
+
+Prior to Linux 2.6.34, there was a bug when multiplexing where the
+wrong results could be returned.
+
+<P>
+
+Kernels from Linux 2.6.35 to Linux 2.6.39 can quickly crash the kernel if
+&quot;inherit&quot; is enabled and many threads are started.
+
+<P>
+
+Prior to Linux 2.6.35,
+
+<B>PERF_FORMAT_GROUP</B>
+
+did not work with attached processes.
+<P>
+
+There is a bug in the kernel code between
+Linux 2.6.36 and Linux 3.0 that ignores the
+&quot;watermark&quot; field and acts as if a wakeup_event
+was chosen if the union has a
+nonzero value in it.
+
+<P>
+
+From Linux 2.6.31 to Linux 3.4, the
+<B>PERF_IOC_FLAG_GROUP</B>
+
+ioctl argument was broken and would repeatedly operate
+on the event specified rather than iterating across
+all sibling events in a group.
+
+<P>
+
+From Linux 3.4 to Linux 3.11, the mmap
+
+<I>cap_usr_rdpmc</I>
+
+and
+<I>cap_usr_time</I>
+
+bits mapped to the same location.
+Code should migrate to the new
+<I>cap_user_rdpmc</I>
+
+and
+<I>cap_user_time</I>
+
+fields instead.
+<P>
+
+Always double-check your results!
+Various generalized events have had wrong values.
+For example, retired branches measured
+the wrong thing on AMD machines until Linux 2.6.35.
+
+<A NAME="lbAS">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+The following is a short example that measures the total
+instruction count of a call to
+<B><A HREF="/cgi-bin/man/man2html?3+printf">printf</A></B>(3).
+
+<P>
+
+
+#include &lt;<A HREF="file:///usr/include/stdlib.h">stdlib.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/unistd.h">unistd.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/string.h">string.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/sys/ioctl.h">sys/ioctl.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/linux/perf_event.h">linux/perf_event.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/asm/unistd.h">asm/unistd.h</A>&gt;
+<P>
+static long
+perf_event_open(struct perf_event_attr *hw_event, pid_t pid,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;cpu,&nbsp;int&nbsp;group_fd,&nbsp;unsigned&nbsp;long&nbsp;flags)
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;ret;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;ret&nbsp;=&nbsp;syscall(__NR_perf_event_open,&nbsp;hw_event,&nbsp;pid,&nbsp;cpu,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;group_fd,&nbsp;flags);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;ret;
+}
+<P>
+int
+main(int argc, char **argv)
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;perf_event_attr&nbsp;pe;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;long&nbsp;long&nbsp;count;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;fd;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;memset(&amp;pe,&nbsp;0,&nbsp;sizeof(struct&nbsp;perf_event_attr));
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;pe.type&nbsp;=&nbsp;PERF_TYPE_HARDWARE;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;pe.size&nbsp;=&nbsp;sizeof(struct&nbsp;perf_event_attr);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;pe.config&nbsp;=&nbsp;PERF_COUNT_HW_INSTRUCTIONS;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;pe.disabled&nbsp;=&nbsp;1;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;pe.exclude_kernel&nbsp;=&nbsp;1;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;pe.exclude_hv&nbsp;=&nbsp;1;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fd&nbsp;=&nbsp;perf_event_open(&amp;pe,&nbsp;0,&nbsp;-1,&nbsp;-1,&nbsp;0);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(fd&nbsp;==&nbsp;-1)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;Error&nbsp;opening&nbsp;leader&nbsp;%llx\n&quot;,&nbsp;pe.config);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;ioctl(fd,&nbsp;PERF_EVENT_IOC_RESET,&nbsp;0);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;ioctl(fd,&nbsp;PERF_EVENT_IOC_ENABLE,&nbsp;0);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;Measuring&nbsp;instruction&nbsp;count&nbsp;for&nbsp;this&nbsp;printf\n&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;ioctl(fd,&nbsp;PERF_EVENT_IOC_DISABLE,&nbsp;0);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;read(fd,&nbsp;&amp;count,&nbsp;sizeof(long&nbsp;long));
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;Used&nbsp;%lld&nbsp;instructions\n&quot;,&nbsp;count);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;close(fd);
+}
+
+<A NAME="lbAT">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?1+perf">perf</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+mmap">mmap</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+open">open</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+prctl">prctl</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)
+
+<P>
+
+<I>Documentation/admin-guide/perf-security.rst</I>
+
+in the kernel source tree
+<A NAME="lbAU">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="465"><A HREF="#lbAB">NAME</A><DD>
+<DT id="466"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="467"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DL>
+<DT id="468"><A HREF="#lbAE">Arguments</A><DD>
+<DT id="469"><A HREF="#lbAF">Reading results</A><DD>
+<DT id="470"><A HREF="#lbAG">MMAP layout</A><DD>
+<DT id="471"><A HREF="#lbAH">Overflow handling</A><DD>
+<DT id="472"><A HREF="#lbAI">rdpmc instruction</A><DD>
+<DT id="473"><A HREF="#lbAJ">perf_event ioctl calls</A><DD>
+<DT id="474"><A HREF="#lbAK">Using prctl(2)</A><DD>
+<DT id="475"><A HREF="#lbAL">perf_event related configuration files</A><DD>
+</DL>
+<DT id="476"><A HREF="#lbAM">RETURN VALUE</A><DD>
+<DT id="477"><A HREF="#lbAN">ERRORS</A><DD>
+<DT id="478"><A HREF="#lbAO">VERSION</A><DD>
+<DT id="479"><A HREF="#lbAP">CONFORMING TO</A><DD>
+<DT id="480"><A HREF="#lbAQ">NOTES</A><DD>
+<DT id="481"><A HREF="#lbAR">BUGS</A><DD>
+<DT id="482"><A HREF="#lbAS">EXAMPLE</A><DD>
+<DT id="483"><A HREF="#lbAT">SEE ALSO</A><DD>
+<DT id="484"><A HREF="#lbAU">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:33 GMT, March 31, 2021
+</BODY>
+</HTML>

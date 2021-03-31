@@ -1,0 +1,241 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of GIT-UPDATE-REF</TITLE>
+</HEAD><BODY>
+<H1>GIT-UPDATE-REF</H1>
+Section: Git Manual (1)<BR>Updated: 03/04/2021<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+git-update-ref - Update the object name stored in a ref safely
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+<PRE>
+<I>git update-ref</I> [-m &lt;reason&gt;] [--no-deref] (-d &lt;ref&gt; [&lt;oldvalue&gt;] | [--create-reflog] &lt;ref&gt; &lt;newvalue&gt; [&lt;oldvalue&gt;] | --stdin [-z])
+</PRE>
+
+<P>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+Given two arguments, stores the &lt;newvalue&gt; in the &lt;ref&gt;, possibly dereferencing the symbolic refs. E.g. <B>git update-ref HEAD &lt;newvalue&gt;</B> updates the current branch head to the new object.
+<P>
+Given three arguments, stores the &lt;newvalue&gt; in the &lt;ref&gt;, possibly dereferencing the symbolic refs, after verifying that the current value of the &lt;ref&gt; matches &lt;oldvalue&gt;. E.g. <B>git update-ref refs/heads/master &lt;newvalue&gt; &lt;oldvalue&gt;</B> updates the master branch head to &lt;newvalue&gt; only if its current value is &lt;oldvalue&gt;. You can specify 40 &quot;0&quot; or an empty string as &lt;oldvalue&gt; to make sure that the ref you are creating does not exist.
+<P>
+It also allows a &quot;ref&quot; file to be a symbolic pointer to another ref file by starting with the four-byte header sequence of &quot;ref:&quot;.
+<P>
+More importantly, it allows the update of a ref file to follow these symbolic pointers, whether they are symlinks or these &quot;regular file symbolic refs&quot;. It follows <B>real</B> symlinks only if they start with &quot;refs/&quot;: otherwise it will just try to read them and update them as a regular file (i.e. it will allow the filesystem to follow them, but will overwrite such a symlink to somewhere else with a regular filename).
+<P>
+If --no-deref is given, &lt;ref&gt; itself is overwritten, rather than the result of following the symbolic pointers.
+<P>
+In general, using
+<P>
+<DL COMPACT><DT id="1"><DD>
+
+
+
+<PRE>
+git update-ref HEAD &quot;$head&quot;
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+should be a <I>lot</I> safer than doing
+<P>
+<DL COMPACT><DT id="2"><DD>
+
+
+
+<PRE>
+echo &quot;$head&quot; &gt; &quot;$GIT_DIR/HEAD&quot;
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+both from a symlink following standpoint <B>and</B> an error checking standpoint. The &quot;refs/&quot; rule for symlinks means that symlinks that point to &quot;outside&quot; the tree are safe: they'll be followed for reading but not for writing (so we'll never write through a ref symlink to some other tree, if you have copied a whole archive by creating a symlink tree).
+<P>
+With <B>-d</B> flag, it deletes the named &lt;ref&gt; after verifying it still contains &lt;oldvalue&gt;.
+<P>
+With <B>--stdin</B>, update-ref reads instructions from standard input and performs all modifications together. Specify commands of the form:
+<P>
+<DL COMPACT><DT id="3"><DD>
+
+
+
+<PRE>
+update SP &lt;ref&gt; SP &lt;newvalue&gt; [SP &lt;oldvalue&gt;] LF
+create SP &lt;ref&gt; SP &lt;newvalue&gt; LF
+delete SP &lt;ref&gt; [SP &lt;oldvalue&gt;] LF
+verify SP &lt;ref&gt; [SP &lt;oldvalue&gt;] LF
+option SP &lt;opt&gt; LF
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+With <B>--create-reflog</B>, update-ref will create a reflog for each ref even if one would not ordinarily be created.
+<P>
+Quote fields containing whitespace as if they were strings in C source code; i.e., surrounded by double-quotes and with backslash escapes. Use 40 &quot;0&quot; characters or the empty string to specify a zero value. To specify a missing value, omit the value and its preceding SP entirely.
+<P>
+Alternatively, use <B>-z</B> to specify in NUL-terminated format, without quoting:
+<P>
+<DL COMPACT><DT id="4"><DD>
+
+
+
+<PRE>
+update SP &lt;ref&gt; NUL &lt;newvalue&gt; NUL [&lt;oldvalue&gt;] NUL
+create SP &lt;ref&gt; NUL &lt;newvalue&gt; NUL
+delete SP &lt;ref&gt; NUL [&lt;oldvalue&gt;] NUL
+verify SP &lt;ref&gt; NUL [&lt;oldvalue&gt;] NUL
+option SP &lt;opt&gt; NUL
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+In this format, use 40 &quot;0&quot; to specify a zero value, and use the empty string to specify a missing value.
+<P>
+In either format, values can be specified in any form that Git recognizes as an object name. Commands in any other format or a repeated &lt;ref&gt; produce an error. Command meanings are:
+<P>
+
+update
+<DL COMPACT><DT id="5"><DD>
+Set &lt;ref&gt; to &lt;newvalue&gt; after verifying &lt;oldvalue&gt;, if given. Specify a zero &lt;newvalue&gt; to ensure the ref does not exist after the update and/or a zero &lt;oldvalue&gt; to make sure the ref does not exist before the update.
+</DL>
+
+<P>
+
+create
+<DL COMPACT><DT id="6"><DD>
+Create &lt;ref&gt; with &lt;newvalue&gt; after verifying it does not exist. The given &lt;newvalue&gt; may not be zero.
+</DL>
+
+<P>
+
+delete
+<DL COMPACT><DT id="7"><DD>
+Delete &lt;ref&gt; after verifying it exists with &lt;oldvalue&gt;, if given. If given, &lt;oldvalue&gt; may not be zero.
+</DL>
+
+<P>
+
+verify
+<DL COMPACT><DT id="8"><DD>
+Verify &lt;ref&gt; against &lt;oldvalue&gt; but do not change it. If &lt;oldvalue&gt; zero or missing, the ref must not exist.
+</DL>
+
+<P>
+
+option
+<DL COMPACT><DT id="9"><DD>
+Modify behavior of the next command naming a &lt;ref&gt;. The only valid option is
+<B>no-deref</B>
+to avoid dereferencing a symbolic ref.
+</DL>
+
+<P>
+If all &lt;ref&gt;s can be locked with matching &lt;oldvalue&gt;s simultaneously, all modifications are performed. Otherwise, no modifications are performed. Note that while each individual &lt;ref&gt; is updated or deleted atomically, a concurrent reader may still see a subset of the modifications.
+<A NAME="lbAE">&nbsp;</A>
+<H2>LOGGING UPDATES</H2>
+
+<P>
+If config parameter &quot;core.logAllRefUpdates&quot; is true and the ref is one under &quot;refs/heads/&quot;, &quot;refs/remotes/&quot;, &quot;refs/notes/&quot;, or the symbolic ref HEAD; or the file &quot;$GIT_DIR/logs/&lt;ref&gt;&quot; exists then <B>git update-ref</B> will append a line to the log file &quot;$GIT_DIR/logs/&lt;ref&gt;&quot; (dereferencing all symbolic refs before creating the log name) describing the change in ref value. Log lines are formatted as:
+<P>
+<DL COMPACT><DT id="10"><DD>
+
+
+
+<PRE>
+oldsha1 SP newsha1 SP committer LF
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+Where &quot;oldsha1&quot; is the 40 character hexadecimal value previously stored in &lt;ref&gt;, &quot;newsha1&quot; is the 40 character hexadecimal value of &lt;newvalue&gt; and &quot;committer&quot; is the committer's name, email address and date in the standard Git committer ident format.
+<P>
+Optionally with -m:
+<P>
+<DL COMPACT><DT id="11"><DD>
+
+
+
+<PRE>
+oldsha1 SP newsha1 SP committer TAB message LF
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+Where all fields are as described above and &quot;message&quot; is the value supplied to the -m option.
+<P>
+An update will fail (without changing &lt;ref&gt;) if the current user is unable to create a new log file, append to the existing log file or does not have committer information available.
+<A NAME="lbAF">&nbsp;</A>
+<H2>GIT</H2>
+
+<P>
+Part of the <B><A HREF="/cgi-bin/man/man2html?1+git">git</A></B>(1) suite
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="12"><A HREF="#lbAB">NAME</A><DD>
+<DT id="13"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="14"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="15"><A HREF="#lbAE">LOGGING UPDATES</A><DD>
+<DT id="16"><A HREF="#lbAF">GIT</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:15 GMT, March 31, 2021
+</BODY>
+</HTML>

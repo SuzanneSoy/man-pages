@@ -1,0 +1,687 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of CONFIG</TITLE>
+</HEAD><BODY>
+<H1>CONFIG</H1>
+Section: OpenSSL (5SSL)<BR>Updated: 2021-03-22<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+config - OpenSSL CONF library configuration files
+<A NAME="lbAC">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+
+The OpenSSL <FONT SIZE="-1">CONF</FONT> library can be used to read configuration files.
+It is used for the OpenSSL master configuration file <B>openssl.cnf</B>
+and in a few other places like <B></B><FONT SIZE="-1"><B>SPKAC</B></FONT><B></B> files and certificate extension
+files for the <B>x509</B> utility. OpenSSL applications can also use the
+<FONT SIZE="-1">CONF</FONT> library for their own purposes.
+<P>
+
+A configuration file is divided into a number of sections. Each section
+starts with a line <B>[ section_name ]</B> and ends when a new section is
+started or end of file is reached. A section name can consist of
+alphanumeric characters and underscores.
+<P>
+
+The first section of a configuration file is special and is referred
+to as the <B>default</B> section. This section is usually unnamed and spans from the
+start of file until the first named section. When a name is being looked up
+it is first looked up in a named section (if any) and then the
+default section.
+<P>
+
+The environment is mapped onto a section called <B></B><FONT SIZE="-1"><B>ENV</B></FONT><B></B>.
+<P>
+
+Comments can be included by preceding them with the <B>#</B> character
+<P>
+
+Other files can be included using the <B>.include</B> directive followed
+by a path. If the path points to a directory all files with
+names ending with <B>.cnf</B> or <B>.conf</B> are included from the directory.
+Recursive inclusion of directories from files in such directory is not
+supported. That means the files in the included directory can also contain
+<B>.include</B> directives but only inclusion of regular files is supported
+there. The inclusion of directories is not supported on systems without
+<FONT SIZE="-1">POSIX IO</FONT> support.
+<P>
+
+It is strongly recommended to use absolute paths with the <B>.include</B>
+directive. Relative paths are evaluated based on the application current
+working directory so unless the configuration file containing the
+<B>.include</B> directive is application specific the inclusion will not
+work as expected.
+<P>
+
+There can be optional <B>=</B> character and whitespace characters between
+<B>.include</B> directive and the path which can be useful in cases the
+configuration file needs to be loaded by old OpenSSL versions which do
+not support the <B>.include</B> syntax. They would bail out with error
+if the <B>=</B> character is not present but with it they just ignore
+the include.
+<P>
+
+Each section in a configuration file consists of a number of name and
+value pairs of the form <B>name=value</B>
+<P>
+
+The <B>name</B> string can contain any alphanumeric characters as well as
+a few punctuation symbols such as <B>.</B> <B>,</B> <B>;</B> and <B>_</B>.
+<P>
+
+The <B>value</B> string consists of the string following the <B>=</B> character
+until end of line with any leading and trailing white space removed.
+<P>
+
+The value string undergoes variable expansion. This can be done by
+including the form <B></B>$var<B></B> or <B>${var}</B>: this will substitute the value
+of the named variable in the current section. It is also possible to
+substitute a value from another section using the syntax <B></B>$section::name<B></B>
+or <B>${section::name}</B>. By using the form <B></B>$ENV::name<B></B> environment
+variables can be substituted. It is also possible to assign values to
+environment variables by using the name <B>ENV::name</B>, this will work
+if the program looks up environment variables using the <B></B><FONT SIZE="-1"><B>CONF</B></FONT><B></B> library
+instead of calling <B>getenv()</B> directly. The value string must not exceed 64k in
+length after variable expansion. Otherwise an error will occur.
+<P>
+
+It is possible to escape certain characters by using any kind of quote
+or the <B>\</B> character. By making the last character of a line a <B>\</B>
+a <B>value</B> string can be spread across multiple lines. In addition
+the sequences <B>\n</B>, <B>\r</B>, <B>\b</B> and <B>\t</B> are recognized.
+<P>
+
+All expansion and escape rules as described above that apply to <B>value</B>
+also apply to the path of the <B>.include</B> directive.
+<A NAME="lbAD">&nbsp;</A>
+<H2>OPENSSL LIBRARY CONFIGURATION</H2>
+
+
+
+Applications can automatically configure certain
+aspects of OpenSSL using the master OpenSSL configuration file, or optionally
+an alternative configuration file. The <B>openssl</B> utility includes this
+functionality: any sub command uses the master OpenSSL configuration file
+unless an option is used in the sub command to use an alternative configuration
+file.
+<P>
+
+To enable library configuration the default section needs to contain an
+appropriate line which points to the main configuration section. The default
+name is <B>openssl_conf</B> which is used by the <B>openssl</B> utility. Other
+applications may use an alternative name such as <B>myapplication_conf</B>.
+All library configuration lines appear in the default section at the start
+of the configuration file.
+<P>
+
+The configuration section should consist of a set of name value pairs which
+contain specific module configuration information. The <B>name</B> represents
+the name of the <I>configuration module</I>. The meaning of the <B>value</B> is
+module specific: it may, for example, represent a further configuration
+section containing configuration module specific information. E.g.:
+<P>
+
+
+
+<PRE>
+ # This must be in the default section
+ openssl_conf = openssl_init
+
+ [openssl_init]
+
+ oid_section = new_oids
+ engines = engine_section
+
+ [new_oids]
+
+ ... new oids here ...
+
+ [engine_section]
+
+ ... engine stuff here ...
+
+</PRE>
+
+
+<P>
+
+The features of each configuration module are described below.
+<A NAME="lbAE">&nbsp;</A>
+<H3><FONT SIZE="-1">ASN1</FONT> Object Configuration Module</H3>
+
+
+
+This module has the name <B>oid_section</B>. The value of this variable points
+to a section containing name value pairs of OIDs: the name is the <FONT SIZE="-1">OID</FONT> short
+and long name, the value is the numerical form of the <FONT SIZE="-1">OID.</FONT> Although some of
+the <B>openssl</B> utility sub commands already have their own <FONT SIZE="-1">ASN1 OBJECT</FONT> section
+functionality not all do. By using the <FONT SIZE="-1">ASN1 OBJECT</FONT> configuration module
+<B>all</B> the <B>openssl</B> utility sub commands can see the new objects as well
+as any compliant applications. For example:
+<P>
+
+
+
+<PRE>
+ [new_oids]
+
+ some_new_oid = 1.2.3.4
+ some_other_oid = 1.2.3.5
+
+</PRE>
+
+
+<P>
+
+It is also possible to set the value to the long name followed
+by a comma and the numerical <FONT SIZE="-1">OID</FONT> form. For example:
+<P>
+
+
+
+<PRE>
+ shortName = some object long name, 1.2.3.4
+
+</PRE>
+
+
+<A NAME="lbAF">&nbsp;</A>
+<H3>Engine Configuration Module</H3>
+
+
+
+This <FONT SIZE="-1">ENGINE</FONT> configuration module has the name <B>engines</B>. The value of this
+variable points to a section containing further <FONT SIZE="-1">ENGINE</FONT> configuration
+information.
+<P>
+
+The section pointed to by <B>engines</B> is a table of engine names (though see
+<B>engine_id</B> below) and further sections containing configuration information
+specific to each <FONT SIZE="-1">ENGINE.</FONT>
+<P>
+
+Each <FONT SIZE="-1">ENGINE</FONT> specific section is used to set default algorithms, load
+dynamic, perform initialization and send ctrls. The actual operation performed
+depends on the <I>command</I> name which is the name of the name value pair. The
+currently supported commands are listed below.
+<P>
+
+For example:
+<P>
+
+
+
+<PRE>
+ [engine_section]
+
+ # Configure ENGINE named &quot;foo&quot;
+ foo = foo_section
+ # Configure ENGINE named &quot;bar&quot;
+ bar = bar_section
+
+ [foo_section]
+ ... foo ENGINE specific commands ...
+
+ [bar_section]
+ ... &quot;bar&quot; ENGINE specific commands ...
+
+</PRE>
+
+
+<P>
+
+The command <B>engine_id</B> is used to give the <FONT SIZE="-1">ENGINE</FONT> name. If used this
+command must be first. For example:
+<P>
+
+
+
+<PRE>
+ [engine_section]
+ # This would normally handle an ENGINE named &quot;foo&quot;
+ foo = foo_section
+
+ [foo_section]
+ # Override default name and use &quot;myfoo&quot; instead.
+ engine_id = myfoo
+
+</PRE>
+
+
+<P>
+
+The command <B>dynamic_path</B> loads and adds an <FONT SIZE="-1">ENGINE</FONT> from the given path. It
+is equivalent to sending the ctrls <B></B><FONT SIZE="-1"><B>SO_PATH</B></FONT><B></B> with the path argument followed
+by <B></B><FONT SIZE="-1"><B>LIST_ADD</B></FONT><B></B> with value 2 and <B></B><FONT SIZE="-1"><B>LOAD</B></FONT><B></B> to the dynamic <FONT SIZE="-1">ENGINE.</FONT> If this is
+not the required behaviour then alternative ctrls can be sent directly
+to the dynamic <FONT SIZE="-1">ENGINE</FONT> using ctrl commands.
+<P>
+
+The command <B>init</B> determines whether to initialize the <FONT SIZE="-1">ENGINE.</FONT> If the value
+is <B>0</B> the <FONT SIZE="-1">ENGINE</FONT> will not be initialized, if <B>1</B> and attempt it made to
+initialized the <FONT SIZE="-1">ENGINE</FONT> immediately. If the <B>init</B> command is not present
+then an attempt will be made to initialize the <FONT SIZE="-1">ENGINE</FONT> after all commands in
+its section have been processed.
+<P>
+
+The command <B>default_algorithms</B> sets the default algorithms an <FONT SIZE="-1">ENGINE</FONT> will
+supply using the functions <B>ENGINE_set_default_string()</B>.
+<P>
+
+If the name matches none of the above command names it is assumed to be a
+ctrl command which is sent to the <FONT SIZE="-1">ENGINE.</FONT> The value of the command is the
+argument to the ctrl command. If the value is the string <B></B><FONT SIZE="-1"><B>EMPTY</B></FONT><B></B> then no
+value is sent to the command.
+<P>
+
+For example:
+<P>
+
+
+
+<PRE>
+ [engine_section]
+
+ # Configure ENGINE named &quot;foo&quot;
+ foo = foo_section
+
+ [foo_section]
+ # Load engine from DSO
+ dynamic_path = /some/path/fooengine.so
+ # A foo specific ctrl.
+ some_ctrl = some_value
+ # Another ctrl that doesn't take a value.
+ other_ctrl = EMPTY
+ # Supply all default algorithms
+ default_algorithms = ALL
+
+</PRE>
+
+
+<A NAME="lbAG">&nbsp;</A>
+<H3><FONT SIZE="-1">EVP</FONT> Configuration Module</H3>
+
+
+
+This modules has the name <B>alg_section</B> which points to a section containing
+algorithm commands.
+<P>
+
+Currently the only algorithm command supported is <B>fips_mode</B> whose
+value can only be the boolean string <B>off</B>. If <B>fips_mode</B> is set to <B>on</B>,
+an error occurs as this library version is not <FONT SIZE="-1">FIPS</FONT> capable.
+<A NAME="lbAH">&nbsp;</A>
+<H3><FONT SIZE="-1">SSL</FONT> Configuration Module</H3>
+
+
+
+This module has the name <B>ssl_conf</B> which points to a section containing
+<FONT SIZE="-1">SSL</FONT> configurations.
+<P>
+
+Each line in the <FONT SIZE="-1">SSL</FONT> configuration section contains the name of the
+configuration and the section containing it.
+<P>
+
+Each configuration section consists of command value pairs for <B></B><FONT SIZE="-1"><B>SSL_CONF</B></FONT><B></B>.
+Each pair will be passed to a <B></B><FONT SIZE="-1"><B>SSL_CTX</B></FONT><B></B> or <B></B><FONT SIZE="-1"><B>SSL</B></FONT><B></B> structure if it calls
+<B>SSL_CTX_config()</B> or <B>SSL_config()</B> with the appropriate configuration name.
+<P>
+
+Note: any characters before an initial dot in the configuration section are
+ignored so the same command can be used multiple times.
+<P>
+
+For example:
+<P>
+
+
+
+<PRE>
+ ssl_conf = ssl_sect
+
+ [ssl_sect]
+
+ server = server_section
+
+ [server_section]
+
+ RSA.Certificate = server-rsa.pem
+ ECDSA.Certificate = server-ecdsa.pem
+ Ciphers = ALL:!RC4
+
+</PRE>
+
+
+<P>
+
+The system default configuration with name <B>system_default</B> if present will
+be applied during any creation of the <B></B><FONT SIZE="-1"><B>SSL_CTX</B></FONT><B></B> structure.
+<P>
+
+Example of a configuration with the system default:
+<P>
+
+
+
+<PRE>
+ ssl_conf = ssl_sect
+
+ [ssl_sect]
+
+ system_default = system_default_sect
+
+ [system_default_sect]
+
+ MinProtocol = TLSv1.2
+
+</PRE>
+
+
+<A NAME="lbAI">&nbsp;</A>
+<H2>NOTES</H2>
+
+
+
+If a configuration file attempts to expand a variable that doesn't exist
+then an error is flagged and the file will not load. This can happen
+if an attempt is made to expand an environment variable that doesn't
+exist. For example in a previous version of OpenSSL the default OpenSSL
+master configuration file used the value of <B></B><FONT SIZE="-1"><B>HOME</B></FONT><B></B> which may not be
+defined on non Unix systems and would cause an error.
+<P>
+
+This can be worked around by including a <B>default</B> section to provide
+a default value: then if the environment lookup fails the default value
+will be used instead. For this to work properly the default value must
+be defined earlier in the configuration file than the expansion. See
+the <B></B><FONT SIZE="-1"><B>EXAMPLES</B></FONT><B></B> section for an example of how to do this.
+<P>
+
+If the same variable exists in the same section then all but the last
+value will be silently ignored. In certain circumstances such as with
+DNs the same field may occur multiple times. This is usually worked
+around by ignoring any characters before an initial <B>.</B> e.g.
+<P>
+
+
+
+<PRE>
+ 1.OU=&quot;My first OU&quot;
+ 2.OU=&quot;My Second OU&quot;
+
+</PRE>
+
+
+<A NAME="lbAJ">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+
+
+Here is a sample configuration file using some of the features
+mentioned above.
+<P>
+
+
+
+<PRE>
+ # This is the default section.
+
+ HOME=/temp
+ RANDFILE= ${ENV::HOME}/.rnd
+ configdir=$ENV::HOME/config
+
+ [ section_one ]
+
+ # We are now in section one.
+
+ # Quotes permit leading and trailing whitespace
+ any = &quot; any variable name &quot;
+
+ other = A string that can \
+ cover several lines \
+ by including \\ characters
+
+ message = Hello World\n
+
+ [ section_two ]
+
+ greeting = $section_one::message
+
+</PRE>
+
+
+<P>
+
+This next example shows how to expand environment variables safely.
+<P>
+
+Suppose you want a variable called <B>tmpfile</B> to refer to a
+temporary filename. The directory it is placed in can determined by
+the <B></B><FONT SIZE="-1"><B>TEMP</B></FONT><B></B> or <B></B><FONT SIZE="-1"><B>TMP</B></FONT><B></B> environment variables but they may not be
+set to any value at all. If you just include the environment variable
+names and the variable doesn't exist then this will cause an error when
+an attempt is made to load the configuration file. By making use of the
+default section both values can be looked up with <B></B><FONT SIZE="-1"><B>TEMP</B></FONT><B></B> taking
+priority and <B>/tmp</B> used if neither is defined:
+<P>
+
+
+
+<PRE>
+ TMP=/tmp
+ # The above value is used if TMP isn't in the environment
+ TEMP=$ENV::TMP
+ # The above value is used if TEMP isn't in the environment
+ tmpfile=${ENV::TEMP}/tmp.filename
+
+</PRE>
+
+
+<P>
+
+Simple OpenSSL library configuration example to enter <FONT SIZE="-1">FIPS</FONT> mode:
+<P>
+
+
+
+<PRE>
+ # Default appname: should match &quot;appname&quot; parameter (if any)
+ # supplied to CONF_modules_load_file et al.
+ openssl_conf = openssl_conf_section
+
+ [openssl_conf_section]
+ # Configuration module list
+ alg_section = evp_sect
+
+ [evp_sect]
+ # Set to &quot;yes&quot; to enter FIPS mode if supported
+ fips_mode = yes
+
+</PRE>
+
+
+<P>
+
+Note: in the above example you will get an error in non <FONT SIZE="-1">FIPS</FONT> capable versions
+of OpenSSL.
+<P>
+
+Simple OpenSSL library configuration to make <FONT SIZE="-1">TLS 1.3</FONT> the system-default
+minimum <FONT SIZE="-1">TLS</FONT> version:
+<P>
+
+
+
+<PRE>
+ # Toplevel section for openssl (including libssl)
+ openssl_conf = default_conf_section
+
+ [default_conf_section]
+ # We only specify configuration for the &quot;ssl module&quot;
+ ssl_conf = ssl_section
+
+ [ssl_section]
+ system_default = system_default_section
+
+ [system_default_section]
+ MinProtocol = TLSv1.3
+
+</PRE>
+
+
+<P>
+
+More complex OpenSSL library configuration. Add <FONT SIZE="-1">OID</FONT> and don't enter <FONT SIZE="-1">FIPS</FONT> mode:
+<P>
+
+
+
+<PRE>
+ # Default appname: should match &quot;appname&quot; parameter (if any)
+ # supplied to CONF_modules_load_file et al.
+ openssl_conf = openssl_conf_section
+
+ [openssl_conf_section]
+ # Configuration module list
+ alg_section = evp_sect
+ oid_section = new_oids
+
+ [evp_sect]
+ # This will have no effect as FIPS mode is off by default.
+ # Set to &quot;yes&quot; to enter FIPS mode, if supported
+ fips_mode = no
+
+ [new_oids]
+ # New OID, just short name
+ newoid1 = 1.2.3.4.1
+ # New OID shortname and long name
+ newoid2 = New OID 2 long name, 1.2.3.4.2
+
+</PRE>
+
+
+<P>
+
+The above examples can be used with any application supporting library
+configuration if ``openssl_conf'' is modified to match the appropriate ``appname''.
+<P>
+
+For example if the second sample file above is saved to ``example.cnf'' then
+the command line:
+<P>
+
+
+
+<PRE>
+ OPENSSL_CONF=example.cnf openssl asn1parse -genstr OID:1.2.3.4.1
+
+</PRE>
+
+
+<P>
+
+will output:
+<P>
+
+
+
+<PRE>
+    0:d=0  hl=2 l=   4 prim: OBJECT            :newoid1
+
+</PRE>
+
+
+<P>
+
+showing that the <FONT SIZE="-1">OID</FONT> ``newoid1'' has been added as ``1.2.3.4.1''.
+<A NAME="lbAK">&nbsp;</A>
+<H2>ENVIRONMENT</H2>
+
+
+
+<DL COMPACT>
+<DT id="1"><B></B><FONT SIZE="-1"><B>OPENSSL_CONF</B></FONT><B></B><DD>
+
+
+The path to the config file.
+Ignored in set-user-ID and set-group-ID programs.
+<DT id="2"><B></B><FONT SIZE="-1"><B>OPENSSL_ENGINES</B></FONT><B></B><DD>
+
+
+The path to the engines directory.
+Ignored in set-user-ID and set-group-ID programs.
+</DL>
+<A NAME="lbAL">&nbsp;</A>
+<H2>BUGS</H2>
+
+
+
+Currently there is no way to include characters using the octal <B>\nnn</B>
+form. Strings are all null terminated so nulls cannot form part of
+the value.
+<P>
+
+The escaping isn't quite right: if you want to use sequences like <B>\n</B>
+you can't use any quote escaping on the same line.
+<P>
+
+Files are loaded in a single pass. This means that an variable expansion
+will only work if the variables referenced are defined earlier in the
+file.
+<A NAME="lbAM">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+
+<B><A HREF="/cgi-bin/man/man2html?1+x509">x509</A></B>(1), <B><A HREF="/cgi-bin/man/man2html?1+req">req</A></B>(1), <B><A HREF="/cgi-bin/man/man2html?1+ca">ca</A></B>(1)
+<A NAME="lbAN">&nbsp;</A>
+<H2>COPYRIGHT</H2>
+
+
+
+Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
+<P>
+
+Licensed under the OpenSSL license (the ``License'').  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file <FONT SIZE="-1">LICENSE</FONT> in the source distribution or at
+&lt;<A HREF="https://www.openssl.org/source/license.html">https://www.openssl.org/source/license.html</A>&gt;.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="3"><A HREF="#lbAB">NAME</A><DD>
+<DT id="4"><A HREF="#lbAC">DESCRIPTION</A><DD>
+<DT id="5"><A HREF="#lbAD">OPENSSL LIBRARY CONFIGURATION</A><DD>
+<DL>
+<DT id="6"><A HREF="#lbAE"><FONT SIZE="-1">ASN1</FONT> Object Configuration Module</A><DD>
+<DT id="7"><A HREF="#lbAF">Engine Configuration Module</A><DD>
+<DT id="8"><A HREF="#lbAG"><FONT SIZE="-1">EVP</FONT> Configuration Module</A><DD>
+<DT id="9"><A HREF="#lbAH"><FONT SIZE="-1">SSL</FONT> Configuration Module</A><DD>
+</DL>
+<DT id="10"><A HREF="#lbAI">NOTES</A><DD>
+<DT id="11"><A HREF="#lbAJ">EXAMPLES</A><DD>
+<DT id="12"><A HREF="#lbAK">ENVIRONMENT</A><DD>
+<DT id="13"><A HREF="#lbAL">BUGS</A><DD>
+<DT id="14"><A HREF="#lbAM">SEE ALSO</A><DD>
+<DT id="15"><A HREF="#lbAN">COPYRIGHT</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:02 GMT, March 31, 2021
+</BODY>
+</HTML>

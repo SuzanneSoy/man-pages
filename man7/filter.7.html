@@ -1,0 +1,295 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of filter</TITLE>
+</HEAD><BODY>
+<H1>filter</H1>
+Section: Apple Inc. (7)<BR>Updated: CUPS<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+filter - cups file conversion filter interface
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<B>filter</B>
+
+<I>job</I>
+
+<I>user</I>
+
+<I>title</I>
+
+<I>num-copies</I>
+
+<I>options</I>
+
+[
+<I>filename</I>
+
+]
+<PRE>
+
+<B>#include &lt;<A HREF="file:///usr/include/cups/cups.h">cups/cups.h</A>&gt;</B>
+
+<B>ssize_t cupsBackChannelRead</B>(<B>char *</B><I>buffer</I>, <B>size_t </B><I>bytes</I>,
+                            <B>double </B><I>timeout</I>);
+
+<B>cups_sc_status_t cupsSideChannelDoRequest</B>(<B>cups_sc_command_t </B><I>command</I>,
+                                          <B>char *</B><I>data</I>, <B>int *</B><I>datalen</I>,
+                                          <B>double </B><I>timeout</I>);
+
+<B>#include &lt;<A HREF="file:///usr/include/cups/ppd.h">cups/ppd.h</A>&gt;</B>
+
+<B>const char *cupsGetOption</B>(<B>const char *</B><I>name</I>, <B>int </B><I>num_options</I>,
+                 <B>cups_option_t *</B><I>options</I>);
+
+<B>int cupsMarkOptions</B>(<B>ppd_file_t *</B><I>ppd</I>, <B>int </B><I>num_options</I>,
+                    <B>cups_option_t *</B><I>options</I>);
+
+<B>int cupsParseOptions</B>(<B>const char *</B><I>arg</I>, <B>int </B><I>num_options</I>,
+                     <B>cups_option_t **</B><I>options</I>);
+
+<B>ppd_choice_t *ppdFindMarkedChoice</B>(<B>ppd_file_t *</B><I>ppd</I>, <B>const char *</B><I>keyword</I>);
+
+<B>void ppdMarkDefaults</B>(<B>ppd_file_t *</B><I>ppd</I>);
+
+<B>ppd_file_t *ppdOpenFile</B>(<B>const char *</B><I>filename</I>);
+</PRE>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+The CUPS filter interface provides a standard method for adding support for new document types or printers to CUPS.
+Each filter is capable of converting from one or more input formats to another format that can either be printed directly or piped into another filter to get it to a printable format.
+<P>
+
+Filters <B>MUST</B> be capable of reading from a filename on the command-line or from the standard input, copying the standard input to a temporary file as required by the file format.
+All output <B>MUST</B> be sent to the standard output.
+Filters <B>MUST NOT</B> attempt to communicate directly with the printer, other processes, or other services.
+<P>
+
+The command name (<I>argv[0]</I>) is set to the name of the destination printer but is also available in the <B>PRINTER</B><I> environment variable.
+</I><A NAME="lbAE">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+Options are passed in <I>argv[5]</I> and are encoded from the corresponding IPP attributes used when the job was submitted. Use the
+<B>cupsParseOptions</B>()
+
+function to load the options into a <B>cups_option_t</B> array and the
+<B>cupsGetOption</B>()
+
+function to get the value of a specific attribute.
+Be careful to look for common aliases of IPP attributes such as &quot;landscape&quot; for the IPP &quot;orientation-requested&quot; attribute.
+<P>
+
+Options passed on the command-line typically do not include the default choices the printer's PPD file. Use the
+<B>ppdMarkDefaults</B>()
+
+and
+<B>cupsMarkOptions</B>()
+
+functions in the CUPS library to apply the options to the PPD defaults and map any IPP attributes to the corresponding PPD options.
+Use
+<B>ppdFindMarkedChoice</B>()
+
+to get the user-selected choice for a PPD option. For example, a filter might use the following code to determine the current value of the <B>Duplex</B> PPD option:
+<PRE>
+
+    ppd_file_t *ppd = ppdOpenFile(getenv(&quot;PPD&quot;));
+    cups_option_t *options = NULL;
+    int num_options = cupsParseOptions(argv[5], 0, &amp;options);
+
+    ppdMarkDefaults(ppd);
+    cupsMarkOptions(ppd, num_options, options);
+
+    ppd_choice_t *choice = ppdFindMarkedChoice(ppd, &quot;Duplex&quot;);
+</PRE>
+
+<P>
+
+Raster filters should use option choices set through the raster page header, as those reflect the options in effect for a given page.
+Options specified on the command-line determine the default values for the entire job, which can be overridden on a per-page basis.
+<A NAME="lbAF">&nbsp;</A>
+<H2>LOG MESSAGES</H2>
+
+Messages sent to the standard error are generally stored in the printer's &quot;printer-state-message&quot; attribute and the current <B>ErrorLog</B> file.
+Each line begins with a standard prefix:
+<DL COMPACT>
+<DT id="1"><B>ALERT: </B><I>message</I><DD>
+Sets the &quot;printer-state-message&quot; attribute and adds the specified message to the current <B>ErrorLog</B> using the &quot;alert&quot; log level.
+<DT id="2"><B>ATTR: </B><I>attribute=value </I>[ <I>... attribute=value</I>]<DD>
+Sets the named job or printer attribute(s). The following job attributes can be set: &quot;job-media-progress&quot;. The following printer attributes can be set:
+&quot;auth-info-required&quot;, &quot;marker-colors&quot;, &quot;marker-high-levels&quot;, &quot;marker-levels&quot;,
+&quot;marker-low-levels&quot;, &quot;marker-message&quot;, &quot;marker-names&quot;, &quot;marker-types&quot;,
+&quot;printer-alert&quot;, and &quot;printer-alert-description&quot;.
+<DT id="3"><B>CRIT: </B><I>message</I><DD>
+Sets the &quot;printer-state-message&quot; attribute and adds the specified message to the current <B>ErrorLog</B> using the &quot;critical&quot; log level.
+<DT id="4"><B>DEBUG: </B><I>message</I><DD>
+Adds the specified message to the current <B>ErrorLog</B> using the &quot;debug&quot; log level.
+<B>DEBUG</B> messages are never stored in the &quot;printer-state-message&quot; attribute.
+<DT id="5"><B>DEBUG2: </B><I>message</I><DD>
+<BR>
+
+Adds the specified message to the current <B>ErrorLog</B> using the &quot;debug2&quot; log level.
+<B>DEBUG2</B> messages are never stored in the &quot;printer-state-message&quot; attribute.
+<DT id="6"><B>EMERG: </B><I>message</I><DD>
+Sets the &quot;printer-state-message&quot; attribute and adds the specified message to the current <B>ErrorLog</B> using the &quot;emergency&quot; log level.
+<DT id="7"><B>ERROR:</B><I> message</I><DD>
+Sets the &quot;printer-state-message&quot; attribute and adds the specified message to the current <B>ErrorLog</B> using the &quot;error&quot; log level.
+<DT id="8"><B>INFO:</B><I> message</I><DD>
+Sets the &quot;printer-state-message&quot; attribute. If the current <B>LogLevel</B> is set to &quot;debug2&quot;, also adds the specified message to the current <B>ErrorLog</B> using the &quot;info&quot; log level.
+<DT id="9"><B>NOTICE:</B><I> message</I><DD>
+Sets the &quot;printer-state-message&quot; attribute and adds the specified message to the current <B>ErrorLog</B> using the &quot;notice&quot; log level.
+<DT id="10"><B>PAGE:</B><I> page-number #-copies</I><DD>
+<DT id="11"><B>PAGE:</B><I> total #-pages</I><DD>
+Adds an entry to the current <B>PageLog</B>. The first form adds <I>#-copies</I> to the &quot;job-media-sheets-completed&quot; attribute. The second form sets the &quot;job-media-sheets-completed&quot; attribute to <I>#-pages</I>.
+<DT id="12"><B>PPD:</B><I> Keyword=Value</I> [ <I>... KeywordN=Value</I> ]<DD>
+Sets the named keywords in the printer's PPD file. This is typically used to update default option keywords such as <B>DefaultPageSize</B> and the various installable options in the PPD file.
+<DT id="13"><B>STATE:</B><I> printer-state-reason </I>[ <I>... printer-state-reason</I> ]<DD>
+<DT id="14"><B>STATE: +</B><I> printer-state-reason </I>[ <I>... printer-state-reason</I> ]<DD>
+<DT id="15"><B>STATE: -</B><I> printer-state-reason </I>[ <I>... printer-state-reason</I> ]<DD>
+Sets, adds, or removes &quot;printer-state-reason&quot; keywords for the current queue. Typically this is used to indicate media, ink, and toner conditions on a printer.
+<DT id="16"><B>WARNING:</B><I> message</I><DD>
+Sets the &quot;printer-state-message&quot; attribute and adds the specified message to the current <B>ErrorLog</B> using the &quot;warning&quot; log level.
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H2>ENVIRONMENT VARIABLES</H2>
+
+The following environment variables are defined by the CUPS
+server when executing the filter:
+<DL COMPACT>
+<DT id="17"><B>CHARSET</B>
+
+<DD>
+The default text character set, typically &quot;utf-8&quot;.
+<DT id="18"><B>CLASS</B>
+
+<DD>
+When a job is submitted to a printer class, contains the name of the destination printer class. Otherwise this environment variable will not be set.
+<DT id="19"><B>CONTENT_TYPE</B>
+
+<DD>
+The MIME media type associated with the submitted job file, for example &quot;application/postscript&quot;.
+<DT id="20"><B>CUPS_CACHEDIR</B>
+
+<DD>
+The directory where semi-persistent cache files can be found and stored.
+<DT id="21"><B>CUPS_DATADIR</B>
+
+<DD>
+The directory where data files can be found.
+<DT id="22"><B>CUPS_FILETYPE</B>
+
+<DD>
+The type of file being printed: &quot;job-sheet&quot; for a banner page and &quot;document&quot;
+for a regular print file.
+<DT id="23"><B>CUPS_MAX_MESSAGE</B>
+
+<DD>
+The maximum size of a message sent to <I>stderr</I>, including any leading prefix and the trailing newline.
+<DT id="24"><B>CUPS_SERVERROOT</B>
+
+<DD>
+The root directory of the server.
+<DT id="25"><B>FINAL_CONTENT_TYPE</B>
+
+<DD>
+The MIME media type associated with the output destined for the printer, for example &quot;application/vnd.cups-postscript&quot;.
+<DT id="26"><B>LANG</B>
+
+<DD>
+The default language locale (typically C or en).
+<DT id="27"><B>PATH</B>
+
+<DD>
+The standard execution path for external programs that may be run by the filter.
+<DT id="28"><B>PPD</B>
+
+<DD>
+The full pathname of the PostScript Printer Description (PPD) file for this printer.
+<DT id="29"><B>PRINTER</B>
+
+<DD>
+The name of the printer.
+<DT id="30"><B>RIP_CACHE</B>
+
+<DD>
+The recommended amount of memory to use for Raster Image Processors (RIPs).
+<DT id="31"><B>SOFTWARE</B>
+
+<DD>
+The name and version number of the server (typically CUPS/<I>major.minor</I>).
+<DT id="32"><B>TZ</B>
+
+<DD>
+The timezone of the server.
+<DT id="33"><B>USER</B>
+
+<DD>
+The user executing the filter, typically &quot;lp&quot; or &quot;root&quot;; consult the <I>cups-files.conf</I> file for the current setting.
+</DL>
+<A NAME="lbAH">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+While the filter interface is compatible with System V interface scripts, CUPS does not support System V interface scripts.
+<A NAME="lbAI">&nbsp;</A>
+<H2>NOTES</H2>
+
+CUPS printer drivers and backends are deprecated and will no longer be supported in a future feature release of CUPS.
+Printers that do not support IPP can be supported using applications such as
+<B><A HREF="/cgi-bin/man/man2html?1+ippeveprinter">ippeveprinter</A></B>(1).
+
+<P>
+
+CUPS filters are not meant to be run directly by the user.
+Aside from the legacy System V interface issues (<I>argv[0]</I> is the printer name), CUPS filters also expect specific environment variables and file descriptors, and typically run in a user session that (on macOS) has additional restrictions that affect how it runs.
+Unless you are a developer and know what you are doing, please do not run filters directly.
+Instead, use the
+<B><A HREF="/cgi-bin/man/man2html?8+cupsfilter">cupsfilter</A></B>(8)
+
+program to use the appropriate filters to do the conversions you need.
+<A NAME="lbAJ">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?7+backend">backend</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?1+cups">cups</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?5+cups-files.conf">cups-files.conf</A></B>(5),
+
+<B><A HREF="/cgi-bin/man/man2html?8+cupsd">cupsd</A></B>(8),
+
+<B><A HREF="/cgi-bin/man/man2html?8+cupsfilter">cupsfilter</A></B>(8),
+
+<BR>
+
+CUPS Online Help (<A HREF="http://localhost:631/help)">http://localhost:631/help)</A>
+<A NAME="lbAK">&nbsp;</A>
+<H2>COPYRIGHT</H2>
+
+Copyright &#169; 2007-2019 by Apple Inc.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="34"><A HREF="#lbAB">NAME</A><DD>
+<DT id="35"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="36"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="37"><A HREF="#lbAE">OPTIONS</A><DD>
+<DT id="38"><A HREF="#lbAF">LOG MESSAGES</A><DD>
+<DT id="39"><A HREF="#lbAG">ENVIRONMENT VARIABLES</A><DD>
+<DT id="40"><A HREF="#lbAH">CONFORMING TO</A><DD>
+<DT id="41"><A HREF="#lbAI">NOTES</A><DD>
+<DT id="42"><A HREF="#lbAJ">SEE ALSO</A><DD>
+<DT id="43"><A HREF="#lbAK">COPYRIGHT</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:08 GMT, March 31, 2021
+</BODY>
+</HTML>

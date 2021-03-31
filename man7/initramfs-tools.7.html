@@ -1,0 +1,843 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of INITRAMFS-TOOLS</TITLE>
+</HEAD><BODY>
+<H1>INITRAMFS-TOOLS</H1>
+Section: Linux Programmer's Manual (7)<BR>Updated: 2018/07/18<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<P>
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+initramfs-tools - an introduction to writing scripts for mkinitramfs
+<P>
+<A NAME="lbAC">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+initramfs-tools has one main script and two different sets of subscripts which
+will be used during different phases of execution. Each of these will be
+discussed separately below with the help of an imaginary tool which performs a
+frobnication of a lvm partition prior to mounting the root partition.
+<P>
+<A NAME="lbAD">&nbsp;</A>
+<H2>Kernel Command Line</H2>
+
+The root filesystem used by the kernel is specified by the boot loader as
+always. The traditional <B>root=/dev/sda1</B> style device specification is
+allowed. If a label is used, as in <B>root=LABEL=rootPart</B> the initrd will
+search all available devices for a filesystem with the appropriate label, and
+mount that device as the root filesystem.  <B>root=UUID=uuidnumber</B> will
+mount the partition with that UUID as the root filesystem.
+<P>
+<A NAME="lbAE">&nbsp;</A>
+<H3>Standard</H3>
+
+<P>
+<DL COMPACT>
+<DT id="1"><B></B><I> init= &quot;&lt;path to real init&gt;&quot;<DD>
+the binary to hand over execution to on the root fs after the initramfs scripts are done.
+<P>
+<DT id="2"></I><B></B><I> initramfs.clear<DD>
+clear screen at the beginning
+<P>
+<DT id="3"></I><B></B><I> initramfs.runsize<DD>
+The size of the /run</I> tmpfs mount point in bytes (suffixes are supported)
+or as percentage of your physical RAM. This parameter is used as the value of
+the size mount option to tmpfs. See
+<B><A HREF="https://www.kernel.org/doc/Documentation/filesystems/tmpfs.txt">https://www.kernel.org/doc/Documentation/filesystems/tmpfs.txt</A></B> for
+details. The default is 10%.
+<P>
+<DT id="4"><B></B><I> root= &quot;&lt;path to blockdevice&gt;&quot;<DD>
+the device node to mount as the root file system.
+The recommended usage is to specify the UUID as followed &quot;root=UUID=xxx&quot;.
+<P>
+<DT id="5"></I><B></B><I> rootfstype<DD>
+set the root file system type.
+<P>
+<DT id="6"></I><B></B><I> roottimeout<DD>
+set timeout in seconds. Determines how long mountroot waits for root to appear.
+The default is 30 seconds.
+<P>
+<DT id="7"></I><B></B><I> rootdelay<DD>
+alias for roottimeout.
+<P>
+<DT id="8"></I><B></B><I> rootflags<DD>
+set the file system mount option string.
+<P>
+<DT id="9"></I><B></B><I> loop= &quot;&lt;path to image&gt;&quot;<DD>
+path within the original root file system to loop-mount and use as the real
+root file system.
+<P>
+<DT id="10"></I><B></B><I> loopfstype<DD>
+set the loop file system type, if applicable.
+<P>
+<DT id="11"></I><B></B><I> loopflags<DD>
+set the loop file system mount option string, if applicable.
+<P>
+<DT id="12"></I><B></B><I> nfsroot<DD>
+can be either &quot;auto&quot; to try to get the relevant information from DHCP or a
+string of the form NFSSERVER:NFSPATH or NFSSERVER:NFSPATH:NFSOPTS.
+Use root=/dev/nfs for NFS to kick to in. NFSOPTS can be looked up in
+<A HREF="/cgi-bin/man/man2html?5+nfs">nfs</A>(5)</I>.
+<P>
+<DT id="13"><B></B><I> ip<DD>
+tells how to configure the ip address. Allows one to specify an different
+NFS server than the DHCP server. See Documentation/filesystems/nfsroot.txt
+in any recent Linux source for details. Optional parameter for NFS root.
+<P>
+<DT id="14"></I><B></B><I> vlan<DD>
+tells to create a VLAN tagged device. Allows one to configure one or
+multiple VLAN tagged devices using the &quot;vlan=$name.$id:$parent&quot;
+syntax. E.g. &quot;vlan=eth0.1:eth0&quot; Optional parameter for NFS root.
+<P>
+<DT id="15"></I><B></B><I> BOOTIF<DD>
+is a mac address in pxelinux format with leading &quot;01-&quot; and &quot;-&quot; as separations.
+pxelinux passes mac address of network card used to PXE boot on with this
+bootarg.
+<P>
+<DT id="16"></I><B></B><I> boot<DD>
+either local or NFS (affects which initramfs scripts are run, see the &quot;Subdirectories&quot; section under boot scripts).
+<P>
+<DT id="17"></I><B></B><I> resume<DD>
+The resume hook tries to autodetect the resume partition and uses the first
+swap partition as valid guess. It is possible to set the RESUME variable in
+/etc/initramfs-tools/conf.d/resume.
+The boot variable noresume overrides it.
+<P>
+<DT id="18"></I><B></B><I> resume_offset<DD>
+Specify the offset from the partition given by &quot;resume=&quot; at which the swap
+header of the swap file is located.
+<P>
+<DT id="19"></I><B></B><I> quiet<DD>
+reduces the amount of text output to the console during boot.
+<P>
+<DT id="20"></I><B></B><I> ro<DD>
+mounts the rootfs read-only.
+<P>
+<DT id="21"></I><B></B><I> rw<DD>
+mounts the rootfs read-write.
+<P>
+<DT id="22"></I><B></B><I> blacklist<DD>
+disables load of specific modules.
+Use blacklist=module1,module2,module3 bootparameter.
+<P>
+</DL>
+</I><A NAME="lbAF">&nbsp;</A>
+<H3>Debug</H3>
+
+<DL COMPACT>
+<DT id="23"><B></B><I> panic<DD>
+sets an timeout on panic.
+panic=&lt;sec&gt; is a documented security feature: it disables the debug shell.
+<P>
+<DT id="24"></I><B></B><I> debug<DD>
+generates lots of output. It writes a log to /run/initramfs/initramfs.debug.
+Instead when invoked with an arbitrary argument output is written to console.
+Use for example &quot;debug=vc&quot;.
+<P>
+<DT id="25"></I><B></B><I> break<DD>
+spawns a shell in the initramfs image at the chosen phase
+(top, modules, premount, mount, mountroot, bottom, init)
+before actually executing the corresponding scripts
+(see the &quot;Boot scripts&quot; section) or action.  Multiple
+phases may be specified, delimited by commas.
+The default, if no phase is specified, is &quot;premount&quot;.
+Beware that if both &quot;panic&quot; and &quot;break&quot; are present,
+initramfs will not spawn any shells but reboot instead.
+<P>
+<DT id="26"></I><B></B><I> netconsole<DD>
+loads netconsole linux modules with the chosen args.
+<P>
+<DT id="27"></I><B></B><I> all_generic_ide<DD>
+loads generic IDE/ATA chipset support on boot.
+<P>
+<P>
+</DL>
+</I><A NAME="lbAG">&nbsp;</A>
+<H2>SCRIPTS</H2>
+
+<P>
+Valid boot and hook scripts names consist solely of alphabetics, numerics,
+dashes and underscores. Other scripts are discarded.
+<P>
+<A NAME="lbAH">&nbsp;</A>
+<H3>Configuration hook scripts</H3>
+
+These are used to override the user configuration where necessary, for
+example to force use of busybox instead of klibc utilities.
+<P>
+<A NAME="lbAI">&nbsp;</A>
+<H3>Hook scripts</H3>
+
+These are used when an initramfs image is created and not included in the
+image itself. They can however cause files to be included in the image.
+Hook scripts are executed under errexit. Thus a hook script can abort the
+mkinitramfs build on possible errors (exitcode != 0).
+<P>
+<A NAME="lbAJ">&nbsp;</A>
+<H3>Boot scripts</H3>
+
+These are included in the initramfs image and normally executed during
+kernel boot in the early user-space before the root partition has been
+mounted.
+<P>
+<P>
+<A NAME="lbAK">&nbsp;</A>
+<H2>CONFIGURATION HOOK SCRIPTS</H2>
+
+<P>
+Configuration hook scripts can be found in
+/usr/share/initramfs-tools/conf-hooks.d.  They are sourced by
+mkinitramfs after the configuration files in /etc and before running
+any hook scripts.  They can override any of the variables documented
+in <I><A HREF="/cgi-bin/man/man2html?5+initramfs.conf">initramfs.conf</A></I>(5), but this should be done only if absolutely
+necessary.  For example, if a package's boot script requires commands
+not provided by klibc-utils, it should also install a configuration
+hook that sets <B>BUSYBOX=y</B>.
+<P>
+<P>
+<A NAME="lbAL">&nbsp;</A>
+<H2>HOOK SCRIPTS</H2>
+
+<P>
+Hooks can be found in two places: /usr/share/initramfs-tools/hooks and
+/etc/initramfs-tools/hooks. They are executed during generation of the
+initramfs-image and are responsible for including all the necessary components
+in the image itself. No guarantees are made as to the order in which the
+different scripts are executed unless the prereqs are setup in the script.
+Please notice that PREREQ is only honored inside a single directory.  So first
+the scripts in /usr/share/initramfs-tools are ordered according to their PREREQ
+values and executed. Then all scripts in /etc/initramfs-tools are ordered
+according to <B>their</B> PREREQ values and executed. This mean that currently
+there is no possibility to have a local script (/etc/initramfs-tools) get
+executed before one from the package (/usr/share/initramfs-tools).
+<P>
+If a hook script requires configuration beyond the exported variables
+listed below, it should read a private configuration file that is
+separate from the /etc/initramfs-tools directory.  It <I>must not</I>
+read initramfs-tools configuration files directly.
+<P>
+<A NAME="lbAM">&nbsp;</A>
+<H3>Header</H3>
+
+In order to support prereqs, each script should begin with the following lines:
+<P>
+<DL COMPACT><DT id="28"><DD>
+<PRE>
+#!/bin/sh
+PREREQ=&quot;&quot;
+prereqs()
+{
+        echo &quot;$PREREQ&quot;
+}
+
+case $1 in
+prereqs)
+        prereqs
+        exit 0
+        ;;
+esac
+
+. /usr/share/initramfs-tools/hook-functions
+# Begin real processing below this line
+</PRE>
+
+</DL>
+
+<P>
+For example, if you are writing a new hook script which relies on lvm, the line
+starting with PREREQ should be changed to PREREQ=&quot;lvm&quot; which will ensure that
+the lvm hook script is run before your custom script.
+<P>
+<A NAME="lbAN">&nbsp;</A>
+<H3>Help functions</H3>
+
+/usr/share/initramfs-tools/hook-functions contains a number of functions which
+deal with some common tasks in a hook script:
+<DL COMPACT>
+<DT id="29"><B></B><I><DD>
+manual_add_modules
+adds a module (and any modules which it depends on) to the initramfs image.
+<DL COMPACT><DT id="30"><DD>
+<P>
+
+</I><B>Example:</B>
+
+manual_add_modules isofs
+</DL>
+
+<P>
+<DT id="31"><B></B><I><DD>
+add_modules_from_file
+reads a file containing a list of modules (one per line) to be added to the
+initramfs image. The file can contain comments (lines starting with #) and
+arguments to the modules by writing the arguments on the same line as the name
+of the module.
+<DL COMPACT><DT id="32"><DD>
+<P>
+
+</I><B>Example:</B>
+
+add_modules_from_file /tmp/modlist
+</DL>
+
+<P>
+<DT id="33"><B></B><I><DD>
+force_load
+adds a module (and its dependencies) to the initramfs image and also
+unconditionally loads the module during boot. Also supports passing arguments
+to the module by listing them after the module name.
+<DL COMPACT><DT id="34"><DD>
+<P>
+
+</I><B>Example:</B>
+
+force_load cdrom debug=1
+</DL>
+
+<P>
+<DT id="35"><B></B><I><DD>
+copy_modules_dir
+copies an entire module directory from /lib/modules/KERNELVERSION/ into the
+initramfs image.
+<DL COMPACT><DT id="36"><DD>
+<P>
+
+</I><B>Example:</B>
+
+copy_modules_dir kernel/drivers/ata
+</DL>
+
+<P>
+</DL>
+<A NAME="lbAO">&nbsp;</A>
+<H3>Including binaries</H3>
+
+If you need to copy binaries to the initramfs module, a command like this
+should be used:
+<P>
+
+<DL COMPACT><DT id="37"><DD>
+copy_exec /sbin/mdadm /sbin
+</DL>
+
+<P>
+mkinitramfs will automatically detect which libraries the executable depends on
+and copy them to the initramfs. This means that most executables, unless
+compiled with klibc, will automatically include glibc in the image which will
+increase its size by several hundred kilobytes.
+<P>
+<A NAME="lbAP">&nbsp;</A>
+<H3>Including a system firmware preimage (early initramfs)</H3>
+
+If you need to prepend data to the initramfs image, you need to prepare it
+in a file, and call the <B></B><I>prepend_earlyinitramfs</I> function.  The file
+can be disposed of as soon as the function returns.
+<P>
+<B>Example:</B>
+
+<PRE>
+TEMP_FILE=$(mktemp ...)
+  ...
+prepend_earlyinitramfs ${TEMP_FILE}
+rm -f ${TEMP_FILE}
+
+
+</PRE><A NAME="lbAQ">&nbsp;</A>
+<H3>Exported variables</H3>
+
+mkinitramfs sets several variables for the hook scripts environment.
+<P>
+<DL COMPACT>
+<DT id="38"><B></B><I> MODULESDIR<DD>
+corresponds to the linux modules dir.
+<DT id="39"></I><B></B><I> version<DD>
+is the $(uname -r) linux version against mkinitramfs is run.
+<DT id="40"></I><B></B><I> CONFDIR<DD>
+is the path of the used initramfs-tools configurations.
+<DT id="41"></I><B></B><I> DESTDIR<DD>
+is the root path of the newly build initramfs.
+<DT id="42"></I><B></B><I> DPKG_ARCH<DD>
+allows arch specific hook additions.
+<DT id="43"></I><B></B><I> verbose<DD>
+corresponds to the verbosity of the update-initramfs run.
+<DT id="44"></I><B></B><I> BUSYBOX, MODULES<DD>
+are as described in <A HREF="/cgi-bin/man/man2html?5+initramfs.conf">initramfs.conf</A></I>(5).
+<DT id="45"><B></B><I> BUSYBOXDIR<DD>
+is the directory where busybox utilities should be installed from, or
+empty if busybox is not being used.
+<P>
+<P>
+</DL>
+</I><A NAME="lbAR">&nbsp;</A>
+<H2>BOOT SCRIPTS</H2>
+
+<P>
+Similarly to hook scripts, boot scripts can be found in two places
+/usr/share/initramfs-tools/scripts/ and /etc/initramfs-tools/scripts/. There
+are a number of subdirectories to these two directories which control the boot
+stage at which the scripts are executed.
+<P>
+<A NAME="lbAS">&nbsp;</A>
+<H3>Header</H3>
+
+Like for hook scripts, there are no guarantees as to the order in which the
+different scripts in one subdirectory (see &quot;Subdirectories&quot; below) are
+executed. In order to define a certain order, a similar header as for hook
+scripts should be used:
+<P>
+<DL COMPACT><DT id="46"><DD>
+<PRE>
+#!/bin/sh
+PREREQ=&quot;&quot;
+prereqs()
+{
+        echo &quot;$PREREQ&quot;
+}
+
+case $1 in
+prereqs)
+        prereqs
+        exit 0
+        ;;
+esac
+</PRE>
+
+</DL>
+
+<P>
+Where PREREQ is modified to list other scripts in the same subdirectory if necessary.
+<P>
+<A NAME="lbAT">&nbsp;</A>
+<H3>Help functions</H3>
+
+A number of functions (mostly dealing with output) are provided to boot scripts in
+<I>/scripts/functions</I>
+
+:
+<P>
+<DL COMPACT>
+<DT id="47"><B></B><I><DD>
+log_success_msg
+Logs a success message
+<DL COMPACT><DT id="48"><DD>
+<P>
+
+</I><B>Example:</B>
+
+log_success_msg &quot;Frobnication successful&quot;
+</DL>
+
+<P>
+<DT id="49"><B></B><I><DD>
+log_failure_msg
+Logs a failure message
+<DL COMPACT><DT id="50"><DD>
+<P>
+
+</I><B>Example:</B>
+
+log_failure_msg &quot;Frobnication component froobz missing&quot;
+</DL>
+
+<P>
+<DT id="51"><B></B><I><DD>
+log_warning_msg
+Logs a warning message
+<DL COMPACT><DT id="52"><DD>
+<P>
+
+</I><B>Example:</B>
+
+log_warning_msg &quot;Only partial frobnication possible&quot;
+</DL>
+
+<P>
+<DT id="53"><B></B><I><DD>
+log_begin_msg
+Logs a message that some processing step has begun
+<P>
+<DT id="54"></I><B></B><I><DD>
+log_end_msg
+Logs a message that some processing step is finished
+<DL COMPACT><DT id="55"><DD>
+<P>
+
+</I><B>Example:</B>
+
+<P>
+
+<DL COMPACT><DT id="56"><DD>
+<PRE>
+log_begin_msg &quot;Frobnication begun&quot;
+# Do something
+log_end_msg
+</PRE>
+
+</DL>
+
+</DL>
+
+<P>
+<DT id="57"><B></B><I><DD>
+panic
+Logs an error message and executes a shell in the initramfs image to allow the
+user to investigate the situation.
+<DL COMPACT><DT id="58"><DD>
+<P>
+
+</I><B>Example:</B>
+
+panic &quot;Frobnication failed&quot;
+
+</DL>
+
+
+<P>
+<DT id="59"><B></B><I><DD>
+add_mountroot_fail_hook NN-name
+Registers the script as able to provide possible further information, in the
+event that the root device cannot be found. See the example script in the
+initramfs-tools examples directory for more information.
+<DL COMPACT><DT id="60"><DD>
+<P>
+
+</I><B>Example:</B>
+
+add_mountroot_fail_hook NN-name
+</DL>
+
+<P>
+</DL>
+<A NAME="lbAU">&nbsp;</A>
+<H3>Subdirectories</H3>
+
+Both /usr/share/initramfs-tools/scripts and /etc/initramfs-tools/scripts
+contains the following subdirectories.
+<P>
+<DL COMPACT>
+<DT id="61"><B></B><I><DD>
+init-top
+the scripts in this directory are the first scripts to be executed after sysfs
+and procfs have been mounted.
+It also runs the udev hook for populating the /dev tree (udev will keep
+running until init-bottom).
+<P>
+<DT id="62"></I><B></B><I><DD>
+init-premount
+happens after modules specified by hooks and /etc/initramfs-tools/modules
+have been loaded.
+<P>
+<DT id="63"></I><B></B><I><DD>
+local-top OR nfs-top
+After these scripts have been executed, the root device node is expected to be
+present (local) or the network interface is expected to be usable (NFS).
+<P>
+<DT id="64"></I><B></B><I><DD>
+local-block
+These scripts are called with the name of a local block device.  After
+these scripts have been executed, that device node should be present.
+If the local-top or local-block scripts fail to create the wanted
+device node, the local-block scripts will be called periodically to
+try again.
+<P>
+<DT id="65"></I><B></B><I><DD>
+local-premount OR nfs-premount
+are run after the sanity of the root device has been verified (local) or the
+network interface has been brought up (NFS), but before the actual root fs has
+been mounted.
+<P>
+<DT id="66"></I><B></B><I><DD>
+local-bottom OR nfs-bottom
+are run after the rootfs has been mounted (local) or the NFS root share has
+been mounted.
+<P>
+<DT id="67"></I><B></B><I><DD>
+init-bottom
+are the last scripts to be executed before procfs and sysfs are moved to the
+real rootfs and execution is turned over to the init binary which should now be
+found in the mounted rootfs. udev is stopped.
+<P>
+</DL>
+</I><A NAME="lbAV">&nbsp;</A>
+<H3>Boot parameters</H3>
+
+<DL COMPACT>
+<DT id="68"><B></B><I><DD>
+/conf/param.conf
+allows boot scripts to change exported variables that are listed on top of init. Write the new values to it. It will be sourced after an boot script run if it exists.
+<P>
+<P>
+</DL>
+</I><A NAME="lbAW">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+<P>
+<A NAME="lbAX">&nbsp;</A>
+<H3>Hook script</H3>
+
+An example hook script would look something like this (and would usually be
+placed in /etc/initramfs-tools/hooks/frobnicate):
+<P>
+<DL COMPACT><DT id="69"><DD>
+<PRE>
+#!/bin/sh
+# Example frobnication hook script
+
+PREREQ=&quot;lvm&quot;
+prereqs()
+{
+        echo &quot;$PREREQ&quot;
+}
+
+case $1 in
+prereqs)
+        prereqs
+        exit 0
+        ;;
+esac
+
+. /usr/share/initramfs-tools/hook-functions
+# Begin real processing below this line
+
+if [ ! -x &quot;/sbin/frobnicate&quot; ]; then
+        exit 0
+fi
+
+force_load frobnicator interval=10
+copy_exec /sbin/frobnicate /sbin
+exit 0
+</PRE>
+
+</DL>
+
+<P>
+<A NAME="lbAY">&nbsp;</A>
+<H3>Boot script</H3>
+
+An example boot script would look something like this (and would usually be placed in /etc/initramfs-tools/scripts/local-top/frobnicate):
+<P>
+<DL COMPACT><DT id="70"><DD>
+<PRE>
+#!/bin/sh
+# Example frobnication boot script
+
+PREREQ=&quot;lvm&quot;
+prereqs()
+{
+        echo &quot;$PREREQ&quot;
+}
+
+case $1 in
+prereqs)
+        prereqs
+        exit 0
+        ;;
+esac
+
+. /scripts/functions
+# Begin real processing below this line
+if [ ! -x &quot;/sbin/frobnicate&quot; ]; then
+        panic &quot;Frobnication executable not found&quot;
+fi
+
+if [ ! -e &quot;/dev/mapper/frobb&quot; ]; then
+        panic &quot;Frobnication device not found&quot;
+fi
+
+log_begin_msg &quot;Starting frobnication&quot;
+/sbin/frobnicate &quot;/dev/mapper/frobb&quot; || panic &quot;Frobnication failed&quot;
+log_end_msg
+
+exit 0
+</PRE>
+
+</DL>
+
+<P>
+<A NAME="lbAZ">&nbsp;</A>
+<H3>Exported variables</H3>
+
+init sets several variables for the boot scripts environment.
+<P>
+<DL COMPACT>
+<DT id="71"><B></B><I> ROOT<DD>
+corresponds to the root boot option.
+Advanced boot scripts like cryptsetup or live-initramfs need to play tricks.
+Otherwise keep it alone.
+<DT id="72"></I><B></B><I> ROOTDELAY, ROOTFLAGS, ROOTFSTYPE, IP<DD>
+corresponds to the rootdelay, rootflags, rootfstype or ip boot option.
+Use of ROOTDELAY is deprecated; you should implement a local-block</I>
+boot script rather than delaying or polling.
+<DT id="73"><B></B><I> DPKG_ARCH<DD>
+allows arch specific boot actions.
+<DT id="74"></I><B></B><I> blacklist, panic, quiet, resume, noresume, resume_offset<DD>
+set according relevant boot option.
+<DT id="75"></I><B></B><I> break<DD>
+Useful for manual intervention during setup and coding an boot script.
+<DT id="76"></I><B></B><I> REASON<DD>
+Argument passed to the panic</I> helper function.  Use to find out why
+you landed in the initramfs shell.
+<DT id="77"><B></B><I> init<DD>
+passes the path to <A HREF="/cgi-bin/man/man2html?8+init">init</A>(8) usually /sbin/init.
+<DT id="78"></I><B></B><I> readonly<DD>
+is the default for mounting the root corresponds to the ro bootarg.
+Overridden by rw bootarg.
+<DT id="79"></I><B></B><I> rootmnt<DD>
+is the path where root gets mounted usually /root.
+<DT id="80"></I><B></B><I> debug<DD>
+indicates that a debug log is captured for further investigation.
+<P>
+<P>
+</DL>
+</I><A NAME="lbBA">&nbsp;</A>
+<H2>UPDATING THE INITRAMFS FROM ANOTHER PACKAGE</H2>
+
+Package maintainer scripts should not run <B>update-initramfs</B>
+directly.  A package that installs hooks for initramfs-tools should
+include a triggers file containing:
+<DL COMPACT><DT id="81"><DD>
+<PRE>
+activate-noawait update-initramfs
+</PRE>
+
+</DL>
+
+<P>
+Kernel packages must call the kernel hooks as documented in the
+Debian Kernel Handbook.
+<P>
+A package that requires an initramfs to function, but is not a kernel
+package, should include a triggers file containing:
+<DL COMPACT><DT id="82"><DD>
+<PRE>
+activate-await update-initramfs
+</PRE>
+
+</DL>
+
+<P>
+<P>
+<A NAME="lbBB">&nbsp;</A>
+<H2>KERNEL HOOKS</H2>
+
+initramfs-tools includes hook scripts that are called by kernel
+packages on installation and removal, so that an initramfs is
+automatically created, updated or deleted as necessary.  The hook
+scripts do nothing if the environment variable <B>INITRD</B> is
+set to <B>No</B>.  This will be the case for kernel packages
+built with <B>make deb-pkg</B> and with <B>CONFIG_BLK_DEV_INITRD</B>
+not set in the kernel config, or built with <B>make-kpkg</B> and not
+using the <B>--initrd</B> option.
+<P>
+<P>
+<A NAME="lbBC">&nbsp;</A>
+<H2>DEBUG</H2>
+
+It is easy to check the generated initramfs for its content. One may need
+to double-check if it contains the relevant binaries, libs or modules:
+<DL COMPACT><DT id="83"><DD>
+<PRE>
+lsinitramfs /boot/initrd.img-3.16-3-amd64
+</PRE>
+
+</DL>
+
+<P>
+<P>
+<A NAME="lbBD">&nbsp;</A>
+<H2>FILES</H2>
+
+<DL COMPACT>
+<DT id="84"><I>/run/initramfs/fsck.log</I>
+
+<DD>
+Log of fsck commands run within the initramfs, with their output.
+<DT id="85"><I>/run/initramfs/fsck-root</I>
+
+<DD>
+Exists only if fsck ran successfully for the root filesystem.
+<DT id="86"><I>/run/initramfs/fsck-usr</I>
+
+<DD>
+Exists only if fsck ran successfully for the <I>/usr</I> filesystem.
+<P>
+<P>
+</DL>
+<A NAME="lbBE">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+The initramfs-tools are written by Maximilian Attems &lt;<A HREF="mailto:maks@debian.org">maks@debian.org</A>&gt;,
+Jeff Bailey &lt;<A HREF="mailto:jbailey@raspberryginger.com">jbailey@raspberryginger.com</A>&gt; and numerous others.
+<P>
+
+This manual was written by David  H&auml;rdeman &lt;<A HREF="mailto:david@hardeman.nu">david@hardeman.nu</A>&gt;,
+updated by Maximilian Attems &lt;<A HREF="mailto:maks@debian.org">maks@debian.org</A>&gt;.
+<P>
+<A NAME="lbBF">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+<I><A HREF="/cgi-bin/man/man2html?5+initramfs.conf">initramfs.conf</A></I>(5),
+
+<I><A HREF="/cgi-bin/man/man2html?8+mkinitramfs">mkinitramfs</A></I>(8),
+
+<I><A HREF="/cgi-bin/man/man2html?8+update-initramfs">update-initramfs</A></I>(8),
+
+<I><A HREF="/cgi-bin/man/man2html?8+lsinitramfs">lsinitramfs</A></I>(8).
+
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="87"><A HREF="#lbAB">NAME</A><DD>
+<DT id="88"><A HREF="#lbAC">DESCRIPTION</A><DD>
+<DT id="89"><A HREF="#lbAD">Kernel Command Line</A><DD>
+<DL>
+<DT id="90"><A HREF="#lbAE">Standard</A><DD>
+<DT id="91"><A HREF="#lbAF">Debug</A><DD>
+</DL>
+<DT id="92"><A HREF="#lbAG">SCRIPTS</A><DD>
+<DL>
+<DT id="93"><A HREF="#lbAH">Configuration hook scripts</A><DD>
+<DT id="94"><A HREF="#lbAI">Hook scripts</A><DD>
+<DT id="95"><A HREF="#lbAJ">Boot scripts</A><DD>
+</DL>
+<DT id="96"><A HREF="#lbAK">CONFIGURATION HOOK SCRIPTS</A><DD>
+<DT id="97"><A HREF="#lbAL">HOOK SCRIPTS</A><DD>
+<DL>
+<DT id="98"><A HREF="#lbAM">Header</A><DD>
+<DT id="99"><A HREF="#lbAN">Help functions</A><DD>
+<DT id="100"><A HREF="#lbAO">Including binaries</A><DD>
+<DT id="101"><A HREF="#lbAP">Including a system firmware preimage (early initramfs)</A><DD>
+<DT id="102"><A HREF="#lbAQ">Exported variables</A><DD>
+</DL>
+<DT id="103"><A HREF="#lbAR">BOOT SCRIPTS</A><DD>
+<DL>
+<DT id="104"><A HREF="#lbAS">Header</A><DD>
+<DT id="105"><A HREF="#lbAT">Help functions</A><DD>
+<DT id="106"><A HREF="#lbAU">Subdirectories</A><DD>
+<DT id="107"><A HREF="#lbAV">Boot parameters</A><DD>
+</DL>
+<DT id="108"><A HREF="#lbAW">EXAMPLES</A><DD>
+<DL>
+<DT id="109"><A HREF="#lbAX">Hook script</A><DD>
+<DT id="110"><A HREF="#lbAY">Boot script</A><DD>
+<DT id="111"><A HREF="#lbAZ">Exported variables</A><DD>
+</DL>
+<DT id="112"><A HREF="#lbBA">UPDATING THE INITRAMFS FROM ANOTHER PACKAGE</A><DD>
+<DT id="113"><A HREF="#lbBB">KERNEL HOOKS</A><DD>
+<DT id="114"><A HREF="#lbBC">DEBUG</A><DD>
+<DT id="115"><A HREF="#lbBD">FILES</A><DD>
+<DT id="116"><A HREF="#lbBE">AUTHOR</A><DD>
+<DT id="117"><A HREF="#lbBF">SEE ALSO</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:08 GMT, March 31, 2021
+</BODY>
+</HTML>

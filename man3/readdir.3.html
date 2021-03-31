@@ -1,0 +1,446 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of READDIR</TITLE>
+</HEAD><BODY>
+<H1>READDIR</H1>
+Section: Linux Programmer's Manual (3)<BR>Updated: 2019-03-06<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+readdir - read a directory
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<PRE>
+<B>#include &lt;<A HREF="file:///usr/include/dirent.h">dirent.h</A>&gt;</B>
+
+<B>struct dirent *readdir(DIR *</B><I>dirp</I><B>);</B>
+</PRE>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+The
+<B>readdir</B>()
+
+function returns a pointer to a <I>dirent</I> structure
+representing the next directory entry in the directory stream pointed
+to by <I>dirp</I>.
+It returns NULL on reaching the end of the directory stream or if
+an error occurred.
+<P>
+
+In the glibc implementation, the
+<I>dirent</I>
+
+structure is defined as follows:
+<P>
+
+
+
+struct dirent {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;ino_t&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;d_ino;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Inode&nbsp;number&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;off_t&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;d_off;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Not&nbsp;an&nbsp;offset;&nbsp;see&nbsp;below&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;unsigned&nbsp;short&nbsp;d_reclen;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Length&nbsp;of&nbsp;this&nbsp;record&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;unsigned&nbsp;char&nbsp;&nbsp;d_type;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Type&nbsp;of&nbsp;file;&nbsp;not&nbsp;supported
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;by&nbsp;all&nbsp;filesystem&nbsp;types&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;d_name[256];&nbsp;/*&nbsp;Null-terminated&nbsp;filename&nbsp;*/
+};
+
+
+<P>
+
+The only fields in the
+<I>dirent</I>
+
+structure that are mandated by POSIX.1 are
+<I>d_name</I>
+
+and
+<I>d_ino</I>.
+
+The other fields are unstandardized, and not present on all systems;
+see NOTES below for some further details.
+<P>
+
+The fields of the
+<I>dirent</I>
+
+structure are as follows:
+<DL COMPACT>
+<DT id="1"><I>d_ino</I>
+
+<DD>
+This is the inode number of the file.
+<DT id="2"><I>d_off</I>
+
+<DD>
+The value returned in
+<I>d_off</I>
+
+is the same as would be returned by calling
+<B><A HREF="/cgi-bin/man/man2html?3+telldir">telldir</A></B>(3)
+
+at the current position in the directory stream.
+Be aware that despite its type and name, the
+<I>d_off</I>
+
+field is seldom any kind of directory offset on modern filesystems.
+
+Applications should treat this field as an opaque value,
+making no assumptions about its contents; see also
+<B><A HREF="/cgi-bin/man/man2html?3+telldir">telldir</A></B>(3).
+
+<DT id="3"><I>d_reclen</I>
+
+<DD>
+This is the size (in bytes) of the returned record.
+This may not match the size of the structure definition shown above;
+see NOTES.
+<DT id="4"><I>d_type</I>
+
+<DD>
+This field contains a value indicating the file type,
+making it possible to avoid the expense of calling
+<B><A HREF="/cgi-bin/man/man2html?2+lstat">lstat</A></B>(2)
+
+if further actions depend on the type of the file.
+<DT id="5"><DD>
+When a suitable feature test macro is defined
+(<B>_DEFAULT_SOURCE</B>
+
+on glibc versions since 2.19, or
+<B>_BSD_SOURCE</B>
+
+on glibc versions 2.19 and earlier),
+glibc defines the following macro constants for the value returned in
+<I>d_type</I>:
+
+<DL COMPACT><DT id="6"><DD>
+<DL COMPACT>
+<DT id="7"><B>DT_BLK</B>
+
+<DD>
+This is a block device.
+<DT id="8"><B>DT_CHR</B>
+
+<DD>
+This is a character device.
+<DT id="9"><B>DT_DIR</B>
+
+<DD>
+This is a directory.
+<DT id="10"><B>DT_FIFO</B>
+
+<DD>
+This is a named pipe (FIFO).
+<DT id="11"><B>DT_LNK</B>
+
+<DD>
+This is a symbolic link.
+<DT id="12"><B>DT_REG</B>
+
+<DD>
+This is a regular file.
+<DT id="13"><B>DT_SOCK</B>
+
+<DD>
+This is a UNIX domain socket.
+<DT id="14"><B>DT_UNKNOWN</B>
+
+<DD>
+The file type could not be determined.
+</DL>
+</DL>
+
+<DT id="15"><DD>
+Currently,
+
+
+only some filesystems (among them: Btrfs, ext2, ext3, and ext4)
+have full support for returning the file type in
+<I>d_type</I>.
+
+All applications must properly handle a return of
+<B>DT_UNKNOWN</B>.
+
+<DT id="16"><I>d_name</I>
+
+<DD>
+This field contains the null terminated filename.
+<I>See NOTES</I>.
+
+</DL>
+<P>
+
+The data returned by
+<B>readdir</B>()
+
+may be overwritten by subsequent calls to
+<B>readdir</B>()
+
+for the same directory stream.
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+On success,
+<B>readdir</B>()
+
+returns a pointer to a
+<I>dirent</I>
+
+structure.
+(This structure may be statically allocated; do not attempt to
+<B><A HREF="/cgi-bin/man/man2html?3+free">free</A></B>(3)
+
+it.)
+<P>
+
+If the end of the directory stream is reached, NULL is returned and
+<I>errno</I>
+
+is not changed.
+If an error occurs, NULL is returned and
+<I>errno</I>
+
+is set appropriately.
+To distinguish end of stream and from an error, set
+<I>errno</I>
+
+to zero before calling
+<B>readdir</B>()
+
+and then check the value of
+<I>errno</I>
+
+if NULL is returned.
+<A NAME="lbAF">&nbsp;</A>
+<H2>ERRORS</H2>
+
+<DL COMPACT>
+<DT id="17"><B>EBADF</B>
+
+<DD>
+Invalid directory stream descriptor <I>dirp</I>.
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H2>ATTRIBUTES</H2>
+
+For an explanation of the terms used in this section, see
+<B><A HREF="/cgi-bin/man/man2html?7+attributes">attributes</A></B>(7).
+
+<TABLE BORDER>
+<TR VALIGN=top><TD><B>Interface</B></TD><TD><B>Attribute</B></TD><TD><B>Value</B><BR></TD></TR>
+<TR VALIGN=top><TD>
+<B>readdir</B>()
+
+</TD><TD>Thread safety</TD><TD>MT-Unsafe race:dirstream<BR></TD></TR>
+</TABLE>
+
+<P>
+<P>
+
+In the current POSIX.1 specification (POSIX.1-2008),
+<B>readdir</B>()
+
+is not required to be thread-safe.
+However, in modern implementations (including the glibc implementation),
+concurrent calls to
+<B>readdir</B>()
+
+that specify different directory streams are thread-safe.
+In cases where multiple threads must read from the same directory stream,
+using
+<B>readdir</B>()
+
+with external synchronization is still preferable to the use of the deprecated
+<B><A HREF="/cgi-bin/man/man2html?3+readdir_r">readdir_r</A></B>(3)
+
+function.
+It is expected that a future version of POSIX.1
+
+
+will require that
+<B>readdir</B>()
+
+be thread-safe when concurrently employed on different directory streams.
+<A NAME="lbAH">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+POSIX.1-2001, POSIX.1-2008, SVr4, 4.3BSD.
+<A NAME="lbAI">&nbsp;</A>
+<H2>NOTES</H2>
+
+A directory stream is opened using
+<B><A HREF="/cgi-bin/man/man2html?3+opendir">opendir</A></B>(3).
+
+<P>
+
+The order in which filenames are read by successive calls to
+<B>readdir</B>()
+
+depends on the filesystem implementation;
+it is unlikely that the names will be sorted in any fashion.
+<P>
+
+Only the fields
+<I>d_name</I>
+
+and (as an XSI extension)
+<I>d_ino</I>
+
+are specified in POSIX.1.
+
+Other than Linux, the
+<I>d_type</I>
+
+field is available mainly only on BSD systems.
+The remaining fields are available on many, but not all systems.
+Under glibc,
+programs can check for the availability of the fields not defined
+in POSIX.1 by testing whether the macros
+<B>_DIRENT_HAVE_D_NAMLEN</B>,
+
+<B>_DIRENT_HAVE_D_RECLEN</B>,
+
+<B>_DIRENT_HAVE_D_OFF</B>,
+
+or
+<B>_DIRENT_HAVE_D_TYPE</B>
+
+are defined.
+
+<A NAME="lbAJ">&nbsp;</A>
+<H3>The d_name field</H3>
+
+The
+<I>dirent</I>
+
+structure definition shown above is taken from the glibc headers,
+and shows the
+<I>d_name</I>
+
+field with a fixed size.
+<P>
+
+<I>Warning</I>:
+
+applications should avoid any dependence on the size of the
+<I>d_name</I>
+
+field.
+POSIX defines it as
+<I>char&nbsp;d_name[],</I>
+
+a character array of unspecified size, with at most
+<B>NAME_MAX</B>
+
+characters preceding the terminating null byte ('\0').
+<P>
+
+POSIX.1 explicitly notes that this field should not be used as an lvalue.
+The standard also notes that the use of
+<I>sizeof(d_name)</I>
+
+is incorrect; use
+<I>strlen(d_name)</I>
+
+instead.
+(On some systems, this field is defined as
+<I>char&nbsp;d_name[1]</I>!)
+
+By implication, the use
+<I>sizeof(struct dirent)</I>
+
+to capture the size of the record including the size of
+<I>d_name</I>
+
+is also incorrect.
+<P>
+
+Note that while the call
+<P>
+
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fpathconf(fd,&nbsp;_PC_NAME_MAX)
+<P>
+
+returns the value 255 for most filesystems,
+on some filesystems (e.g., CIFS, Windows SMB servers),
+the null-terminated filename that is (correctly) returned in
+<I>d_name</I>
+
+can actually exceed this size.
+In such cases, the
+<I>d_reclen</I>
+
+field will contain a value that exceeds the size of the glibc
+<I>dirent</I>
+
+structure shown above.
+<A NAME="lbAK">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?2+getdents">getdents</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?3+closedir">closedir</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+dirfd">dirfd</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+ftw">ftw</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+offsetof">offsetof</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+opendir">opendir</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+readdir_r">readdir_r</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+rewinddir">rewinddir</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+scandir">scandir</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+seekdir">seekdir</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+telldir">telldir</A></B>(3)
+
+<A NAME="lbAL">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="18"><A HREF="#lbAB">NAME</A><DD>
+<DT id="19"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="20"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="21"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DT id="22"><A HREF="#lbAF">ERRORS</A><DD>
+<DT id="23"><A HREF="#lbAG">ATTRIBUTES</A><DD>
+<DT id="24"><A HREF="#lbAH">CONFORMING TO</A><DD>
+<DT id="25"><A HREF="#lbAI">NOTES</A><DD>
+<DL>
+<DT id="26"><A HREF="#lbAJ">The d_name field</A><DD>
+</DL>
+<DT id="27"><A HREF="#lbAK">SEE ALSO</A><DD>
+<DT id="28"><A HREF="#lbAL">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:54 GMT, March 31, 2021
+</BODY>
+</HTML>

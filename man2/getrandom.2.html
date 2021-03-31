@@ -1,0 +1,475 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of GETRANDOM</TITLE>
+</HEAD><BODY>
+<H1>GETRANDOM</H1>
+Section: Linux Programmer's Manual (2)<BR>Updated: 2017-09-15<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+getrandom - obtain a series of random bytes
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<B>#include &lt;<A HREF="file:///usr/include/sys/random.h">sys/random.h</A>&gt;</B>
+
+<P>
+
+<B>ssize_t getrandom(void *buf</B><I>, size_t </I><B>buflen</B><I>, unsigned int </I><B>flags</B><I>);</I>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+The
+<B>getrandom</B>()
+
+system call fills the buffer pointed to by
+<I>buf</I>
+
+with up to
+<I>buflen</I>
+
+random bytes.
+These bytes can be used to seed user-space random number generators
+or for cryptographic purposes.
+<P>
+
+By default,
+<B>getrandom</B>()
+
+draws entropy from the
+<I>urandom</I>
+
+source (i.e., the same source as the
+<I>/dev/urandom</I>
+
+device).
+This behavior can be changed via the
+<I>flags</I>
+
+argument.
+<P>
+
+If the
+<I>urandom</I>
+
+source has been initialized,
+reads of up to 256 bytes will always return as many bytes as
+requested and will not be interrupted by signals.
+No such guarantees apply for larger buffer sizes.
+For example, if the call is interrupted by a signal handler,
+it may return a partially filled buffer, or fail with the error
+<B>EINTR</B>.
+
+<P>
+
+If the
+<I>urandom</I>
+
+source has not yet been initialized, then
+<B>getrandom</B>()
+
+will block, unless
+<B>GRND_NONBLOCK</B>
+
+is specified in
+<I>flags</I>.
+
+<P>
+
+The
+<I>flags</I>
+
+argument is a bit mask that can contain zero or more of the following values
+ORed together:
+<DL COMPACT>
+<DT id="1"><B>GRND_RANDOM</B>
+
+<DD>
+If this bit is set, then random bytes are drawn from the
+<I>random</I>
+
+source
+(i.e., the same source as the
+<I>/dev/random</I>
+
+device)
+instead of the
+<I>urandom</I>
+
+source.
+The
+<I>random</I>
+
+source is limited based on the entropy that can be obtained from environmental
+noise.
+If the number of available bytes in the
+<I>random</I>
+
+source is less than requested in
+<I>buflen</I>,
+
+the call returns just the available random bytes.
+If no random bytes are available, the behavior depends on the presence of
+<B>GRND_NONBLOCK</B>
+
+in the
+<I>flags</I>
+
+argument.
+<DT id="2"><B>GRND_NONBLOCK</B>
+
+<DD>
+By default, when reading from the
+<I>random</I>
+
+source,
+<B>getrandom</B>()
+
+blocks if no random bytes are available,
+and when reading from the
+<I>urandom</I>
+
+source, it blocks if the entropy pool has not yet been initialized.
+If the
+<B>GRND_NONBLOCK</B>
+
+flag is set, then
+<B>getrandom</B>()
+
+does not block in these cases, but instead immediately returns -1 with
+<I>errno</I>
+
+set to
+<B>EAGAIN</B>.
+
+</DL>
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+On success,
+<B>getrandom</B>()
+
+returns the number of bytes that were copied to the buffer
+<I>buf</I>.
+
+This may be less than the number of bytes requested via
+<I>buflen</I>
+
+if either
+<B>GRND_RANDOM</B>
+
+was specified in
+<I>flags</I>
+
+and insufficient entropy was present in the
+<I>random</I>
+
+source or the system call was interrupted by a signal.
+<P>
+
+On error, -1 is returned, and
+<I>errno</I>
+
+is set appropriately.
+<A NAME="lbAF">&nbsp;</A>
+<H2>ERRORS</H2>
+
+<DL COMPACT>
+<DT id="3"><B>EAGAIN</B>
+
+<DD>
+The requested entropy was not available, and
+<B>getrandom</B>()
+
+would have blocked if the
+<B>GRND_NONBLOCK</B>
+
+flag was not set.
+<DT id="4"><B>EFAULT</B>
+
+<DD>
+The address referred to by
+<I>buf</I>
+
+is outside the accessible address space.
+<DT id="5"><B>EINTR</B>
+
+<DD>
+The call was interrupted by a signal
+handler; see the description of how interrupted
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)
+
+calls on &quot;slow&quot; devices are handled with and without the
+<B>SA_RESTART</B>
+
+flag in the
+<B><A HREF="/cgi-bin/man/man2html?7+signal">signal</A></B>(7)
+
+man page.
+<DT id="6"><B>EINVAL</B>
+
+<DD>
+An invalid flag was specified in
+<I>flags</I>.
+
+<DT id="7"><B>ENOSYS</B>
+
+<DD>
+The glibc wrapper function for
+<B>getrandom</B>()
+
+determined that the underlying kernel does not implement this system call.
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H2>VERSIONS</H2>
+
+<B>getrandom</B>()
+
+was introduced in version 3.17 of the Linux kernel.
+Support was added to glibc in version 2.25.
+<A NAME="lbAH">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+This system call is Linux-specific.
+<A NAME="lbAI">&nbsp;</A>
+<H2>NOTES</H2>
+
+For an overview and comparison of the various interfaces that
+can be used to obtain randomness, see
+<B><A HREF="/cgi-bin/man/man2html?7+random">random</A></B>(7).
+
+<P>
+
+Unlike
+<I>/dev/random</I>
+
+and
+<I>/dev/urandom</I>,
+
+<B>getrandom</B>()
+
+does not involve the use of pathnames or file descriptors.
+Thus,
+<B>getrandom</B>()
+
+can be useful in cases where
+<B><A HREF="/cgi-bin/man/man2html?2+chroot">chroot</A></B>(2)
+
+makes
+<I>/dev</I>
+
+pathnames invisible,
+and where an application (e.g., a daemon during start-up)
+closes a file descriptor for one of these files
+that was opened by a library.
+
+<A NAME="lbAJ">&nbsp;</A>
+<H3>Maximum number of bytes returned</H3>
+
+As of Linux 3.19 the following limits apply:
+<DL COMPACT>
+<DT id="8">*<DD>
+When reading from the
+<I>urandom</I>
+
+source, a maximum of 33554431 bytes is returned by a single call to
+<B>getrandom</B>()
+
+on systems where
+<I>int</I>
+
+has a size of 32 bits.
+<DT id="9">*<DD>
+When reading from the
+<I>random</I>
+
+source, a maximum of 512 bytes is returned.
+</DL>
+<A NAME="lbAK">&nbsp;</A>
+<H3>Interruption by a signal handler</H3>
+
+When reading from the
+<I>urandom</I>
+
+source
+(<B>GRND_RANDOM</B>
+
+is not set),
+<B>getrandom</B>()
+
+will block until the entropy pool has been initialized
+(unless the
+<B>GRND_NONBLOCK</B>
+
+flag was specified).
+If a request is made to read a large number of bytes (more than 256),
+<B>getrandom</B>()
+
+will block until those bytes have been generated and transferred
+from kernel memory to
+<I>buf</I>.
+
+When reading from the
+<I>random</I>
+
+source
+(<B>GRND_RANDOM</B>
+
+is set),
+<B>getrandom</B>()
+
+will block until some random bytes become available
+(unless the
+<B>GRND_NONBLOCK</B>
+
+flag was specified).
+<P>
+
+The behavior when a call to
+<B>getrandom</B>()
+
+that is blocked while reading from the
+<I>urandom</I>
+
+source is interrupted by a signal handler
+depends on the initialization state of the entropy buffer
+and on the request size,
+<I>buflen</I>.
+
+If the entropy is not yet initialized, then the call fails with the
+<B>EINTR</B>
+
+error.
+If the entropy pool has been initialized
+and the request size is large
+(<I>buflen</I>&nbsp;&gt;&nbsp;256),
+
+the call either succeeds, returning a partially filled buffer,
+or fails with the error
+<B>EINTR</B>.
+
+If the entropy pool has been initialized and the request size is small
+(<I>buflen</I>&nbsp;&lt;=&nbsp;256),
+
+then
+<B>getrandom</B>()
+
+will not fail with
+<B>EINTR</B>.
+
+Instead, it will return all of the bytes that have been requested.
+<P>
+
+When reading from the
+<I>random</I>
+
+source, blocking requests of any size can be interrupted by a signal handler
+(the call fails with the error
+<B>EINTR</B>).
+
+<P>
+
+Using
+<B>getrandom</B>()
+
+to read small buffers (&lt;=&nbsp;256 bytes) from the
+<I>urandom</I>
+
+source is the preferred mode of usage.
+<P>
+
+The special treatment of small values of
+<I>buflen</I>
+
+was designed for compatibility with
+OpenBSD's
+<B><A HREF="/cgi-bin/man/man2html?3+getentropy">getentropy</A></B>(3),
+
+which is nowadays supported by glibc.
+<P>
+
+The user of
+<B>getrandom</B>()
+
+<I>must</I>
+
+always check the return value,
+to determine whether either an error occurred
+or fewer bytes than requested were returned.
+In the case where
+<B>GRND_RANDOM</B>
+
+is not specified and
+<I>buflen</I>
+
+is less than or equal to 256,
+a return of fewer bytes than requested should never happen,
+but the careful programmer will check for this anyway!
+<A NAME="lbAL">&nbsp;</A>
+<H2>BUGS</H2>
+
+As of Linux 3.19, the following bug exists:
+
+<DL COMPACT>
+<DT id="10">*<DD>
+Depending on CPU load,
+<B>getrandom</B>()
+
+does not react to interrupts before reading all bytes requested.
+</DL>
+<A NAME="lbAM">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?3+getentropy">getentropy</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?4+random">random</A></B>(4),
+
+<B><A HREF="/cgi-bin/man/man2html?4+urandom">urandom</A></B>(4),
+
+<B><A HREF="/cgi-bin/man/man2html?7+random">random</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+signal">signal</A></B>(7)
+
+<A NAME="lbAN">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="11"><A HREF="#lbAB">NAME</A><DD>
+<DT id="12"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="13"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="14"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DT id="15"><A HREF="#lbAF">ERRORS</A><DD>
+<DT id="16"><A HREF="#lbAG">VERSIONS</A><DD>
+<DT id="17"><A HREF="#lbAH">CONFORMING TO</A><DD>
+<DT id="18"><A HREF="#lbAI">NOTES</A><DD>
+<DL>
+<DT id="19"><A HREF="#lbAJ">Maximum number of bytes returned</A><DD>
+<DT id="20"><A HREF="#lbAK">Interruption by a signal handler</A><DD>
+</DL>
+<DT id="21"><A HREF="#lbAL">BUGS</A><DD>
+<DT id="22"><A HREF="#lbAM">SEE ALSO</A><DD>
+<DT id="23"><A HREF="#lbAN">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:32 GMT, March 31, 2021
+</BODY>
+</HTML>

@@ -1,0 +1,1004 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of IOCTL_USERFAULTFD</TITLE>
+</HEAD><BODY>
+<H1>IOCTL_USERFAULTFD</H1>
+Section: Linux Programmer's Manual (2)<BR>Updated: 2019-03-06<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+ioctl_userfaultfd - create a file descriptor for handling page faults in user
+space
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<PRE>
+<B>#include &lt;<A HREF="file:///usr/include/sys/ioctl.h">sys/ioctl.h</A>&gt;</B>
+
+<B>int ioctl(int </B><I>fd</I><B>, int </B><I>cmd</I><B>, ...);</B>
+</PRE>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+Various
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+operations can be performed on a userfaultfd object (created by a call to
+<B><A HREF="/cgi-bin/man/man2html?2+userfaultfd">userfaultfd</A></B>(2))
+
+using calls of the form:
+<P>
+
+
+
+ioctl(fd, cmd, argp);
+
+
+In the above,
+<I>fd</I>
+
+is a file descriptor referring to a userfaultfd object,
+<I>cmd</I>
+
+is one of the commands listed below, and
+<I>argp</I>
+
+is a pointer to a data structure that is specific to
+<I>cmd</I>.
+
+<P>
+
+The various
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+operations are described below.
+The
+<B>UFFDIO_API</B>,
+
+<B>UFFDIO_REGISTER</B>,
+
+and
+<B>UFFDIO_UNREGISTER</B>
+
+operations are used to
+<I>configure</I>
+
+userfaultfd behavior.
+These operations allow the caller to choose what features will be enabled and
+what kinds of events will be delivered to the application.
+The remaining operations are
+<I>range</I>
+
+operations.
+These operations enable the calling application to resolve page-fault
+events.
+
+<A NAME="lbAE">&nbsp;</A>
+<H3>UFFDIO_API</H3>
+
+(Since Linux 4.3.)
+Enable operation of the userfaultfd and perform API handshake.
+<P>
+
+The
+<I>argp</I>
+
+argument is a pointer to a
+<I>uffdio_api</I>
+
+structure, defined as:
+<P>
+
+
+
+struct uffdio_api {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;api;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Requested&nbsp;API&nbsp;version&nbsp;(input)&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;features;&nbsp;&nbsp;&nbsp;/*&nbsp;Requested&nbsp;features&nbsp;(input/output)&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;ioctls;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Available&nbsp;ioctl()&nbsp;operations&nbsp;(output)&nbsp;*/
+};
+
+
+<P>
+
+The
+<I>api</I>
+
+field denotes the API version requested by the application.
+<P>
+
+The kernel verifies that it can support the requested API version,
+and sets the
+<I>features</I>
+
+and
+<I>ioctls</I>
+
+fields to bit masks representing all the available features and the generic
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+operations available.
+<P>
+
+For Linux kernel versions before 4.11, the
+<I>features</I>
+
+field must be initialized to zero before the call to
+<I>UFFDIO_API</I>,
+
+and zero (i.e., no feature bits) is placed in the
+<I>features</I>
+
+field by the kernel upon return from
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2).
+
+<P>
+
+Starting from Linux 4.11, the
+<I>features</I>
+
+field can be used to ask whether particular features are supported
+and explicitly enable userfaultfd features that are disabled by default.
+The kernel always reports all the available features in the
+<I>features</I>
+
+field.
+<P>
+
+To enable userfaultfd features the application should set
+a bit corresponding to each feature it wants to enable in the
+<I>features</I>
+
+field.
+If the kernel supports all the requested features it will enable them.
+Otherwise it will zero out the returned
+<I>uffdio_api</I>
+
+structure and return
+<B>EINVAL</B>.
+
+
+<P>
+
+The following feature bits may be set:
+<DL COMPACT>
+<DT id="1"><B>UFFD_FEATURE_EVENT_FORK</B> (since Linux 4.11)
+
+<DD>
+When this feature is enabled,
+the userfaultfd objects associated with a parent process are duplicated
+into the child process during
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2)
+
+and a
+<B>UFFD_EVENT_FORK</B>
+
+event is delivered to the userfaultfd monitor
+<DT id="2"><B>UFFD_FEATURE_EVENT_REMAP</B> (since Linux 4.11)
+
+<DD>
+If this feature is enabled,
+when the faulting process invokes
+<B><A HREF="/cgi-bin/man/man2html?2+mremap">mremap</A></B>(2),
+
+the userfaultfd monitor will receive an event of type
+<B>UFFD_EVENT_REMAP</B>.
+
+<DT id="3"><B>UFFD_FEATURE_EVENT_REMOVE</B> (since Linux 4.11)
+
+<DD>
+If this feature is enabled,
+when the faulting process calls
+<B><A HREF="/cgi-bin/man/man2html?2+madvise">madvise</A></B>(2)
+
+with the
+<B>MADV_DONTNEED</B>
+
+or
+<B>MADV_REMOVE</B>
+
+advice value to free a virtual memory area
+the userfaultfd monitor will receive an event of type
+<B>UFFD_EVENT_REMOVE</B>.
+
+<DT id="4"><B>UFFD_FEATURE_EVENT_UNMAP</B> (since Linux 4.11)
+
+<DD>
+If this feature is enabled,
+when the faulting process unmaps virtual memory either explicitly with
+<B><A HREF="/cgi-bin/man/man2html?2+munmap">munmap</A></B>(2),
+
+or implicitly during either
+<B><A HREF="/cgi-bin/man/man2html?2+mmap">mmap</A></B>(2)
+
+or
+<B><A HREF="/cgi-bin/man/man2html?2+mremap">mremap</A></B>(2).
+
+the userfaultfd monitor will receive an event of type
+<B>UFFD_EVENT_UNMAP</B>.
+
+<DT id="5"><B>UFFD_FEATURE_MISSING_HUGETLBFS</B> (since Linux 4.11)
+
+<DD>
+If this feature bit is set,
+the kernel supports registering userfaultfd ranges on hugetlbfs
+virtual memory areas
+<DT id="6"><B>UFFD_FEATURE_MISSING_SHMEM</B> (since Linux 4.11)
+
+<DD>
+If this feature bit is set,
+the kernel supports registering userfaultfd ranges on shared memory areas.
+This includes all kernel shared memory APIs:
+System V shared memory,
+<B><A HREF="/cgi-bin/man/man2html?5+tmpfs">tmpfs</A></B>(5),
+
+shared mappings of
+<I>/dev/zero</I>,
+
+<B><A HREF="/cgi-bin/man/man2html?2+mmap">mmap</A></B>(2)
+
+with the
+<B>MAP_SHARED</B>
+
+flag set,
+<B><A HREF="/cgi-bin/man/man2html?2+memfd_create">memfd_create</A></B>(2),
+
+and so on.
+<DT id="7"><B>UFFD_FEATURE_SIGBUS</B> (since Linux 4.14)
+
+<DD>
+
+If this feature bit is set, no page-fault events
+(<B>UFFD_EVENT_PAGEFAULT</B>)
+
+will be delivered.
+Instead, a
+<B>SIGBUS</B>
+
+signal will be sent to the faulting process.
+Applications using this
+feature will not require the use of a userfaultfd monitor for processing
+memory accesses to the regions registered with userfaultfd.
+</DL>
+<P>
+
+The returned
+<I>ioctls</I>
+
+field can contain the following bits:
+
+
+<DL COMPACT>
+<DT id="8"><B>1 &lt;&lt; _UFFDIO_API</B>
+
+<DD>
+The
+<B>UFFDIO_API</B>
+
+operation is supported.
+<DT id="9"><B>1 &lt;&lt; _UFFDIO_REGISTER</B>
+
+<DD>
+The
+<B>UFFDIO_REGISTER</B>
+
+operation is supported.
+<DT id="10"><B>1 &lt;&lt; _UFFDIO_UNREGISTER</B>
+
+<DD>
+The
+<B>UFFDIO_UNREGISTER</B>
+
+operation is supported.
+</DL>
+<P>
+
+This
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+operation returns 0 on success.
+On error, -1 is returned and
+<I>errno</I>
+
+is set to indicate the cause of the error.
+Possible errors include:
+<DL COMPACT>
+<DT id="11"><B>EFAULT</B>
+
+<DD>
+<I>argp</I>
+
+refers to an address that is outside the calling process's
+accessible address space.
+<DT id="12"><B>EINVAL</B>
+
+<DD>
+The userfaultfd has already been enabled by a previous
+<B>UFFDIO_API</B>
+
+operation.
+<DT id="13"><B>EINVAL</B>
+
+<DD>
+The API version requested in the
+<I>api</I>
+
+field is not supported by this kernel, or the
+<I>features</I>
+
+field passed to the kernel includes feature bits that are not supported
+by the current kernel version.
+
+
+
+
+
+
+
+
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H3>UFFDIO_REGISTER</H3>
+
+(Since Linux 4.3.)
+Register a memory address range with the userfaultfd object.
+The pages in the range must be &quot;compatible&quot;.
+<P>
+
+Up to Linux kernel 4.11,
+only private anonymous ranges are compatible for registering with
+<B>UFFDIO_REGISTER</B>.
+
+<P>
+
+Since Linux 4.11,
+hugetlbfs and shared memory ranges are also compatible with
+<B>UFFDIO_REGISTER</B>.
+
+<P>
+
+The
+<I>argp</I>
+
+argument is a pointer to a
+<I>uffdio_register</I>
+
+structure, defined as:
+<P>
+
+
+
+struct uffdio_range {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;start;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Start&nbsp;of&nbsp;range&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;len;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Length&nbsp;of&nbsp;range&nbsp;(bytes)&nbsp;*/
+};
+<P>
+struct uffdio_register {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;uffdio_range&nbsp;range;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;mode;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Desired&nbsp;mode&nbsp;of&nbsp;operation&nbsp;(input)&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;ioctls;&nbsp;&nbsp;&nbsp;/*&nbsp;Available&nbsp;ioctl()&nbsp;operations&nbsp;(output)&nbsp;*/
+};
+
+
+<P>
+
+The
+<I>range</I>
+
+field defines a memory range starting at
+<I>start</I>
+
+and continuing for
+<I>len</I>
+
+bytes that should be handled by the userfaultfd.
+<P>
+
+The
+<I>mode</I>
+
+field defines the mode of operation desired for this memory region.
+The following values may be bitwise ORed to set the userfaultfd mode for
+the specified range:
+<DL COMPACT>
+<DT id="14"><B>UFFDIO_REGISTER_MODE_MISSING</B>
+
+<DD>
+Track page faults on missing pages.
+<DT id="15"><B>UFFDIO_REGISTER_MODE_WP</B>
+
+<DD>
+Track page faults on write-protected pages.
+</DL>
+<P>
+
+Currently, the only supported mode is
+<B>UFFDIO_REGISTER_MODE_MISSING</B>.
+
+<P>
+
+If the operation is successful, the kernel modifies the
+<I>ioctls</I>
+
+bit-mask field to indicate which
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+operations are available for the specified range.
+This returned bit mask is as for
+<B>UFFDIO_API</B>.
+
+<P>
+
+This
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+operation returns 0 on success.
+On error, -1 is returned and
+<I>errno</I>
+
+is set to indicate the cause of the error.
+Possible errors include:
+
+
+<DL COMPACT>
+<DT id="16"><B>EBUSY</B>
+
+<DD>
+A mapping in the specified range is registered with another
+userfaultfd object.
+<DT id="17"><B>EFAULT</B>
+
+<DD>
+<I>argp</I>
+
+refers to an address that is outside the calling process's
+accessible address space.
+<DT id="18"><B>EINVAL</B>
+
+<DD>
+An invalid or unsupported bit was specified in the
+<I>mode</I>
+
+field; or the
+<I>mode</I>
+
+field was zero.
+<DT id="19"><B>EINVAL</B>
+
+<DD>
+There is no mapping in the specified address range.
+<DT id="20"><B>EINVAL</B>
+
+<DD>
+<I>range.start</I>
+
+or
+<I>range.len</I>
+
+is not a multiple of the system page size; or,
+<I>range.len</I>
+
+is zero; or these fields are otherwise invalid.
+<DT id="21"><B>EINVAL</B>
+
+<DD>
+There as an incompatible mapping in the specified address range.
+
+
+
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H3>UFFDIO_UNREGISTER</H3>
+
+(Since Linux 4.3.)
+Unregister a memory address range from userfaultfd.
+The pages in the range must be &quot;compatible&quot; (see the description of
+<B>UFFDIO_REGISTER</B>.)
+
+<P>
+
+The address range to unregister is specified in the
+<I>uffdio_range</I>
+
+structure pointed to by
+<I>argp</I>.
+
+<P>
+
+This
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+operation returns 0 on success.
+On error, -1 is returned and
+<I>errno</I>
+
+is set to indicate the cause of the error.
+Possible errors include:
+<DL COMPACT>
+<DT id="22"><B>EINVAL</B>
+
+<DD>
+Either the
+<I>start</I>
+
+or the
+<I>len</I>
+
+field of the
+<I>ufdio_range</I>
+
+structure was not a multiple of the system page size; or the
+<I>len</I>
+
+field was zero; or these fields were otherwise invalid.
+<DT id="23"><B>EINVAL</B>
+
+<DD>
+There as an incompatible mapping in the specified address range.
+<DT id="24"><B>EINVAL</B>
+
+<DD>
+There was no mapping in the specified address range.
+
+</DL>
+<A NAME="lbAH">&nbsp;</A>
+<H3>UFFDIO_COPY</H3>
+
+(Since Linux 4.3.)
+Atomically copy a continuous memory chunk into the userfault registered
+range and optionally wake up the blocked thread.
+The source and destination addresses and the number of bytes to copy are
+specified by the
+<I>src</I>, <I>dst</I>, and <I>len</I>
+
+fields of the
+<I>uffdio_copy</I>
+
+structure pointed to by
+<I>argp</I>:
+
+<P>
+
+
+
+struct uffdio_copy {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;dst;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Destination&nbsp;of&nbsp;copy&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;src;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Source&nbsp;of&nbsp;copy&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;len;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Number&nbsp;of&nbsp;bytes&nbsp;to&nbsp;copy&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;mode;&nbsp;&nbsp;&nbsp;/*&nbsp;Flags&nbsp;controlling&nbsp;behavior&nbsp;of&nbsp;copy&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__s64&nbsp;copy;&nbsp;&nbsp;&nbsp;/*&nbsp;Number&nbsp;of&nbsp;bytes&nbsp;copied,&nbsp;or&nbsp;negated&nbsp;error&nbsp;*/
+};
+
+
+<P>
+
+The following value may be bitwise ORed in
+<I>mode</I>
+
+to change the behavior of the
+<B>UFFDIO_COPY</B>
+
+operation:
+<DL COMPACT>
+<DT id="25"><B>UFFDIO_COPY_MODE_DONTWAKE</B>
+
+<DD>
+Do not wake up the thread that waits for page-fault resolution
+</DL>
+<P>
+
+The
+<I>copy</I>
+
+field is used by the kernel to return the number of bytes
+that was actually copied, or an error (a negated
+<I>errno</I>-style
+
+value).
+
+
+If the value returned in
+<I>copy</I>
+
+doesn't match the value that was specified in
+<I>len</I>,
+
+the operation fails with the error
+<B>EAGAIN</B>.
+
+The
+<I>copy</I>
+
+field is output-only;
+it is not read by the
+<B>UFFDIO_COPY</B>
+
+operation.
+<P>
+
+This
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+operation returns 0 on success.
+In this case, the entire area was copied.
+On error, -1 is returned and
+<I>errno</I>
+
+is set to indicate the cause of the error.
+Possible errors include:
+<DL COMPACT>
+<DT id="26"><B>EAGAIN</B>
+
+<DD>
+The number of bytes copied (i.e., the value returned in the
+<I>copy</I>
+
+field)
+does not equal the value that was specified in the
+<I>len</I>
+
+field.
+<DT id="27"><B>EINVAL</B>
+
+<DD>
+Either
+<I>dst</I>
+
+or
+<I>len</I>
+
+was not a multiple of the system page size, or the range specified by
+<I>src</I>
+
+and
+<I>len</I>
+
+or
+<I>dst</I>
+
+and
+<I>len</I>
+
+was invalid.
+<DT id="28"><B>EINVAL</B>
+
+<DD>
+An invalid bit was specified in the
+<I>mode</I>
+
+field.
+<DT id="29"><B>ENOENT</B> (since Linux 4.11)
+
+<DD>
+The faulting process has changed
+its virtual memory layout simultaneously with an outstanding
+<I>UFFDIO_COPY</I>
+
+operation.
+<DT id="30"><B>ENOSPC</B> (from Linux 4.11 until Linux 4.13)
+
+<DD>
+The faulting process has exited at the time of a
+<I>UFFDIO_COPY</I>
+
+operation.
+<DT id="31"><B>ESRCH</B> (since Linux 4.13)
+
+<DD>
+The faulting process has exited at the time of a
+<I>UFFDIO_COPY</I>
+
+operation.
+
+</DL>
+<A NAME="lbAI">&nbsp;</A>
+<H3>UFFDIO_ZEROPAGE</H3>
+
+(Since Linux 4.3.)
+Zero out a memory range registered with userfaultfd.
+<P>
+
+The requested range is specified by the
+<I>range</I>
+
+field of the
+<I>uffdio_zeropage</I>
+
+structure pointed to by
+<I>argp</I>:
+
+<P>
+
+
+
+struct uffdio_zeropage {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;uffdio_range&nbsp;range;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;mode;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Flags&nbsp;controlling&nbsp;behavior&nbsp;of&nbsp;copy&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__s64&nbsp;zeropage;&nbsp;/*&nbsp;Number&nbsp;of&nbsp;bytes&nbsp;zeroed,&nbsp;or&nbsp;negated&nbsp;error&nbsp;*/
+};
+
+
+<P>
+
+The following value may be bitwise ORed in
+<I>mode</I>
+
+to change the behavior of the
+<B>UFFDIO_ZEROPAGE</B>
+
+operation:
+<DL COMPACT>
+<DT id="32"><B>UFFDIO_ZEROPAGE_MODE_DONTWAKE</B>
+
+<DD>
+Do not wake up the thread that waits for page-fault resolution.
+</DL>
+<P>
+
+The
+<I>zeropage</I>
+
+field is used by the kernel to return the number of bytes
+that was actually zeroed,
+or an error in the same manner as
+<B>UFFDIO_COPY</B>.
+
+
+
+If the value returned in the
+<I>zeropage</I>
+
+field doesn't match the value that was specified in
+<I>range.len</I>,
+
+the operation fails with the error
+<B>EAGAIN</B>.
+
+The
+<I>zeropage</I>
+
+field is output-only;
+it is not read by the
+<B>UFFDIO_ZEROPAGE</B>
+
+operation.
+<P>
+
+This
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+operation returns 0 on success.
+In this case, the entire area was zeroed.
+On error, -1 is returned and
+<I>errno</I>
+
+is set to indicate the cause of the error.
+Possible errors include:
+<DL COMPACT>
+<DT id="33"><B>EAGAIN</B>
+
+<DD>
+The number of bytes zeroed (i.e., the value returned in the
+<I>zeropage</I>
+
+field)
+does not equal the value that was specified in the
+<I>range.len</I>
+
+field.
+<DT id="34"><B>EINVAL</B>
+
+<DD>
+Either
+<I>range.start</I>
+
+or
+<I>range.len</I>
+
+was not a multiple of the system page size; or
+<I>range.len</I>
+
+was zero; or the range specified was invalid.
+<DT id="35"><B>EINVAL</B>
+
+<DD>
+An invalid bit was specified in the
+<I>mode</I>
+
+field.
+<DT id="36"><B>ESRCH</B> (since Linux 4.13)
+
+<DD>
+The faulting process has exited at the time of a
+<I>UFFDIO_ZEROPAGE</I>
+
+operation.
+
+</DL>
+<A NAME="lbAJ">&nbsp;</A>
+<H3>UFFDIO_WAKE</H3>
+
+(Since Linux 4.3.)
+Wake up the thread waiting for page-fault resolution on
+a specified memory address range.
+<P>
+
+The
+<B>UFFDIO_WAKE</B>
+
+operation is used in conjunction with
+<B>UFFDIO_COPY</B>
+
+and
+<B>UFFDIO_ZEROPAGE</B>
+
+operations that have the
+<B>UFFDIO_COPY_MODE_DONTWAKE</B>
+
+or
+<B>UFFDIO_ZEROPAGE_MODE_DONTWAKE</B>
+
+bit set in the
+<I>mode</I>
+
+field.
+The userfault monitor can perform several
+<B>UFFDIO_COPY</B>
+
+and
+<B>UFFDIO_ZEROPAGE</B>
+
+operations in a batch and then explicitly wake up the faulting thread using
+<B>UFFDIO_WAKE</B>.
+
+<P>
+
+The
+<I>argp</I>
+
+argument is a pointer to a
+<I>uffdio_range</I>
+
+structure (shown above) that specifies the address range.
+<P>
+
+This
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+operation returns 0 on success.
+On error, -1 is returned and
+<I>errno</I>
+
+is set to indicate the cause of the error.
+Possible errors include:
+<DL COMPACT>
+<DT id="37"><B>EINVAL</B>
+
+<DD>
+The
+<I>start</I>
+
+or the
+<I>len</I>
+
+field of the
+<I>ufdio_range</I>
+
+structure was not a multiple of the system page size; or
+<I>len</I>
+
+was zero; or the specified range was otherwise invalid.
+</DL>
+<A NAME="lbAK">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+See descriptions of the individual operations, above.
+<A NAME="lbAL">&nbsp;</A>
+<H2>ERRORS</H2>
+
+See descriptions of the individual operations, above.
+In addition, the following general errors can occur for all of the
+operations described above:
+<DL COMPACT>
+<DT id="38"><B>EFAULT</B>
+
+<DD>
+<I>argp</I>
+
+does not point to a valid memory address.
+<DT id="39"><B>EINVAL</B>
+
+<DD>
+(For all operations except
+<B>UFFDIO_API</B>.)
+
+The userfaultfd object has not yet been enabled (via the
+<B>UFFDIO_API</B>
+
+operation).
+</DL>
+<A NAME="lbAM">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+These
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+operations are Linux-specific.
+<A NAME="lbAN">&nbsp;</A>
+<H2>BUGS</H2>
+
+In order to detect available userfault features and
+enable some subset of those features
+the userfaultfd file descriptor must be closed after the first
+<B>UFFDIO_API</B>
+
+operation that queries features availability and reopened before
+the second
+<B>UFFDIO_API</B>
+
+operation that actually enables the desired features.
+<A NAME="lbAO">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+See
+<B><A HREF="/cgi-bin/man/man2html?2+userfaultfd">userfaultfd</A></B>(2).
+
+<A NAME="lbAP">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+mmap">mmap</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+userfaultfd">userfaultfd</A></B>(2)
+
+<P>
+
+<I>Documentation/admin-guide/mm/userfaultfd.rst</I>
+
+in the Linux kernel source tree
+<A NAME="lbAQ">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="40"><A HREF="#lbAB">NAME</A><DD>
+<DT id="41"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="42"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DL>
+<DT id="43"><A HREF="#lbAE">UFFDIO_API</A><DD>
+<DT id="44"><A HREF="#lbAF">UFFDIO_REGISTER</A><DD>
+<DT id="45"><A HREF="#lbAG">UFFDIO_UNREGISTER</A><DD>
+<DT id="46"><A HREF="#lbAH">UFFDIO_COPY</A><DD>
+<DT id="47"><A HREF="#lbAI">UFFDIO_ZEROPAGE</A><DD>
+<DT id="48"><A HREF="#lbAJ">UFFDIO_WAKE</A><DD>
+</DL>
+<DT id="49"><A HREF="#lbAK">RETURN VALUE</A><DD>
+<DT id="50"><A HREF="#lbAL">ERRORS</A><DD>
+<DT id="51"><A HREF="#lbAM">CONFORMING TO</A><DD>
+<DT id="52"><A HREF="#lbAN">BUGS</A><DD>
+<DT id="53"><A HREF="#lbAO">EXAMPLE</A><DD>
+<DT id="54"><A HREF="#lbAP">SEE ALSO</A><DD>
+<DT id="55"><A HREF="#lbAQ">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:33 GMT, March 31, 2021
+</BODY>
+</HTML>

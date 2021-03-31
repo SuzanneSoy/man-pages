@@ -1,0 +1,826 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of REQUEST_KEY</TITLE>
+</HEAD><BODY>
+<H1>REQUEST_KEY</H1>
+Section: Linux Key Management Calls (2)<BR>Updated: 2019-03-06<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+request_key - request a key from the kernel's key management facility
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<PRE>
+<B>#include &lt;<A HREF="file:///usr/include/sys/types.h">sys/types.h</A>&gt;</B>
+<B>#include &lt;<A HREF="file:///usr/include/keyutils.h">keyutils.h</A>&gt;</B>
+
+<B>key_serial_t request_key(const char *</B><I>type</I><B>, const char *</B><I>description</I><B>,</B>
+<B>                         const char *</B><I>callout_info</I><B>,</B>
+<B>                         key_serial_t </B><I>dest_keyring</I><B>);</B>
+</PRE>
+
+<P>
+
+No glibc wrapper is provided for this system call; see NOTES.
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<B>request_key</B>()
+
+attempts to find a key of the given
+<I>type</I>
+
+with a description (name) that matches the specified
+<I>description</I>.
+
+If such a key could not be found, then the key is optionally created.
+If the key is found or created,
+<B>request_key</B>()
+
+attaches it to the keyring whose ID is specified in
+<I>dest_keyring</I>
+
+and returns the key's serial number.
+<P>
+
+<B>request_key</B>()
+
+first recursively searches for a matching key in all of the keyrings
+attached to the calling process.
+The keyrings are searched in the order: thread-specific keyring,
+process-specific keyring, and then session keyring.
+<P>
+
+If
+<B>request_key</B>()
+
+is called from a program invoked by
+<B>request_key</B>()
+
+on behalf of some other process to generate a key, then the keyrings of that
+other process will be searched next,
+using that other process's user ID, group ID,
+supplementary group IDs, and security context to determine access.
+
+
+
+<P>
+
+The search of the keyring tree is breadth-first:
+the keys in each keyring searched are checked for a match before any child
+keyrings are recursed into.
+Only keys for which the caller has
+<I>search</I>
+
+permission be found, and only keyrings for which the caller has
+<I>search</I>
+
+permission may be searched.
+<P>
+
+If the key is not found and
+<I>callout</I>
+
+is NULL, then the call fails with the error
+<B>ENOKEY</B>.
+
+<P>
+
+If the key is not found and
+<I>callout</I>
+
+is not NULL, then the kernel attempts to invoke a user-space
+program to instantiate the key.
+The details are given below.
+<P>
+
+The
+<I>dest_keyring</I>
+
+serial number may be that of a valid keyring for which the caller has
+<I>write</I>
+
+permission, or it may be one of the following special keyring IDs:
+<DL COMPACT>
+<DT id="1"><B>KEY_SPEC_THREAD_KEYRING</B>
+
+<DD>
+This specifies the caller's thread-specific keyring (see
+<B><A HREF="/cgi-bin/man/man2html?7+thread-keyring">thread-keyring</A></B>(7)).
+
+<DT id="2"><B>KEY_SPEC_PROCESS_KEYRING</B>
+
+<DD>
+This specifies the caller's process-specific keyring (see
+<B><A HREF="/cgi-bin/man/man2html?7+process-keyring">process-keyring</A></B>(7)).
+
+<DT id="3"><B>KEY_SPEC_SESSION_KEYRING</B>
+
+<DD>
+This specifies the caller's session-specific keyring (see
+<B><A HREF="/cgi-bin/man/man2html?7+session-keyring">session-keyring</A></B>(7)).
+
+<DT id="4"><B>KEY_SPEC_USER_KEYRING</B>
+
+<DD>
+This specifies the caller's UID-specific keyring (see
+<B><A HREF="/cgi-bin/man/man2html?7+user-keyring">user-keyring</A></B>(7)).
+
+<DT id="5"><B>KEY_SPEC_USER_SESSION_KEYRING</B>
+
+<DD>
+This specifies the caller's UID-session keyring (see
+<B><A HREF="/cgi-bin/man/man2html?7+user-session-keyring">user-session-keyring</A></B>(7)).
+
+</DL>
+<P>
+
+When the
+<I>dest_keyring</I>
+
+is specified as 0
+and no key construction has been performed,
+then no additional linking is done.
+<P>
+
+Otherwise, if
+<I>dest_keyring</I>
+
+is 0 and a new key is constructed, the new key will be linked
+to the &quot;default&quot; keyring.
+More precisely, when the kernel tries to determine to which keyring the
+newly constructed key should be linked,
+it tries the following keyrings,
+beginning with the keyring set via the
+<B><A HREF="/cgi-bin/man/man2html?2+keyctl">keyctl</A></B>(2)
+
+<B>KEYCTL_SET_REQKEY_KEYRING</B>
+
+operation and continuing in the order shown below
+until it finds the first keyring that exists:
+<DL COMPACT>
+<DT id="6">&bull;<DD>
+
+The requestor keyring
+(<B>KEY_REQKEY_DEFL_REQUESTOR_KEYRING</B>,
+
+since Linux 2.6.29).
+
+
+
+
+
+<DT id="7">&bull;<DD>
+The thread-specific keyring
+(<B>KEY_REQKEY_DEFL_THREAD_KEYRING</B>;
+
+see
+<B><A HREF="/cgi-bin/man/man2html?7+thread-keyring">thread-keyring</A></B>(7)).
+
+<DT id="8">&bull;<DD>
+The process-specific keyring
+(<B>KEY_REQKEY_DEFL_PROCESS_KEYRING</B>;
+
+see
+<B><A HREF="/cgi-bin/man/man2html?7+process-keyring">process-keyring</A></B>(7)).
+
+<DT id="9">&bull;<DD>
+The session-specific keyring
+(<B>KEY_REQKEY_DEFL_SESSION_KEYRING</B>;
+
+see
+<B><A HREF="/cgi-bin/man/man2html?7+session-keyring">session-keyring</A></B>(7)).
+
+<DT id="10">&bull;<DD>
+The session keyring for the process's user ID
+(<B>KEY_REQKEY_DEFL_USER_SESSION_KEYRING</B>;
+
+see
+<B><A HREF="/cgi-bin/man/man2html?7+user-session-keyring">user-session-keyring</A></B>(7)).
+
+This keyring is expected to always exist.
+<DT id="11">&bull;<DD>
+The UID-specific keyring
+(<B>KEY_REQKEY_DEFL_USER_KEYRING</B>;
+
+see
+<B><A HREF="/cgi-bin/man/man2html?7+user-keyring">user-keyring</A></B>(7)).
+
+This keyring is also expected to always exist.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</DL>
+<P>
+
+If the
+<B><A HREF="/cgi-bin/man/man2html?2+keyctl">keyctl</A></B>(2)
+
+<B>KEYCTL_SET_REQKEY_KEYRING</B>
+
+operation specifies
+<B>KEY_REQKEY_DEFL_DEFAULT</B>
+
+(or no
+<B>KEYCTL_SET_REQKEY_KEYRING</B>
+
+operation is performed),
+then the kernel looks for a keyring
+starting from the beginning of the list.
+
+<A NAME="lbAE">&nbsp;</A>
+<H3>Requesting user-space instantiation of a key</H3>
+
+If the kernel cannot find a key matching
+<I>type</I>
+
+and
+<I>description</I>,
+
+and
+<I>callout</I>
+
+is not NULL, then the kernel attempts to invoke a user-space
+program to instantiate a key with the given
+<I>type</I>
+
+and
+<I>description</I>.
+
+In this case, the following steps are performed:
+<DL COMPACT>
+<DT id="12">a)<DD>
+The kernel creates an uninstantiated key, U, with the requested
+<I>type</I>
+
+and
+<I>description</I>.
+
+<DT id="13">b)<DD>
+The kernel creates an authorization key, V,
+
+that refers to the key U and records the facts that the caller of
+<B>request_key</B>()
+
+is:
+<DL COMPACT><DT id="14"><DD>
+<DL COMPACT>
+<DT id="15">(1)<DD>
+the context in which the key U should be instantiated and secured, and
+<DT id="16">(2)<DD>
+the context from which associated key requests may be satisfied.
+</DL>
+</DL>
+
+<DT id="17"><DD>
+The authorization key is constructed as follows:
+<DL COMPACT><DT id="18"><DD>
+<DL COMPACT>
+<DT id="19">*<DD>
+The key type is
+<I>&quot;.request_key_auth&quot;</I>.
+
+<DT id="20">*<DD>
+The key's UID and GID are the same as the corresponding filesystem IDs
+of the requesting process.
+<DT id="21">*<DD>
+The key grants
+<I>view</I>,
+
+<I>read</I>,
+
+and
+<I>search</I>
+
+permissions to the key possessor as well as
+<I>view</I>
+
+permission for the key user.
+<DT id="22">*<DD>
+The description (name) of the key is the hexadecimal
+string representing the ID of the key that is to be instantiated
+in the requesting program.
+<DT id="23">*<DD>
+The payload of the key is taken from the data specified in
+<I>callout_info</I>.
+
+<DT id="24">*<DD>
+Internally, the kernel also records the PID of the process that called
+<B>request_key</B>().
+
+</DL>
+</DL>
+
+<DT id="25">c)<DD>
+The kernel creates a process that executes a user-space service such as
+<B><A HREF="/cgi-bin/man/man2html?8+request-key">request-key</A></B>(8)
+
+with a new session keyring that contains a link to the authorization key, V.
+
+
+
+<DT id="26"><DD>
+This program is supplied with the following command-line arguments:
+<DL COMPACT><DT id="27"><DD>
+<DL COMPACT>
+<DT id="28">[0]<DD>
+The string
+<I>&quot;/sbin/request-key&quot;</I>.
+
+<DT id="29">[1]<DD>
+The string
+<I>create</I>
+
+(indicating that a key is to be created).
+<DT id="30">[2]<DD>
+The ID of the key that is to be instantiated.
+<DT id="31">[3]<DD>
+The filesystem UID of the caller of
+<B>request_key</B>().
+
+<DT id="32">[4]<DD>
+The filesystem GID of the caller of
+<B>request_key</B>().
+
+<DT id="33">[5]<DD>
+The ID of the thread keyring of the caller of
+<B>request_key</B>().
+
+This may be zero if that keyring hasn't been created.
+<DT id="34">[6]<DD>
+The ID of the process keyring of the caller of
+<B>request_key</B>().
+
+This may be zero if that keyring hasn't been created.
+<DT id="35">[7]<DD>
+The ID of the session keyring of the caller of
+<B>request_key</B>().
+
+</DL>
+</DL>
+
+<DT id="36"><DD>
+<I>Note</I>:
+
+each of the command-line arguments that is a key ID is encoded in
+<I>decimal</I>
+
+(unlike the key IDs shown in
+<I>/proc/keys</I>,
+
+which are shown as hexadecimal values).
+<DT id="37">d)<DD>
+The program spawned in the previous step:
+<DL COMPACT><DT id="38"><DD>
+<DL COMPACT>
+<DT id="39">*<DD>
+Assumes the authority to instantiate the key U using the
+<B><A HREF="/cgi-bin/man/man2html?2+keyctl">keyctl</A></B>(2)
+
+<B>KEYCTL_ASSUME_AUTHORITY</B>
+
+operation (typically via the
+<B><A HREF="/cgi-bin/man/man2html?3+keyctl_assume_authority">keyctl_assume_authority</A></B>(3)
+
+function).
+<DT id="40">*<DD>
+Obtains the callout data from the payload of the authorization key V
+(using the
+<B><A HREF="/cgi-bin/man/man2html?2+keyctl">keyctl</A></B>(2)
+
+<B>KEYCTL_READ</B>
+
+operation (or, more commonly, the
+<B><A HREF="/cgi-bin/man/man2html?3+keyctl_read">keyctl_read</A></B>(3)
+
+function) with a key ID value of
+<B>KEY_SPEC_REQKEY_AUTH_KEY</B>).
+
+<DT id="41">*<DD>
+Instantiates the key
+(or execs another program that performs that task),
+specifying the payload and destination keyring.
+(The destination keyring that the requestor specified when calling
+<B>request_key</B>()
+
+can be accessed using the special key ID
+<B>KEY_SPEC_REQUESTOR_KEYRING</B>.)
+
+
+
+
+
+
+Instantiation is performed using the
+<B><A HREF="/cgi-bin/man/man2html?2+keyctl">keyctl</A></B>(2)
+
+<B>KEYCTL_INSTANTIATE</B>
+
+operation (or, more commonly, the
+<B><A HREF="/cgi-bin/man/man2html?3+keyctl_instantiate">keyctl_instantiate</A></B>(3)
+
+function).
+At this point, the
+<B>request_key</B>()
+
+call completes, and the requesting program can continue execution.
+</DL>
+</DL>
+
+</DL>
+<P>
+
+If these steps are unsuccessful, then an
+<B>ENOKEY</B>
+
+error will be returned to the caller of
+<B>request_key</B>()
+
+and a temporary, negatively instantiated key will be installed
+in the keyring specified by
+<I>dest_keyring</I>.
+
+This will expire after a few seconds, but will cause subsequent calls to
+<B>request_key</B>()
+
+to fail until it does.
+The purpose of this negatively instantiated key is to prevent
+(possibly different) processes making repeated requests
+(that require expensive
+<B><A HREF="/cgi-bin/man/man2html?8+request-key">request-key</A></B>(8)
+
+upcalls) for a key that can't (at the moment) be positively instantiated.
+<P>
+
+Once the key has been instantiated, the authorization key
+(<B>KEY_SPEC_REQKEY_AUTH_KEY</B>)
+
+is revoked, and the destination keyring
+(<B>KEY_SPEC_REQUESTOR_KEYRING</B>)
+
+is no longer accessible from the
+<B><A HREF="/cgi-bin/man/man2html?8+request-key">request-key</A></B>(8)
+
+program.
+<P>
+
+If a key is created, then---regardless of whether it is a valid key or
+a negatively instantiated key---it will displace any other key with
+the same type and description from the keyring specified in
+<I>dest_keyring</I>.
+
+<A NAME="lbAF">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+On success,
+<B>request_key</B>()
+
+returns the serial number of the key it found or caused to be created.
+On error, -1 is returned and
+<I>errno</I>
+
+is set to indicate the cause of the error.
+<A NAME="lbAG">&nbsp;</A>
+<H2>ERRORS</H2>
+
+<DL COMPACT>
+<DT id="42"><B>EACCES</B>
+
+<DD>
+The keyring wasn't available for modification by the user.
+<DT id="43"><B>EDQUOT</B>
+
+<DD>
+The key quota for this user would be exceeded by creating this key or linking
+it to the keyring.
+<DT id="44"><B>EFAULT</B>
+
+<DD>
+One of
+<I>type</I>,
+
+<I>description</I>,
+
+or
+<I>callout_info</I>
+
+points outside the process's accessible address space.
+<DT id="45"><B>EINTR</B>
+
+<DD>
+The request was interrupted by a signal; see
+<B><A HREF="/cgi-bin/man/man2html?7+signal">signal</A></B>(7).
+
+<DT id="46"><B>EINVAL</B>
+
+<DD>
+The size of the string (including the terminating null byte) specified in
+<I>type</I>
+
+or
+<I>description</I>
+
+exceeded the limit (32 bytes and 4096 bytes respectively).
+<DT id="47"><B>EINVAL</B>
+
+<DD>
+The size of the string (including the terminating null byte) specified in
+<I>callout_info</I>
+
+exceeded the system page size.
+<DT id="48"><B>EKEYEXPIRED</B>
+
+<DD>
+An expired key was found, but no replacement could be obtained.
+<DT id="49"><B>EKEYREJECTED</B>
+
+<DD>
+The attempt to generate a new key was rejected.
+<DT id="50"><B>EKEYREVOKED</B>
+
+<DD>
+A revoked key was found, but no replacement could be obtained.
+<DT id="51"><B>ENOKEY</B>
+
+<DD>
+No matching key was found.
+<DT id="52"><B>ENOMEM</B>
+
+<DD>
+Insufficient memory to create a key.
+<DT id="53"><B>EPERM</B>
+
+<DD>
+The
+<I>type</I>
+
+argument started with a period ('.').
+</DL>
+<A NAME="lbAH">&nbsp;</A>
+<H2>VERSIONS</H2>
+
+This system call first appeared in Linux 2.6.10.
+The ability to instantiate keys upon request was added
+
+in Linux 2.6.13.
+<A NAME="lbAI">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+This system call is a nonstandard Linux extension.
+<A NAME="lbAJ">&nbsp;</A>
+<H2>NOTES</H2>
+
+No wrapper for this system call is provided in glibc.
+A wrapper is provided in the
+<I>libkeyutils</I>
+
+package.
+When employing the wrapper in that library, link with
+<I>-lkeyutils</I>.
+
+<A NAME="lbAK">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+The program below demonstrates the use of
+<B>request_key</B>().
+
+The
+<I>type</I>,
+
+<I>description</I>,
+
+and
+<I>callout_info</I>
+
+arguments for the system call are taken from the values
+supplied in the command-line arguments.
+The call specifies the session keyring as the target keyring.
+<P>
+
+In order to demonstrate this program,
+we first create a suitable entry in the file
+<I>/etc/request-key.conf</I>.
+
+<P>
+
+
+
+$ sudo sh
+# <B>echo 'create user mtk:* *   /bin/keyctl instantiate %k %c %S' \</B>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<B>&gt;&nbsp;/etc/request-key.conf</B>
+# <B>exit</B>
+
+
+<P>
+
+This entry specifies that when a new &quot;user&quot; key with the prefix
+&quot;mtk:&quot; must be instantiated, that task should be performed via the
+<B><A HREF="/cgi-bin/man/man2html?1+keyctl">keyctl</A></B>(1)
+
+command's
+<B>instantiate</B>
+
+operation.
+The arguments supplied to the
+<B>instantiate</B>
+
+operation are:
+the ID of the uninstantiated key
+(<I>%k</I>);
+
+the callout data supplied to the
+<B>request_key</B>()
+
+call
+(<I>%c</I>);
+
+and the session keyring
+(<I>%S</I>)
+
+of the requestor (i.e., the caller of
+<B>request_key</B>()).
+
+See
+<B><A HREF="/cgi-bin/man/man2html?5+request-key.conf">request-key.conf</A></B>(5)
+
+for details of these
+<I>%</I>
+
+specifiers.
+<P>
+
+Then we run the program and check the contents of
+<I>/proc/keys</I>
+
+to verify that the requested key has been instantiated:
+<P>
+
+
+
+$ <B>./t_request_key user mtk:key1 &quot;Payload data&quot;</B>
+$ <B>grep '2dddaf50' /proc/keys</B>
+2dddaf50 I--Q---  1 perm 3f010000  1000  1000 user  mtk:key1: 12
+
+
+<P>
+
+For another example of the use of this program, see
+<B><A HREF="/cgi-bin/man/man2html?2+keyctl">keyctl</A></B>(2).
+
+<A NAME="lbAL">&nbsp;</A>
+<H3>Program source</H3>
+
+
+
+/* t_request_key.c */
+<P>
+#include &lt;<A HREF="file:///usr/include/sys/types.h">sys/types.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/keyutils.h">keyutils.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdlib.h">stdlib.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/string.h">string.h</A>&gt;
+<P>
+int
+main(int argc, char *argv[])
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;key_serial_t&nbsp;key;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(argc&nbsp;!=&nbsp;4)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;Usage:&nbsp;%s&nbsp;type&nbsp;description&nbsp;callout-data\n&quot;,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;argv[0]);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;key&nbsp;=&nbsp;request_key(argv[1],&nbsp;argv[2],&nbsp;argv[3],
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;KEY_SPEC_SESSION_KEYRING);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(key&nbsp;==&nbsp;-1)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;perror(&quot;request_key&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;Key&nbsp;ID&nbsp;is&nbsp;%lx\n&quot;,&nbsp;(long)&nbsp;key);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_SUCCESS);
+}
+
+<A NAME="lbAM">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+
+<B><A HREF="/cgi-bin/man/man2html?1+keyctl">keyctl</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?2+add_key">add_key</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+keyctl">keyctl</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?3+keyctl">keyctl</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?7+capabilities">capabilities</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+keyrings">keyrings</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+keyutils">keyutils</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+persistent-keyring">persistent-keyring</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+process-keyring">process-keyring</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+session-keyring">session-keyring</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+thread-keyring">thread-keyring</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+user-keyring">user-keyring</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+user-session-keyring">user-session-keyring</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?8+request-key">request-key</A></B>(8)
+
+<P>
+
+The kernel source files
+<I>Documentation/security/keys/core.rst</I>
+
+and
+<I>Documentation/keys/request-key.rst</I>
+
+(or, before Linux 4.13, in the files
+
+<I>Documentation/security/keys.txt</I>
+
+and
+
+<I>Documentation/security/keys-request-key.txt</I>).
+
+<A NAME="lbAN">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="54"><A HREF="#lbAB">NAME</A><DD>
+<DT id="55"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="56"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DL>
+<DT id="57"><A HREF="#lbAE">Requesting user-space instantiation of a key</A><DD>
+</DL>
+<DT id="58"><A HREF="#lbAF">RETURN VALUE</A><DD>
+<DT id="59"><A HREF="#lbAG">ERRORS</A><DD>
+<DT id="60"><A HREF="#lbAH">VERSIONS</A><DD>
+<DT id="61"><A HREF="#lbAI">CONFORMING TO</A><DD>
+<DT id="62"><A HREF="#lbAJ">NOTES</A><DD>
+<DT id="63"><A HREF="#lbAK">EXAMPLE</A><DD>
+<DL>
+<DT id="64"><A HREF="#lbAL">Program source</A><DD>
+</DL>
+<DT id="65"><A HREF="#lbAM">SEE ALSO</A><DD>
+<DT id="66"><A HREF="#lbAN">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:34 GMT, March 31, 2021
+</BODY>
+</HTML>

@@ -1,0 +1,723 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of PO-DEBCONF</TITLE>
+</HEAD><BODY>
+<H1>PO-DEBCONF</H1>
+Section: po-debconf (7)<BR>Updated: 2018-11-20<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+po-debconf - introduction
+<A NAME="lbAC">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+
+The goal of <TT>&quot;debconf&quot;</TT> was to make package configuration user-friendly.  In
+order to achieve this, it is important to ensure that users will get the
+question in their own language.  Translators need a framework to easily
+work on translations without having to track package development;
+<TT>&quot;po-debconf&quot;</TT> was designed to be able to work with standard <TT>&quot;gettext&quot;</TT>
+tools when translating debconf templates files.
+<A NAME="lbAD">&nbsp;</A>
+<H2>ADDING I18N SUPPORT TO DEBCONF TEMPLATES FILES</H2>
+
+
+
+If you are adding debconf support to your package, you have written
+a templates file containing English text.  To add proper i18n support
+into your package, you need to:
+<DL COMPACT>
+<DT id="1">- Create <I>debian/po/POTFILES.in</I><DD>
+
+
+This file contains the list of master templates.  It typically contains a
+single line:
+
+
+<P>
+
+
+
+
+<PRE>
+  [type: gettext/rfc822deb] templates
+
+</PRE>
+
+
+
+
+<P>
+
+
+Paths are relative to the parent directory.
+<DT id="2">- Prepend an underscore before translatable fields in each template<DD>
+
+
+Normally <TT>&quot;Description&quot;</TT>, <TT>&quot;Choices&quot;</TT> and sometimes <TT>&quot;Default&quot;</TT> fields can be translated.
+<DT id="3">- Run <B>debconf-updatepo</B><DD>
+
+
+This will create the <I>debian/po/templates.pot</I> file that translators will translate
+into their language.
+<DT id="4">- Add a build dependency on &quot;po-debconf&quot; in <I>debian/control</I><DD>
+
+
+
+
+</DL>
+<A NAME="lbAE">&nbsp;</A>
+<H2>UPDATE TEMPLATES</H2>
+
+
+
+In order to help translators, <FONT SIZE="-1">PO</FONT> files in your package should always
+be up-to-date, otherwise they may waste their time translating unused strings.
+For that, simply call the following command without arguments:
+<P>
+
+
+
+<PRE>
+  $ debconf-updatepo
+
+</PRE>
+
+
+<P>
+
+You should run this command every time you change templates in English,
+but also when you receive new or updated translations, because translators
+may have worked on an obsolete <FONT SIZE="-1">PO</FONT> file.
+<P>
+
+If you rename, add or remove some templates files, remember also to
+edit <I>debian/po/POTFILES.in</I> accordingly, otherwise English strings 
+are missing from <FONT SIZE="-1">PO</FONT> files and will be displayed to users even if <FONT SIZE="-1">PO</FONT>
+files are fully translated.
+<P>
+
+The <B>debconf-updatepo</B> program is idempotent, it modifies <FONT SIZE="-1">PO</FONT> files only
+if their content has been updated.  Thus the best way to provide
+up-to-date <FONT SIZE="-1">PO</FONT> files in your source package is to call this command from
+the <TT>&quot;clean&quot;</TT> target of the <I>debian/rules</I> file.
+<P>
+
+Please note that you need to run <B>debconf-updatepo</B> even if you use
+<B>dh_installdebconf</B>.  The latter calls <B>po2debconf</B> which used to
+call <B>debconf-updatepo</B> if outdated files were detected, but this
+is no more the case because it was not a good solution for at least
+two reasons:
+<DL COMPACT>
+<DT id="5">1.<DD>
+<B>po2debconf</B> relied on timestamps to detect outdated files, and may
+be abused when using <TT>&quot;pbuilder&quot;</TT> or if an outdated translation has
+been stored on disk after templates have been modified
+<DT id="6">2.<DD>
+<B>dh_installdebconf</B> is called long after <TT>&quot;.diff.gz&quot;</TT> file has been
+generated
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>MERGE TRANSLATIONS AND ORIGINAL</H2>
+
+
+
+You have to make sure that when your package is compiled, translations
+will get into the built package. You can do that manually, or
+automatically using the <B>dh_installdebconf</B> script (make sure to have a
+versioned build dependency against <TT>&quot;debhelper (&gt;= 4.1.16)&quot;</TT>).
+<P>
+
+To do that manually, you'll have to merge the templates and the
+translations at compile time (and to have a build depend against
+<TT>&quot;po-debconf&quot;</TT>) like this:
+<P>
+
+
+
+<PRE>
+  $ po2debconf debian/templates &gt; debian/tmp/DEBIAN/templates
+
+</PRE>
+
+
+<P>
+
+<B></B><FONT SIZE="-1"><B>BE CAREFUL</B></FONT><B></B>: the two files called <I>templates</I> are not the same at all.  The
+first one contains only the English text, with marks to denote
+some fields to be translated
+while the second contains all languages.  That is to say that you <FONT SIZE="-1">CANNOT</FONT> keep
+only the merged templates, or you won't be able to deal with translations as
+people submit them to you.
+<A NAME="lbAG">&nbsp;</A>
+<H2>NEW MASTER TEMPLATES</H2>
+
+
+
+The new templates file source format is almost identical to one of
+distributed templates files, but translatable fields are prepended with an
+underscore.  Example:
+<P>
+
+
+
+<PRE>
+  Template: debconf/frontend
+  Type: select
+  _Choices: Dialog, Readline, Gnome, Editor, Noninteractive
+  Default: Dialog
+  _Description: Interface to use for configuring packages:
+   Packages that use debconf for configuration share a common look and
+   feel.  You can select the type of user interface they use.
+   .
+   The dialog frontend is a full-screen, character based interface,
+   while the readline frontend uses a more traditional plain text
+   interface, and the gnome frontend is a modern X interface.  The
+   editor frontend lets you configure things using your favorite text
+   editor. The noninteractive frontend never asks you any questions.
+
+</PRE>
+
+
+<A NAME="lbAH">&nbsp;</A>
+<H3><FONT SIZE="-1">SPLITTING CHOICES LIST</FONT></H3>
+
+
+
+Since <TT>&quot;po-debconf&quot;</TT> 0.6.0, localized fields may contain two leading
+underscores.  In this case, the field value is supposed to be a comma
+separated list of values, which are put in separate msgids.  Thus
+if the previous example did contain
+<P>
+
+
+
+<PRE>
+  __Choices: Dialog, Readline, Gnome, Editor, Noninteractive
+
+</PRE>
+
+
+<P>
+
+there would be 5 different msgids.  Note that spaces after commas are
+not significant.
+<P>
+
+When a choices list never changes, <TT>&quot;_Choices&quot;</TT> may be considered fine.
+However, splitting such lists may help avoiding frequent mistakes in
+translations such as omitting a choice or using non-standard commas.
+For such reasons, the use of <TT>&quot;__Choices&quot;</TT> will ease translator's life and
+is strongly recommended.
+<P>
+
+Unfortunately if you decide to switch from <TT>&quot;_Choices&quot;</TT> to <TT>&quot;__Choices&quot;</TT>, all translations
+become fuzzy.  Here is an explanation to make this change without translation
+loss (it requires <TT>&quot;po-debconf&quot;</TT> &gt;= 1.0).  Suppose that we want to switch the
+previous example to <TT>&quot;__Choices&quot;</TT>.  You copy the <I>templates</I> file into a
+temporary file.
+<P>
+
+
+
+<PRE>
+  $ cp debian/templates debian/foo
+
+</PRE>
+
+
+<P>
+
+Edit <I>debian/foo</I> and keep only <TT>&quot;Template&quot;</TT>, <TT>&quot;Type&quot;</TT> and <TT>&quot;_Choices&quot;</TT>
+fields, which are in this example
+<P>
+
+
+
+<PRE>
+  Template: debconf/frontend
+  Type: select
+  _Choices: Dialog, Readline, Gnome, Kde, Editor, Noninteractive
+
+</PRE>
+
+
+<P>
+
+Run <B>debconf-gettextize</B> with <TT>&quot;--merge&quot;</TT> and <TT>&quot;--choices&quot;</TT> flags to build <FONT SIZE="-1">PO</FONT> files
+as if <TT>&quot;__Choices&quot;</TT> was written, and merge these <FONT SIZE="-1">PO</FONT> files to existing ones:
+<P>
+
+
+
+<PRE>
+  $ debconf-gettextize --merge --choices debian/foo
+
+</PRE>
+
+
+<P>
+
+Eventually you have to remove <I>foo</I> and manually edit <I>debian/templates</I> to
+replace <TT>&quot;_Choices&quot;</TT> by <TT>&quot;__Choices&quot;</TT> before <B>debconf-updatepo</B> is run.
+<A NAME="lbAI">&nbsp;</A>
+<H3><FONT SIZE="-1">PUTTING IN COMMENTS FOR TRANSLATORS</FONT></H3>
+
+
+
+<TT>&quot;Dpkg&quot;</TT> maintainers decided that by convention lines beginning with
+a number sign (<TT>&quot;#&quot;</TT>) are comments in <I>debian/control</I> files, and <TT>&quot;po-debconf&quot;</TT>
+follows this rule.  Since <TT>&quot;po-debconf&quot;</TT> 0.8.0, such comments are written
+into <FONT SIZE="-1">PO</FONT> files, and can then contain valuable information for
+translators.  Incidentally all previous <TT>&quot;po-debconf&quot;</TT> versions ignore
+lines which do not contain a colon, thus if your comments does not
+contain any colons, there is no need to add a versioned build dependency
+against <TT>&quot;po-debconf&quot;</TT>.  Here is an example:
+<P>
+
+
+
+<PRE>
+  Template: debconf/button-yes
+  Type: text
+  # Translators, this text will appear on a button, so KEEP IT SHORT
+  _Description: Yes
+
+</PRE>
+
+
+<P>
+
+Special comments have been introduced in <TT>&quot;po-debconf&quot;</TT> 1.0 to deal with
+strings which are composed of several items (as with <I>Choices</I> field) or
+paragraphs (like <I>Description</I>).  With these directives, developers have
+a better control over what is exposed to translators.  They are in the
+form <TT>&quot;#flag:</TT>directive<TT>&quot;</TT>; directives are detailed below.
+<DL COMPACT>
+<DT id="7"><B>translate:</B><I>spec</I>, <B>translate!:</B><I>spec</I><DD>
+
+
+Mark only some items as translatable; <I>spec</I> is a comma separated list of numbers,
+it specifies which strings will be printed into <FONT SIZE="-1">PO</FONT> files.  Ranges can also be
+defined via a minus sign (for instance <TT>&quot;2-6&quot;</TT>), and a star (<TT>&quot;*&quot;</TT>) means all
+strings.  For instance, with
+
+
+<P>
+
+
+
+
+<PRE>
+  Template: partman-basicfilesystems/fat_mountpoint
+  Type: select
+  #flag:translate:3,4
+  __Choices: /dos, /windows, Enter manually, Do not mount it
+  _Description: Mount point for this partition:
+
+</PRE>
+
+
+
+
+<P>
+
+
+<TT>&quot;Enter manually&quot;</TT> and <TT>&quot;Do not mount it&quot;</TT> will appear in <FONT SIZE="-1">PO</FONT> files but not <TT>&quot;/dos&quot;</TT>
+and <TT>&quot;/windows&quot;</TT>.  When an exclamation mark follows the <B>translate</B> keyword,
+<I>spec</I> specifies which strings will be discarded from <FONT SIZE="-1">PO</FONT> files, all other
+strings are printed.  Previous example is similar to
+
+
+<P>
+
+
+
+
+<PRE>
+  Template: partman-basicfilesystems/fat_mountpoint
+  Type: select
+  #flag:translate!:1,2
+  __Choices: /dos, /windows, Enter manually, Do not mount it
+  _Description: Mount point for this partition:
+
+</PRE>
+
+
+
+
+<P>
+
+
+The same keyword can also be applied to the <I>Description</I> field to make sure that
+some strings are not translated.
+
+
+<P>
+
+
+
+
+<PRE>
+  Template: partman-crypto/options_missing
+  Type: error
+  #flag:translate!:3
+  _Description: Required encryption options missing
+   The encryption options for ${DEVICE} are incomplete. Please
+   return to the partition menu and select all required options.
+   .
+   ${ITEMS}
+
+</PRE>
+
+
+
+
+<P>
+
+
+But this is hazardous because context may be dropped from <FONT SIZE="-1">PO</FONT> files, please add
+comments in this case so that translators are not confused.
+<DT id="8"><B>comment:</B><I>spec</I>, <B>comment!:</B><I>spec</I><DD>
+
+
+The comment just below this directive applies to the strings specified by
+<I>spec</I>, which is defined above.  By default, a comment written before a
+translatable field is printed along with all strings belonging to this
+field.  (Note: with <TT>&quot;po-debconf&quot;</TT> &lt; 1.0, the comment was printed
+only with the first string)
+
+
+<P>
+
+
+
+
+<PRE>
+  Template: arcboot-installer/prom-variables
+  Type: note
+  # Translators, the 4th string of this description has been dropped
+  # from PO files.  It contains shell commands and should not be
+  # translated.
+  #flag:comment:3
+  # &quot;Stop for Maintenance&quot; should be left in English
+  #flag:translate!:4
+  _Description: Setting PROM variables for Arcboot
+   If this is the first Linux installation on this machine, or if the
+   hard drives have been repartitioned, some variables need to be set
+   in the PROM before the system is able to boot normally.
+   .
+   At the end of this installation stage, the system will reboot.
+   After this, enter the command monitor from the &quot;Stop for
+   Maintenance&quot; option, and enter the following commands:
+   .
+      setenv OSLoader arcboot
+      setenv OSLoadFilename Linux
+   .
+   You will only need to do this once.  Afterwards, enter the &quot;boot&quot;
+   command or reboot the system to proceed to the next stage of the
+   installation.
+
+</PRE>
+
+
+
+
+<P>
+
+
+The example above has a comment without <TT>&quot;#flag:comment&quot;</TT> directive, where an implicit
+<TT>&quot;#flag:comment:*&quot;</TT> is added.  This comment appears with all strings, but the
+one about <I>Stop for Maintenance</I> is printed only before the relevant string.
+<DT id="9"><B>partial</B><DD>
+
+
+This keyword tells <B>po2debconf</B> to keep translated strings even if all strings
+have not been translated.  Please use with caution, this keyword has been
+introduced for very specific purposes.
+</DL>
+<A NAME="lbAJ">&nbsp;</A>
+<H3><FONT SIZE="-1">GIVING NOTICES TO TRANSLATORS BEFORE UPLOADING</FONT></H3>
+
+
+
+Usually translators notice on the status web pages (see below) that translations
+are outdated, and send patches which will be included in future uploads.  But
+developers are encouraged to ask maintainers of outdated translations for
+an update before an upload,
+for instance one week in advance.  A dedicated tool, <B>podebconf-report-po</B>,
+has been written for this purpose.  Do not hesitate to abuse it!
+<A NAME="lbAK">&nbsp;</A>
+<H2>DEBUGGING</H2>
+
+
+
+You will find that <B>debconf-loadtemplate</B> will not accept a templates
+file with i18n markups.  However, it will accept a merged file, so if
+you have been debugging your debconf setup like this
+<P>
+
+
+
+<PRE>
+  rm /tmp/{config,templates}.dat{,-old}
+  debconf-loadtemplate debian/templates
+  DEBIAN_PRIORITY=low debconf -freadline debian/config configure 28.0
+
+</PRE>
+
+
+<P>
+
+you will now need something like this instead:
+<P>
+
+
+
+<PRE>
+  po2debconf debian/templates &gt; debian/tmp/DEBIAN/templates
+  rm /tmp/{config,templates}.dat{,-old}
+  debconf-loadtemplate debian/tmp/DEBIAN/templates
+  DEBIAN_PRIORITY=low debconf -freadline debian/config configure 28.0
+
+</PRE>
+
+
+<A NAME="lbAL">&nbsp;</A>
+<H2>CAVEATS</H2>
+
+
+
+<DL COMPACT>
+<DT id="10">&bull;<DD>
+<TT>&quot;Debconf&quot;</TT> 1.2.0 recognizes fields in the form <I>Name</I>-<I>lang</I>.<I>encoding</I>,
+e.g. <TT>&quot;Description-de.ISO-8859-1&quot;</TT> or <TT>&quot;Choices-ru.KOI8-R&quot;</TT>.  By default
+<B>po2debconf</B> writes templates files in that new format.  Older <TT>&quot;debconf&quot;</TT>
+will ignore these fields, and English text is displayed.  See
+<B><A HREF="/cgi-bin/man/man2html?1+po2debconf">po2debconf</A></B>(1) to know how to change encoding and output format.
+<DT id="11">&bull;<DD>
+A given English string may be given only one unique translation in a given
+language.  It is impossible to give two different translations, depending
+on the context.  To solve this issue, you have to add special markups to
+the different occurrences of a given string to make them different.
+(These markers will only be visible to translators, and they will be
+removed from the string before being displayed to user)
+
+
+<P>
+
+
+Such markers must be added to the end of the strings to translate, they
+must start with <TT>&quot;[ &quot;</TT> (a left bracket followed by a space) and end with
+<TT>&quot;]&quot;</TT> (right bracket), and may contain any character but brackets or new
+lines. For example <TT>&quot;[ blahblah]&quot;</TT> is a valid marker while
+<TT>&quot;[ bla[bla]bla]&quot;</TT> isn't. For Perl regexp addicts, the markers are
+recognized (and removed) using this rule:
+
+
+<P>
+
+
+
+
+<PRE>
+  $msg =~ s/\[\s[^\[\]]*\]$//s;
+
+</PRE>
+
+
+<DT id="12">&bull;<DD>
+Spacing is not handled exactly the same way by <TT>&quot;po-debconf&quot;</TT> and
+<TT>&quot;debconf-utils&quot;</TT>; with the latter, paragraphs are reformatted when updating
+and merging translations, so <TT>&quot;debconf-utils&quot;</TT> is very smart and spaces are
+not considered as being part of strings when determining fuzzy entries.
+(i.e., the ones needing translator's attention because the original
+changed)
+
+
+<P>
+
+
+On the other hand <TT>&quot;po-debconf&quot;</TT> relies on <TT>&quot;gettext&quot;</TT> to detect fuzzy entries,
+and it does not treat spaces as special characters.  Thus superfluous
+spaces must be removed at end of lines in master templates files, or
+they will appear in <FONT SIZE="-1">PO</FONT> and <FONT SIZE="-1">POT</FONT> files.
+
+
+<P>
+
+
+For the same reason, <B>debconf-gettextize</B> can mark text fuzzy because of
+mismatch with space characters, and translators have to manually unfuzzy
+such strings.  This only happens once when converting templates to
+<TT>&quot;po-debconf&quot;</TT> format, unless you randomly change spaces in master templates
+files, which will be painful for translators.
+<DT id="13">&bull;<DD>
+Normally the <I>Default:</I> field must not be translated when template type is
+<B>Select</B> or <B>Multiselect</B>. Under rare circumstances (e.g. when
+selecting the default language for an application) localized values may
+be meaningful.
+
+
+<P>
+
+
+The localized value must not be translated, but chosen from the English
+values listed in the <I>Choices</I> field.  The best way to achieve this
+goal is to insert a comment in your templates file which will be copied
+into <FONT SIZE="-1">PO</FONT> files.
+
+
+<P>
+
+
+
+
+<PRE>
+  Template: geneweb/lang
+  Type: select
+  __Choices: Danish (da), Dutch (nl), English (en), Esperanto (eo)
+  #  You must NOT translate this string, but you can change its value.
+  #  The comment between brackets is used to distinguish this msgid
+  #  from the one in the Choices list; you do not have to worry about
+  #  them, and have to simply choose a msgstr among the English values
+  #  listed in the Choices field above, e.g. msgstr &quot;Dutch (nl)&quot;
+  _Default: English (en)[ default language]
+  _Description: Geneweb default language
+
+</PRE>
+
+
+
+
+<P>
+
+
+The default value also appears in the <I>Choices</I> field, and both have
+different translations: the former is an untranslated value chosen
+among <I>Choices</I> values, whereas the latter is a normal translation.
+As <TT>&quot;gettext&quot;</TT> cannot have two different translations for the same
+<I>msgid</I>, both <I>msgids</I> must be different by using bracketed comments
+as described in a previous subsection.
+
+
+<P>
+
+
+Prior to <TT>&quot;po-debconf&quot;</TT> 0.8.0, such comments were not available and
+maintainers had to replace the <I>_Default:</I> field by <I>_DefaultChoice:</I>
+in order to highlight such fields in <FONT SIZE="-1">PO</FONT> files:
+
+
+<P>
+
+
+
+
+<PRE>
+  #. DefaultChoice
+  msgid &quot;&quot;
+  &quot;English[ default: do not translate bracketed material, put your &quot;
+  &quot;own language here but UNTRANSLATED.  If it is not in the list, &quot;
+  &quot;put English (without bracketed material)]&quot;
+  msgstr &quot;&quot;
+  &quot;Swedish&quot;
+
+</PRE>
+
+
+
+
+<P>
+
+
+Plain comments in templates files are less error prone and are
+encouraged.
+</DL>
+<A NAME="lbAM">&nbsp;</A>
+<H2>STATUS WEB PAGES</H2>
+
+
+
+Statistics for <TT>&quot;po-debconf&quot;</TT> translations are available at
+&lt;<A HREF="http://www.debian.org/intl/l10n/po-debconf/">http://www.debian.org/intl/l10n/po-debconf/</A>&gt; (or from mirrors);
+they are automatically updated when new packages are uploaded.
+Only packages shipping <I>debian/po/templates.pot</I> and
+<I>debian/po/POTFILES.in</I> files are considered, so you should make
+sure your source package provides them.
+<P>
+
+Translators can grab <FONT SIZE="-1">PO</FONT> and <FONT SIZE="-1">POT</FONT> files from there, but they must
+always get in touch with the previous translator (her mail address
+can be found in the <FONT SIZE="-1">PO</FONT> file) and/or their fellow translators on
+debian-l10n-<I>&lt;language&gt;</I><TT>@lists</TT>.debian.org (if such a list
+does exist) to make sure that no one is currently working on the
+same translation, and read current bugreports against the package
+they are going to translate to see if a translation has already
+been reported.
+<P>
+
+After translating these files, they should submit their work to the
+maintainer as bug report of severity <B>wishlist</B> with the <B>patch</B> tag.
+<A NAME="lbAN">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+
+<B><A HREF="/cgi-bin/man/man2html?1+debconf-gettextize">debconf-gettextize</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?1+debconf-updatepo">debconf-updatepo</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?1+dh_installdebconf">dh_installdebconf</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?1+podebconf-report-po">podebconf-report-po</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?1+po2debconf">po2debconf</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?7+debconf-devel">debconf-devel</A></B>(7).
+<A NAME="lbAO">&nbsp;</A>
+<H2>AUTHORS</H2>
+
+
+
+
+
+<PRE>
+  Martin Quinson &lt;<A HREF="mailto:Martin.Quinson@ens-lyon.fr">Martin.Quinson@ens-lyon.fr</A>&gt;
+  Denis Barbier &lt;<A HREF="mailto:barbier@linuxfr.org">barbier@linuxfr.org</A>&gt;
+
+</PRE>
+
+
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="14"><A HREF="#lbAB">NAME</A><DD>
+<DT id="15"><A HREF="#lbAC">DESCRIPTION</A><DD>
+<DT id="16"><A HREF="#lbAD">ADDING I18N SUPPORT TO DEBCONF TEMPLATES FILES</A><DD>
+<DT id="17"><A HREF="#lbAE">UPDATE TEMPLATES</A><DD>
+<DT id="18"><A HREF="#lbAF">MERGE TRANSLATIONS AND ORIGINAL</A><DD>
+<DT id="19"><A HREF="#lbAG">NEW MASTER TEMPLATES</A><DD>
+<DL>
+<DT id="20"><A HREF="#lbAH"><FONT SIZE="-1">SPLITTING CHOICES LIST</FONT></A><DD>
+<DT id="21"><A HREF="#lbAI"><FONT SIZE="-1">PUTTING IN COMMENTS FOR TRANSLATORS</FONT></A><DD>
+<DT id="22"><A HREF="#lbAJ"><FONT SIZE="-1">GIVING NOTICES TO TRANSLATORS BEFORE UPLOADING</FONT></A><DD>
+</DL>
+<DT id="23"><A HREF="#lbAK">DEBUGGING</A><DD>
+<DT id="24"><A HREF="#lbAL">CAVEATS</A><DD>
+<DT id="25"><A HREF="#lbAM">STATUS WEB PAGES</A><DD>
+<DT id="26"><A HREF="#lbAN">SEE ALSO</A><DD>
+<DT id="27"><A HREF="#lbAO">AUTHORS</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:09 GMT, March 31, 2021
+</BODY>
+</HTML>

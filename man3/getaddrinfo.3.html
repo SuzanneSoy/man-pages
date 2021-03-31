@@ -1,0 +1,1123 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of GETADDRINFO</TITLE>
+</HEAD><BODY>
+<H1>GETADDRINFO</H1>
+Section: Linux Programmer's Manual (3)<BR>Updated: 2019-03-06<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+getaddrinfo, freeaddrinfo, gai_strerror - network address and
+service translation
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<PRE>
+<B>#include &lt;<A HREF="file:///usr/include/sys/types.h">sys/types.h</A>&gt;</B>
+<B>#include &lt;<A HREF="file:///usr/include/sys/socket.h">sys/socket.h</A>&gt;</B>
+<B>#include &lt;<A HREF="file:///usr/include/netdb.h">netdb.h</A>&gt;</B>
+
+<B>int getaddrinfo(const char *</B><I>node</I><B>, const char *</B><I>service</I><B>,</B>
+<B>                const struct addrinfo *</B><I>hints</I><B>,</B>
+<B>                struct addrinfo **</B><I>res</I><B>);</B>
+
+<B>void freeaddrinfo(struct addrinfo *</B><I>res</I><B>);</B>
+
+<B>const char *gai_strerror(int </B><I>errcode</I><B>);</B>
+</PRE>
+
+<P>
+
+
+Feature Test Macro Requirements for glibc (see
+<B><A HREF="/cgi-bin/man/man2html?7+feature_test_macros">feature_test_macros</A></B>(7)):
+
+
+
+<P>
+
+<B>getaddrinfo</B>(),
+
+<B>freeaddrinfo</B>(),
+
+<B>gai_strerror</B>():
+
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;Since&nbsp;glibc&nbsp;2.22:&nbsp;_POSIX_C_SOURCE&nbsp;&gt;=&nbsp;200112L
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;Glibc&nbsp;2.21&nbsp;and&nbsp;earlier:&nbsp;_POSIX_C_SOURCE
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+Given
+<I>node</I>
+
+and
+<I>service</I>,
+
+which identify an Internet host and a service,
+<B>getaddrinfo</B>()
+
+returns one or more
+<I>addrinfo</I>
+
+structures, each of which contains an Internet address
+that can be specified in a call to
+<B><A HREF="/cgi-bin/man/man2html?2+bind">bind</A></B>(2)
+
+or
+<B><A HREF="/cgi-bin/man/man2html?2+connect">connect</A></B>(2).
+
+The
+<B>getaddrinfo</B>()
+
+function combines the functionality provided by the
+
+
+<B><A HREF="/cgi-bin/man/man2html?3+gethostbyname">gethostbyname</A></B>(3)
+
+and
+<B><A HREF="/cgi-bin/man/man2html?3+getservbyname">getservbyname</A></B>(3)
+
+functions into a single interface, but unlike the latter functions,
+<B>getaddrinfo</B>()
+
+is reentrant and allows programs to eliminate IPv4-versus-IPv6 dependencies.
+<P>
+
+The
+<I>addrinfo</I>
+
+structure used by
+<B>getaddrinfo</B>()
+
+contains the following fields:
+<P>
+
+
+
+struct addrinfo {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ai_flags;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ai_family;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ai_socktype;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ai_protocol;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;socklen_t&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ai_addrlen;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;sockaddr&nbsp;*ai_addr;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*ai_canonname;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;addrinfo&nbsp;*ai_next;
+};
+
+
+<P>
+
+The
+<I>hints</I>
+
+argument points to an
+<I>addrinfo</I>
+
+structure that specifies criteria for selecting the socket address
+structures returned in the list pointed to by
+<I>res</I>.
+
+If
+<I>hints</I>
+
+is not NULL it points to an
+<I>addrinfo</I>
+
+structure whose
+<I>ai_family</I>,
+
+<I>ai_socktype</I>,
+
+and
+<I>ai_protocol</I>
+
+specify criteria that limit the set of socket addresses returned by
+<B>getaddrinfo</B>(),
+
+as follows:
+<DL COMPACT>
+<DT id="1"><I>ai_family</I>
+
+<DD>
+This field specifies the desired address family for the returned addresses.
+Valid values for this field include
+<B>AF_INET</B>
+
+and
+<B>AF_INET6</B>.
+
+The value
+<B>AF_UNSPEC</B>
+
+indicates that
+<B>getaddrinfo</B>()
+
+should return socket addresses for any address family
+(either IPv4 or IPv6, for example) that can be used with
+<I>node</I>
+
+and
+<I>service</I>.
+
+<DT id="2"><I>ai_socktype</I>
+
+<DD>
+This field specifies the preferred socket type, for example
+<B>SOCK_STREAM</B>
+
+or
+<B>SOCK_DGRAM</B>.
+
+Specifying 0 in this field indicates that socket addresses of any type
+can be returned by
+<B>getaddrinfo</B>().
+
+<DT id="3"><I>ai_protocol</I>
+
+<DD>
+This field specifies the protocol for the returned socket addresses.
+Specifying 0 in this field indicates that socket addresses with
+any protocol can be returned by
+<B>getaddrinfo</B>().
+
+<DT id="4"><I>ai_flags</I>
+
+<DD>
+This field specifies additional options, described below.
+Multiple flags are specified by bitwise OR-ing them together.
+</DL>
+<P>
+
+All the other fields in the structure pointed to by
+<I>hints</I>
+
+must contain either 0 or a null pointer, as appropriate.
+<P>
+
+Specifying
+<I>hints</I>
+
+as NULL is equivalent to setting
+<I>ai_socktype</I>
+
+and
+<I>ai_protocol</I>
+
+to 0;
+<I>ai_family</I>
+
+to
+<B>AF_UNSPEC</B>;
+
+and
+<I>ai_flags</I>
+
+to
+<B>(AI_V4MAPPED&nbsp;|&nbsp;AI_ADDRCONFIG)</B>.
+
+(POSIX specifies different defaults for
+<I>ai_flags</I>;
+
+see NOTES.)
+<I>node</I>
+
+specifies either a numerical network address
+(for IPv4, numbers-and-dots notation as supported by
+<B><A HREF="/cgi-bin/man/man2html?3+inet_aton">inet_aton</A></B>(3);
+
+for IPv6, hexadecimal string format as supported by
+<B><A HREF="/cgi-bin/man/man2html?3+inet_pton">inet_pton</A></B>(3)),
+
+or a network hostname, whose network addresses are looked up and resolved.
+If
+<I>hints.ai_flags</I>
+
+contains the
+<B>AI_NUMERICHOST</B>
+
+flag, then
+<I>node</I>
+
+must be a numerical network address.
+The
+<B>AI_NUMERICHOST</B>
+
+flag suppresses any potentially lengthy network host address lookups.
+<P>
+
+If the
+<B>AI_PASSIVE</B>
+
+flag is specified in
+<I>hints.ai_flags</I>,
+
+and
+<I>node</I>
+
+is NULL,
+then the returned socket addresses will be suitable for
+<B><A HREF="/cgi-bin/man/man2html?2+bind">bind</A></B>(2)ing
+
+a socket that will
+<B><A HREF="/cgi-bin/man/man2html?2+accept">accept</A></B>(2)
+
+connections.
+The returned socket address will contain the &quot;wildcard address&quot;
+(<B>INADDR_ANY</B>
+
+for IPv4 addresses,
+<B>IN6ADDR_ANY_INIT</B>
+
+for IPv6 address).
+The wildcard address is used by applications (typically servers)
+that intend to accept connections on any of the host's network addresses.
+If
+<I>node</I>
+
+is not NULL, then the
+<B>AI_PASSIVE</B>
+
+flag is ignored.
+<P>
+
+If the
+<B>AI_PASSIVE</B>
+
+flag is not set in
+<I>hints.ai_flags</I>,
+
+then the returned socket addresses will be suitable for use with
+<B><A HREF="/cgi-bin/man/man2html?2+connect">connect</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+sendto">sendto</A></B>(2),
+
+or
+<B><A HREF="/cgi-bin/man/man2html?2+sendmsg">sendmsg</A></B>(2).
+
+If
+<I>node</I>
+
+is NULL,
+then the network address will be set to the loopback interface address
+(<B>INADDR_LOOPBACK</B>
+
+for IPv4 addresses,
+<B>IN6ADDR_LOOPBACK_INIT</B>
+
+for IPv6 address);
+this is used by applications that intend to communicate
+with peers running on the same host.
+<P>
+
+<I>service</I>
+
+sets the port in each returned address structure.
+If this argument is a service name (see
+<B><A HREF="/cgi-bin/man/man2html?5+services">services</A></B>(5)),
+
+it is translated to the corresponding port number.
+This argument can also be specified as a decimal number,
+which is simply converted to binary.
+If
+<I>service</I>
+
+is NULL, then the port number of the returned socket addresses
+will be left uninitialized.
+If
+<B>AI_NUMERICSERV</B>
+
+is specified in
+<I>hints.ai_flags</I>
+
+and
+<I>service</I>
+
+is not NULL, then
+<I>service</I>
+
+must point to a string containing a numeric port number.
+This flag is used to inhibit the invocation of a name resolution service
+in cases where it is known not to be required.
+<P>
+
+Either
+<I>node</I>
+
+or
+<I>service</I>,
+
+but not both, may be NULL.
+<P>
+
+The
+<B>getaddrinfo</B>()
+
+function allocates and initializes a linked list of
+<I>addrinfo</I>
+
+structures, one for each network address that matches
+<I>node</I>
+
+and
+<I>service</I>,
+
+subject to any restrictions imposed by
+<I>hints</I>,
+
+and returns a pointer to the start of the list in
+<I>res</I>.
+
+The items in the linked list are linked by the
+<I>ai_next</I>
+
+field.
+<P>
+
+There are several reasons why
+the linked list may have more than one
+<I>addrinfo</I>
+
+structure, including: the network host is multihomed, accessible
+over multiple protocols (e.g., both
+<B>AF_INET</B>
+
+and
+<B>AF_INET6</B>);
+
+or the same service is available from multiple socket types (one
+<B>SOCK_STREAM</B>
+
+address and another
+<B>SOCK_DGRAM</B>
+
+address, for example).
+Normally, the application should try
+using the addresses in the order in which they are returned.
+The sorting function used within
+<B>getaddrinfo</B>()
+
+is defined in RFC&nbsp;3484; the order can be tweaked for a particular
+system by editing
+<I>/etc/gai.conf</I>
+
+(available since glibc 2.5).
+<P>
+
+If
+<I>hints.ai_flags</I>
+
+includes the
+<B>AI_CANONNAME</B>
+
+flag, then the
+<I>ai_canonname</I>
+
+field of the first of the
+<I>addrinfo</I>
+
+structures in the returned list is set to point to the
+official name of the host.
+
+
+
+
+<P>
+
+The remaining fields of each returned
+<I>addrinfo</I>
+
+structure are initialized as follows:
+<DL COMPACT>
+<DT id="5">*<DD>
+The
+<I>ai_family</I>,
+
+<I>ai_socktype</I>,
+
+and
+<I>ai_protocol</I>
+
+fields return the socket creation parameters (i.e., these fields have
+the same meaning as the corresponding arguments of
+<B><A HREF="/cgi-bin/man/man2html?2+socket">socket</A></B>(2)).
+
+For example,
+<I>ai_family</I>
+
+might return
+<B>AF_INET</B>
+
+or
+<B>AF_INET6</B>;
+
+<I>ai_socktype</I>
+
+might return
+<B>SOCK_DGRAM</B>
+
+or
+<B>SOCK_STREAM</B>;
+
+and
+<I>ai_protocol</I>
+
+returns the protocol for the socket.
+<DT id="6">*<DD>
+A pointer to the socket address is placed in the
+<I>ai_addr</I>
+
+field, and the length of the socket address, in bytes,
+is placed in the
+<I>ai_addrlen</I>
+
+field.
+</DL>
+<P>
+
+If
+<I>hints.ai_flags</I>
+
+includes the
+<B>AI_ADDRCONFIG</B>
+
+flag, then IPv4 addresses are returned in the list pointed to by
+<I>res</I>
+
+only if the local system has at least one
+IPv4 address configured, and IPv6 addresses are returned
+only if the local system has at least one IPv6 address configured.
+The loopback address is not considered for this case as valid
+as a configured address.
+This flag is useful on, for example,
+IPv4-only systems, to ensure that
+<B>getaddrinfo</B>()
+
+does not return IPv6 socket addresses that would always fail in
+<B><A HREF="/cgi-bin/man/man2html?2+connect">connect</A></B>(2)
+
+or
+<B><A HREF="/cgi-bin/man/man2html?2+bind">bind</A></B>(2).
+
+<P>
+
+If
+<I>hints.ai_flags</I>
+
+specifies the
+<B>AI_V4MAPPED</B>
+
+flag, and
+<I>hints.ai_family</I>
+
+was specified as
+<B>AF_INET6</B>,
+
+and no matching IPv6 addresses could be found,
+then return IPv4-mapped IPv6 addresses in the list pointed to by
+<I>res</I>.
+
+If both
+<B>AI_V4MAPPED</B>
+
+and
+<B>AI_ALL</B>
+
+are specified in
+<I>hints.ai_flags</I>,
+
+then return both IPv6 and IPv4-mapped IPv6 addresses
+in the list pointed to by
+<I>res</I>.
+
+<B>AI_ALL</B>
+
+is ignored if
+<B>AI_V4MAPPED</B>
+
+is not also specified.
+<P>
+
+The
+<B>freeaddrinfo</B>()
+
+function frees the memory that was allocated
+for the dynamically allocated linked list
+<I>res</I>.
+
+<A NAME="lbAE">&nbsp;</A>
+<H3>Extensions to getaddrinfo() for Internationalized Domain Names</H3>
+
+<P>
+
+Starting with glibc 2.3.4,
+<B>getaddrinfo</B>()
+
+has been extended to selectively allow the incoming and outgoing
+hostnames to be transparently converted to and from the
+Internationalized Domain Name (IDN) format (see RFC 3490,
+<I>Internationalizing Domain Names in Applications (IDNA)</I>).
+
+Four new flags are defined:
+<DL COMPACT>
+<DT id="7"><B>AI_IDN</B>
+
+<DD>
+If this flag is specified, then the node name given in
+<I>node</I>
+
+is converted to IDN format if necessary.
+The source encoding is that of the current locale.
+<DT id="8"><DD>
+If the input name contains non-ASCII characters, then the IDN encoding
+is used.
+Those parts of the node name (delimited by dots) that contain
+non-ASCII characters are encoded using ASCII Compatible Encoding (ACE)
+before being passed to the name resolution functions.
+
+
+
+
+
+
+<DT id="9"><B>AI_CANONIDN</B>
+
+<DD>
+After a successful name lookup, and if the
+<B>AI_CANONNAME</B>
+
+flag was specified,
+<B>getaddrinfo</B>()
+
+will return the canonical name of the
+node corresponding to the
+<I>addrinfo</I>
+
+structure value passed back.
+The return value is an exact copy of the value returned by the name
+resolution function.
+<DT id="10"><DD>
+If the name is encoded using ACE, then it will contain the
+<I>xn--</I>
+
+prefix for one or more components of the name.
+To convert these components into a readable form the
+<B>AI_CANONIDN</B>
+
+flag can be passed in addition to
+<B>AI_CANONNAME</B>.
+
+The resulting string is encoded using the current locale's encoding.
+
+
+
+
+<DT id="11"><B>AI_IDN_ALLOW_UNASSIGNED</B>, <B>AI_IDN_USE_STD3_ASCII_RULES</B>
+
+<DD>
+Setting these flags will enable the
+IDNA_ALLOW_UNASSIGNED (allow unassigned Unicode code points) and
+IDNA_USE_STD3_ASCII_RULES (check output to make sure it is a STD3
+conforming hostname)
+flags respectively to be used in the IDNA handling.
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+
+
+
+
+
+
+
+
+
+
+
+<B>getaddrinfo</B>()
+
+returns 0 if it succeeds, or one of the following nonzero error codes:
+<DL COMPACT>
+<DT id="12"><B>EAI_ADDRFAMILY</B>
+
+<DD>
+
+The specified network host does not have any network addresses in the
+requested address family.
+<DT id="13"><B>EAI_AGAIN</B>
+
+<DD>
+The name server returned a temporary failure indication.
+Try again later.
+<DT id="14"><B>EAI_BADFLAGS</B>
+
+<DD>
+<I>hints.ai_flags</I>
+
+contains invalid flags; or,
+<I>hints.ai_flags</I>
+
+included
+<B>AI_CANONNAME</B>
+
+and
+<I>name</I>
+
+was NULL.
+<DT id="15"><B>EAI_FAIL</B>
+
+<DD>
+The name server returned a permanent failure indication.
+<DT id="16"><B>EAI_FAMILY</B>
+
+<DD>
+The requested address family is not supported.
+<DT id="17"><B>EAI_MEMORY</B>
+
+<DD>
+Out of memory.
+<DT id="18"><B>EAI_NODATA</B>
+
+<DD>
+
+The specified network host exists, but does not have any
+network addresses defined.
+<DT id="19"><B>EAI_NONAME</B>
+
+<DD>
+The
+<I>node</I>
+
+or
+<I>service</I>
+
+is not known; or both
+<I>node</I>
+
+and
+<I>service</I>
+
+are NULL; or
+<B>AI_NUMERICSERV</B>
+
+was specified in
+<I>hints.ai_flags</I>
+
+and
+<I>service</I>
+
+was not a numeric port-number string.
+<DT id="20"><B>EAI_SERVICE</B>
+
+<DD>
+The requested service is not available for the requested socket type.
+It may be available through another socket type.
+For example, this error could occur if
+<I>service</I>
+
+was &quot;shell&quot; (a service available only on stream sockets), and either
+<I>hints.ai_protocol</I>
+
+was
+<B>IPPROTO_UDP</B>,
+
+or
+<I>hints.ai_socktype</I>
+
+was
+<B>SOCK_DGRAM</B>;
+
+or the error could occur if
+<I>service</I>
+
+was not NULL, and
+<I>hints.ai_socktype</I>
+
+was
+<B>SOCK_RAW</B>
+
+(a socket type that does not support the concept of services).
+<DT id="21"><B>EAI_SOCKTYPE</B>
+
+<DD>
+The requested socket type is not supported.
+This could occur, for example, if
+<I>hints.ai_socktype</I>
+
+and
+<I>hints.ai_protocol</I>
+
+are inconsistent (e.g.,
+<B>SOCK_DGRAM</B>
+
+and
+<B>IPPROTO_TCP</B>,
+
+respectively).
+<DT id="22"><B>EAI_SYSTEM</B>
+
+<DD>
+Other system error, check
+<I>errno</I>
+
+for details.
+</DL>
+<P>
+
+The
+<B>gai_strerror</B>()
+
+function translates these error codes to a human readable string,
+suitable for error reporting.
+<A NAME="lbAG">&nbsp;</A>
+<H2>FILES</H2>
+
+<I>/etc/gai.conf</I>
+
+<A NAME="lbAH">&nbsp;</A>
+<H2>ATTRIBUTES</H2>
+
+For an explanation of the terms used in this section, see
+<B><A HREF="/cgi-bin/man/man2html?7+attributes">attributes</A></B>(7).
+
+<TABLE BORDER>
+<TR VALIGN=top><TD><B>Interface</B></TD><TD><B>Attribute</B></TD><TD><B>Value</B><BR></TD></TR>
+<TR VALIGN=top><TD>
+<B>getaddrinfo</B>()
+
+</TD><TD>Thread safety</TD><TD>MT-Safe env locale<BR></TD></TR>
+<TR VALIGN=top><TD>
+<B>freeaddrinfo</B>(),
+
+<B>gai_strerror</B>()
+
+</TD><TD>Thread safety</TD><TD>MT-Safe<BR></TD></TR>
+</TABLE>
+
+<P>
+<A NAME="lbAI">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+POSIX.1-2001, POSIX.1-2008.
+The
+<B>getaddrinfo</B>()
+
+function is documented in RFC&nbsp;2553.
+<A NAME="lbAJ">&nbsp;</A>
+<H2>NOTES</H2>
+
+<B>getaddrinfo</B>()
+
+supports the
+<I>address</I><B>%</B><I>scope-id</I>
+
+notation for specifying the IPv6 scope-ID.
+<P>
+
+<B>AI_ADDRCONFIG</B>,
+
+<B>AI_ALL</B>,
+
+and
+<B>AI_V4MAPPED</B>
+
+are available since glibc 2.3.3.
+<B>AI_NUMERICSERV</B>
+
+is available since glibc 2.3.4.
+<P>
+
+According to POSIX.1, specifying
+
+<I>hints</I>
+
+as NULL should cause
+<I>ai_flags</I>
+
+to be assumed as 0.
+The GNU C library instead assumes a value of
+<B>(AI_V4MAPPED&nbsp;|&nbsp;AI_ADDRCONFIG)</B>
+
+for this case,
+since this value is considered an improvement on the specification.
+<A NAME="lbAK">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+
+
+
+
+
+
+The following programs demonstrate the use of
+<B>getaddrinfo</B>(),
+
+<B>gai_strerror</B>(),
+
+<B>freeaddrinfo</B>(),
+
+and
+<B><A HREF="/cgi-bin/man/man2html?3+getnameinfo">getnameinfo</A></B>(3).
+
+The programs are an echo server and client for UDP datagrams.
+<A NAME="lbAL">&nbsp;</A>
+<H3>Server program</H3>
+
+
+
+#include &lt;<A HREF="file:///usr/include/sys/types.h">sys/types.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdlib.h">stdlib.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/unistd.h">unistd.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/string.h">string.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/sys/socket.h">sys/socket.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/netdb.h">netdb.h</A>&gt;
+<P>
+#define BUF_SIZE 500
+<P>
+int
+main(int argc, char *argv[])
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;addrinfo&nbsp;hints;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;addrinfo&nbsp;*result,&nbsp;*rp;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;sfd,&nbsp;s;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;sockaddr_storage&nbsp;peer_addr;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;socklen_t&nbsp;peer_addr_len;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;ssize_t&nbsp;nread;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;buf[BUF_SIZE];
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(argc&nbsp;!=&nbsp;2)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;Usage:&nbsp;%s&nbsp;port\n&quot;,&nbsp;argv[0]);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;memset(&amp;hints,&nbsp;0,&nbsp;sizeof(struct&nbsp;addrinfo));
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;hints.ai_family&nbsp;=&nbsp;AF_UNSPEC;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Allow&nbsp;IPv4&nbsp;or&nbsp;IPv6&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;hints.ai_socktype&nbsp;=&nbsp;SOCK_DGRAM;&nbsp;/*&nbsp;Datagram&nbsp;socket&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;hints.ai_flags&nbsp;=&nbsp;AI_PASSIVE;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;For&nbsp;wildcard&nbsp;IP&nbsp;address&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;hints.ai_protocol&nbsp;=&nbsp;0;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Any&nbsp;protocol&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;hints.ai_canonname&nbsp;=&nbsp;NULL;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;hints.ai_addr&nbsp;=&nbsp;NULL;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;hints.ai_next&nbsp;=&nbsp;NULL;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;s&nbsp;=&nbsp;getaddrinfo(NULL,&nbsp;argv[1],&nbsp;&amp;hints,&nbsp;&amp;result);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(s&nbsp;!=&nbsp;0)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;getaddrinfo:&nbsp;%s\n&quot;,&nbsp;gai_strerror(s));
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;getaddrinfo()&nbsp;returns&nbsp;a&nbsp;list&nbsp;of&nbsp;address&nbsp;structures.
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Try&nbsp;each&nbsp;address&nbsp;until&nbsp;we&nbsp;successfully&nbsp;<A HREF="/cgi-bin/man/man2html?2+bind">bind</A>(2).
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;If&nbsp;<A HREF="/cgi-bin/man/man2html?2+socket">socket</A>(2)&nbsp;(or&nbsp;<A HREF="/cgi-bin/man/man2html?2+bind">bind</A>(2))&nbsp;fails,&nbsp;we&nbsp;(close&nbsp;the&nbsp;socket
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;and)&nbsp;try&nbsp;the&nbsp;next&nbsp;address.&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;(rp&nbsp;=&nbsp;result;&nbsp;rp&nbsp;!=&nbsp;NULL;&nbsp;rp&nbsp;=&nbsp;rp-&gt;ai_next)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sfd&nbsp;=&nbsp;socket(rp-&gt;ai_family,&nbsp;rp-&gt;ai_socktype,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rp-&gt;ai_protocol);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(sfd&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;continue;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(bind(sfd,&nbsp;rp-&gt;ai_addr,&nbsp;rp-&gt;ai_addrlen)&nbsp;==&nbsp;0)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;break;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Success&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;close(sfd);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(rp&nbsp;==&nbsp;NULL)&nbsp;{&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;No&nbsp;address&nbsp;succeeded&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;Could&nbsp;not&nbsp;bind\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;freeaddrinfo(result);&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;No&nbsp;longer&nbsp;needed&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Read&nbsp;datagrams&nbsp;and&nbsp;echo&nbsp;them&nbsp;back&nbsp;to&nbsp;sender&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;(;;)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;peer_addr_len&nbsp;=&nbsp;sizeof(struct&nbsp;sockaddr_storage);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;nread&nbsp;=&nbsp;recvfrom(sfd,&nbsp;buf,&nbsp;BUF_SIZE,&nbsp;0,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(struct&nbsp;sockaddr&nbsp;*)&nbsp;&amp;peer_addr,&nbsp;&amp;peer_addr_len);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(nread&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;continue;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Ignore&nbsp;failed&nbsp;request&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;host[NI_MAXHOST],&nbsp;service[NI_MAXSERV];
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;s&nbsp;=&nbsp;getnameinfo((struct&nbsp;sockaddr&nbsp;*)&nbsp;&amp;peer_addr,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;peer_addr_len,&nbsp;host,&nbsp;NI_MAXHOST,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;service,&nbsp;NI_MAXSERV,&nbsp;NI_NUMERICSERV);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(s&nbsp;==&nbsp;0)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;Received&nbsp;%zd&nbsp;bytes&nbsp;from&nbsp;%s:%s\n&quot;,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;nread,&nbsp;host,&nbsp;service);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;else
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;getnameinfo:&nbsp;%s\n&quot;,&nbsp;gai_strerror(s));
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(sendto(sfd,&nbsp;buf,&nbsp;nread,&nbsp;0,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(struct&nbsp;sockaddr&nbsp;*)&nbsp;&amp;peer_addr,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;peer_addr_len)&nbsp;!=&nbsp;nread)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;Error&nbsp;sending&nbsp;response\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+}
+
+<A NAME="lbAM">&nbsp;</A>
+<H3>Client program</H3>
+
+
+
+#include &lt;<A HREF="file:///usr/include/sys/types.h">sys/types.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/sys/socket.h">sys/socket.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/netdb.h">netdb.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdlib.h">stdlib.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/unistd.h">unistd.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/string.h">string.h</A>&gt;
+<P>
+#define BUF_SIZE 500
+<P>
+int
+main(int argc, char *argv[])
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;addrinfo&nbsp;hints;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;addrinfo&nbsp;*result,&nbsp;*rp;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;sfd,&nbsp;s,&nbsp;j;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;size_t&nbsp;len;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;ssize_t&nbsp;nread;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;buf[BUF_SIZE];
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(argc&nbsp;&lt;&nbsp;3)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;Usage:&nbsp;%s&nbsp;host&nbsp;port&nbsp;msg...\n&quot;,&nbsp;argv[0]);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Obtain&nbsp;address(es)&nbsp;matching&nbsp;host/port&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;memset(&amp;hints,&nbsp;0,&nbsp;sizeof(struct&nbsp;addrinfo));
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;hints.ai_family&nbsp;=&nbsp;AF_UNSPEC;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Allow&nbsp;IPv4&nbsp;or&nbsp;IPv6&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;hints.ai_socktype&nbsp;=&nbsp;SOCK_DGRAM;&nbsp;/*&nbsp;Datagram&nbsp;socket&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;hints.ai_flags&nbsp;=&nbsp;0;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;hints.ai_protocol&nbsp;=&nbsp;0;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Any&nbsp;protocol&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;s&nbsp;=&nbsp;getaddrinfo(argv[1],&nbsp;argv[2],&nbsp;&amp;hints,&nbsp;&amp;result);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(s&nbsp;!=&nbsp;0)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;getaddrinfo:&nbsp;%s\n&quot;,&nbsp;gai_strerror(s));
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;getaddrinfo()&nbsp;returns&nbsp;a&nbsp;list&nbsp;of&nbsp;address&nbsp;structures.
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Try&nbsp;each&nbsp;address&nbsp;until&nbsp;we&nbsp;successfully&nbsp;<A HREF="/cgi-bin/man/man2html?2+connect">connect</A>(2).
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;If&nbsp;<A HREF="/cgi-bin/man/man2html?2+socket">socket</A>(2)&nbsp;(or&nbsp;<A HREF="/cgi-bin/man/man2html?2+connect">connect</A>(2))&nbsp;fails,&nbsp;we&nbsp;(close&nbsp;the&nbsp;socket
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;and)&nbsp;try&nbsp;the&nbsp;next&nbsp;address.&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;(rp&nbsp;=&nbsp;result;&nbsp;rp&nbsp;!=&nbsp;NULL;&nbsp;rp&nbsp;=&nbsp;rp-&gt;ai_next)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sfd&nbsp;=&nbsp;socket(rp-&gt;ai_family,&nbsp;rp-&gt;ai_socktype,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rp-&gt;ai_protocol);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(sfd&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;continue;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(connect(sfd,&nbsp;rp-&gt;ai_addr,&nbsp;rp-&gt;ai_addrlen)&nbsp;!=&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;break;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Success&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;close(sfd);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(rp&nbsp;==&nbsp;NULL)&nbsp;{&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;No&nbsp;address&nbsp;succeeded&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;Could&nbsp;not&nbsp;connect\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;freeaddrinfo(result);&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;No&nbsp;longer&nbsp;needed&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Send&nbsp;remaining&nbsp;command-line&nbsp;arguments&nbsp;as&nbsp;separate
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;datagrams,&nbsp;and&nbsp;read&nbsp;responses&nbsp;from&nbsp;server&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;(j&nbsp;=&nbsp;3;&nbsp;j&nbsp;&lt;&nbsp;argc;&nbsp;j++)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;len&nbsp;=&nbsp;strlen(argv[j])&nbsp;+&nbsp;1;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;+1&nbsp;for&nbsp;terminating&nbsp;null&nbsp;byte&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(len&nbsp;&gt;&nbsp;BUF_SIZE)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;Ignoring&nbsp;long&nbsp;message&nbsp;in&nbsp;argument&nbsp;%d\n&quot;,&nbsp;j);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;continue;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(write(sfd,&nbsp;argv[j],&nbsp;len)&nbsp;!=&nbsp;len)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;partial/failed&nbsp;write\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;nread&nbsp;=&nbsp;read(sfd,&nbsp;buf,&nbsp;BUF_SIZE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(nread&nbsp;==&nbsp;-1)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;perror(&quot;read&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;Received&nbsp;%zd&nbsp;bytes:&nbsp;%s\n&quot;,&nbsp;nread,&nbsp;buf);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_SUCCESS);
+}
+
+<A NAME="lbAN">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+
+<B><A HREF="/cgi-bin/man/man2html?3+getaddrinfo_a">getaddrinfo_a</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+gethostbyname">gethostbyname</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+getnameinfo">getnameinfo</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+inet">inet</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?5+gai.conf">gai.conf</A></B>(5),
+
+<B><A HREF="/cgi-bin/man/man2html?7+hostname">hostname</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+ip">ip</A></B>(7)
+
+<A NAME="lbAO">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="23"><A HREF="#lbAB">NAME</A><DD>
+<DT id="24"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="25"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DL>
+<DT id="26"><A HREF="#lbAE">Extensions to getaddrinfo() for Internationalized Domain Names</A><DD>
+</DL>
+<DT id="27"><A HREF="#lbAF">RETURN VALUE</A><DD>
+<DT id="28"><A HREF="#lbAG">FILES</A><DD>
+<DT id="29"><A HREF="#lbAH">ATTRIBUTES</A><DD>
+<DT id="30"><A HREF="#lbAI">CONFORMING TO</A><DD>
+<DT id="31"><A HREF="#lbAJ">NOTES</A><DD>
+<DT id="32"><A HREF="#lbAK">EXAMPLE</A><DD>
+<DL>
+<DT id="33"><A HREF="#lbAL">Server program</A><DD>
+<DT id="34"><A HREF="#lbAM">Client program</A><DD>
+</DL>
+<DT id="35"><A HREF="#lbAN">SEE ALSO</A><DD>
+<DT id="36"><A HREF="#lbAO">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:44 GMT, March 31, 2021
+</BODY>
+</HTML>

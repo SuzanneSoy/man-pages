@@ -1,0 +1,219 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of MALLOC_HOOK</TITLE>
+</HEAD><BODY>
+<H1>MALLOC_HOOK</H1>
+Section: Linux Programmer's Manual (3)<BR>Updated: 2019-03-06<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+__malloc_hook, __malloc_initialize_hook,
+__memalign_hook, __free_hook, __realloc_hook,
+__after_morecore_hook - malloc debugging variables
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<PRE>
+<B>#include &lt;<A HREF="file:///usr/include/malloc.h">malloc.h</A>&gt;</B>
+
+<B>void *(*__malloc_hook)(size_t </B><I>size</I><B>, const void *</B><I>caller</I><B>);</B>
+
+<B>void *(*__realloc_hook)(void *</B><I>ptr</I><B>, size_t </B><I>size</I><B>, const void *</B><I>caller</I><B>);</B>
+
+<B>void *(*__memalign_hook)(size_t </B><I>alignment</I><B>, size_t </B><I>size</I><B>,</B>
+<B>                         const void *</B><I>caller</I><B>);</B>
+
+<B>void (*__free_hook)(void *</B><I>ptr</I><B>, const void *</B><I>caller</I><B>);</B>
+
+<B>void (*__malloc_initialize_hook)(void);</B>
+
+<B>void (*__after_morecore_hook)(void);</B>
+</PRE>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+The GNU C library lets you modify the behavior of
+<B><A HREF="/cgi-bin/man/man2html?3+malloc">malloc</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+realloc">realloc</A></B>(3),
+
+and
+<B><A HREF="/cgi-bin/man/man2html?3+free">free</A></B>(3)
+
+by specifying appropriate hook functions.
+You can use these hooks
+to help you debug programs that use dynamic memory allocation,
+for example.
+<P>
+
+The variable
+<B>__malloc_initialize_hook</B>
+
+points at a function that is called once when the malloc implementation
+is initialized.
+This is a weak variable, so it can be overridden in
+the application with a definition like the following:
+<P>
+
+
+
+void (*__malloc_initialize_hook)(void) = my_init_hook;
+
+
+<P>
+
+Now the function
+<I>my_init_hook</I>()
+
+can do the initialization of all hooks.
+<P>
+
+The four functions pointed to by
+<B>__malloc_hook</B>,
+
+<B>__realloc_hook</B>,
+
+<B>__memalign_hook</B>,
+
+<B>__free_hook</B>
+
+have a prototype like the functions
+<B><A HREF="/cgi-bin/man/man2html?3+malloc">malloc</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+realloc">realloc</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+memalign">memalign</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+free">free</A></B>(3),
+
+respectively, except that they have a final argument
+<I>caller</I>
+
+that gives the address of the caller of
+<B><A HREF="/cgi-bin/man/man2html?3+malloc">malloc</A></B>(3),
+
+etc.
+<P>
+
+The variable
+<B>__after_morecore_hook</B>
+
+points at a function that is called each time after
+<B><A HREF="/cgi-bin/man/man2html?2+sbrk">sbrk</A></B>(2)
+
+was asked for more memory.
+<A NAME="lbAE">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+These functions are GNU extensions.
+<A NAME="lbAF">&nbsp;</A>
+<H2>NOTES</H2>
+
+The use of these hook functions is not safe in multithreaded programs,
+and they are now deprecated.
+From glibc 2.24 onwards, the
+<B>__malloc_initialize_hook</B>
+
+variable has been removed from the API.
+
+
+Programmers should instead preempt calls to the relevant functions
+by defining and exporting functions such as &quot;malloc&quot; and &quot;free&quot;.
+<A NAME="lbAG">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+Here is a short example of how to use these variables.
+<P>
+
+
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/malloc.h">malloc.h</A>&gt;
+<P>
+/* Prototypes for our hooks.  */
+static void my_init_hook(void);
+static void *my_malloc_hook(size_t, const void *);
+<P>
+/* Variables to save original hooks. */
+static void *(*old_malloc_hook)(size_t, const void *);
+<P>
+/* Override initializing hook from the C library. */
+void (*__malloc_initialize_hook) (void) = my_init_hook;
+<P>
+static void
+my_init_hook(void)
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;old_malloc_hook&nbsp;=&nbsp;__malloc_hook;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__malloc_hook&nbsp;=&nbsp;my_malloc_hook;
+}
+<P>
+static void *
+my_malloc_hook(size_t size, const void *caller)
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;void&nbsp;*result;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Restore&nbsp;all&nbsp;old&nbsp;hooks&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__malloc_hook&nbsp;=&nbsp;old_malloc_hook;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Call&nbsp;recursively&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;result&nbsp;=&nbsp;malloc(size);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Save&nbsp;underlying&nbsp;hooks&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;old_malloc_hook&nbsp;=&nbsp;__malloc_hook;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;printf()&nbsp;might&nbsp;call&nbsp;malloc(),&nbsp;so&nbsp;protect&nbsp;it&nbsp;too.&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;malloc(%u)&nbsp;called&nbsp;from&nbsp;%p&nbsp;returns&nbsp;%p\n&quot;,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(unsigned&nbsp;int)&nbsp;size,&nbsp;caller,&nbsp;result);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Restore&nbsp;our&nbsp;own&nbsp;hooks&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__malloc_hook&nbsp;=&nbsp;my_malloc_hook;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;result;
+}
+
+<A NAME="lbAH">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?3+mallinfo">mallinfo</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+malloc">malloc</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+mcheck">mcheck</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+mtrace">mtrace</A></B>(3)
+
+<A NAME="lbAI">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="1"><A HREF="#lbAB">NAME</A><DD>
+<DT id="2"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="3"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="4"><A HREF="#lbAE">CONFORMING TO</A><DD>
+<DT id="5"><A HREF="#lbAF">NOTES</A><DD>
+<DT id="6"><A HREF="#lbAG">EXAMPLE</A><DD>
+<DT id="7"><A HREF="#lbAH">SEE ALSO</A><DD>
+<DT id="8"><A HREF="#lbAI">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:47 GMT, March 31, 2021
+</BODY>
+</HTML>

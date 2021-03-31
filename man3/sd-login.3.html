@@ -1,0 +1,259 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SD-LOGIN</TITLE>
+</HEAD><BODY>
+<H1>SD-LOGIN</H1>
+Section: sd-login (3)<BR>Updated: <BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+sd-login - APIs for tracking logins
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+<B>
+</B><PRE>
+#include &lt;<A HREF="file:///usr/include/systemd/sd-login.h">systemd/sd-login.h</A>&gt;
+</PRE>
+
+
+<DL COMPACT>
+<DT id="1">
+<B>pkg-config --cflags --libs libsystemd</B>
+</DL>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+<DD>sd-login.h
+provides APIs to introspect and monitor seat, login session and user status information on the local system.
+<P>
+
+Note that these APIs only allow purely passive access and monitoring of seats, sessions and users. To actively make changes to the seat configuration, terminate login sessions, or switch session on a seat you need to utilize the D-Bus API of systemd-logind, instead.
+<P>
+
+These functions synchronously access data in
+/proc,
+/sys/fs/cgroup
+and
+/run. All of these are virtual file systems, hence the runtime cost of the accesses is relatively cheap.
+<P>
+
+It is possible (and often a very good choice) to mix calls to the synchronous interface of
+sd-login.h
+with the asynchronous D-Bus interface of systemd-logind. However, if this is done you need to think a bit about possible races since the stream of events from D-Bus and from
+sd-login.h
+interfaces such as the login monitor are asynchronous and not ordered against each other.
+<P>
+
+If the functions return string arrays, these are generally
+<B>NULL</B>
+terminated and need to be freed by the caller with the libc
+<B><A HREF="/cgi-bin/man/man2html?3+free">free</A></B>(3)
+call after use, including the strings referenced therein. Similarly, individual strings returned need to be freed, as well.
+<P>
+
+As a special exception, instead of an empty string array
+<B>NULL</B>
+may be returned, which should be treated equivalent to an empty string array.
+<P>
+
+See
+<B><A HREF="/cgi-bin/man/man2html?3+sd_pid_get_session">sd_pid_get_session</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_uid_get_state">sd_uid_get_state</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_session_is_active">sd_session_is_active</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_seat_get_active">sd_seat_get_active</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_get_seats">sd_get_seats</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_login_monitor_new">sd_login_monitor_new</A></B>(3)
+for more information about the functions implemented.
+<A NAME="lbAE">&nbsp;</A>
+<H2>DEFINITION OF TERMS</H2>
+
+<P>
+
+seat
+<DL COMPACT><DT id="2"><DD>
+A seat consists of all hardware devices assigned to a specific workplace. It consists of at least one graphics device, and usually also includes keyboard, mouse. It can also include video cameras, sound cards and more. Seats are identified by seat names, which are strings (&lt;= 255 characters), that start with the four characters
+&quot;seat&quot;
+followed by at least one character from the range [a-zA-Z0-9],
+&quot;_&quot;
+and
+&quot;-&quot;. They are suitable for use as file names. Seat names may or may not be stable and may be reused if a seat becomes available again.
+</DL>
+
+<P>
+
+session
+<DL COMPACT><DT id="3"><DD>
+A session is defined by the time a user is logged in until they log out. A session is bound to one or no seats (the latter for 'virtual' ssh logins). Multiple sessions can be attached to the same seat, but only one of them can be active, the others are in the background. A session is identified by a short string.
+<P>
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1)
+ensures that audit sessions are identical to systemd sessions, and uses the audit session ID as session ID in systemd (if auditing is enabled). In general the session identifier is a short string consisting only of [a-zA-Z0-9],
+&quot;_&quot;
+and
+&quot;-&quot;, suitable for use as a file name. Session IDs are unique on the local machine and are never reused as long as the machine is online. A user (the way we know it on UNIX) corresponds to the person using a computer. A single user can have multiple sessions open at the same time. A user is identified by a numeric user id (UID) or a user name (a string). A multi-session system allows multiple user sessions on the same seat at the same time. A multi-seat system allows multiple independent seats that can be individually and simultaneously used by different users.
+</DL>
+
+<P>
+
+All hardware devices that are eligible to being assigned to a seat, are assigned to one. A device can be assigned to only one seat at a time. If a device is not assigned to any particular other seat it is implicitly assigned to the special default seat called
+&quot;seat0&quot;.
+<P>
+
+Note that hardware like printers, hard disks or network cards is generally not assigned to a specific seat. They are available to all seats equally. (Well, with one exception: USB sticks can be assigned to a seat.)
+<P>
+
+&quot;seat0&quot;
+always exists.
+<A NAME="lbAF">&nbsp;</A>
+<H2>UDEV RULES</H2>
+
+<P>
+
+Assignment of hardware devices to seats is managed inside the udev database, via settings on the devices:
+<P>
+
+Tag &quot;seat&quot;
+<DL COMPACT><DT id="4"><DD>
+When set, a device is eligible to be assigned to a seat. This tag is set for graphics devices, mice, keyboards, video cards, sound cards and more. Note that some devices like sound cards consist of multiple subdevices (i.e. a PCM for input and another one for output). This tag will be set only for the originating device, not for the individual subdevices. A UI for configuring assignment of devices to seats should enumerate and subscribe to all devices with this tag set and show them in the UI. Note that USB hubs can be assigned to a seat as well, in which case all (current and future) devices plugged into it will also be assigned to the same seat (unless they are explicitly assigned to another seat).
+</DL>
+
+<P>
+
+Tag &quot;master-of-seat&quot;
+<DL COMPACT><DT id="5"><DD>
+When set, this device is enough for a seat to be considered existent. This tag is usually set for the framebuffer device of graphics cards. A seat hence consists of an arbitrary number of devices marked with the
+&quot;seat&quot;
+tag, but (at least) one of these devices needs to be tagged with
+&quot;master-of-seat&quot;
+before the seat is actually considered to be around.
+</DL>
+
+<P>
+
+Property <I>ID_SEAT</I>
+<DL COMPACT><DT id="6"><DD>
+This property specifies the name of the seat a specific device is assigned to. If not set the device is assigned to
+&quot;seat0&quot;. Also, to speed up enumeration of hardware belonging to a specific seat, the seat is also set as tag on the device. I.e. if the property
+<I>ID_SEAT=seat-waldo</I>
+is set for a device, the tag
+&quot;seat-waldo&quot;
+will be set as well. Note that if a device is assigned to
+&quot;seat0&quot;, it will usually not carry such a tag and you need to enumerate all devices and check the
+<I>ID_SEAT</I>
+property manually. Again, if a device is assigned to seat0 this is visible on the device in two ways: with a property
+<I>ID_SEAT=seat0</I>
+and with no property
+<I>ID_SEAT</I>
+set for it at all.
+</DL>
+
+<P>
+
+Property <I>ID_AUTOSEAT</I>
+<DL COMPACT><DT id="7"><DD>
+When set to
+&quot;1&quot;, this device automatically generates a new and independent seat, which is named after the path of the device. This is set for specialized USB hubs like the Plugable devices, which when plugged in should create a hotplug seat without further configuration.
+</DL>
+
+<P>
+
+Property <I>ID_FOR_SEAT</I>
+<DL COMPACT><DT id="8"><DD>
+When creating additional (manual) seats starting from a graphics device this is a good choice to name the seat after. It is created from the path of the device. This is useful in UIs for configuring seats: as soon as you create a new seat from a graphics device, read this property and prefix it with
+&quot;seat-&quot;
+and use it as name for the seat.
+</DL>
+
+<P>
+
+A seat exists only and exclusively because a properly tagged device with the right
+<I>ID_SEAT</I>
+property exists. Besides udev rules there is no persistent data about seats stored on disk.
+<P>
+
+Note that
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-logind">systemd-logind</A></B>(8)
+manages ACLs on a number of device classes, to allow user code to access the device nodes attached to a seat as long as the user has an active session on it. This is mostly transparent to applications. As mentioned above, for certain user software it might be a good idea to watch whether they can access device nodes instead of thinking about seats.
+<A NAME="lbAG">&nbsp;</A>
+<H2>NOTES</H2>
+
+<P>
+
+These APIs are implemented as a shared library, which can be compiled and linked to with the
+<B>libsystemd</B>&nbsp;<B><A HREF="/cgi-bin/man/man2html?1+pkg-config">pkg-config</A></B>(1)
+file.
+<A NAME="lbAH">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_pid_get_session">sd_pid_get_session</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_uid_get_state">sd_uid_get_state</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_session_is_active">sd_session_is_active</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_seat_get_active">sd_seat_get_active</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_get_seats">sd_get_seats</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_login_monitor_new">sd_login_monitor_new</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd-daemon">sd-daemon</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?1+pkg-config">pkg-config</A></B>(1)
+<P>
+
+m[blue]<B>Multi-Seat on Linux</B>m[]<FONT SIZE="-2">[1]</FONT>
+for an introduction to multi-seat support on Linux and the background for this set of APIs.
+<A NAME="lbAI">&nbsp;</A>
+<H2>NOTES</H2>
+
+<DL COMPACT>
+<DT id="9"> 1.<DD>
+Multi-Seat on Linux
+<DL COMPACT><DT id="10"><DD>
+<A HREF="https://www.freedesktop.org/wiki/Software/systemd/multiseat">https://www.freedesktop.org/wiki/Software/systemd/multiseat</A>
+</DL>
+
+<P>
+</DL>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="11"><A HREF="#lbAB">NAME</A><DD>
+<DT id="12"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="13"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="14"><A HREF="#lbAE">DEFINITION OF TERMS</A><DD>
+<DT id="15"><A HREF="#lbAF">UDEV RULES</A><DD>
+<DT id="16"><A HREF="#lbAG">NOTES</A><DD>
+<DT id="17"><A HREF="#lbAH">SEE ALSO</A><DD>
+<DT id="18"><A HREF="#lbAI">NOTES</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:55 GMT, March 31, 2021
+</BODY>
+</HTML>

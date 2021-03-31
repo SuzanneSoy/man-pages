@@ -1,0 +1,261 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of GIT-SPARSE-CHECKOU</TITLE>
+</HEAD><BODY>
+<H1>GIT-SPARSE-CHECKOU</H1>
+Section: Git Manual (1)<BR>Updated: 03/04/2021<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+git-sparse-checkout - Initialize and modify the sparse-checkout configuration, which reduces the checkout to a set of paths given by a list of patterns.
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+<PRE>
+<I>git sparse-checkout &lt;subcommand&gt; [options]</I>
+</PRE>
+
+<P>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+Initialize and modify the sparse-checkout configuration, which reduces the checkout to a set of paths given by a list of patterns.
+<P>
+THIS COMMAND IS EXPERIMENTAL. ITS BEHAVIOR, AND THE BEHAVIOR OF OTHER COMMANDS IN THE PRESENCE OF SPARSE-CHECKOUTS, WILL LIKELY CHANGE IN THE FUTURE.
+<A NAME="lbAE">&nbsp;</A>
+<H2>COMMANDS</H2>
+
+<P>
+
+<I>list</I>
+<DL COMPACT><DT id="1"><DD>
+Describe the patterns in the sparse-checkout file.
+</DL>
+
+<P>
+
+<I>init</I>
+<DL COMPACT><DT id="2"><DD>
+Enable the
+<B>core.sparseCheckout</B>
+setting. If the sparse-checkout file does not exist, then populate it with patterns that match every file in the root directory and no other directories, then will remove all directories tracked by Git. Add patterns to the sparse-checkout file to repopulate the working directory.
+<P>
+To avoid interfering with other worktrees, it first enables the
+<B>extensions.worktreeConfig</B>
+setting and makes sure to set the
+<B>core.sparseCheckout</B>
+setting in the worktree-specific config file.
+</DL>
+
+<P>
+
+<I>set</I>
+<DL COMPACT><DT id="3"><DD>
+Write a set of patterns to the sparse-checkout file, as given as a list of arguments following the
+<I>set</I>
+subcommand. Update the working directory to match the new patterns. Enable the core.sparseCheckout config setting if it is not already enabled.
+<P>
+When the
+<B>--stdin</B>
+option is provided, the patterns are read from standard in as a newline-delimited list instead of from the arguments.
+</DL>
+
+<P>
+
+<I>disable</I>
+<DL COMPACT><DT id="4"><DD>
+Disable the
+<B>core.sparseCheckout</B>
+config setting, and restore the working directory to include all files. Leaves the sparse-checkout file intact so a later
+<I>git sparse-checkout init</I>
+command may return the working directory to the same state.
+</DL>
+
+<A NAME="lbAF">&nbsp;</A>
+<H2>SPARSE CHECKOUT</H2>
+
+<P>
+&quot;Sparse checkout&quot; allows populating the working directory sparsely. It uses the skip-worktree bit (see <B><A HREF="/cgi-bin/man/man2html?1+git-update-index">git-update-index</A></B>(1)) to tell Git whether a file in the working directory is worth looking at. If the skip-worktree bit is set, then the file is ignored in the working directory. Git will not populate the contents of those files, which makes a sparse checkout helpful when working in a repository with many files, but only a few are important to the current user.
+<P>
+The <B>$GIT_DIR/info/sparse-checkout</B> file is used to define the skip-worktree reference bitmap. When Git updates the working directory, it updates the skip-worktree bits in the index based on this file. The files matching the patterns in the file will appear in the working directory, and the rest will not.
+<P>
+To enable the sparse-checkout feature, run <B>git sparse-checkout init</B> to initialize a simple sparse-checkout file and enable the <B>core.sparseCheckout</B> config setting. Then, run <B>git sparse-checkout set</B> to modify the patterns in the sparse-checkout file.
+<P>
+To repopulate the working directory with all files, use the <B>git sparse-checkout disable</B> command.
+<A NAME="lbAG">&nbsp;</A>
+<H2>FULL PATTERN SET</H2>
+
+<P>
+By default, the sparse-checkout file uses the same syntax as <B>.gitignore</B> files.
+<P>
+While <B>$GIT_DIR/info/sparse-checkout</B> is usually used to specify what files are included, you can also specify what files are <I>not</I> included, using negative patterns. For example, to remove the file <B>unwanted</B>:
+<P>
+<DL COMPACT><DT id="5"><DD>
+
+
+
+<PRE>
+/*
+!unwanted
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<A NAME="lbAH">&nbsp;</A>
+<H2>CONE PATTERN SET</H2>
+
+<P>
+The full pattern set allows for arbitrary pattern matches and complicated inclusion/exclusion rules. These can result in O(N*M) pattern matches when updating the index, where N is the number of patterns and M is the number of paths in the index. To combat this performance issue, a more restricted pattern set is allowed when <B>core.spareCheckoutCone</B> is enabled.
+<P>
+The accepted patterns in the cone pattern set are:
+<P>
+<DL COMPACT><DT id="6"><DD>
+ 1.
+
+
+<B>Recursive:</B>
+All paths inside a directory are included.
+</DL>
+
+<P>
+<DL COMPACT><DT id="7"><DD>
+ 2.
+
+
+<B>Parent:</B>
+All files immediately inside a directory are included.
+</DL>
+
+<P>
+In addition to the above two patterns, we also expect that all files in the root directory are included. If a recursive pattern is added, then all leading directories are added as parent patterns.
+<P>
+By default, when running <B>git sparse-checkout init</B>, the root directory is added as a parent pattern. At this point, the sparse-checkout file contains the following patterns:
+<P>
+<DL COMPACT><DT id="8"><DD>
+
+
+
+<PRE>
+/*
+!/*/
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+This says &quot;include everything in root, but nothing two levels below root.&quot; If we then add the folder <B>A/B/C</B> as a recursive pattern, the folders <B>A</B> and <B>A/B</B> are added as parent patterns. The resulting sparse-checkout file is now
+<P>
+<DL COMPACT><DT id="9"><DD>
+
+
+
+<PRE>
+/*
+!/*/
+/A/
+!/A/*/
+/A/B/
+!/A/B/*/
+/A/B/C/
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+Here, order matters, so the negative patterns are overridden by the positive patterns that appear lower in the file.
+<P>
+If <B>core.sparseCheckoutCone=true</B>, then Git will parse the sparse-checkout file expecting patterns of these types. Git will warn if the patterns do not match. If the patterns do match the expected format, then Git will use faster hash- based algorithms to compute inclusion in the sparse-checkout.
+<P>
+In the cone mode case, the <B>git sparse-checkout list</B> subcommand will list the directories that define the recursive patterns. For the example sparse-checkout file above, the output is as follows:
+<P>
+<DL COMPACT><DT id="10"><DD>
+
+
+
+<PRE>
+$ git sparse-checkout list
+A/B/C
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+If <B>core.ignoreCase=true</B>, then the pattern-matching algorithm will use a case-insensitive check. This corrects for case mismatched filenames in the <I>git sparse-checkout set</I> command to reflect the expected cone in the working directory.
+<A NAME="lbAI">&nbsp;</A>
+<H2>SUBMODULES</H2>
+
+<P>
+If your repository contains one or more submodules, then those submodules will appear based on which you initialized with the <B>git submodule</B> command. If your sparse-checkout patterns exclude an initialized submodule, then that submodule will still appear in your working directory.
+<A NAME="lbAJ">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+<B><A HREF="/cgi-bin/man/man2html?1+git-read-tree">git-read-tree</A></B>(1) <B><A HREF="/cgi-bin/man/man2html?5+gitignore">gitignore</A></B>(5)
+<A NAME="lbAK">&nbsp;</A>
+<H2>GIT</H2>
+
+<P>
+Part of the <B><A HREF="/cgi-bin/man/man2html?1+git">git</A></B>(1) suite
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="11"><A HREF="#lbAB">NAME</A><DD>
+<DT id="12"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="13"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="14"><A HREF="#lbAE">COMMANDS</A><DD>
+<DT id="15"><A HREF="#lbAF">SPARSE CHECKOUT</A><DD>
+<DT id="16"><A HREF="#lbAG">FULL PATTERN SET</A><DD>
+<DT id="17"><A HREF="#lbAH">CONE PATTERN SET</A><DD>
+<DT id="18"><A HREF="#lbAI">SUBMODULES</A><DD>
+<DT id="19"><A HREF="#lbAJ">SEE ALSO</A><DD>
+<DT id="20"><A HREF="#lbAK">GIT</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:15 GMT, March 31, 2021
+</BODY>
+</HTML>

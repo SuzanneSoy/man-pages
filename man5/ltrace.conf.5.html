@@ -1,0 +1,546 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of ltrace.conf</TITLE>
+</HEAD><BODY>
+<H1>ltrace.conf</H1>
+Section: ltrace configuration file (5)<BR>Updated: October 2012<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+<P>
+
+<B>ltrace.conf</B> - Configuration file for <B><A HREF="/cgi-bin/man/man2html?1+ltrace">ltrace</A>(1)</B>.
+<P>
+<A NAME="lbAC">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+This manual page describes <B>ltrace.conf</B>, a file that describes
+prototypes of functions in binaries for <B><A HREF="/cgi-bin/man/man2html?1+ltrace">ltrace</A>(1)</B> to use.
+Ltrace needs this information to display function call arguments.
+<P>
+Each line of a configuration file describes at most a single item.
+Lines composed entirely of white space are ignored, as are lines
+starting with semicolon character (comment lines).  Described items
+can be either function prototypes, or definitions of type aliases.
+<P>
+<A NAME="lbAD">&nbsp;</A>
+<H2>PROTOTYPES</H2>
+
+<P>
+A prototype describes return type and parameter types of a single
+function.  The syntax is as follows:
+<P>
+<DL COMPACT><DT id="1"><DD>
+<I>LENS</I> <I>NAME</I> <B>(</B>[<I>LENS</I>{,<I>LENS</I>}]<B>);</B>
+</DL>
+
+<P>
+<I>NAME</I> is the (mangled) name of a symbol.  In the elementary case,
+<I>LENS</I> is simply a type.  Both lenses and types are described
+below.  For example, a simple function prototype might look like this:
+<P>
+<DL COMPACT><DT id="2"><DD>
+<B>int</B> kill<B>(int,int);</B>
+
+</DL>
+
+<P>
+Despite the apparent similarity with C, <B>ltrace.conf</B> is really
+its own language that's only somewhat inspired by C.
+<P>
+<A NAME="lbAE">&nbsp;</A>
+<H2>TYPES</H2>
+
+<P>
+Ltrace understands a range of primitive types.  Those are interpreted
+according to C convention native on a given architecture.
+E.g. <B>ulong</B> is interpreted as 4-byte unsigned integer on 32-bit
+GNU/Linux machine, but 8-byte unsigned integer on 64-bit GNU/Linux
+machine.
+<P>
+<DL COMPACT>
+<DT id="3"><B>void</B>
+
+<DD>
+Denotes that a function does not return anything.  Can be also used to
+construct a generic pointer, i.e. pointer-sized number formatted in
+hexadecimal format.
+<DT id="4"><B>char</B>
+
+<DD>
+8-bit quantity rendered as a character
+<DT id="5"><B>ushort,short</B>
+
+<DD>
+Denotes unsigned or signed short integer.
+<DT id="6"><B>uint,int</B>
+
+<DD>
+Denotes unsigned or signed integer.
+<DT id="7"><B>ulong,long</B>
+
+<DD>
+Denotes unsigned or signed long integer.
+<DT id="8"><B>float</B>
+
+<DD>
+Denotes floating point number with single precision.
+<DT id="9"><B>double</B>
+
+<DD>
+Denotes floating point number with double precision.
+</DL>
+<P>
+
+<P>
+Besides primitive types, the following composed types are possible:
+<P>
+<DL COMPACT>
+<DT id="10"><B>struct(</B>[<I>LENS</I>{,<I>LENS</I>}]<B>)</B>
+
+<DD>
+Describes a structure with given types as fields,
+e.g. <B>struct(int,int,float)</B>.
+<P>
+Alignment is computed as customary on the architecture.  Custom
+alignment (e.g. packed structs) and bit-fields are not supported.
+It's also not possible to differentiate between structs and non-POD
+C++ classes, for arches where it makes a difference.
+<P>
+<DT id="11"><B>array(</B><I>LENS</I><B>,</B><I>EXPR</I><B>)</B>
+
+<DD>
+Describes array of length <I>EXPR</I>, which is composed of types
+described by <I>LENS</I>, e.g. <B>array(int, </B>6<B>)</B>.
+<P>
+Note that in C, arrays in role of function argument decay into
+pointers.  Ltrace currently handles this automatically, but for full
+formal correctness, any such arguments should be described as pointers
+to arrays.
+<P>
+<DT id="12"><I>LENS</I><B>*</B>
+
+<DD>
+Describes a pointer to a given type, e.g. <B>char*</B> or <B>int***</B>.
+Note that the former example actually describes a pointer to a
+character, not a string.  See below for <B>string</B> lens, which is
+applicable to these cases.
+<P>
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>LENSES</H2>
+
+<P>
+Lenses change the way that types are described.  In the simplest case,
+a lens is directly a type.  Otherwise a type is decorated by the lens.
+Ltrace understands the following lenses:
+<P>
+<DL COMPACT>
+<DT id="13"><B>oct(</B><I>TYPE</I><B>)</B>
+
+<DD>
+The argument, which should be an integer type, is formatted in base-8.
+<P>
+<DT id="14"><B>hex(</B><I>TYPE</I><B>)</B>
+
+<DD>
+The argument, which should be an integer or floating point type, is
+formatted in base-16.  Floating point arguments are converted to
+double and then displayed using the <B>%a</B> fprintf modifier.
+<P>
+<DT id="15"><B>hide(</B><I>TYPE</I><B>)</B>
+
+<DD>
+The argument is not shown in argument list.
+<P>
+<DT id="16"><B>bool(</B><I>TYPE</I><B>)</B>
+
+<DD>
+Arguments with zero value are shown as &quot;false&quot;, others are shown as
+&quot;true&quot;.
+<P>
+<DT id="17"><B>bitvec(</B><I>TYPE</I><B>)</B>
+
+<DD>
+Underlying argument is interpreted as a bit vector and a summary of
+bits set in the vector is displayed.  For example if bits 3,4,5 and 7
+of the bit vector are set, ltrace shows &lt;3-5,7&gt;.  Empty bit vector is
+displayed as &lt;&gt;.  If there are more bits set than unset, inverse is
+shown instead: e.g. ~&lt;0&gt; when a number 0xfffffffe is displayed.  Full
+set is thus displayed ~&lt;&gt;.
+<P>
+If the underlying type is integral, then bits are shown in their
+natural big-endian order, with LSB being bit 0.
+E.g. <B>bitvec(ushort)</B> with value 0x0102 would be displayed as
+&lt;1,8&gt;, irrespective of underlying byte order.
+<P>
+For other data types (notably structures and arrays), the underlying
+data is interpreted byte after byte.  Bit 0 of first byte has number
+0, bit 0 of second byte number 8, and so on.  Thus
+<B>bitvec(struct(int))</B> is endian sensitive, and will show bytes
+comprising the integer in their memory order.  Pointers are first
+dereferenced, thus <B>bitvec(array(char, </B>32<B>)*)</B> is actually a
+pointer to 256-bit bit vector.
+<P>
+</DL>
+<P>
+
+<B>string(</B><I>TYPE</I><B>)</B>
+
+<BR>
+
+<B>string[</B><I>EXPR</I><B>]</B>
+
+<BR>
+
+<B>string</B>
+
+<DL COMPACT><DT id="18"><DD>
+The first form of the argument is canonical, the latter two are
+syntactic sugar.  In the canonical form, the function argument is
+formatted as string.  The <I>TYPE</I> shall be either a <B>char*</B>, or
+<B>array(char,</B><I>EXPR</I><B>)</B>, or <B>array(char,</B><I>EXPR</I><B>)*</B>.  If an
+array is given, the length will typically be a <B>zero</B> expression
+(but doesn't have to be).  Using argument that is plain array
+(i.e. not a pointer to array) makes sense e.g. in C structs, in cases
+like <B>struct(string(array(char, </B>6<B>)))</B>, which describes the C
+type <B>struct {char </B>s<B>[</B>6<B>];}</B>.
+<P>
+Because simple C-like strings are pretty common, there are two
+shorthand forms.  The first shorthand form (with brackets) means the
+same as <B>string(array(char, </B><I>EXPR</I><B>)*)</B>.  Plain <B>string</B>
+without an argument is then taken to mean the same as
+<B>string[zero]</B>.
+<P>
+Note that <B>char*</B> by itself describes a pointer to a char.  Ltrace
+will dereference the pointer, and read and display the single
+character that it points to.
+</DL>
+
+<P>
+<B>enum(</B><I>NAME</I>[<B>=</B><I>VALUE</I>]{,<I>NAME</I>[<B>=</B><I>VALUE</I>]}<B>)</B>
+
+<BR>
+
+<B>enum[</B><I>TYPE</I><B>](</B><I>NAME</I>[<B>=</B><I>VALUE</I>]{,<I>NAME</I>[<B>=</B><I>VALUE</I>]}<B>)</B>
+
+<DL COMPACT><DT id="19"><DD>
+This describes an enumeration lens.  If an argument has any of the
+given values, it is instead shown as the corresponding <I>NAME</I>.  If
+a <I>VALUE</I> is omitted, the next consecutive value following after
+the previous <I>VALUE</I> is taken instead.  If the first <I>VALUE</I>
+is omitted, it's <B>0</B> by default.
+<P>
+<I>TYPE</I>, if given, is the underlying type.  It is thus possible to
+create enums over shorts or longs---arguments that are themselves
+plain, non-enum types in C, but whose values can be meaningfully
+described as enumerations.  If omitted, <I>TYPE</I> is taken to be
+<B>int</B>.
+</DL>
+
+<P>
+<A NAME="lbAG">&nbsp;</A>
+<H2>TYPE ALIASES</H2>
+
+<P>
+A line in config file can, instead of describing a prototype, create a
+type alias.  Instead of writing the same enum or struct on many places
+(and possibly updating when it changes), one can introduce a name for
+such type, and later just use that name:
+<P>
+<DL COMPACT><DT id="20"><DD>
+<B>typedef </B><I>NAME</I><B> = </B><I>LENS</I><B>;</B>
+</DL>
+
+<P>
+<A NAME="lbAH">&nbsp;</A>
+<H2>RECURSIVE STRUCTURES</H2>
+
+<P>
+Ltrace allows you to express recursive structures.  Such structures
+are expanded to the depth described by the parameter -A.  To declare a
+recursive type, you first have to introduce the type to ltrace by
+using forward declaration.  Then you can use the type in other type
+definitions in the usual way:
+<P>
+<DL COMPACT><DT id="21"><DD>
+<B>typedef </B><I>NAME</I><B> = struct;</B>
+
+<BR>
+
+<B>typedef </B><I>NAME</I><B> = struct(</B><I>NAME</I> can be used here<B>)</B>
+
+</DL>
+
+<P>
+For example, consider the following singy-linked structure and a
+function that takes such list as an argument:
+<P>
+<DL COMPACT><DT id="22"><DD>
+<B>typedef</B> int_list <B>= struct;</B>
+
+<BR>
+
+<B>typedef</B> int_list <B>= struct(int,</B> int_list<B>*);</B>
+
+<BR>
+
+<B>void</B> ll<B>(</B>int_list<B>*);</B>
+
+</DL>
+
+<P>
+Such declarations might lead to an output like the following:
+<P>
+<DL COMPACT><DT id="23"><DD>
+ll({ 9, { 8, { 7, { 6, ... } } } }) = &lt;void&gt;
+</DL>
+
+<P>
+Ltrace detects recursion and will not expand already-expanded
+structures.  Thus a doubly-linked list would look like the following:
+<P>
+<DL COMPACT><DT id="24"><DD>
+<B>typedef</B> int_list <B>= struct;</B>
+
+<BR>
+
+<B>typedef</B> int_list <B>= struct(int,</B> int_list<B>*,</B> int_list<B>*);</B>
+
+</DL>
+
+<P>
+With output e.g. like:
+<P>
+<DL COMPACT><DT id="25"><DD>
+ll({ 9, { 8, { 7, { 6, ..., ... }, recurse^ }, recurse^ }, nil })
+</DL>
+
+<P>
+The &quot;recurse^&quot; tokens mean that given pointer points to a structure
+that was expanded in the previous layer.  Simple &quot;recurse&quot; would mean
+that it points back to this object.  E.g. &quot;recurse^^^&quot; means it points
+to a structure three layers up.  For doubly-linked list, the pointer
+to the previous element is of course the one that has been just
+expanded in the previous round, and therefore all of them are either
+recurse^, or nil.  If the next and previous pointers are swapped, the
+output adjusts correspondingly:
+<P>
+<DL COMPACT><DT id="26"><DD>
+ll({ 9, nil, { 8, recurse^, { 7, recurse^, { 6, ..., ... } } } })
+</DL>
+
+<P>
+<P>
+<A NAME="lbAI">&nbsp;</A>
+<H2>EXPRESSIONS</H2>
+
+<P>
+Ltrace has support for some elementary expressions.  Each expression
+can be either of the following:
+<P>
+<DL COMPACT>
+<DT id="27"><I>NUM</I>
+
+<DD>
+An integer number.
+<P>
+<DT id="28"><B>arg</B><I>NUM</I>
+
+<DD>
+Value of <I>NUM</I>-th argument.  The expression has the same value as
+the corresponding argument.  <B>arg1</B> refers to the first argument,
+<B>arg0</B> to the return value of the given function.
+<P>
+<DT id="29"><B>retval</B>
+
+<DD>
+Return value of function, same as <B>arg0</B>.
+<P>
+<DT id="30"><B>elt</B><I>NUM</I>
+
+<DD>
+Value of <I>NUM</I>-th element of the surrounding structure type.  E.g.
+<B>struct(ulong,array(int,elt1))</B> describes a structure whose first
+element is a length, and second element an array of ints of that
+length.
+<P>
+</DL>
+<P>
+
+<B>zero</B>
+
+<BR>
+
+<B>zero(</B><I>EXPR</I><B>)</B>
+
+<DL COMPACT><DT id="31"><DD>
+Describes array which extends until the first element, whose each byte
+is 0.  If an expression is given, that is the maximum length of the
+array.  If NUL terminator is not found earlier, that's where the array
+ends.
+</DL>
+
+<P>
+<A NAME="lbAJ">&nbsp;</A>
+<H2>PARAMETER PACKS</H2>
+
+<P>
+Sometimes the actual function prototype varies slightly depending on
+the exact parameters given.  For example, the number and types of
+printf parameters are not known in advance, but ltrace might be able
+to determine them in runtime.  This feature has wider applicability,
+but currently the only parameter pack that ltrace supports is
+printf-style format string itself:
+<P>
+<DL COMPACT>
+<DT id="32"><B>format</B>
+
+<DD>
+When <B>format</B> is seen in the parameter list, the underlying string
+argument is parsed, and GNU-style format specifiers are used to
+determine what the following actual arguments are.  E.g. if the format
+string is &quot;%s %d\n&quot;, it's as if the <B>format</B> was replaced by
+<B>string, string, int</B>.
+<P>
+</DL>
+<A NAME="lbAK">&nbsp;</A>
+<H2>RETURN ARGUMENTS</H2>
+
+<P>
+C functions often use one or more arguments for returning values back
+to the caller.  The caller provides a pointer to storage, which the
+called function initializes.  Ltrace has some support for this idiom.
+<P>
+When a traced binary hits a function call, ltrace first fetches all
+arguments.  It then displays <I>left</I> portion of the argument list.
+Only when the function returns does ltrace display <I>right</I> portion
+as well.  Typically, left portion takes up all the arguments, and
+right portion only contains return value.  But ltrace allows you to
+configure where exactly to put the dividing line by means of a <B>+</B>
+operator placed in front of an argument:
+<P>
+<DL COMPACT><DT id="33"><DD>
+<B>int</B> asprintf<B>(+string*, format);</B>
+
+</DL>
+
+<P>
+Here, the first argument to asprintf is denoted as return argument,
+which means that displaying the whole argument list is delayed until
+the function returns:
+<P>
+<DL COMPACT><DT id="34"><DD>
+a.out-&gt;asprintf( &lt;unfinished ...&gt;
+<BR>
+
+libc.so.6-&gt;malloc(100)                   = 0x245b010
+<BR>
+
+[... more calls here ...]
+<BR>
+
+&lt;... asprintf resumed&gt; &quot;X=1&quot;, &quot;X=%d&quot;, 1) = 5
+</DL>
+
+<P>
+It is currently not possible to have an &quot;inout&quot; argument that passes
+information in both directions.
+<P>
+<A NAME="lbAL">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+<P>
+In the following, the first is the C prototype, and following that is
+ltrace configuration line.
+<P>
+<DL COMPACT>
+<DT id="35"><B>void</B> func_charp_string<B>(char</B> str<B>[]);</B>
+
+<DD>
+<B>void</B> func_charp_string<B>(string);</B>
+
+<P>
+</DL>
+<P>
+
+<B>enum</B> e_foo <B>{</B>RED<B>, </B>GREEN<B>, </B>BLUE<B>};</B>
+
+<BR>
+
+<B>void</B> func_enum<B>(enum</B> e_foo bar<B>);</B>
+
+<DL COMPACT><DT id="36"><DD>
+<B>void</B> func_enum<B>(enum(</B>RED<B>,</B>GREEN<B>,</B>BLUE<B>));</B>
+
+<DL COMPACT><DT id="37"><DD>
+- or -
+</DL>
+
+<B>typedef</B> e_foo <B>= enum(</B>RED<B>,</B>GREEN<B>,</B>BLUE<B>);</B>
+
+<BR>
+
+<B>void</B> func_enum<B>(</B>e_foo<B>);</B>
+
+</DL>
+
+<P>
+<DL COMPACT>
+<DT id="38"><B>void</B> func_arrayi<B>(int</B> arr<B>[],</B> int len<B>);</B>
+
+<DD>
+<B>void</B> func_arrayi<B>(array(int,arg2)*,int);</B>
+
+<P>
+</DL>
+<P>
+
+<B>struct</B> S1 <B>{float</B> f<B>; char</B> a<B>; char </B>b<B>;};</B>
+
+<BR>
+
+<B>struct</B> S2 <B>{char</B> str<B>[</B>6<B>]; float</B> f<B>;};</B>
+
+<BR>
+
+<B>struct</B> S1 func_struct<B>(int </B>a<B>, struct </B>S2<B>, double </B>d<B>);</B>
+
+<DL COMPACT><DT id="39"><DD>
+<B>struct(float,char,char)</B> func_struct_2<B>(int, struct(string(array(char, </B>6<B>)),float), double);</B>
+
+</DL>
+
+<P>
+<A NAME="lbAM">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+Petr Machata &lt;<A HREF="mailto:pmachata@redhat.com">pmachata@redhat.com</A>&gt;
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="40"><A HREF="#lbAB">NAME</A><DD>
+<DT id="41"><A HREF="#lbAC">DESCRIPTION</A><DD>
+<DT id="42"><A HREF="#lbAD">PROTOTYPES</A><DD>
+<DT id="43"><A HREF="#lbAE">TYPES</A><DD>
+<DT id="44"><A HREF="#lbAF">LENSES</A><DD>
+<DT id="45"><A HREF="#lbAG">TYPE ALIASES</A><DD>
+<DT id="46"><A HREF="#lbAH">RECURSIVE STRUCTURES</A><DD>
+<DT id="47"><A HREF="#lbAI">EXPRESSIONS</A><DD>
+<DT id="48"><A HREF="#lbAJ">PARAMETER PACKS</A><DD>
+<DT id="49"><A HREF="#lbAK">RETURN ARGUMENTS</A><DD>
+<DT id="50"><A HREF="#lbAL">EXAMPLES</A><DD>
+<DT id="51"><A HREF="#lbAM">AUTHOR</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:03 GMT, March 31, 2021
+</BODY>
+</HTML>

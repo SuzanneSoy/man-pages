@@ -1,0 +1,206 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SD_EVENT_GET_FD</TITLE>
+</HEAD><BODY>
+<H1>SD_EVENT_GET_FD</H1>
+Section: sd_event_get_fd (3)<BR>Updated: <BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+sd_event_get_fd - Obtain a file descriptor to poll for event loop events
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+<B>
+</B><PRE>
+#include &lt;<A HREF="file:///usr/include/systemd/sd-event.h">systemd/sd-event.h</A>&gt;
+</PRE>
+
+
+<DL COMPACT>
+<DT id="1">
+<B>int sd_event_get_fd(sd_event&nbsp;*</B><I>event</I><B>);</B>
+
+</DL>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+<B>sd_event_get_fd()</B>
+<DD>returns the file descriptor that an event loop object returned by the
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_new">sd_event_new</A></B>(3)
+function uses to wait for events. This file descriptor may itself be polled for
+<B>POLLIN</B>/<B>EPOLLIN</B>
+events. This makes it possible to embed an
+<B><A HREF="/cgi-bin/man/man2html?3+sd-event">sd-event</A></B>(3)
+event loop into another, possibly foreign, event loop.
+<P>
+
+The returned file descriptor refers to an
+<B><A HREF="/cgi-bin/man/man2html?7+epoll">epoll</A></B>(7)
+object. It is recommended not to alter it by invoking
+<B><A HREF="/cgi-bin/man/man2html?2+epoll_ctl">epoll_ctl</A></B>(2)
+on it, in order to avoid interference with the event loop's inner logic and assumptions.
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+<P>
+
+On success,
+<B>sd_event_get_fd()</B>
+returns a non-negative file descriptor. On failure, it returns a negative errno-style error code.
+<A NAME="lbAF">&nbsp;</A>
+<H3>Errors</H3>
+
+<P>
+
+Returned errors may indicate the following problems:
+<P>
+
+<B>-EINVAL</B>
+<DL COMPACT><DT id="2"><DD>
+<I>event</I>
+is not a valid pointer to an
+sd_event
+structure.
+</DL>
+
+<P>
+
+<B>-ECHILD</B>
+<DL COMPACT><DT id="3"><DD>
+The event loop has been created in a different process.
+</DL>
+
+<A NAME="lbAG">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+<P>
+
+<B>Example&nbsp;1.&nbsp;Integration in the GLib event loop</B>
+<P>
+<DL COMPACT><DT id="4"><DD>
+
+
+
+<PRE>
+/* SPDX-License-Identifier: MIT */
+
+#include &lt;<A HREF="file:///usr/include/stdlib.h">stdlib.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/glib.h">glib.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/systemd/sd-event.h">systemd/sd-event.h</A>&gt;
+
+typedef struct SDEventSource {
+  GSource source;
+  GPollFD pollfd;
+  sd_event *event;
+} SDEventSource;
+
+static gboolean event_prepare(GSource *source, gint *timeout_) {
+  return sd_event_prepare(((SDEventSource *)source)-&gt;event) &gt; 0;
+}
+
+static gboolean event_check(GSource *source) {
+  return sd_event_wait(((SDEventSource *)source)-&gt;event, 0) &gt; 0;
+}
+
+static gboolean event_dispatch(GSource *source, GSourceFunc callback, gpointer user_data) {
+  return sd_event_dispatch(((SDEventSource *)source)-&gt;event) &gt; 0;
+}
+
+static void event_finalize(GSource *source) {
+  sd_event_unref(((SDEventSource *)source)-&gt;event);
+}
+
+static GSourceFuncs event_funcs = {
+  .prepare = event_prepare,
+  .check = event_check,
+  .dispatch = event_dispatch,
+  .finalize = event_finalize,
+};
+
+GSource *g_sd_event_create_source(sd_event *event) {
+  SDEventSource *source;
+
+  source = (SDEventSource *)g_source_new(&amp;event_funcs, sizeof(SDEventSource));
+
+  source-&gt;event = sd_event_ref(event);
+  source-&gt;pollfd.fd = sd_event_get_fd(event);
+  source-&gt;pollfd.events = G_IO_IN | G_IO_HUP | G_IO_ERR;
+
+  g_source_add_poll((GSource *)source, &amp;source-&gt;pollfd);
+
+  return (GSource *)source;
+}
+</PRE>
+
+</DL>
+
+
+
+
+<A NAME="lbAH">&nbsp;</A>
+<H2>NOTES</H2>
+
+<P>
+
+These APIs are implemented as a shared library, which can be compiled and linked to with the
+<B>libsystemd</B>&nbsp;<B><A HREF="/cgi-bin/man/man2html?1+pkg-config">pkg-config</A></B>(1)
+file.
+<A NAME="lbAI">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?3+sd-event">sd-event</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_new">sd_event_new</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_wait">sd_event_wait</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?2+epoll_ctl">epoll_ctl</A></B>(2),
+<B><A HREF="/cgi-bin/man/man2html?7+epoll">epoll</A></B>(7)
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="5"><A HREF="#lbAB">NAME</A><DD>
+<DT id="6"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="7"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="8"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DL>
+<DT id="9"><A HREF="#lbAF">Errors</A><DD>
+</DL>
+<DT id="10"><A HREF="#lbAG">EXAMPLES</A><DD>
+<DT id="11"><A HREF="#lbAH">NOTES</A><DD>
+<DT id="12"><A HREF="#lbAI">SEE ALSO</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:55 GMT, March 31, 2021
+</BODY>
+</HTML>

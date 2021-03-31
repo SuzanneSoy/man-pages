@@ -1,0 +1,400 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of PIPE</TITLE>
+</HEAD><BODY>
+<H1>PIPE</H1>
+Section: Linux Programmer's Manual (2)<BR>Updated: 2019-03-06<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+pipe, pipe2 - create pipe
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<PRE>
+<B>#include &lt;<A HREF="file:///usr/include/unistd.h">unistd.h</A>&gt;</B>
+
+/* On Alpha, IA-64, MIPS, SuperH, and SPARC/SPARC64; see NOTES */
+<B>struct fd_pair {</B>
+<B>    long fd[2];</B>
+<B>};</B>
+<B>struct fd_pair pipe();</B>
+
+/* On all other architectures */
+<B>int pipe(int </B><I>pipefd</I><B>[2]);</B>
+
+<B>#define _GNU_SOURCE</B>             /* See <A HREF="/cgi-bin/man/man2html?7+feature_test_macros">feature_test_macros</A>(7) */
+<B>#include &lt;<A HREF="file:///usr/include/fcntl.h">fcntl.h</A>&gt;</B>              /* Obtain O_* constant definitions */
+<B>#include &lt;<A HREF="file:///usr/include/unistd.h">unistd.h</A>&gt;</B>
+
+<B>int pipe2(int </B><I>pipefd</I><B>[2], int </B><I>flags</I><B>);</B>
+</PRE>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<B>pipe</B>()
+
+creates a pipe, a unidirectional data channel that
+can be used for interprocess communication.
+The array
+<I>pipefd</I>
+
+is used to return two file descriptors referring to the ends of the pipe.
+<I>pipefd[0]</I>
+
+refers to the read end of the pipe.
+<I>pipefd[1]</I>
+
+refers to the write end of the pipe.
+Data written to the write end of the pipe is buffered by the kernel
+until it is read from the read end of the pipe.
+For further details, see
+<B><A HREF="/cgi-bin/man/man2html?7+pipe">pipe</A></B>(7).
+
+<P>
+
+If
+<I>flags</I>
+
+is 0, then
+<B>pipe2</B>()
+
+is the same as
+<B>pipe</B>().
+
+The following values can be bitwise ORed in
+<I>flags</I>
+
+to obtain different behavior:
+<DL COMPACT>
+<DT id="1"><B>O_CLOEXEC</B>
+
+<DD>
+Set the close-on-exec
+(<B>FD_CLOEXEC</B>)
+
+flag on the two new file descriptors.
+See the description of the same flag in
+<B><A HREF="/cgi-bin/man/man2html?2+open">open</A></B>(2)
+
+for reasons why this may be useful.
+<DT id="2"><B>O_DIRECT</B> (since Linux 3.4)
+
+<DD>
+
+Create a pipe that performs I/O in &quot;packet&quot; mode.
+Each
+<B><A HREF="/cgi-bin/man/man2html?2+write">write</A></B>(2)
+
+to the pipe is dealt with as a separate packet, and
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)s
+
+from the pipe will read one packet at a time.
+Note the following points:
+<DL COMPACT><DT id="3"><DD>
+<DL COMPACT>
+<DT id="4">*<DD>
+Writes of greater than
+<B>PIPE_BUF</B>
+
+bytes (see
+<B><A HREF="/cgi-bin/man/man2html?7+pipe">pipe</A></B>(7))
+
+will be split into multiple packets.
+The constant
+<B>PIPE_BUF</B>
+
+is defined in
+<I>&lt;<A HREF="file:///usr/include/limits.h">limits.h</A>&gt;</I>.
+
+<DT id="5">*<DD>
+If a
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)
+
+specifies a buffer size that is smaller than the next packet,
+then the requested number of bytes are read,
+and the excess bytes in the packet are discarded.
+Specifying a buffer size of
+<B>PIPE_BUF</B>
+
+will be sufficient to read the largest possible packets
+(see the previous point).
+<DT id="6">*<DD>
+Zero-length packets are not supported.
+(A
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)
+
+that specifies a buffer size of zero is a no-op, and returns 0.)
+</DL>
+</DL>
+
+<DT id="7"><DD>
+Older kernels that do not support this flag will indicate this via an
+<B>EINVAL</B>
+
+error.
+<DT id="8"><DD>
+Since Linux 4.5,
+
+
+it is possible to change the
+<B>O_DIRECT</B>
+
+setting of a pipe file descriptor using
+<B><A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A></B>(2).
+
+<DT id="9"><B>O_NONBLOCK</B>
+
+<DD>
+Set the
+<B>O_NONBLOCK</B>
+
+file status flag on the open file descriptions
+referred to by the new file descriptors.
+Using this flag saves extra calls to
+<B><A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A></B>(2)
+
+to achieve the same result.
+</DL>
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+On success, zero is returned.
+On error, -1 is returned,
+<I>errno</I>
+
+is set appropriately, and
+<I>pipefd</I>
+
+is left unchanged.
+<P>
+
+On Linux (and other systems),
+<B>pipe</B>()
+
+does not modify
+<I>pipefd</I>
+
+on failure.
+A requirement standardizing this behavior was added in POSIX.1-2016.
+
+The Linux-specific
+<B>pipe2</B>()
+
+system call
+likewise does not modify
+<I>pipefd</I>
+
+on failure.
+<A NAME="lbAF">&nbsp;</A>
+<H2>ERRORS</H2>
+
+<DL COMPACT>
+<DT id="10"><B>EFAULT</B>
+
+<DD>
+<I>pipefd</I>
+
+is not valid.
+<DT id="11"><B>EINVAL</B>
+
+<DD>
+(<B>pipe2</B>())
+
+Invalid value in
+<I>flags</I>.
+
+<DT id="12"><B>EMFILE</B>
+
+<DD>
+The per-process limit on the number of open file descriptors has been reached.
+<DT id="13"><B>ENFILE</B>
+
+<DD>
+The system-wide limit on the total number of open files has been reached.
+<DT id="14"><B>ENFILE</B>
+
+<DD>
+The user hard limit on memory that can be allocated for pipes
+has been reached and the caller is not privileged; see
+<B><A HREF="/cgi-bin/man/man2html?7+pipe">pipe</A></B>(7).
+
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H2>VERSIONS</H2>
+
+<B>pipe2</B>()
+
+was added to Linux in version 2.6.27;
+glibc support is available starting with
+version 2.9.
+<A NAME="lbAH">&nbsp;</A>
+<H2>NOTES</H2>
+
+
+
+The SystemV ABI on some architectures allows the use of more than one register
+for returning multiple values; several architectures
+(namely, Alpha, IA-64, MIPS, SuperH, and SPARC/SPARC64)
+(ab)use this feature in order to implement the
+<B>pipe</B>()
+
+system call in a functional manner:
+the call doesn't take any arguments and returns
+a pair of file descriptors as the return value on success.
+The glibc
+<B>pipe</B>()
+
+wrapper function transparently deals with this.
+See
+<B><A HREF="/cgi-bin/man/man2html?2+syscall">syscall</A></B>(2)
+
+for information regarding registers used for storing second file descriptor.
+<A NAME="lbAI">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+<B>pipe</B>():
+
+POSIX.1-2001, POSIX.1-2008.
+<P>
+
+<B>pipe2</B>()
+
+is Linux-specific.
+<A NAME="lbAJ">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+
+The following program creates a pipe, and then
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2)s
+
+to create a child process;
+the child inherits a duplicate set of file
+descriptors that refer to the same pipe.
+After the
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2),
+
+each process closes the file descriptors that it doesn't need for the pipe
+(see
+<B><A HREF="/cgi-bin/man/man2html?7+pipe">pipe</A></B>(7)).
+
+The parent then writes the string contained in the program's
+command-line argument to the pipe,
+and the child reads this string a byte at a time from the pipe
+and echoes it on standard output.
+<A NAME="lbAK">&nbsp;</A>
+<H3>Program source</H3>
+
+
+#include &lt;<A HREF="file:///usr/include/sys/types.h">sys/types.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/sys/wait.h">sys/wait.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdlib.h">stdlib.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/unistd.h">unistd.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/string.h">string.h</A>&gt;
+<P>
+int
+main(int argc, char *argv[])
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;pipefd[2];
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;pid_t&nbsp;cpid;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;buf;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(argc&nbsp;!=&nbsp;2)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;Usage:&nbsp;%s&nbsp;&lt;string&gt;\n&quot;,&nbsp;argv[0]);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(pipe(pipefd)&nbsp;==&nbsp;-1)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;perror(&quot;pipe&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;cpid&nbsp;=&nbsp;fork();
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(cpid&nbsp;==&nbsp;-1)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;perror(&quot;fork&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(cpid&nbsp;==&nbsp;0)&nbsp;{&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Child&nbsp;reads&nbsp;from&nbsp;pipe&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;close(pipefd[1]);&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Close&nbsp;unused&nbsp;write&nbsp;end&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;while&nbsp;(read(pipefd[0],&nbsp;&amp;buf,&nbsp;1)&nbsp;&gt;&nbsp;0)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;write(STDOUT_FILENO,&nbsp;&amp;buf,&nbsp;1);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;write(STDOUT_FILENO,&nbsp;&quot;\n&quot;,&nbsp;1);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;close(pipefd[0]);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_exit(EXIT_SUCCESS);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;else&nbsp;{&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Parent&nbsp;writes&nbsp;argv[1]&nbsp;to&nbsp;pipe&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;close(pipefd[0]);&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Close&nbsp;unused&nbsp;read&nbsp;end&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;write(pipefd[1],&nbsp;argv[1],&nbsp;strlen(argv[1]));
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;close(pipefd[1]);&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Reader&nbsp;will&nbsp;see&nbsp;EOF&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;wait(NULL);&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Wait&nbsp;for&nbsp;child&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_SUCCESS);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+}
+
+<A NAME="lbAL">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+socketpair">socketpair</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+splice">splice</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+tee">tee</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+vmsplice">vmsplice</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+write">write</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?3+popen">popen</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?7+pipe">pipe</A></B>(7)
+
+<A NAME="lbAM">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="15"><A HREF="#lbAB">NAME</A><DD>
+<DT id="16"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="17"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="18"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DT id="19"><A HREF="#lbAF">ERRORS</A><DD>
+<DT id="20"><A HREF="#lbAG">VERSIONS</A><DD>
+<DT id="21"><A HREF="#lbAH">NOTES</A><DD>
+<DT id="22"><A HREF="#lbAI">CONFORMING TO</A><DD>
+<DT id="23"><A HREF="#lbAJ">EXAMPLE</A><DD>
+<DL>
+<DT id="24"><A HREF="#lbAK">Program source</A><DD>
+</DL>
+<DT id="25"><A HREF="#lbAL">SEE ALSO</A><DD>
+<DT id="26"><A HREF="#lbAM">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:33 GMT, March 31, 2021
+</BODY>
+</HTML>

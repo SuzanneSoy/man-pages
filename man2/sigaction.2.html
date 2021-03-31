@@ -1,0 +1,1502 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SIGACTION</TITLE>
+</HEAD><BODY>
+<H1>SIGACTION</H1>
+Section: Linux Programmer's Manual (2)<BR>Updated: 2019-10-10<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+sigaction, rt_sigaction - examine and change a signal action
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<PRE>
+<B>#include &lt;<A HREF="file:///usr/include/signal.h">signal.h</A>&gt;</B>
+
+<B>int sigaction(int </B><I>signum</I><B>, const struct sigaction *</B><I>act</I><B>,</B>
+<B>              struct sigaction *</B><I>oldact</I><B>);</B>
+</PRE>
+
+<P>
+
+
+Feature Test Macro Requirements for glibc (see
+<B><A HREF="/cgi-bin/man/man2html?7+feature_test_macros">feature_test_macros</A></B>(7)):
+
+
+<P>
+
+
+<B>sigaction</B>():
+
+_POSIX_C_SOURCE
+<P>
+
+<I>siginfo_t</I>:
+
+_POSIX_C_SOURCE &gt;= 199309L
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+The
+<B>sigaction</B>()
+
+system call is used to change the action taken by a process on
+receipt of a specific signal.
+(See
+<B><A HREF="/cgi-bin/man/man2html?7+signal">signal</A></B>(7)
+
+for an overview of signals.)
+<P>
+
+<I>signum</I>
+
+specifies the signal and can be any valid signal except
+<B>SIGKILL</B>
+
+and
+<B>SIGSTOP</B>.
+
+<P>
+
+If
+<I>act</I>
+
+is non-NULL, the new action for signal
+<I>signum</I>
+
+is installed from
+<I>act</I>.
+
+If
+<I>oldact</I>
+
+is non-NULL, the previous action is saved in
+<I>oldact</I>.
+
+<P>
+
+The
+<I>sigaction</I>
+
+structure is defined as something like:
+<P>
+
+
+
+struct sigaction {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;void&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*sa_handler)(int);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;void&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*sa_sigaction)(int,&nbsp;siginfo_t&nbsp;*,&nbsp;void&nbsp;*);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;sigset_t&nbsp;&nbsp;&nbsp;sa_mask;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sa_flags;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;void&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(*sa_restorer)(void);
+};
+
+
+<P>
+
+On some architectures a union is involved: do not assign to both
+<I>sa_handler</I>
+
+and
+<I>sa_sigaction</I>.
+
+<P>
+
+The
+<I>sa_restorer</I>
+
+field is not intended for application use.
+(POSIX does not specify a
+<I>sa_restorer</I>
+
+field.)
+Some further details of the purpose of this field can be found in
+<B><A HREF="/cgi-bin/man/man2html?2+sigreturn">sigreturn</A></B>(2).
+
+<P>
+
+<I>sa_handler</I>
+
+specifies the action to be associated with
+<I>signum</I>
+
+and may be
+<B>SIG_DFL</B>
+
+for the default action,
+<B>SIG_IGN</B>
+
+to ignore this signal, or a pointer to a signal handling function.
+This function receives the signal number as its only argument.
+<P>
+
+If
+<B>SA_SIGINFO</B>
+
+is specified in
+<I>sa_flags</I>,
+
+then
+<I>sa_sigaction</I>
+
+(instead of
+<I>sa_handler</I>)
+
+specifies the signal-handling function for
+<I>signum</I>.
+
+This function receives three arguments, as described below.
+<P>
+
+<I>sa_mask</I>
+
+specifies a mask of signals which should be blocked
+(i.e., added to the signal mask of the thread in which
+the signal handler is invoked)
+during execution of the signal handler.
+In addition, the signal which triggered the handler
+will be blocked, unless the
+<B>SA_NODEFER</B>
+
+flag is used.
+<P>
+
+<I>sa_flags</I>
+
+specifies a set of flags which modify the behavior of the signal.
+It is formed by the bitwise OR of zero or more of the following:
+<DL COMPACT><DT id="1"><DD>
+<DL COMPACT>
+<DT id="2"><B>SA_NOCLDSTOP</B>
+
+<DD>
+If
+<I>signum</I>
+
+is
+<B>SIGCHLD</B>,
+
+do not receive notification when child processes stop (i.e., when they
+receive one of
+<B>SIGSTOP</B>, <B>SIGTSTP</B>, <B>SIGTTIN</B>, 
+
+or
+<B>SIGTTOU</B>)
+
+or resume (i.e., they receive
+<B>SIGCONT</B>)
+
+(see
+<B><A HREF="/cgi-bin/man/man2html?2+wait">wait</A></B>(2)).
+
+This flag is meaningful only when establishing a handler for
+<B>SIGCHLD</B>.
+
+<DT id="3"><B>SA_NOCLDWAIT</B> (since Linux 2.6)
+
+<DD>
+
+If
+<I>signum</I>
+
+is
+<B>SIGCHLD</B>,
+
+do not transform children into zombies when they terminate.
+See also
+<B><A HREF="/cgi-bin/man/man2html?2+waitpid">waitpid</A></B>(2).
+
+This flag is meaningful only when establishing a handler for
+<B>SIGCHLD</B>,
+
+or when setting that signal's disposition to
+<B>SIG_DFL</B>.
+
+<DT id="4"><DD>
+If the
+<B>SA_NOCLDWAIT</B>
+
+flag is set when establishing a handler for
+<B>SIGCHLD</B>,
+
+POSIX.1 leaves it unspecified whether a
+<B>SIGCHLD</B>
+
+signal is generated when a child process terminates.
+On Linux, a
+<B>SIGCHLD</B>
+
+signal is generated in this case;
+on some other implementations, it is not.
+<DT id="5"><B>SA_NODEFER</B>
+
+<DD>
+Do not prevent the signal from being received from within its own signal
+handler.
+This flag is meaningful only when establishing a signal handler.
+<B>SA_NOMASK</B>
+
+is an obsolete, nonstandard synonym for this flag.
+<DT id="6"><B>SA_ONSTACK</B>
+
+<DD>
+Call the signal handler on an alternate signal stack provided by
+<B><A HREF="/cgi-bin/man/man2html?2+sigaltstack">sigaltstack</A></B>(2).
+
+If an alternate stack is not available, the default stack will be used.
+This flag is meaningful only when establishing a signal handler.
+<DT id="7"><B>SA_RESETHAND</B>
+
+<DD>
+Restore the signal action to the default upon entry to the signal handler.
+This flag is meaningful only when establishing a signal handler.
+<B>SA_ONESHOT</B>
+
+is an obsolete, nonstandard synonym for this flag.
+<DT id="8"><B>SA_RESTART</B>
+
+<DD>
+Provide behavior compatible with BSD signal semantics by making certain
+system calls restartable across signals.
+This flag is meaningful only when establishing a signal handler.
+See
+<B><A HREF="/cgi-bin/man/man2html?7+signal">signal</A></B>(7)
+
+for a discussion of system call restarting.
+<DT id="9"><B>SA_RESTORER</B>
+
+<DD>
+<I>Not intended for application use</I>.
+
+This flag is used by C libraries to indicate that the
+<I>sa_restorer</I>
+
+field contains the address of a &quot;signal trampoline&quot;.
+See
+<B><A HREF="/cgi-bin/man/man2html?2+sigreturn">sigreturn</A></B>(2)
+
+for more details.
+<DT id="10"><B>SA_SIGINFO</B> (since Linux 2.2)
+
+<DD>
+The signal handler takes three arguments, not one.
+In this case,
+<I>sa_sigaction</I>
+
+should be set instead of
+<I>sa_handler</I>.
+
+This flag is meaningful only when establishing a signal handler.
+
+
+
+</DL>
+</DL>
+
+<A NAME="lbAE">&nbsp;</A>
+<H3>The siginfo_t argument to a SA_SIGINFO handler</H3>
+
+When the
+<B>SA_SIGINFO</B>
+
+flag is specified in
+<I>act.sa_flags</I>,
+
+the signal handler address is passed via the
+<I>act.sa_sigaction</I>
+
+field.
+This handler takes three arguments, as follows:
+<P>
+
+
+
+void
+handler(int sig, siginfo_t *info, void *ucontext)
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;...
+}
+
+
+<P>
+
+These three arguments are as follows
+<DL COMPACT>
+<DT id="11"><I>sig</I>
+
+<DD>
+The number of the signal that caused invocation of the handler.
+<DT id="12"><I>info</I>
+
+<DD>
+A pointer to a
+<I>siginfo_t</I>,
+
+which is a structure containing further information about the signal,
+as described below.
+<DT id="13"><I>ucontext</I>
+
+<DD>
+This is a pointer to a
+<I>ucontext_t</I>
+
+structure, cast to <I>void&nbsp;*</I>.
+The structure pointed to by this field contains
+signal context information that was saved
+on the user-space stack by the kernel; for details, see
+<B><A HREF="/cgi-bin/man/man2html?2+sigreturn">sigreturn</A></B>(2).
+
+Further information about the
+<I>ucontext_t</I>
+
+structure can be found in
+<B><A HREF="/cgi-bin/man/man2html?3+getcontext">getcontext</A></B>(3).
+
+Commonly, the handler function doesn't make any use of the third argument.
+</DL>
+<P>
+
+The
+<I>siginfo_t</I>
+
+data type is a structure with the following fields:
+<P>
+
+
+
+siginfo_t {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;si_signo;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Signal&nbsp;number&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;si_errno;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;An&nbsp;errno&nbsp;value&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;si_code;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Signal&nbsp;code&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;si_trapno;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Trap&nbsp;number&nbsp;that&nbsp;caused
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;hardware-generated&nbsp;signal
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(unused&nbsp;on&nbsp;most&nbsp;architectures)&nbsp;*/
+
+
+
+
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;pid_t&nbsp;&nbsp;&nbsp;&nbsp;si_pid;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Sending&nbsp;process&nbsp;ID&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uid_t&nbsp;&nbsp;&nbsp;&nbsp;si_uid;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Real&nbsp;user&nbsp;ID&nbsp;of&nbsp;sending&nbsp;process&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;si_status;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Exit&nbsp;value&nbsp;or&nbsp;signal&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;clock_t&nbsp;&nbsp;si_utime;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;User&nbsp;time&nbsp;consumed&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;clock_t&nbsp;&nbsp;si_stime;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;System&nbsp;time&nbsp;consumed&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;sigval_t&nbsp;si_value;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Signal&nbsp;value&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;si_int;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;POSIX.1b&nbsp;signal&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;void&nbsp;&nbsp;&nbsp;&nbsp;*si_ptr;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;POSIX.1b&nbsp;signal&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;si_overrun;&nbsp;&nbsp;&nbsp;/*&nbsp;Timer&nbsp;overrun&nbsp;count;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;POSIX.1b&nbsp;timers&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;si_timerid;&nbsp;&nbsp;&nbsp;/*&nbsp;Timer&nbsp;ID;&nbsp;POSIX.1b&nbsp;timers&nbsp;*/
+
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;void&nbsp;&nbsp;&nbsp;&nbsp;*si_addr;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Memory&nbsp;location&nbsp;which&nbsp;caused&nbsp;fault&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;long&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;si_band;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Band&nbsp;event&nbsp;(was&nbsp;<I>int</I>&nbsp;in
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;glibc&nbsp;2.3.2&nbsp;and&nbsp;earlier)&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;si_fd;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;File&nbsp;descriptor&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;short&nbsp;&nbsp;&nbsp;&nbsp;si_addr_lsb;&nbsp;&nbsp;/*&nbsp;Least&nbsp;significant&nbsp;bit&nbsp;of&nbsp;address
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(since&nbsp;Linux&nbsp;2.6.32)&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;void&nbsp;&nbsp;&nbsp;&nbsp;*si_lower;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Lower&nbsp;bound&nbsp;when&nbsp;address&nbsp;violation
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;occurred&nbsp;(since&nbsp;Linux&nbsp;3.19)&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;void&nbsp;&nbsp;&nbsp;&nbsp;*si_upper;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Upper&nbsp;bound&nbsp;when&nbsp;address&nbsp;violation
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;occurred&nbsp;(since&nbsp;Linux&nbsp;3.19)&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;si_pkey;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Protection&nbsp;key&nbsp;on&nbsp;PTE&nbsp;that&nbsp;caused
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fault&nbsp;(since&nbsp;Linux&nbsp;4.6)&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;void&nbsp;&nbsp;&nbsp;&nbsp;*si_call_addr;&nbsp;/*&nbsp;Address&nbsp;of&nbsp;system&nbsp;call&nbsp;instruction
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(since&nbsp;Linux&nbsp;3.5)&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;si_syscall;&nbsp;&nbsp;&nbsp;/*&nbsp;Number&nbsp;of&nbsp;attempted&nbsp;system&nbsp;call
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(since&nbsp;Linux&nbsp;3.5)&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;unsigned&nbsp;int&nbsp;si_arch;&nbsp;&nbsp;/*&nbsp;Architecture&nbsp;of&nbsp;attempted&nbsp;system&nbsp;call
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(since&nbsp;Linux&nbsp;3.5)&nbsp;*/
+}
+
+
+<P>
+
+<I>si_signo</I>, <I>si_errno</I> and <I>si_code</I>
+
+are defined for all signals.
+(<I>si_errno</I>
+
+is generally unused on Linux.)
+The rest of the struct may be a union, so that one should
+read only the fields that are meaningful for the given signal:
+<DL COMPACT>
+<DT id="14">*<DD>
+Signals sent with
+<B><A HREF="/cgi-bin/man/man2html?2+kill">kill</A></B>(2)
+
+and
+<B><A HREF="/cgi-bin/man/man2html?3+sigqueue">sigqueue</A></B>(3)
+
+fill in
+<I>si_pid</I> and <I>si_uid</I>.
+
+In addition, signals sent with
+<B><A HREF="/cgi-bin/man/man2html?3+sigqueue">sigqueue</A></B>(3)
+
+fill in
+<I>si_int</I> and <I>si_ptr</I>
+
+with the values specified by the sender of the signal;
+see
+<B><A HREF="/cgi-bin/man/man2html?3+sigqueue">sigqueue</A></B>(3)
+
+for more details.
+<DT id="15">*<DD>
+Signals sent by POSIX.1b timers (since Linux 2.6) fill in
+<I>si_overrun</I>
+
+and
+<I>si_timerid</I>.
+
+The
+<I>si_timerid</I>
+
+field is an internal ID used by the kernel to identify
+the timer; it is not the same as the timer ID returned by
+<B><A HREF="/cgi-bin/man/man2html?2+timer_create">timer_create</A></B>(2).
+
+The
+<I>si_overrun</I>
+
+field is the timer overrun count;
+this is the same information as is obtained by a call to
+<B><A HREF="/cgi-bin/man/man2html?2+timer_getoverrun">timer_getoverrun</A></B>(2).
+
+These fields are nonstandard Linux extensions.
+<DT id="16">*<DD>
+Signals sent for message queue notification (see the description of
+<B>SIGEV_SIGNAL</B>
+
+in
+<B><A HREF="/cgi-bin/man/man2html?3+mq_notify">mq_notify</A></B>(3))
+
+fill in
+<I>si_int</I>/<I>si_ptr</I>,
+
+with the
+<I>sigev_value</I>
+
+supplied to
+<B><A HREF="/cgi-bin/man/man2html?3+mq_notify">mq_notify</A></B>(3);
+
+<I>si_pid</I>,
+
+with the process ID of the message sender; and
+<I>si_uid</I>,
+
+with the real user ID of the message sender.
+<DT id="17">*<DD>
+<B>SIGCHLD</B>
+
+fills in
+<I>si_pid</I>, <I>si_uid</I>, <I>si_status</I>, <I>si_utime</I>, and <I>si_stime</I>,
+
+providing information about the child.
+The
+<I>si_pid</I>
+
+field is the process ID of the child;
+<I>si_uid</I>
+
+is the child's real user ID.
+The
+<I>si_status</I>
+
+field contains the exit status of the child (if
+<I>si_code</I>
+
+is
+<B>CLD_EXITED</B>),
+
+or the signal number that caused the process to change state.
+The
+<I>si_utime</I>
+
+and
+<I>si_stime</I>
+
+contain the user and system CPU time used by the child process;
+these fields do not include the times used by waited-for children (unlike
+<B><A HREF="/cgi-bin/man/man2html?2+getrusage">getrusage</A></B>(2)
+
+and
+<B><A HREF="/cgi-bin/man/man2html?2+times">times</A></B>(2)).
+
+In kernels up to 2.6, and since 2.6.27, these fields report
+CPU time in units of
+<I>sysconf(_SC_CLK_TCK)</I>.
+
+In 2.6 kernels before 2.6.27,
+a bug meant that these fields reported time in units
+of the (configurable) system jiffy (see
+<B><A HREF="/cgi-bin/man/man2html?7+time">time</A></B>(7)).
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<DT id="18">*<DD>
+<B>SIGILL</B>,
+
+<B>SIGFPE</B>,
+
+<B>SIGSEGV</B>,
+
+<B>SIGBUS</B>,
+
+and
+<B>SIGTRAP</B>
+
+fill in
+<I>si_addr</I>
+
+with the address of the fault.
+On some architectures,
+these signals also fill in the
+<I>si_trapno</I>
+
+field.
+<DT id="19"><DD>
+Some suberrors of
+<B>SIGBUS</B>,
+
+in particular
+<B>BUS_MCEERR_AO</B>
+
+and
+<B>BUS_MCEERR_AR</B>,
+
+also fill in
+<I>si_addr_lsb</I>.
+
+This field indicates the least significant bit of the reported address
+and therefore the extent of the corruption.
+For example, if a full page was corrupted,
+<I>si_addr_lsb</I>
+
+contains
+<I>log2(sysconf(_SC_PAGESIZE))</I>.
+
+When
+<B>SIGTRAP</B>
+
+is delivered in response to a
+<B><A HREF="/cgi-bin/man/man2html?2+ptrace">ptrace</A></B>(2)
+
+event (PTRACE_EVENT_foo),
+<I>si_addr</I>
+
+is not populated, but
+<I>si_pid</I>
+
+and
+<I>si_uid</I>
+
+are populated with the respective process ID and user ID responsible for
+delivering the trap.
+In the case of
+<B><A HREF="/cgi-bin/man/man2html?2+seccomp">seccomp</A></B>(2),
+
+the tracee will be shown as delivering the event.
+<B>BUS_MCEERR_*</B>
+
+and
+<I>si_addr_lsb</I>
+
+are Linux-specific extensions.
+<DT id="20"><DD>
+The
+<B>SEGV_BNDERR</B>
+
+suberror of
+<B>SIGSEGV</B>
+
+populates
+<I>si_lower</I>
+
+and
+<I>si_upper</I>.
+
+<DT id="21"><DD>
+The
+<B>SEGV_PKUERR</B>
+
+suberror of
+<B>SIGSEGV</B>
+
+populates
+<I>si_pkey</I>.
+
+<DT id="22">*<DD>
+<B>SIGIO</B>/<B>SIGPOLL</B>
+
+(the two names are synonyms on Linux)
+fills in
+<I>si_band</I> and <I>si_fd</I>.
+
+The
+<I>si_band</I>
+
+event is a bit mask containing the same values as are filled in the
+<I>revents</I>
+
+field by
+<B><A HREF="/cgi-bin/man/man2html?2+poll">poll</A></B>(2).
+
+The
+<I>si_fd</I>
+
+field indicates the file descriptor for which the I/O event occurred;
+for further details, see the description of
+<B>F_SETSIG</B>
+
+in
+<B><A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A></B>(2).
+
+<DT id="23">*<DD>
+<B>SIGSYS</B>,
+
+generated (since Linux 3.5)
+
+when a seccomp filter returns
+<B>SECCOMP_RET_TRAP</B>,
+
+fills in
+<I>si_call_addr</I>,
+
+<I>si_syscall</I>,
+
+<I>si_arch</I>,
+
+<I>si_errno</I>,
+
+and other fields as described in
+<B><A HREF="/cgi-bin/man/man2html?2+seccomp">seccomp</A></B>(2).
+
+
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H3>The si_code field</H3>
+
+The
+<I>si_code</I>
+
+field inside the
+<I>siginfo_t</I>
+
+argument that is passed to a
+<B>SA_SIGINFO</B>
+
+signal handler is a value (not a bit mask)
+indicating why this signal was sent.
+For a
+<B><A HREF="/cgi-bin/man/man2html?2+ptrace">ptrace</A></B>(2)
+
+event,
+<I>si_code</I>
+
+will contain
+<B>SIGTRAP</B>
+
+and have the ptrace event in the high byte:
+<P>
+
+
+
+(SIGTRAP | PTRACE_EVENT_foo &lt;&lt; 8).
+
+
+<P>
+
+For a
+non-<B><A HREF="/cgi-bin/man/man2html?2+ptrace">ptrace</A></B>(2)
+
+event, the values that can appear in
+<I>si_code</I>
+
+are described in the remainder of this section.
+Since glibc 2.20,
+the definitions of most of these symbols are obtained from
+<I>&lt;<A HREF="file:///usr/include/signal.h">signal.h</A>&gt;</I>
+
+by defining feature test macros (before including
+<I>any</I>
+
+header file) as follows:
+<DL COMPACT>
+<DT id="24">*<DD>
+<B>_XOPEN_SOURCE</B>
+
+with the value 500 or greater;
+<DT id="25">*<DD>
+<B>_XOPEN_SOURCE</B>
+
+and
+<B>_XOPEN_SOURCE_EXTENDED</B>;
+
+or
+<DT id="26">*<DD>
+<B>_POSIX_C_SOURCE</B>
+
+with the value 200809L or greater.
+</DL>
+<P>
+
+For the
+<B>TRAP_*</B>
+
+constants, the symbol definitions are provided only in the first two cases.
+Before glibc 2.20, no feature test macros were required to obtain these symbols.
+<P>
+
+For a regular signal, the following list shows the values which can be
+placed in
+<I>si_code</I>
+
+for any signal, along with the reason that the signal was generated.
+<DL COMPACT><DT id="27"><DD>
+<DL COMPACT>
+<DT id="28"><B>SI_USER</B>
+
+<DD>
+<B><A HREF="/cgi-bin/man/man2html?2+kill">kill</A></B>(2).
+
+<DT id="29"><B>SI_KERNEL</B>
+
+<DD>
+Sent by the kernel.
+<DT id="30"><B>SI_QUEUE</B>
+
+<DD>
+<B><A HREF="/cgi-bin/man/man2html?3+sigqueue">sigqueue</A></B>(3).
+
+<DT id="31"><B>SI_TIMER</B>
+
+<DD>
+POSIX timer expired.
+<DT id="32"><B>SI_MESGQ</B> (since Linux 2.6.6)
+
+<DD>
+POSIX message queue state changed; see
+<B><A HREF="/cgi-bin/man/man2html?3+mq_notify">mq_notify</A></B>(3).
+
+<DT id="33"><B>SI_ASYNCIO</B>
+
+<DD>
+AIO completed.
+<DT id="34"><B>SI_SIGIO</B>
+
+<DD>
+Queued
+<B>SIGIO</B>
+
+(only in kernels up to Linux 2.2; from Linux 2.4 onward
+<B>SIGIO</B>/<B>SIGPOLL</B>
+
+fills in
+<I>si_code</I>
+
+as described below).
+<DT id="35"><B>SI_TKILL</B> (since Linux 2.4.19)
+
+<DD>
+<B><A HREF="/cgi-bin/man/man2html?2+tkill">tkill</A></B>(2)
+
+or
+<B><A HREF="/cgi-bin/man/man2html?2+tgkill">tgkill</A></B>(2).
+
+
+
+
+</DL>
+</DL>
+
+<P>
+
+The following values can be placed in
+<I>si_code</I>
+
+for a
+<B>SIGILL</B>
+
+signal:
+<DL COMPACT><DT id="36"><DD>
+<DL COMPACT>
+<DT id="37"><B>ILL_ILLOPC</B>
+
+<DD>
+Illegal opcode.
+<DT id="38"><B>ILL_ILLOPN</B>
+
+<DD>
+Illegal operand.
+<DT id="39"><B>ILL_ILLADR</B>
+
+<DD>
+Illegal addressing mode.
+<DT id="40"><B>ILL_ILLTRP</B>
+
+<DD>
+Illegal trap.
+<DT id="41"><B>ILL_PRVOPC</B>
+
+<DD>
+Privileged opcode.
+<DT id="42"><B>ILL_PRVREG</B>
+
+<DD>
+Privileged register.
+<DT id="43"><B>ILL_COPROC</B>
+
+<DD>
+Coprocessor error.
+<DT id="44"><B>ILL_BADSTK</B>
+
+<DD>
+Internal stack error.
+</DL>
+</DL>
+
+<P>
+
+The following values can be placed in
+<I>si_code</I>
+
+for a
+<B>SIGFPE</B>
+
+signal:
+<DL COMPACT><DT id="45"><DD>
+<DL COMPACT>
+<DT id="46"><B>FPE_INTDIV</B>
+
+<DD>
+Integer divide by zero.
+<DT id="47"><B>FPE_INTOVF</B>
+
+<DD>
+Integer overflow.
+<DT id="48"><B>FPE_FLTDIV</B>
+
+<DD>
+Floating-point divide by zero.
+<DT id="49"><B>FPE_FLTOVF</B>
+
+<DD>
+Floating-point overflow.
+<DT id="50"><B>FPE_FLTUND</B>
+
+<DD>
+Floating-point underflow.
+<DT id="51"><B>FPE_FLTRES</B>
+
+<DD>
+Floating-point inexact result.
+<DT id="52"><B>FPE_FLTINV</B>
+
+<DD>
+Floating-point invalid operation.
+<DT id="53"><B>FPE_FLTSUB</B>
+
+<DD>
+Subscript out of range.
+</DL>
+</DL>
+
+<P>
+
+The following values can be placed in
+<I>si_code</I>
+
+for a
+<B>SIGSEGV</B>
+
+signal:
+<DL COMPACT><DT id="54"><DD>
+<DL COMPACT>
+<DT id="55"><B>SEGV_MAPERR</B>
+
+<DD>
+Address not mapped to object.
+<DT id="56"><B>SEGV_ACCERR</B>
+
+<DD>
+Invalid permissions for mapped object.
+<DT id="57"><B>SEGV_BNDERR</B> (since Linux 3.19)
+
+<DD>
+
+Failed address bound checks.
+<DT id="58"><B>SEGV_PKUERR</B> (since Linux 4.6)
+
+<DD>
+
+Access was denied by memory protection keys.
+See
+<B><A HREF="/cgi-bin/man/man2html?7+pkeys">pkeys</A></B>(7).
+
+The protection key which applied to this access is available via
+<I>si_pkey</I>.
+
+</DL>
+</DL>
+
+<P>
+
+The following values can be placed in
+<I>si_code</I>
+
+for a
+<B>SIGBUS</B>
+
+signal:
+<DL COMPACT><DT id="59"><DD>
+<DL COMPACT>
+<DT id="60"><B>BUS_ADRALN</B>
+
+<DD>
+Invalid address alignment.
+<DT id="61"><B>BUS_ADRERR</B>
+
+<DD>
+Nonexistent physical address.
+<DT id="62"><B>BUS_OBJERR</B>
+
+<DD>
+Object-specific hardware error.
+<DT id="63"><B>BUS_MCEERR_AR</B> (since Linux 2.6.32)
+
+<DD>
+Hardware memory error consumed on a machine check; action required.
+<DT id="64"><B>BUS_MCEERR_AO</B> (since Linux 2.6.32)
+
+<DD>
+Hardware memory error detected in process but not consumed; action optional.
+</DL>
+</DL>
+
+<P>
+
+The following values can be placed in
+<I>si_code</I>
+
+for a
+<B>SIGTRAP</B>
+
+signal:
+<DL COMPACT><DT id="65"><DD>
+<DL COMPACT>
+<DT id="66"><B>TRAP_BRKPT</B>
+
+<DD>
+Process breakpoint.
+<DT id="67"><B>TRAP_TRACE</B>
+
+<DD>
+Process trace trap.
+<DT id="68"><B>TRAP_BRANCH</B> (since Linux 2.4, IA64 only))
+
+<DD>
+Process taken branch trap.
+<DT id="69"><B>TRAP_HWBKPT</B> (since Linux 2.4, IA64 only))
+
+<DD>
+Hardware breakpoint/watchpoint.
+</DL>
+</DL>
+
+<P>
+
+The following values can be placed in
+<I>si_code</I>
+
+for a
+<B>SIGCHLD</B>
+
+signal:
+<DL COMPACT><DT id="70"><DD>
+<DL COMPACT>
+<DT id="71"><B>CLD_EXITED</B>
+
+<DD>
+Child has exited.
+<DT id="72"><B>CLD_KILLED</B>
+
+<DD>
+Child was killed.
+<DT id="73"><B>CLD_DUMPED</B>
+
+<DD>
+Child terminated abnormally.
+<DT id="74"><B>CLD_TRAPPED</B>
+
+<DD>
+Traced child has trapped.
+<DT id="75"><B>CLD_STOPPED</B>
+
+<DD>
+Child has stopped.
+<DT id="76"><B>CLD_CONTINUED</B> (since Linux 2.6.9)
+
+<DD>
+Stopped child has continued.
+</DL>
+</DL>
+
+<P>
+
+The following values can be placed in
+<I>si_code</I>
+
+for a
+<B>SIGIO</B>/<B>SIGPOLL</B>
+
+signal:
+<DL COMPACT><DT id="77"><DD>
+<DL COMPACT>
+<DT id="78"><B>POLL_IN</B>
+
+<DD>
+Data input available.
+<DT id="79"><B>POLL_OUT</B>
+
+<DD>
+Output buffers available.
+<DT id="80"><B>POLL_MSG</B>
+
+<DD>
+Input message available.
+<DT id="81"><B>POLL_ERR</B>
+
+<DD>
+I/O error.
+<DT id="82"><B>POLL_PRI</B>
+
+<DD>
+High priority input available.
+<DT id="83"><B>POLL_HUP</B>
+
+<DD>
+Device disconnected.
+</DL>
+</DL>
+
+<P>
+
+The following value can be placed in
+<I>si_code</I>
+
+for a
+<B>SIGSYS</B>
+
+signal:
+<DL COMPACT><DT id="84"><DD>
+<DL COMPACT>
+<DT id="85"><B>SYS_SECCOMP</B> (since Linux 3.5)
+
+<DD>
+Triggered by a
+<B><A HREF="/cgi-bin/man/man2html?2+seccomp">seccomp</A></B>(2)
+
+filter rule.
+</DL>
+</DL>
+
+<A NAME="lbAG">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+<B>sigaction</B>()
+
+returns 0 on success; on error, -1 is returned, and
+<I>errno</I>
+
+is set to indicate the error.
+<A NAME="lbAH">&nbsp;</A>
+<H2>ERRORS</H2>
+
+<DL COMPACT>
+<DT id="86"><B>EFAULT</B>
+
+<DD>
+<I>act</I> or <I>oldact</I>
+
+points to memory which is not a valid part of the process address space.
+<DT id="87"><B>EINVAL</B>
+
+<DD>
+An invalid signal was specified.
+This will also be generated if an attempt
+is made to change the action for
+<B>SIGKILL</B> or <B>SIGSTOP</B>, 
+
+which cannot be caught or ignored.
+</DL>
+<A NAME="lbAI">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+POSIX.1-2001, POSIX.1-2008, SVr4.
+
+<A NAME="lbAJ">&nbsp;</A>
+<H2>NOTES</H2>
+
+A child created via
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2)
+
+inherits a copy of its parent's signal dispositions.
+During an
+<B><A HREF="/cgi-bin/man/man2html?2+execve">execve</A></B>(2),
+
+the dispositions of handled signals are reset to the default;
+the dispositions of ignored signals are left unchanged.
+<P>
+
+According to POSIX, the behavior of a process is undefined after it
+ignores a
+<B>SIGFPE</B>,
+
+<B>SIGILL</B>,
+
+or
+<B>SIGSEGV</B>
+
+signal that was not generated by
+<B><A HREF="/cgi-bin/man/man2html?2+kill">kill</A></B>(2)
+
+or
+<B><A HREF="/cgi-bin/man/man2html?3+raise">raise</A></B>(3).
+
+Integer division by zero has undefined result.
+On some architectures it will generate a
+<B>SIGFPE</B>
+
+signal.
+(Also dividing the most negative integer by -1 may generate
+<B>SIGFPE</B>.)
+
+Ignoring this signal might lead to an endless loop.
+<P>
+
+POSIX.1-1990 disallowed setting the action for
+<B>SIGCHLD</B>
+
+to
+<B>SIG_IGN</B>.
+
+POSIX.1-2001 and later allow this possibility, so that ignoring
+<B>SIGCHLD</B>
+
+can be used to prevent the creation of zombies (see
+<B><A HREF="/cgi-bin/man/man2html?2+wait">wait</A></B>(2)).
+
+Nevertheless, the historical BSD and System&nbsp;V behaviors for ignoring
+<B>SIGCHLD</B>
+
+differ, so that the only completely portable method of ensuring that
+terminated children do not become zombies is to catch the
+<B>SIGCHLD</B>
+
+signal and perform a
+<B><A HREF="/cgi-bin/man/man2html?2+wait">wait</A></B>(2)
+
+or similar.
+<P>
+
+POSIX.1-1990 specified only
+<B>SA_NOCLDSTOP</B>.
+
+POSIX.1-2001 added
+<B>SA_NOCLDSTOP</B>,
+
+<B>SA_NOCLDWAIT</B>,
+
+<B>SA_NODEFER</B>,
+
+<B>SA_ONSTACK</B>,
+
+<B>SA_RESETHAND</B>,
+
+<B>SA_RESTART</B>,
+
+and
+<B>SA_SIGINFO</B>.
+
+Use of these latter values in
+<I>sa_flags</I>
+
+may be less portable in applications intended for older
+UNIX implementations.
+<P>
+
+The
+<B>SA_RESETHAND</B>
+
+flag is compatible with the SVr4 flag of the same name.
+<P>
+
+The
+<B>SA_NODEFER</B>
+
+flag is compatible with the SVr4 flag of the same name under kernels
+1.3.9 and newer.
+On older kernels the Linux implementation
+allowed the receipt of any signal, not just the one we are installing
+(effectively overriding any
+<I>sa_mask</I>
+
+settings).
+<P>
+
+<B>sigaction</B>()
+
+can be called with a NULL second argument to query the current signal
+handler.
+It can also be used to check whether a given signal is valid for
+the current machine by calling it with NULL second and third arguments.
+<P>
+
+It is not possible to block
+<B>SIGKILL</B> or <B>SIGSTOP</B>
+
+(by specifying them in
+<I>sa_mask</I>).
+
+Attempts to do so are silently ignored.
+<P>
+
+See
+<B><A HREF="/cgi-bin/man/man2html?3+sigsetops">sigsetops</A></B>(3)
+
+for details on manipulating signal sets.
+<P>
+
+See
+<B><A HREF="/cgi-bin/man/man2html?7+signal-safety">signal-safety</A></B>(7)
+
+for a list of the async-signal-safe functions that can be
+safely called inside from inside a signal handler.
+
+<A NAME="lbAK">&nbsp;</A>
+<H3>C library/kernel differences</H3>
+
+The glibc wrapper function for
+<B>sigaction</B>()
+
+gives an error
+(<B>EINVAL</B>)
+
+on attempts to change the disposition of the two real-time signals
+used internally by the NPTL threading implementation.
+See
+<B><A HREF="/cgi-bin/man/man2html?7+nptl">nptl</A></B>(7)
+
+for details.
+<P>
+
+On architectures where the signal trampoline resides in the C library,
+the glibc wrapper function for
+<B>sigaction</B>()
+
+places the address of the trampoline code in the
+<I>act.sa_restorer</I>
+
+field and sets the
+<B>SA_RESTORER</B>
+
+flag in the
+<I>act.sa_flags</I>
+
+field.
+See
+<B><A HREF="/cgi-bin/man/man2html?2+sigreturn">sigreturn</A></B>(2).
+
+<P>
+
+The original Linux system call was named
+<B>sigaction</B>().
+
+However, with the addition of real-time signals in Linux 2.2,
+the fixed-size, 32-bit
+<I>sigset_t</I>
+
+type supported by that system call was no longer fit for purpose.
+Consequently, a new system call,
+<B>rt_sigaction</B>(),
+
+was added to support an enlarged
+<I>sigset_t</I>
+
+type.
+The new system call takes a fourth argument,
+<I>size_t sigsetsize</I>,
+
+which specifies the size in bytes of the signal sets in
+<I>act.sa_mask</I>
+
+and
+<I>oldact.sa_mask</I>.
+
+This argument is currently required to have the value
+<I>sizeof(sigset_t)</I>
+
+(or the error
+<B>EINVAL</B>
+
+results).
+The glibc
+<B>sigaction</B>()
+
+wrapper function hides these details from us, transparently calling
+<B>rt_sigaction</B>()
+
+when the kernel provides it.
+
+<A NAME="lbAL">&nbsp;</A>
+<H3>Undocumented</H3>
+
+Before the introduction of
+<B>SA_SIGINFO</B>,
+
+it was also possible to get some additional information about the signal.
+This was done by providing an
+<I>sa_handler</I>
+
+signal handler with a second argument of type
+<I>struct sigcontext</I>,
+
+which is the same structure as the one that is passed in the
+<I>uc_mcontext</I>
+
+field of the
+<I>ucontext</I>
+
+structure that is passed (via a pointer) in the third argument of the
+<I>sa_sigaction</I>
+
+handler.
+See the relevant Linux kernel sources for details.
+This use is obsolete now.
+<A NAME="lbAM">&nbsp;</A>
+<H2>BUGS</H2>
+
+In kernels up to and including 2.6.13, specifying
+<B>SA_NODEFER</B>
+
+in
+<I>sa_flags</I>
+
+prevents not only the delivered signal from being masked during
+execution of the handler, but also the signals specified in
+<I>sa_mask</I>.
+
+This bug was fixed in kernel 2.6.14.
+<A NAME="lbAN">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+See
+<B><A HREF="/cgi-bin/man/man2html?2+mprotect">mprotect</A></B>(2).
+
+<A NAME="lbAO">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?1+kill">kill</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?2+kill">kill</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+pause">pause</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+pidfd_send_signal">pidfd_send_signal</A></B>(2)
+
+<B><A HREF="/cgi-bin/man/man2html?2+restart_syscall">restart_syscall</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+seccomp">seccomp</A></B>(2)
+
+<B><A HREF="/cgi-bin/man/man2html?2+sigaltstack">sigaltstack</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+signal">signal</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+signalfd">signalfd</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+sigpending">sigpending</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+sigprocmask">sigprocmask</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+sigreturn">sigreturn</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+sigsuspend">sigsuspend</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+wait">wait</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?3+killpg">killpg</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+raise">raise</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+siginterrupt">siginterrupt</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+sigqueue">sigqueue</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+sigsetops">sigsetops</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+sigvec">sigvec</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?5+core">core</A></B>(5),
+
+<B><A HREF="/cgi-bin/man/man2html?7+signal">signal</A></B>(7)
+
+<A NAME="lbAP">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="88"><A HREF="#lbAB">NAME</A><DD>
+<DT id="89"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="90"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DL>
+<DT id="91"><A HREF="#lbAE">The siginfo_t argument to a SA_SIGINFO handler</A><DD>
+<DT id="92"><A HREF="#lbAF">The si_code field</A><DD>
+</DL>
+<DT id="93"><A HREF="#lbAG">RETURN VALUE</A><DD>
+<DT id="94"><A HREF="#lbAH">ERRORS</A><DD>
+<DT id="95"><A HREF="#lbAI">CONFORMING TO</A><DD>
+<DT id="96"><A HREF="#lbAJ">NOTES</A><DD>
+<DL>
+<DT id="97"><A HREF="#lbAK">C library/kernel differences</A><DD>
+<DT id="98"><A HREF="#lbAL">Undocumented</A><DD>
+</DL>
+<DT id="99"><A HREF="#lbAM">BUGS</A><DD>
+<DT id="100"><A HREF="#lbAN">EXAMPLE</A><DD>
+<DT id="101"><A HREF="#lbAO">SEE ALSO</A><DD>
+<DT id="102"><A HREF="#lbAP">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:34 GMT, March 31, 2021
+</BODY>
+</HTML>

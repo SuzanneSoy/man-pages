@@ -1,0 +1,536 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of BWRAP</TITLE>
+</HEAD><BODY>
+<H1>BWRAP</H1>
+Section: User Commands (1)<BR>Updated: <BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+bwrap - container setup utility
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<DL COMPACT>
+<DT id="1">
+<B>bwrap</B> [<I>OPTION</I>...] [<I>COMMAND</I>]
+</DL>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+<B>bwrap</B>
+<DD>is a privileged helper for container setup. You are unlikely to use it directly from the commandline, although that is possible.
+<P>
+
+It works by creating a new, completely empty, filesystem namespace where the root is on a tmpfs that is invisible from the host, and which will be automatically cleaned up when the last process exits. You can then use commandline options to construct the root filesystem and process environment for the command to run in the namespace.
+<P>
+
+By default,
+<B>bwrap</B>
+creates a new mount namespace for the sandbox. Optionally it also sets up new user, ipc, pid, network and uts namespaces (but note the user namespace is required if bwrap is not installed setuid root). The application in the sandbox can be made to run with a different UID and GID.
+<P>
+
+If needed (e.g. when using a PID namespace)
+<B>bwrap</B>
+is running a minimal pid 1 process in the sandbox that is responsible for reaping zombies. It also detects when the initial application process (pid 2) dies and reports its exit status back to the original spawner. The pid 1 process exits to clean up the sandbox when there are no other processes in the sandbox left.
+<A NAME="lbAE">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<P>
+
+When options are used multiple times, the last option wins, unless otherwise specified.
+<P>
+
+General options:
+<P>
+
+<B>--help</B>
+<DL COMPACT><DT id="2"><DD>
+Print help and exit
+</DL>
+
+<P>
+
+<B>--version</B>
+<DL COMPACT><DT id="3"><DD>
+Print version
+</DL>
+
+<P>
+
+<B>--args </B><B>FD</B>
+<DL COMPACT><DT id="4"><DD>
+Parse nul-separated arguments from the given file descriptor. This option can be used multiple times to parse options from multiple sources.
+</DL>
+
+<P>
+
+Options related to kernel namespaces:
+<P>
+
+<B>--unshare-user</B>
+<DL COMPACT><DT id="5"><DD>
+Create a new user namespace
+</DL>
+
+<P>
+
+<B>--unshare-user-try</B>
+<DL COMPACT><DT id="6"><DD>
+Create a new user namespace if possible else skip it
+</DL>
+
+<P>
+
+<B>--unshare-ipc</B>
+<DL COMPACT><DT id="7"><DD>
+Create a new ipc namespace
+</DL>
+
+<P>
+
+<B>--unshare-pid</B>
+<DL COMPACT><DT id="8"><DD>
+Create a new pid namespace
+</DL>
+
+<P>
+
+<B>--unshare-net</B>
+<DL COMPACT><DT id="9"><DD>
+Create a new network namespace
+</DL>
+
+<P>
+
+<B>--unshare-uts</B>
+<DL COMPACT><DT id="10"><DD>
+Create a new uts namespace
+</DL>
+
+<P>
+
+<B>--unshare-cgroup</B>
+<DL COMPACT><DT id="11"><DD>
+Create a new cgroup namespace
+</DL>
+
+<P>
+
+<B>--unshare-cgroup-try</B>
+<DL COMPACT><DT id="12"><DD>
+Create a new cgroup namespace if possible else skip it
+</DL>
+
+<P>
+
+<B>--unshare-all</B>
+<DL COMPACT><DT id="13"><DD>
+Unshare all possible namespaces. Currently equivalent with:
+<B>--unshare-user-try</B>
+<B>--unshare-ipc</B>
+<B>--unshare-pid</B>
+<B>--unshare-net</B>
+<B>--unshare-uts</B>
+<B>--unshare-cgroup-try</B>
+</DL>
+
+<P>
+
+<B>--userns </B><B>FD</B>
+<DL COMPACT><DT id="14"><DD>
+Use an existing user namespace instead of creating a new one. The namespace must fulfil the permission requirements for setns(), which generally means that it must be a decendant of the currently active user namespace, owned by the same user.
+<P>
+This is incompatible with --unshare-user, and doesn't work in the setuid version of bubblewrap.
+</DL>
+
+<P>
+
+<B>--userns2 </B><B>FD</B>
+<DL COMPACT><DT id="15"><DD>
+After setting up the new namespace, switch into the specified namespace. For this to work the specified namespace must be a decendant of the user namespace used for the setup, so this is only useful in combination with --userns.
+<P>
+This is useful because sometimes bubblewrap itself creates nested user namespaces (to work around some kernel issues) and --userns2 can be used to enter these.
+</DL>
+
+<P>
+
+<B>--pidns </B><B>FD</B>
+<DL COMPACT><DT id="16"><DD>
+Use an existing pid namespace instead of creating one. This is often used with --userns, because the pid namespace must be owned by the same user namespace that bwrap uses.
+<P>
+Note that this can be combined with --unshare-pid, and in that case it means that the sandbox will be in its own pid namespace, which is a child of the passed in one.
+</DL>
+
+<P>
+
+<B>--uid </B><B>UID</B>
+<DL COMPACT><DT id="17"><DD>
+Use a custom user id in the sandbox (requires
+<B>--unshare-user</B>)
+</DL>
+
+<P>
+
+<B>--gid </B><B>GID</B>
+<DL COMPACT><DT id="18"><DD>
+Use a custom group id in the sandbox (requires
+<B>--unshare-user</B>)
+</DL>
+
+<P>
+
+<B>--hostname </B><B>HOSTNAME</B>
+<DL COMPACT><DT id="19"><DD>
+Use a custom hostname in the sandbox (requires
+<B>--unshare-uts</B>)
+</DL>
+
+<P>
+
+Options about environment setup:
+<P>
+
+<B>--chdir </B><B>DIR</B>
+<DL COMPACT><DT id="20"><DD>
+Change directory to
+DIR
+</DL>
+
+<P>
+
+<B>--setenv </B><B>VAR</B><B> </B><B>VALUE</B>
+<DL COMPACT><DT id="21"><DD>
+Set an environment variable
+</DL>
+
+<P>
+
+<B>--unsetenv </B><B>VAR</B>
+<DL COMPACT><DT id="22"><DD>
+Unset an environment variable
+</DL>
+
+<P>
+
+Options for monitoring the sandbox from the outside:
+<P>
+
+<B>--lock-file </B><B>DEST</B>
+<DL COMPACT><DT id="23"><DD>
+Take a lock on
+DEST
+while the sandbox is running. This option can be used multiple times to take locks on multiple files.
+</DL>
+
+<P>
+
+<B>--sync-fd </B><B>FD</B>
+<DL COMPACT><DT id="24"><DD>
+Keep this file descriptor open while the sandbox is running
+</DL>
+
+<P>
+
+Filesystem related options. These are all operations that modify the filesystem directly, or mounts stuff in the filesystem. These are applied in the order they are given as arguments. Any missing parent directories that are required to create a specified destination are automatically created as needed.
+<P>
+
+<B>--bind </B><B>SRC</B><B> </B><B>DEST</B>
+<DL COMPACT><DT id="25"><DD>
+Bind mount the host path
+SRC
+on
+DEST
+</DL>
+
+<P>
+
+<B>--bind-try </B><B>SRC</B><B> </B><B>DEST</B>
+<DL COMPACT><DT id="26"><DD>
+Equal to
+<B>--bind</B>
+but ignores non-existent
+SRC
+</DL>
+
+<P>
+
+<B>--dev-bind </B><B>SRC</B><B> </B><B>DEST</B>
+<DL COMPACT><DT id="27"><DD>
+Bind mount the host path
+SRC
+on
+DEST, allowing device access
+</DL>
+
+<P>
+
+<B>--dev-bind-try </B><B>SRC</B><B> </B><B>DEST</B>
+<DL COMPACT><DT id="28"><DD>
+Equal to
+<B>--dev-bind</B>
+but ignores non-existent
+SRC
+</DL>
+
+<P>
+
+<B>--ro-bind </B><B>SRC</B><B> </B><B>DEST</B>
+<DL COMPACT><DT id="29"><DD>
+Bind mount the host path
+SRC
+readonly on
+DEST
+</DL>
+
+<P>
+
+<B>--ro-bind-try </B><B>SRC</B><B> </B><B>DEST</B>
+<DL COMPACT><DT id="30"><DD>
+Equal to
+<B>--ro-bind</B>
+but ignores non-existent
+SRC
+</DL>
+
+<P>
+
+<B>--remount-ro </B><B>DEST</B>
+<DL COMPACT><DT id="31"><DD>
+Remount the path
+DEST
+as readonly. It works only on the specified mount point, without changing any other mount point under the specified path
+</DL>
+
+<P>
+
+<B>--proc </B><B>DEST</B>
+<DL COMPACT><DT id="32"><DD>
+Mount procfs on
+DEST
+</DL>
+
+<P>
+
+<B>--dev </B><B>DEST</B>
+<DL COMPACT><DT id="33"><DD>
+Mount new devtmpfs on
+DEST
+</DL>
+
+<P>
+
+<B>--tmpfs </B><B>DEST</B>
+<DL COMPACT><DT id="34"><DD>
+Mount new tmpfs on
+DEST
+</DL>
+
+<P>
+
+<B>--mqueue </B><B>DEST</B>
+<DL COMPACT><DT id="35"><DD>
+Mount new mqueue on
+DEST
+</DL>
+
+<P>
+
+<B>--dir </B><B>DEST</B>
+<DL COMPACT><DT id="36"><DD>
+Create a directory at
+DEST
+</DL>
+
+<P>
+
+<B>--file </B><B>FD</B><B> </B><B>DEST</B>
+<DL COMPACT><DT id="37"><DD>
+Copy from the file descriptor
+FD
+to
+DEST
+</DL>
+
+<P>
+
+<B>--bind-data </B><B>FD</B><B> </B><B>DEST</B>
+<DL COMPACT><DT id="38"><DD>
+Copy from the file descriptor
+FD
+to a file which is bind-mounted on
+DEST
+</DL>
+
+<P>
+
+<B>--ro-bind-data </B><B>FD</B><B> </B><B>DEST</B>
+<DL COMPACT><DT id="39"><DD>
+Copy from the file descriptor
+FD
+to a file which is bind-mounted readonly on
+DEST
+</DL>
+
+<P>
+
+<B>--symlink </B><B>SRC</B><B> </B><B>DEST</B>
+<DL COMPACT><DT id="40"><DD>
+Create a symlink at
+DEST
+with target
+SRC
+</DL>
+
+<P>
+
+Lockdown options:
+<P>
+
+<B>--seccomp </B><B>FD</B>
+<DL COMPACT><DT id="41"><DD>
+Load and use seccomp rules from
+FD. The rules need to be in the form of a compiled eBPF program, as generated by seccomp_export_bpf.
+</DL>
+
+<P>
+
+<B>--exec-label </B><B>LABEL</B>
+<DL COMPACT><DT id="42"><DD>
+Exec Label from the sandbox. On an SELinux system you can specify the SELinux context for the sandbox process(s).
+</DL>
+
+<P>
+
+<B>--file-label </B><B>LABEL</B>
+<DL COMPACT><DT id="43"><DD>
+File label for temporary sandbox content. On an SELinux system you can specify the SELinux context for the sandbox content.
+</DL>
+
+<P>
+
+<B>--block-fd </B><B>FD</B>
+<DL COMPACT><DT id="44"><DD>
+Block the sandbox on reading from FD until some data is available.
+</DL>
+
+<P>
+
+<B>--userns-block-fd </B><B>FD</B>
+<DL COMPACT><DT id="45"><DD>
+Do not initialize the user namespace but wait on FD until it is ready. This allow external processes (like newuidmap/newgidmap) to setup the user namespace before it is used by the sandbox process.
+</DL>
+
+<P>
+
+<B>--info-fd </B><B>FD</B>
+<DL COMPACT><DT id="46"><DD>
+Write information in JSON format about the sandbox to FD.
+</DL>
+
+<P>
+
+<B>--new-session</B>
+<DL COMPACT><DT id="47"><DD>
+Create a new terminal session for the sandbox (calls setsid()). This disconnects the sandbox from the controlling terminal which means the sandbox can't for instance inject input into the terminal.
+<P>
+Note: In a general sandbox, if you don't use --new-session, it is recommended to use seccomp to disallow the TIOCSTI ioctl, otherwise the application can feed keyboard input to the terminal.
+</DL>
+
+<P>
+
+<B>--die-with-parent</B>
+<DL COMPACT><DT id="48"><DD>
+Ensures child process (COMMAND) dies when bwrap's parent dies. Kills (SIGKILL) all bwrap sandbox processes in sequence from parent to child including COMMAND process when bwrap or bwrap's parent dies. See prctl, PR_SET_PDEATHSIG.
+</DL>
+
+<P>
+
+<B>--as-pid-1</B>
+<DL COMPACT><DT id="49"><DD>
+Do not create a process with PID=1 in the sandbox to reap child processes.
+</DL>
+
+<P>
+
+<B>--cap-add </B><B>CAP</B>
+<DL COMPACT><DT id="50"><DD>
+Add the specified capability when running as privileged user. It accepts the special value ALL to add all the permitted caps.
+</DL>
+
+<P>
+
+<B>--cap-drop </B><B>CAP</B>
+<DL COMPACT><DT id="51"><DD>
+Drop the specified capability when running as privileged user. It accepts the special value ALL to drop all the caps. By default no caps are left in the sandboxed process. The
+<B>--cap-add</B>
+and
+<B>--cap-drop</B>
+options are processed in the order they are specified on the command line. Please be careful to the order they are specified.
+</DL>
+
+<A NAME="lbAF">&nbsp;</A>
+<H2>ENVIRONMENT</H2>
+
+<P>
+
+<B>HOME</B>
+<DL COMPACT><DT id="52"><DD>
+Used as the cwd in the sandbox if
+<B>--chdir</B>
+has not been explicitly specified and the current cwd is not present inside the sandbox. The
+<B>--setenv</B>
+option can be used to override the value that is used here.
+</DL>
+
+<A NAME="lbAG">&nbsp;</A>
+<H2>EXIT STATUS</H2>
+
+<P>
+
+The
+<B>bwrap</B>
+command returns the exit status of the initial application process (pid 2 in the sandbox).
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="53"><A HREF="#lbAB">NAME</A><DD>
+<DT id="54"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="55"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="56"><A HREF="#lbAE">OPTIONS</A><DD>
+<DT id="57"><A HREF="#lbAF">ENVIRONMENT</A><DD>
+<DT id="58"><A HREF="#lbAG">EXIT STATUS</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:08 GMT, March 31, 2021
+</BODY>
+</HTML>

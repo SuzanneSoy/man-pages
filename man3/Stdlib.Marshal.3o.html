@@ -1,0 +1,446 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of Stdlib.Marshal</TITLE>
+</HEAD><BODY>
+<H1>Stdlib.Marshal</H1>
+Section: OCaml library (3o)<BR>Updated: 2020-01-30<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+Stdlib.Marshal - no description
+<A NAME="lbAC">&nbsp;</A>
+<H2>Module</H2>
+
+Module   Stdlib.Marshal
+<A NAME="lbAD">&nbsp;</A>
+<H2>Documentation</H2>
+
+<P>
+Module
+<B>Marshal</B>
+
+<BR>&nbsp;:&nbsp;
+<B>(module Stdlib__marshal)</B>
+
+<P>
+<P>
+<P>
+<P>
+<P>
+<P>
+<P>
+<I>type extern_flags </I>
+
+=
+<BR>&nbsp;|&nbsp;No_sharing&nbsp;&nbsp;(*&nbsp;Don't&nbsp;preserve&nbsp;sharing
+<BR>&nbsp;*)
+<BR>&nbsp;|&nbsp;Closures&nbsp;&nbsp;(*&nbsp;Send&nbsp;function&nbsp;closures
+<BR>&nbsp;*)
+<BR>&nbsp;|&nbsp;Compat_32&nbsp;&nbsp;(*&nbsp;Ensure&nbsp;32-bit&nbsp;compatibility
+<BR>&nbsp;*)
+<BR>&nbsp;
+<P>
+The flags to the 
+<B>Marshal.to_*</B>
+
+functions below.
+<P>
+<P>
+<P>
+<I>val to_channel </I>
+
+: 
+<B>out_channel -&gt; 'a -&gt; extern_flags list -&gt; unit</B>
+
+<P>
+<P>
+<B>Marshal.to_channel chan v flags</B>
+
+writes the representation
+of 
+<B>v</B>
+
+on channel 
+<B>chan</B>
+
+. The 
+<B>flags</B>
+
+argument is a
+possibly empty list of flags that governs the marshaling
+behavior with respect to sharing, functional values, and compatibility
+between 32- and 64-bit platforms.
+<P>
+If 
+<B>flags</B>
+
+does not contain 
+<B>Marshal.No_sharing</B>
+
+, circularities
+and sharing inside the value 
+<B>v</B>
+
+are detected and preserved
+in the sequence of bytes produced. In particular, this
+guarantees that marshaling always terminates. Sharing
+between values marshaled by successive calls to
+<B>Marshal.to_channel</B>
+
+is neither detected nor preserved, though.
+If 
+<B>flags</B>
+
+contains 
+<B>Marshal.No_sharing</B>
+
+, sharing is ignored.
+This results in faster marshaling if 
+<B>v</B>
+
+contains no shared
+substructures, but may cause slower marshaling and larger
+byte representations if 
+<B>v</B>
+
+actually contains sharing,
+or even non-termination if 
+<B>v</B>
+
+contains cycles.
+<P>
+If 
+<B>flags</B>
+
+does not contain 
+<B>Marshal.Closures</B>
+
+, marshaling fails
+when it encounters a functional value inside 
+<B>v</B>
+
+: only 'pure' data
+structures, containing neither functions nor objects, can safely be
+transmitted between different programs. If 
+<B>flags</B>
+
+contains
+<B>Marshal.Closures</B>
+
+, functional values will be marshaled as a the
+position in the code of the program together with the values
+corresponding to the free variables captured in the closure.  In
+this case, the output of marshaling can only be read back in
+processes that run exactly the same program, with exactly the same
+compiled code. (This is checked at un-marshaling time, using an MD5
+digest of the code transmitted along with the code position.)
+<P>
+The exact definition of which free variables are captured in a
+closure is not specified and can vary between bytecode and native
+code (and according to optimization flags).  In particular, a
+function value accessing a global reference may or may not include
+the reference in its closure.  If it does, unmarshaling the
+corresponding closure will create a new reference, different from
+the global one.
+<P>
+If 
+<B>flags</B>
+
+contains 
+<B>Marshal.Compat_32</B>
+
+, marshaling fails when
+it encounters an integer value outside the range 
+<B>[-2{^30}, 2{^30}-1]</B>
+
+of integers that are representable on a 32-bit platform.  This
+ensures that marshaled data generated on a 64-bit platform can be
+safely read back on a 32-bit platform.  If 
+<B>flags</B>
+
+does not
+contain 
+<B>Marshal.Compat_32</B>
+
+, integer values outside the
+range 
+<B>[-2{^30}, 2{^30}-1]</B>
+
+are marshaled, and can be read back on
+a 64-bit platform, but will cause an error at un-marshaling time
+when read back on a 32-bit platform.  The 
+<B>Mashal.Compat_32</B>
+
+flag
+only matters when marshaling is performed on a 64-bit platform;
+it has no effect if marshaling is performed on a 32-bit platform.
+<P>
+<P>
+<P>
+<I>val to_bytes </I>
+
+: 
+<B>'a -&gt; extern_flags list -&gt; bytes</B>
+
+<P>
+<P>
+<B>Marshal.to_bytes v flags</B>
+
+returns a byte sequence containing
+the representation of 
+<B>v</B>
+
+.
+The 
+<B>flags</B>
+
+argument has the same meaning as for
+<B>Marshal.to_channel</B>
+
+.
+<P>
+<P>
+<B>Since</B>
+
+4.02.0
+<P>
+<P>
+<P>
+<I>val to_string </I>
+
+: 
+<B>'a -&gt; extern_flags list -&gt; string</B>
+
+<P>
+Same as 
+<B>to_bytes</B>
+
+but return the result as a string instead of
+a byte sequence.
+<P>
+<P>
+<P>
+<I>val to_buffer </I>
+
+: 
+<B>bytes -&gt; int -&gt; int -&gt; 'a -&gt; extern_flags list -&gt; int</B>
+
+<P>
+<P>
+<B>Marshal.to_buffer buff ofs len v flags</B>
+
+marshals the value 
+<B>v</B>
+
+,
+storing its byte representation in the sequence 
+<B>buff</B>
+
+,
+starting at index 
+<B>ofs</B>
+
+, and writing at most
+<B>len</B>
+
+bytes.  It returns the number of bytes
+actually written to the sequence. If the byte representation
+of 
+<B>v</B>
+
+does not fit in 
+<B>len</B>
+
+characters, the exception 
+<B>Failure</B>
+
+is raised.
+<P>
+<P>
+<P>
+<I>val from_channel </I>
+
+: 
+<B>in_channel -&gt; 'a</B>
+
+<P>
+<P>
+<B>Marshal.from_channel chan</B>
+
+reads from channel 
+<B>chan</B>
+
+the
+byte representation of a structured value, as produced by
+one of the 
+<B>Marshal.to_*</B>
+
+functions, and reconstructs and
+returns the corresponding value.
+<P>
+It raises 
+<B>End_of_file</B>
+
+if the function has already reached the
+end of file when starting to read from the channel, and raises
+<B>Failure input_value: truncated object</B>
+
+if it reaches the end
+of file later during the unmarshalling.
+<P>
+<P>
+<P>
+<I>val from_bytes </I>
+
+: 
+<B>bytes -&gt; int -&gt; 'a</B>
+
+<P>
+<P>
+<B>Marshal.from_bytes buff ofs</B>
+
+unmarshals a structured value
+like 
+<B>Marshal.from_channel</B>
+
+does, except that the byte
+representation is not read from a channel, but taken from
+the byte sequence 
+<B>buff</B>
+
+, starting at position 
+<B>ofs</B>
+
+.
+The byte sequence is not mutated.
+<P>
+<P>
+<B>Since</B>
+
+4.02.0
+<P>
+<P>
+<P>
+<I>val from_string </I>
+
+: 
+<B>string -&gt; int -&gt; 'a</B>
+
+<P>
+Same as 
+<B>from_bytes</B>
+
+but take a string as argument instead of a
+byte sequence.
+<P>
+<P>
+<P>
+<I>val header_size </I>
+
+: 
+<B>int</B>
+
+<P>
+The bytes representing a marshaled value are composed of
+a fixed-size header and a variable-sized data part,
+whose size can be determined from the header.
+<B>Marshal.header_size</B>
+
+is the size, in bytes, of the header.
+<B>Marshal.data_size</B>
+
+<B>buff ofs</B>
+
+is the size, in bytes,
+of the data part, assuming a valid header is stored in
+<B>buff</B>
+
+starting at position 
+<B>ofs</B>
+
+.
+Finally, 
+<B>Marshal.total_size</B>
+
+<B>buff ofs</B>
+
+is the total size,
+in bytes, of the marshaled value.
+Both 
+<B>Marshal.data_size</B>
+
+and 
+<B>Marshal.total_size</B>
+
+raise 
+<B>Failure</B>
+
+if 
+<B>buff</B>
+
+, 
+<B>ofs</B>
+
+does not contain a valid header.
+<P>
+To read the byte representation of a marshaled value into
+a byte sequence, the program needs to read first
+<B>Marshal.header_size</B>
+
+bytes into the sequence,
+then determine the length of the remainder of the
+representation using 
+<B>Marshal.data_size</B>
+
+,
+make sure the sequence is large enough to hold the remaining
+data, then read it, and finally call 
+<B>Marshal.from_bytes</B>
+
+to unmarshal the value.
+<P>
+<P>
+<P>
+<I>val data_size </I>
+
+: 
+<B>bytes -&gt; int -&gt; int</B>
+
+<P>
+See 
+<B>Marshal.header_size</B>
+
+.
+<P>
+<P>
+<P>
+<I>val total_size </I>
+
+: 
+<B>bytes -&gt; int -&gt; int</B>
+
+<P>
+See 
+<B>Marshal.header_size</B>
+
+.
+<P>
+<P>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="1"><A HREF="#lbAB">NAME</A><DD>
+<DT id="2"><A HREF="#lbAC">Module</A><DD>
+<DT id="3"><A HREF="#lbAD">Documentation</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:57 GMT, March 31, 2021
+</BODY>
+</HTML>

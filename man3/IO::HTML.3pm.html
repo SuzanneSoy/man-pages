@@ -1,0 +1,482 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of IO::HTML</TITLE>
+</HEAD><BODY>
+<H1>IO::HTML</H1>
+Section: User Contributed Perl Documentation (3pm)<BR>Updated: 2014-06-28<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+IO::HTML - Open an HTML file with automatic charset detection
+<A NAME="lbAC">&nbsp;</A>
+<H2>VERSION</H2>
+
+
+
+This document describes version 1.001 of
+<FONT SIZE="-1">IO::HTML,</FONT> released June 28, 2014.
+<A NAME="lbAD">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+
+
+
+
+<PRE>
+  use IO::HTML;                 # exports html_file by default
+  use HTML::TreeBuilder;
+
+  my $tree = HTML::TreeBuilder-&gt;new_from_file(
+               html_file('foo.html')
+             );
+
+  # Alternative interface:
+  open(my $in, '&lt;:raw', 'bar.html');
+  my $encoding = IO::HTML::sniff_encoding($in, 'bar.html');
+
+</PRE>
+
+
+<A NAME="lbAE">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+
+<FONT SIZE="-1">IO::HTML</FONT> provides an easy way to open a file containing <FONT SIZE="-1">HTML</FONT> while
+automatically determining its encoding.  It uses the <FONT SIZE="-1">HTML5</FONT> encoding
+sniffing algorithm specified in section 8.2.2.2 of the draft standard.
+<P>
+
+The algorithm as implemented here is:
+<DL COMPACT>
+<DT id="1">1.<DD>
+If the file begins with a byte order mark indicating <FONT SIZE="-1">UTF-16LE,
+UTF-16BE,</FONT> or <FONT SIZE="-1">UTF-8,</FONT> then that is the encoding.
+<DT id="2">2.<DD>
+If the first 1024 bytes of the file contain a <TT>&quot;&lt;meta&gt;&quot;</TT> tag that
+indicates the charset, and Encode recognizes the specified charset
+name, then that is the encoding.  (This portion of the algorithm is
+implemented by <TT>&quot;find_charset_in&quot;</TT>.)
+
+
+<P>
+
+
+The <TT>&quot;&lt;meta&gt;&quot;</TT> tag can be in one of two formats:
+
+
+<P>
+
+
+
+
+<PRE>
+  &lt;meta charset=&quot;...&quot;&gt;
+  &lt;meta http-equiv=&quot;Content-Type&quot; content=&quot;...charset=...&quot;&gt;
+
+</PRE>
+
+
+
+
+<P>
+
+
+The search is case-insensitive, and the order of attributes within the
+tag is irrelevant.  Any additional attributes of the tag are ignored.
+The first matching tag with a recognized encoding ends the search.
+<DT id="3">3.<DD>
+If the first 1024 bytes of the file are valid <FONT SIZE="-1">UTF-8 </FONT>(with at least 1
+non-ASCII character), then the encoding is <FONT SIZE="-1">UTF-8.</FONT>
+<DT id="4">4.<DD>
+If all else fails, use the default character encoding.  The <FONT SIZE="-1">HTML5</FONT>
+standard suggests the default encoding should be locale dependent, but
+currently it is always <TT>&quot;cp1252&quot;</TT> unless you set
+<TT>$IO::HTML::default_encoding</TT> to a different value.  Note:
+<TT>&quot;sniff_encoding&quot;</TT> does not apply this step; only <TT>&quot;html_file&quot;</TT> does
+that.
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>SUBROUTINES</H2>
+
+
+
+<A NAME="lbAG">&nbsp;</A>
+<H3>html_file</H3>
+
+
+
+
+
+<PRE>
+  $filehandle = html_file($filename, \%options);
+
+</PRE>
+
+
+<P>
+
+This function (exported by default) is the primary entry point.  It
+opens the file specified by <TT>$filename</TT> for reading, uses
+<TT>&quot;sniff_encoding&quot;</TT> to find a suitable encoding layer, and applies it.
+It also applies the <TT>&quot;:crlf&quot;</TT> layer.  If the file begins with a <FONT SIZE="-1">BOM,</FONT>
+the filehandle is positioned just after the <FONT SIZE="-1">BOM.</FONT>
+<P>
+
+The optional second argument is a hashref containing options.  The
+possible keys are described under <TT>&quot;find_charset_in&quot;</TT>.
+<P>
+
+If <TT>&quot;sniff_encoding&quot;</TT> is unable to determine the encoding, it defaults
+to <TT>$IO::HTML::default_encoding</TT>, which is set to <TT>&quot;cp1252&quot;</TT>
+(a.k.a. Windows-1252) by default.  According to the standard, the
+default should be locale dependent, but that is not currently
+implemented.
+<P>
+
+It dies if the file cannot be opened.
+<A NAME="lbAH">&nbsp;</A>
+<H3>html_file_and_encoding</H3>
+
+
+
+
+
+<PRE>
+  ($filehandle, $encoding, $bom)
+    = html_file_and_encoding($filename, \%options);
+
+</PRE>
+
+
+<P>
+
+This function (exported only by request) is just like <TT>&quot;html_file&quot;</TT>,
+but returns more information.  In addition to the filehandle, it
+returns the name of the encoding used, and a flag indicating whether a
+byte order mark was found (if <TT>$bom</TT> is true, the file began with a
+<FONT SIZE="-1">BOM</FONT>).  This may be useful if you want to write the file out again
+(especially in conjunction with the <TT>&quot;html_outfile&quot;</TT> function).
+<P>
+
+The optional second argument is a hashref containing options.  The
+possible keys are described under <TT>&quot;find_charset_in&quot;</TT>.
+<P>
+
+It dies if the file cannot be opened.  The result of calling it in
+scalar context is undefined.
+<A NAME="lbAI">&nbsp;</A>
+<H3>html_outfile</H3>
+
+
+
+
+
+<PRE>
+  $filehandle = html_outfile($filename, $encoding, $bom);
+
+</PRE>
+
+
+<P>
+
+This function (exported only by request) opens <TT>$filename</TT> for output
+using <TT>$encoding</TT>, and writes a <FONT SIZE="-1">BOM</FONT> to it if <TT>$bom</TT> is true.
+If <TT>$encoding</TT> is <TT>&quot;undef&quot;</TT>, it defaults to <TT>$IO::HTML::default_encoding</TT>.
+<TT>$encoding</TT> may be either an encoding name or an Encode::Encoding object.
+<P>
+
+It dies if the file cannot be opened.
+<A NAME="lbAJ">&nbsp;</A>
+<H3>sniff_encoding</H3>
+
+
+
+
+
+<PRE>
+  ($encoding, $bom) = sniff_encoding($filehandle, $filename, \%options);
+
+</PRE>
+
+
+<P>
+
+This function (exported only by request) runs the <FONT SIZE="-1">HTML5</FONT> encoding
+sniffing algorithm on <TT>$filehandle</TT> (which must be seekable, and
+should have been opened in <TT>&quot;:raw&quot;</TT> mode).  <TT>$filename</TT> is used only
+for error messages (if there's a problem using the filehandle), and
+defaults to ``file'' if omitted.  The optional third argument is a
+hashref containing options.  The possible keys are described under
+<TT>&quot;find_charset_in&quot;</TT>.
+<P>
+
+It returns Perl's canonical name for the encoding, which is not
+necessarily the same as the <FONT SIZE="-1">MIME</FONT> or <FONT SIZE="-1">IANA</FONT> charset name.  It returns
+<TT>&quot;undef&quot;</TT> if the encoding cannot be determined.  <TT>$bom</TT> is true if the
+file began with a byte order mark.  In scalar context, it returns only
+<TT>$encoding</TT>.
+<P>
+
+The filehandle's position is restored to its original position
+(normally the beginning of the file) unless <TT>$bom</TT> is true.  In that
+case, the position is immediately after the <FONT SIZE="-1">BOM.</FONT>
+<P>
+
+Tip: If you want to run <TT>&quot;sniff_encoding&quot;</TT> on a file you've already
+loaded into a string, open an in-memory file on the string, and pass
+that handle:
+<P>
+
+
+
+<PRE>
+  ($encoding, $bom) = do {
+    open(my $fh, '&lt;', \$string);  sniff_encoding($fh)
+  };
+
+</PRE>
+
+
+<P>
+
+(This only makes sense if <TT>$string</TT> contains bytes, not characters.)
+<A NAME="lbAK">&nbsp;</A>
+<H3>find_charset_in</H3>
+
+
+
+
+
+<PRE>
+  $encoding = find_charset_in($string_containing_HTML, \%options);
+
+</PRE>
+
+
+<P>
+
+This function (exported only by request) looks for charset information
+in a <TT>&quot;&lt;meta&gt;&quot;</TT> tag in a possibly incomplete <FONT SIZE="-1">HTML</FONT> document using
+the ``two step'' algorithm specified by <FONT SIZE="-1">HTML5. </FONT> It does not look for a <FONT SIZE="-1">BOM.</FONT>
+Only the first 1024 bytes of the string are checked.
+<P>
+
+It returns Perl's canonical name for the encoding, which is not
+necessarily the same as the <FONT SIZE="-1">MIME</FONT> or <FONT SIZE="-1">IANA</FONT> charset name.  It returns
+<TT>&quot;undef&quot;</TT> if no charset is specified or if the specified charset is not
+recognized by the Encode module.
+<P>
+
+The optional second argument is a hashref containing options.  The
+following keys are recognized:
+<DL COMPACT>
+<DT id="5">&quot;encoding&quot;<DD>
+
+
+
+
+If true, return the Encode::Encoding object instead of its name.
+Defaults to false.
+<DT id="6">&quot;need_pragma&quot;<DD>
+
+
+
+
+If true (the default), follow the <FONT SIZE="-1">HTML5</FONT> spec and examine the
+<TT>&quot;content&quot;</TT> attribute only of <TT>&quot;&lt;meta http-equiv=&quot;Content-Type&quot;&quot;</TT>.
+If set to 0, relax the <FONT SIZE="-1">HTML5</FONT> spec, and look for ``charset='' in the
+<TT>&quot;content&quot;</TT> attribute of <I>every</I> meta tag.
+</DL>
+<A NAME="lbAL">&nbsp;</A>
+<H2>EXPORTS</H2>
+
+
+
+By default, only <TT>&quot;html_file&quot;</TT> is exported.  Other functions may be
+exported on request.
+<P>
+
+For people who prefer not to export functions, all functions beginning
+with <TT>&quot;html_&quot;</TT> have an alias without that prefix (e.g. you can call
+<TT>&quot;IO::HTML::file(...)&quot;</TT> instead of <TT>&quot;IO::HTML::html_file(...)&quot;</TT>.  These
+aliases are not exportable.
+<P>
+
+The following export tags are available:
+<DL COMPACT>
+<DT id="7">&quot;:all&quot;<DD>
+
+
+
+
+All exportable functions.
+<DT id="8">&quot;:rw&quot;<DD>
+
+
+
+
+<TT>&quot;html_file&quot;</TT>, <TT>&quot;html_file_and_encoding&quot;</TT>, <TT>&quot;html_outfile&quot;</TT>.
+</DL>
+<A NAME="lbAM">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+
+The <FONT SIZE="-1">HTML5</FONT> specification, section 8.2.2.2 Determining the character encoding:
+&lt;<A HREF="http://www.w3.org/TR/html5/syntax.html#determining-the-character-encoding">http://www.w3.org/TR/html5/syntax.html#determining-the-character-encoding</A>&gt;
+<A NAME="lbAN">&nbsp;</A>
+<H2>DIAGNOSTICS</H2>
+
+
+
+<DL COMPACT>
+<DT id="9">&quot;Could not read %s: %s&quot;<DD>
+
+
+
+
+The specified file could not be read from for the reason specified by <TT>$!</TT>.
+<DT id="10">&quot;Could not seek %s: %s&quot;<DD>
+
+
+
+
+The specified file could not be rewound for the reason specified by <TT>$!</TT>.
+<DT id="11">&quot;Failed to open %s: %s&quot;<DD>
+
+
+
+
+The specified file could not be opened for reading for the reason
+specified by <TT>$!</TT>.
+<DT id="12">&quot;No default encoding specified&quot;<DD>
+
+
+
+
+The <TT>&quot;sniff_encoding&quot;</TT> algorithm didn't find an encoding to use, and
+you set <TT>$IO::HTML::default_encoding</TT> to <TT>&quot;undef&quot;</TT>.
+</DL>
+<A NAME="lbAO">&nbsp;</A>
+<H2>CONFIGURATION AND ENVIRONMENT</H2>
+
+
+
+<FONT SIZE="-1">IO::HTML</FONT> requires no configuration files or environment variables.
+<A NAME="lbAP">&nbsp;</A>
+<H2>DEPENDENCIES</H2>
+
+
+
+<FONT SIZE="-1">IO::HTML</FONT> has no non-core dependencies for Perl 5.8.7+.  With earlier
+versions of Perl 5.8, you need to upgrade Encode to at least
+version 2.10, and
+you may need to upgrade Exporter to at least version
+5.57.
+<A NAME="lbAQ">&nbsp;</A>
+<H2>INCOMPATIBILITIES</H2>
+
+
+
+None reported.
+<A NAME="lbAR">&nbsp;</A>
+<H2>BUGS AND LIMITATIONS</H2>
+
+
+
+No bugs have been reported.
+<A NAME="lbAS">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+
+
+Christopher J. Madsen  <TT>&quot;&lt;perl&nbsp;AT&nbsp;cjmweb.net&gt;&quot;</TT>
+<P>
+
+Please report any bugs or feature requests
+to <TT>&quot;&lt;bug-IO-HTML&nbsp;AT&nbsp;rt.cpan.org&gt;&quot;</TT>
+or through the web interface at
+&lt;<A HREF="http://rt.cpan.org/Public/Bug/Report.html?Queue=IO-HTML">http://rt.cpan.org/Public/Bug/Report.html?Queue=IO-HTML</A>&gt;.
+<P>
+
+You can follow or contribute to IO-HTML's development at
+&lt;<A HREF="https://github.com/madsen/io-html">https://github.com/madsen/io-html</A>&gt;.
+<A NAME="lbAT">&nbsp;</A>
+<H2>COPYRIGHT AND LICENSE</H2>
+
+
+
+This software is copyright (c) 2014 by Christopher J. Madsen.
+<P>
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
+<A NAME="lbAU">&nbsp;</A>
+<H2>DISCLAIMER OF WARRANTY</H2>
+
+
+
+<FONT SIZE="-1">BECAUSE THIS SOFTWARE IS LICENSED FREE OF CHARGE, THERE IS NO WARRANTY
+FOR THE SOFTWARE, TO THE EXTENT PERMITTED BY APPLICABLE LAW. EXCEPT WHEN
+OTHERWISE STATED IN WRITING THE COPYRIGHT HOLDERS AND/OR OTHER PARTIES
+PROVIDE THE SOFTWARE ``AS IS'' WITHOUT WARRANTY OF ANY KIND, EITHER
+EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. THE
+ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE SOFTWARE IS WITH
+YOU. SHOULD THE SOFTWARE PROVE DEFECTIVE, YOU ASSUME THE COST OF ALL
+NECESSARY SERVICING, REPAIR, OR CORRECTION.</FONT>
+<P>
+
+<FONT SIZE="-1">IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING
+WILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MAY MODIFY AND/OR
+REDISTRIBUTE THE SOFTWARE AS PERMITTED BY THE ABOVE LICENSE, BE
+LIABLE TO YOU FOR DAMAGES, INCLUDING ANY GENERAL, SPECIAL, INCIDENTAL,
+OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE USE OR INABILITY TO USE
+THE SOFTWARE </FONT>(<FONT SIZE="-1">INCLUDING BUT NOT LIMITED TO LOSS OF DATA OR DATA BEING
+RENDERED INACCURATE OR LOSSES SUSTAINED BY YOU OR THIRD PARTIES OR A
+FAILURE OF THE SOFTWARE TO OPERATE WITH ANY OTHER SOFTWARE</FONT>), <FONT SIZE="-1">EVEN IF
+SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE POSSIBILITY OF
+SUCH DAMAGES.</FONT>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="13"><A HREF="#lbAB">NAME</A><DD>
+<DT id="14"><A HREF="#lbAC">VERSION</A><DD>
+<DT id="15"><A HREF="#lbAD">SYNOPSIS</A><DD>
+<DT id="16"><A HREF="#lbAE">DESCRIPTION</A><DD>
+<DT id="17"><A HREF="#lbAF">SUBROUTINES</A><DD>
+<DL>
+<DT id="18"><A HREF="#lbAG">html_file</A><DD>
+<DT id="19"><A HREF="#lbAH">html_file_and_encoding</A><DD>
+<DT id="20"><A HREF="#lbAI">html_outfile</A><DD>
+<DT id="21"><A HREF="#lbAJ">sniff_encoding</A><DD>
+<DT id="22"><A HREF="#lbAK">find_charset_in</A><DD>
+</DL>
+<DT id="23"><A HREF="#lbAL">EXPORTS</A><DD>
+<DT id="24"><A HREF="#lbAM">SEE ALSO</A><DD>
+<DT id="25"><A HREF="#lbAN">DIAGNOSTICS</A><DD>
+<DT id="26"><A HREF="#lbAO">CONFIGURATION AND ENVIRONMENT</A><DD>
+<DT id="27"><A HREF="#lbAP">DEPENDENCIES</A><DD>
+<DT id="28"><A HREF="#lbAQ">INCOMPATIBILITIES</A><DD>
+<DT id="29"><A HREF="#lbAR">BUGS AND LIMITATIONS</A><DD>
+<DT id="30"><A HREF="#lbAS">AUTHOR</A><DD>
+<DT id="31"><A HREF="#lbAT">COPYRIGHT AND LICENSE</A><DD>
+<DT id="32"><A HREF="#lbAU">DISCLAIMER OF WARRANTY</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:46 GMT, March 31, 2021
+</BODY>
+</HTML>

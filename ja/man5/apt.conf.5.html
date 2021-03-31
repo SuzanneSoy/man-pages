@@ -1,0 +1,1467 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of APT.CONF</TITLE>
+</HEAD><BODY>
+<H1>APT.CONF</H1>
+Section: APT (5)<BR>Updated: 04&nbsp;4 月&nbsp;2019<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>名前</H2>
+
+apt.conf - APT の設定ファイル
+<A NAME="lbAC">&nbsp;</A>
+<H2>説明</H2>
+
+<P>
+
+/etc/apt/apt.conf
+は、APT スイートの全ツールで使用するメイン設定ファイルです。しかし、間違いなくオプションを設定しておくだけの場所などではありません。そのため、APT スイートは統一環境を提供するため、共通のコマンドラインパーサを共有しています。
+<P>
+
+APT ツールの起動時に、設定ファイルを以下の順番で読み込みます。
+<P>
+<DL COMPACT><DT id="1"><DD>
+ 1.
+
+
+<B>APT_CONFIG</B>
+環境変数で指定したファイル (存在する場合)
+</DL>
+
+<P>
+<DL COMPACT><DT id="2"><DD>
+ 2.
+
+
+Dir::Etc::Parts
+にあるすべてのファイルを英数字の昇順になります。ファイル名には拡張子がないか、&quot;conf&quot; となっており、英数字、ハイフン (-)、アンダースコア (_)、ピリオド (.) で構成されています。そうでなければ、Dir::Ignore-Files-Silently
+設定リストのパターンに一致するもの以外に対して、ファイルを無視するという注意を APT が出力します。一致する場合は黙って無視します。
+</DL>
+
+<P>
+<DL COMPACT><DT id="3"><DD>
+ 3.
+
+
+Dir::Etc::Main
+で指定される、メイン設定ファイル
+</DL>
+
+<P>
+<DL COMPACT><DT id="4"><DD>
+ 4.
+
+
+バイナリ固有の設定サブツリーに設定されたすべてのオプションは、ツリーのルートに移動されます。
+</DL>
+
+<P>
+<DL COMPACT><DT id="5"><DD>
+ 5.
+
+
+コマンドラインオプションにより、設定ディレクティブの上書きや設定ファイルの追加読み込みができます。
+</DL>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>構文</H2>
+
+<P>
+
+設定ファイルは、機能グループごとに系統立てられたオプションを木構造で表します。オプションの指定は、2 つのコロンで区切ります。例えば
+APT::Get::Assume-Yes
+は、APT ツールグループの Get ツール用オプションです。オプションは、親グループからは継承しません。
+<P>
+
+設定言語の構文は、bind や dhcp のような ISC ツールをモデルにしています。//
+で始まる行はコメントとして扱われます (無視)。同様に C/C++ のコメントのような
+/*
+と
+*/
+の間もコメントとして扱います。いずれの行も、APT::Get::Assume-Yes &quot;true&quot;;
+のような形式です。引用符と行末のセミコロンは必須です。値は1行でなければならず、文字列結合はありません。値の中にバックスラッシュや余計な引用符があってはいけません。オプション名は、英数字と &quot;/-:._+&quot; が使用できます。以下のように波カッコを使うと、新しいスコープを開くことができます。
+<P>
+<DL COMPACT><DT id="6"><DD>
+
+
+
+<PRE>
+   
+APT {
+  Get {
+    Assume-Yes &quot;true&quot;;
+    Fix-Broken &quot;true&quot;;
+  };
+};
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+また適宜改行することで、より読みやすくなります。リストは、開いたスコープ、クォートで囲まれた 1 単語、そしてセミコロンと続けることで作成できます。セミコロンで区切って、複数のエントリを表せます。
+<P>
+<DL COMPACT><DT id="7"><DD>
+
+
+
+<PRE>
+   
+DPkg::Pre-Install-Pkgs {&quot;/usr/sbin/dpkg-preconfigure --apt&quot;;};
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+/usr/share/doc/apt/examples/configure-index.gz
+は一般的な設定ファイルのサンプルです。どのように設定するか参考になるでしょう。
+<P>
+
+設定項目の名前にある文字の大小は、重要ではありません。そのため、前述の例を
+dpkg::pre-install-pkgs
+とすることもできます。
+<P>
+
+前述した
+DPkg::Pre-Install-Pkgs
+の例で見られるように、リストを定義した場合、設定項目名はオプションになります。名前を指定しない場合、新しいエントリは、単純に新しいオプションをリストに追加します。名前を指定して同様にすると、あらゆる他の選択肢をオプションに再割り当てし、オプションを上書きできます。
+<P>
+
+#include
+(これは廃止予定でサポートしない他の実装もあります) と
+#clear
+の 2 つの特別なコマンドがあります。#include
+は指定したファイルを取り込みます。ファイル名がスラッシュで終わった場合には、そのディレクトリをすべて取り込みます。#clear
+は、設定ツリーの一部を削除するのに使用します。指定した要素と、それ以下の要素を削除します (これらの行も、セミコロンで終わる必要があることに注意してください)。
+<P>
+
+#clear
+コマンドは、リストや完全なスコープを削除する唯一の方法です。スコープの再オープン (や後述する
+::
+スタイル)は、それまで書いたエントリを<I>上書きしません</I>。オプションでは新しい値を与えて上書きするしかありませんが、リストやスコープは上書きできません。クリアされるだけです。
+<P>
+
+すべての APT ツールでは、コマンドラインで任意の設定ディレクティブを指定できる -o オプションが使用できます。構文は、完全なオプション名 (例:
+APT::Get::Assume-Yes) に続き等号、その後オプションの新しい値となります。リスト名に続き
+::
+を加えることで、リストを追加できます (疑問に思われたように、スコープ構文はコマンドラインで使用できません)。
+<P>
+
+::
+を用いたリストへの項目追加は、1 行で 1 項目の場合にのみ使用でき、スコープ構文と組み合わせるべきではないことに注意してください (スコープ構文には暗黙で
+::
+が追加されます)。両方の構文を同時に使用すると、「他のオプションと同様に名前と共に動作する、通常ではありえない名前 &quot;::&quot; のオプションである」といった、(残念なことに) 複数のユーザに渡るバグの引き金になります。たくさんの問題の中には、リストに追加しようと<I>誤った</I>構文で複数行書いたユーザが、このオプション &quot;::&quot; を最後に割り当てようとして、正反対の結果を得るということも含まれます。APT の次期バージョンでは、この誤用を検出すると、動作を停止しエラーを上げるようになります。そのため、APT がこの件で明白にエラーを吐かない限りは、自分でそのような構文を修正してください。
+<A NAME="lbAE">&nbsp;</A>
+<H2>APT グループ</H2>
+
+<P>
+
+このオプショングループは、ツール全体に影響のある、一般的な APT の振る舞いを制御します。
+<P>
+
+<B>Architecture</B>
+<DL COMPACT><DT id="8"><DD>
+システムアーキテクチャ - ファイルを取得したり、パッケージリストを解析するときに使用するアーキテクチャをセットします。内部でのデフォルトは、apt をコンパイルしたアーキテクチャです。
+</DL>
+
+<P>
+
+<B>Architectures</B>
+<DL COMPACT><DT id="9"><DD>
+システムがサポートする、すべてのアーキテクチャです。例えば、amd64
+(x86-64
+とも呼ばれます) 命令セットを実装した CPU は、i386
+(x86) 命令セット用にコンパイルされたバイナリも実行できます。このリストは、ファイルを取得しパッケージリストを解析する際に利用されます。初期のデフォルト値は、常にシステムのネイティブアーキテクチャ (APT::Architecture) です。<B>dpkg --add-architecture</B>
+を用いて、外部アーキテクチャをデフォルトリストに追加します。
+</DL>
+
+<P>
+
+<B>Compressor</B>
+<DL COMPACT><DT id="10"><DD>
+この設定項目ではどの圧縮形式をサポートするのか、その形式のサポートが apt に直接組み込まれていない場合に圧縮と展開をどのように行えばいいのか、それとこの形式で何か圧縮するのにどれくらいコストがかかるのか、という値を定義します。1つの例として、以下の内容では拡張子が
+.reversed
+のコストの低いファイルについて、ファイルの作成と保存に加えてダウンロードと展開を apt に許可し、<B>rev</B>
+による圧縮と展開の際に渡すコマンドラインパラメータを追加しない設定となります:
+<P>
+<DL COMPACT><DT id="11"><DD>
+
+
+
+<PRE>
+APT::Compressor::rev {
+        Name &quot;rev&quot;;
+        Extension &quot;.reversed&quot;;
+        Binary &quot;rev&quot;;
+        CompressArg {};
+        UncompressArg {};
+        Cost &quot;10&quot;;
+};
+</PRE>
+
+</DL>
+
+
+
+
+</DL>
+
+<P>
+
+<B>Build-Profiles</B>
+<DL COMPACT><DT id="12"><DD>
+構築依存の解決にあたって有効になっているビルドプロファイルを名前空間の「profile.」接頭辞を取り除いたもの全ての一覧です。デフォルトではこの一覧は空です。<B><A HREF="/cgi-bin/man/man2html?1+dpkg-buildpackage">dpkg-buildpackage</A></B>(1)
+で利用される
+<B>DEB_BUILD_PROFILES</B>
+はこの一覧よりも優先されます。
+</DL>
+
+<P>
+
+<B>Default-Release</B>
+<DL COMPACT><DT id="13"><DD>
+ひとつ以上のバージョンがある場合に、パッケージをインストールを行うデフォルトリリースです。リリース名や、コード名、リリースバージョンがあります。例えば 'stable', 'testing', 'unstable', 'buster', 'bullseye', '4.0', '5.0*' となります。<B><A HREF="/cgi-bin/man/man2html?5+apt_preferences">apt_preferences</A></B>(5)
+も参照してください。
+</DL>
+
+<P>
+
+<B>Ignore-Hold</B>
+<DL COMPACT><DT id="14"><DD>
+保留パッケージの無視 - このグローバルオプションは、問題解決器に保留と指定したパッケージを無視します。
+</DL>
+
+<P>
+
+<B>Clean-Installed</B>
+<DL COMPACT><DT id="15"><DD>
+デフォルトで有効です。on の時、autoclean 機能は、ダウンロードできなくなったパッケージを、すべてキャッシュから削除します。off の場合、ローカルにインストールされているパッケージは、削除対象から外します。しかし、 APT はキャッシュから削除したパッケージの再インストール方法を、直接提供するわけではないことに注意してください。
+</DL>
+
+<P>
+
+<B>Immediate-Configure</B>
+<DL COMPACT><DT id="16"><DD>
+デフォルトは on です。<B><A HREF="/cgi-bin/man/man2html?1+dpkg">dpkg</A></B>(1)
+の呼び出し失敗の影響を最小限にするため、インストール・更新操作の中で、APT は不可欠パッケージや重要パッケージを、可能な限り早くインストールするようになります。このオプションを無効にすると、以下のように、重要パッケージを特別パッケージと同様に扱うようになります。パッケージ A の展開とその設定の間に、パッケージ B や C などの関係ない、たくさんの他のパッケージの展開と設定が行えます。<B><A HREF="/cgi-bin/man/man2html?1+dpkg">dpkg</A></B>(1)
+の呼び出しに失敗した場合 (例: パッケージ B のメンテナスクリプトでエラー発生)、システムの状態は、パッケージ A は展開したが未設定になります。そのため、A に依存したパッケージの動作が保証されなくなり、A への依存関係は、もう満たせません。
+<P>
+即時 (immediate) フラグは事前依存関係と等価なため、即時設定マーカも潜在的に、循環依存関係の問題に対して適用されます。理論上 APT は、即時設定不能と認識し、中断し、操作を継続するためにこのオプションを一時的に無効にするよう提案できます。ここで言う「理論上」という言葉に注意してください。現実世界では、安定版ではないバージョンでも、この問題にはほとんど遭遇していませんし、問題のパッケージの依存関係が誤っているか、システムの状態がすでに破損している場合に発生していました。そのため、盲目的にこのオプションを無効にするべきではありません。前述のシナリオを解決する方法の、1つにしかすぎないのです。
+<P>
+このオプションを無効にして
+dist-upgrade
+のような大きな操作を実行する前に、パッケージに
+install
+を明示して、即時設定が行われないようにするべきです。ですが、動作の改善とアップグレードプロセスの修正のため、以下のバグリンクから、問題をディストリビューションと APT チームにも報告していただきたいです。
+</DL>
+
+<P>
+
+<B>Force-LoopBreak</B>
+<DL COMPACT><DT id="17"><DD>
+何をしようとしているのか<I>本当に</I>判っているのでなければ、絶対にこのオプションを有効にしないでください。不可欠 (essential) パッケージ同士で、競合 (Conflicts) /競合や競合/事前依存 (Pre-Depend) のループに落ち込んだときに、不可欠パッケージを一時的に削除してループを抜けられるようにします。<I>そんなループはあり得ないはずで、あるとすれば重大なバグです。</I>このオプションは、<B>tar</B>,
+<B>gzip</B>,
+<B>libc</B>,
+<B>dpkg</B>,
+<B>dash</B>
+とそれらが依存しているパッケージ以外の不可欠パッケージで動作します。
+</DL>
+
+<P>
+
+<B>Cache-Start</B>, <B>Cache-Grow</B>, <B>Cache-Limit</B>
+<DL COMPACT><DT id="18"><DD>
+APT は、バージョン 0.7.26 から、利用できる情報を格納するため、サイズ可変なメモリマップキャッシュファイルを使用します。Cache-Start
+は、キャッシュサイズが増大していくヒントとして動作し、従って APT が起動時に要求するメモリ量です。デフォルト値は、20971520 バイト (~20 MB) です。この領域の量が、APT に利用可能になっている必要があることに注意してください。そうでなければ、無様に失敗することになります。そのため、メモリに制限のあるデバイスで、たくさんのソースが設定され、それが増加していくシステムでは、この値をより低くしておくべきです。Cache-Grow
+は、Cache-Start
+が足りなくなったという領域定義イベントにより、どの程度キャッシュサイズを増加させるかを、バイト数で定義します。デフォルトは 1048576 (~1 MB) です。この値は全情報を格納できる量になるか、Cache-Limit
+に達するまで、繰り返し適用されます。Cache-Limit
+のデフォルトは 0 で、無制限です。Cache-Grow
+に 0 をセットすると、キャッシュの自動増加を無効にします。
+</DL>
+
+<P>
+
+<B>Build-Essential</B>
+<DL COMPACT><DT id="19"><DD>
+構築依存関係で不可欠なパッケージを定義します。
+</DL>
+
+<P>
+
+<B>Get</B>
+<DL COMPACT><DT id="20"><DD>
+Get サブセクションは
+<B><A HREF="/cgi-bin/man/man2html?8+apt-get">apt-get</A></B>(8)
+ツールを制御します。このオプションの詳細は
+<B><A HREF="/cgi-bin/man/man2html?8+apt-get">apt-get</A></B>(8)
+の文書を参照してください。
+</DL>
+
+<P>
+
+<B>Cache</B>
+<DL COMPACT><DT id="21"><DD>
+Cache サブセクションは
+<B><A HREF="/cgi-bin/man/man2html?8+apt-cache">apt-cache</A></B>(8)
+ツールを制御します。このオプションの詳細は
+<B><A HREF="/cgi-bin/man/man2html?8+apt-cache">apt-cache</A></B>(8)
+の文書を参照してください。
+</DL>
+
+<P>
+
+<B>CDROM</B>
+<DL COMPACT><DT id="22"><DD>
+CDROM サブセクションは
+<B><A HREF="/cgi-bin/man/man2html?8+apt-cdrom">apt-cdrom</A></B>(8)
+ツールを制御します。このオプションの詳細は
+<B><A HREF="/cgi-bin/man/man2html?8+apt-cdrom">apt-cdrom</A></B>(8)
+の文書を参照してください。
+</DL>
+
+<A NAME="lbAF">&nbsp;</A>
+<H2>ACQUIRE グループ</H2>
+
+<P>
+
+オプションの
+Acquire
+グループは、パッケージのダウンロードやダウンロードに関して責任を持つ、様々な「取得 (acquire) 方法」 を制御します (<B><A HREF="/cgi-bin/man/man2html?5+sources.list">sources.list</A></B>(5)
+も参照)。
+<P>
+
+<B>Check-Date</B>
+<DL COMPACT><DT id="23"><DD>
+Security related option defaulting to true, enabling time-related checks. Disabling it means that the machine's time cannot be trusted, and APT will hence disable all time-related checks, such as
+<B>Check-Valid-Until</B>
+and verifying that the Date field of a release file is not in the future.
+</DL>
+
+<P>
+
+<B>Max-FutureTime</B>
+<DL COMPACT><DT id="24"><DD>
+Maximum time (in seconds) before its creation (as indicated by the
+Date
+header) that the
+Release
+file should be considered valid. The default value is
+10. Archive specific settings can be made by appending the label of the archive to the option name. Preferably, the same can be achieved for specific
+<B><A HREF="/cgi-bin/man/man2html?5+sources.list">sources.list</A></B>(5)
+entries by using the
+<B>Date-Max-Future</B>
+option there.
+</DL>
+
+<P>
+
+<B>Check-Valid-Until</B>
+<DL COMPACT><DT id="25"><DD>
+セキュリティ関連のオプションで、デフォルトは true です。Release ファイルの有効期限検証により、長期間のリプレイ攻撃を防ぎます。さらに、例えばユーザが、もう更新されないミラーサイトを識別するのを支援します。しかしこの機能は、ユーザのシステム時計が正確であることに依存しています。アーカイブメンテナは、Valid-Until
+ヘッダがある Release ファイルを作成するよう推奨されていますが、このヘッダを付与しない、またはより厳密な値が必要な場合、以下の
+Max-ValidTime
+オプションを使用できます。<B><A HREF="/cgi-bin/man/man2html?5+sources.list">sources.list</A></B>(5)
+エントリの
+<B>Check-Valid-Until</B>
+オプションは、グローバルオーバーライドを使う代わりに選択的にチェックを無効にすることが好ましいです。
+</DL>
+
+<P>
+
+<B>Max-ValidTime</B>
+<DL COMPACT><DT id="26"><DD>
+Release
+ファイルを作成してから (Date
+ヘッダ)、有効であるとみなせる最大時間 (秒数) です。Release ファイル自体に
+Valid-Until
+ヘッダがある場合、その 2 つのうち、より早い日付が有効期間として使用されます。デフォルト値は
+0
+で「無期限」を表します。オプション名にアーカイブのラベルを付与することで、アーカイブ固有の設定を作成できます。または、<B>Valid-Until-Max</B>
+オプションを使用して特定の
+<B><A HREF="/cgi-bin/man/man2html?5+sources.list">sources.list</A></B>(5)
+エントリで同じことを達成できます。
+</DL>
+
+<P>
+
+<B>Min-ValidTime</B>
+<DL COMPACT><DT id="27"><DD>
+Release
+ファイルを作成してから (Date
+ヘッダ)、有効であるとみなせる最小時間 (秒数) です。Valid-Until
+がある頻繁に更新されるアーカイブの、ほとんど更新されない (ローカル) ミラーを使用する場合に、完全に有効期限チェックを無効にする代わりに使用してください。オプション名にアーカイブのラベルを付与することで、アーカイブ固有の設定を作成できます。または、<B>Valid-Until-Min</B>
+オプションを使用して特定の
+<B><A HREF="/cgi-bin/man/man2html?5+sources.list">sources.list</A></B>(5)
+エントリで同じことを達成できます。
+</DL>
+
+<P>
+
+<B>AllowTLS</B>
+<DL COMPACT><DT id="28"><DD>
+Allow use of the internal TLS support in the http method. If set to false, this completely disables support for TLS in apt's own methods (excluding the curl-based https method). No TLS-related functions will be called anymore.
+</DL>
+
+<P>
+
+<B>PDiffs</B>
+<DL COMPACT><DT id="29"><DD>
+(Packages
+のような) インデックス全体をダウンロードするのではなく、PDiffs
+と呼ばれる差分をダウンロードしようとします。デフォルトでは True です。または、<B>PDiffs</B>
+オプションを使用して特定の
+<B><A HREF="/cgi-bin/man/man2html?5+sources.list">sources.list</A></B>(5)
+エントリまたはインデックスファイルでこれを設定できます。
+<P>
+PDiffs の使用を制限するふたつのサブオプションがあります。FileLimit
+では、ファイルを更新するのに、PDiff ファイルをダウンロードできる最大数を指定します。一方、SizeLimit
+は、対象ファイルのサイズに対して、全パッチサイズの最大パーセンテージを指定します。どちらの制限を超えても、パッチをダウンロードする代わりに、完全なファイルをダウンロードします。
+</DL>
+
+<P>
+
+<B>By-Hash</B>
+<DL COMPACT><DT id="30"><DD>
+(Packages
+のような) インデックス全体をダウンロードするのではなく、PDiffs
+と呼ばれる差分をダウンロードしようとします。デフォルトでは True です。または、<B>By-Hash</B>
+オプションを使用して特定の
+<B><A HREF="/cgi-bin/man/man2html?5+sources.list">sources.list</A></B>(5)
+エントリまたはインデックスファイルでこれを設定できます。
+</DL>
+
+<P>
+
+<B>Queue-Mode</B>
+<DL COMPACT><DT id="31"><DD>
+キューモード -
+Queue-Mode
+は、APT がどのように並列接続を行うか、host
+か
+access
+で指定できます。host
+は、ターゲットホストごとに 1 接続を開きます。access
+は、URI タイプごとに 1 接続を開きます。
+</DL>
+
+<P>
+
+<B>Retries</B>
+<DL COMPACT><DT id="32"><DD>
+リトライの回数を設定します。0 でない場合、APT は失敗したファイルに対して、与えられた回数だけリトライを行います。
+</DL>
+
+<P>
+
+<B>Source-Symlinks</B>
+<DL COMPACT><DT id="33"><DD>
+ソースアーカイブのシンボリックリンクを使用します。true がセットされているとき、可能ならコピーの代わりにシンボリックリンクを張ります。true がデフォルトです。
+</DL>
+
+<P>
+
+<B>http</B> <B>https</B>
+<DL COMPACT><DT id="34"><DD>
+The options in these scopes configure APT's acquire transports for the protocols HTTP and HTTPS and are documented in the
+<B><A HREF="/cgi-bin/man/man2html?1+apt-transport-http">apt-transport-http</A></B>(1)
+and
+<B><A HREF="/cgi-bin/man/man2html?1+apt-transport-https">apt-transport-https</A></B>(1)
+manpages respectively.
+</DL>
+
+<P>
+
+<B>ftp</B>
+<DL COMPACT><DT id="35"><DD>
+ftp::Proxy
+は、FTP URI を使用する際のデフォルトプロキシを設定します。<A HREF="ftp://[[user][:pass]@]host[:port]/">ftp://[[user][:pass]@]host[:port]/</A>
+という標準形で表します。ホストごとのプロキシを、ftp::Proxy::&lt;host&gt;
+という形で指定できます。この時、プロキシを使用しないという意味の特殊キーワード
+DIRECT
+も使用できます。上記の設定をなにも指定しないと、環境変数
+<B>ftp_proxy</B>
+を使用します。FTP プロキシを使用するには、設定ファイルに
+ftp::ProxyLogin
+スクリプトを設定する必要があります。このエントリには、接続する際にプロキシサーバに送信するコマンドを設定します。どのようにするのかは
+/usr/share/doc/apt/examples/configure-index.gz
+の例を参照してください。URI を構成するコンポーネントに対応する置換変数は、$(PROXY_USER),
+$(PROXY_PASS),
+$(SITE_USER),
+$(SITE_PASS),
+$(SITE),
+$(SITE_PORT)
+です。
+<P>
+timeout
+オプションは、この方法でのタイムアウトまでの時間を設定します。これには、接続のタイムアウトとデータのタイムアウトが含まれています。
+<P>
+設定のいくつかは、パッシブモードを制御するものです。一般的に、パッシブモードのままにしておく方が安全で、ほぼどんな環境でも動作します。しかしある状況下では、パッシブモードが無効のため、代わりにポートモード FTP を使用する必要があります。この設定は、プロキシを通る接続や特定のホストへの接続全般に有効です (設定例はサンプル設定ファイルを参照してください)。
+<P>
+環境変数
+<B>ftp_proxy</B>
+に HTTP URL を指定すると FTP over HTTP のプロキシが利用可能になります。構文は前述の http についての説明を参照してください。設定ファイルの中でこれをセットすることはできません。また、効率が悪いため FTP over HTTP を使用するのは推奨しません。
+<P>
+ForceExtended
+の設定は RFC2428 の
+EPSV
+コマンドと
+EPRT
+コマンドの使用を制御します。デフォルトでは false で、コントロールコネクションが IPv6 の時にのみ、このコマンドを使用するということです。これを true にセットすると、IPv4 コネクションでも、強制的にこのコマンドを使用します。ほとんどの FTP サーバは RFC2428 をサポートしていないことに注意してください。
+</DL>
+
+<P>
+
+<B>cdrom</B>
+<DL COMPACT><DT id="36"><DD>
+cdrom
+メソッドを利用する URI では、設定できるオプションはマウントポイントだけです。/etc/fstab
+で設定されているように、CD-ROM (または DVD など) ドライブのマウントポイントを
+cdrom::Mount
+に設定しなければなりません。マウントポイントが fstab に記述できない場合、かわりにマウント・アンマウントコマンドも使用できます。構文は、cdrom
+ブロックを
+<P>
+<DL COMPACT><DT id="37"><DD>
+
+
+
+<PRE>
+/cdrom/::Mount &quot;foo&quot;;
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+の形で記述します。スラッシュを後につけるのが重要です。アンマウントコマンドは UMount で指定することができます。
+</DL>
+
+<P>
+
+<B>gpgv</B>
+<DL COMPACT><DT id="38"><DD>
+GPGV URI 用の唯一のオプションは、gpgv に渡す追加パラメータのオプションである、gpgv::Options
+です。
+</DL>
+
+<P>
+
+<B>CompressionTypes</B>
+<DL COMPACT><DT id="39"><DD>
+acquire メソッドが理解できる、圧縮法のリストです。Packages
+のようなファイルにはさまざまな圧縮形式が利用できます。デフォルトで acquire メソッドは、<B>xz</B>
+や
+<B>gzip</B>
+等の一般的な多くの圧縮形式で展開、再圧縮できます。この設定項目ではサポートする圧縮形式を参照、変更でき、サポートする圧縮形式をさらに追加することもできます (関連項目
+<B>APT::Compressor</B>)。
+<P>
+<DL COMPACT><DT id="40"><DD>
+
+
+
+<PRE>
+Acquire::CompressionTypes::<I>FileExtension</I> &quot;<I>Methodname</I>&quot;;
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+また、Order
+サブグループを使用して、取得システムが、圧縮ファイルのダウンロードを試みる順番を定義できます。取得システムは先頭のものを試行し、エラーが発生すると次の圧縮タイプのダウンロードを開始します。そのため、どれかを他のものより優先したい場合、単にそのタイプを先頭に追加してください。まだ追加していないタイプは、リストの最後に追加されます。つまり、
+<P>
+<DL COMPACT><DT id="41"><DD>
+
+
+
+<PRE>
+Acquire::CompressionTypes::Order:: &quot;gz&quot;;
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+とすると、<B>gzip</B>
+で圧縮されたファイルを他のどれよりも優先的に使用します。もし
+<B>xz</B>
+を
+<B>gzip</B>
+や
+<B>bzip2</B>
+よりも優先するべきなら、設定を以下のようにしてください。
+<P>
+<DL COMPACT><DT id="42"><DD>
+
+
+
+<PRE>
+Acquire::CompressionTypes::Order { &quot;xz&quot;; &quot;gz&quot;; };
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+bz2
+は自動的に追加されるため、明示する必要はありません。
+<P>
+実行時に
+Dir::Bin::<I>Methodname</I>
+をチェックすることに注意してください。このオプションが設定されていてその形式のサポートが apt に直接組み込まれていない場合、ファイルがある場合に、この方法しか使われなくなります。例えば、bzip2 メソッド (内蔵) の設定は以下になります。
+<P>
+<DL COMPACT><DT id="43"><DD>
+
+
+
+<PRE>
+Dir::Bin::bzip2 &quot;/bin/bzip2&quot;;
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+また、コマンドラインに指定した一覧のエントリは設定ファイルに指定したものの後、デフォルトエントリの前に追加されることに注意してください。この場合、設定ファイルに指定した内容よりも前に指定するには、オプションを直接 (一覧スタイルでなく) 指定してください。これは定義されている一覧を上書きするのではなく、このタイプを先頭に付加するだけです。
+<P>
+特殊なタイプ
+uncompressed
+は、非圧縮ファイルを優先するために使用できますが、ほとんどのアーカイブは非圧縮ファイルを提供しないため、ほとんどローカルミラーでのみ有効になることに注意してください。
+</DL>
+
+<P>
+
+<B>GzipIndexes</B>
+<DL COMPACT><DT id="44"><DD>
+gzip
+圧縮インデックス (Packages, Sources, Translations) をダウンロードする際、ローカルで展開せずに、gzip で圧縮したままにします。これにより、かなりディスク領域を節約できますが、ローカルパッケージキャッシュを構築する際に、CPU の能力を余計に消費します。デフォルトでは false です。
+</DL>
+
+<P>
+
+<B>Languages</B>
+<DL COMPACT><DT id="45"><DD>
+Languages サブセクションは、Translation
+ファイルをダウンロードし、APT が説明の翻訳を表示しようとする場合の挙動を制御します。APT はリストの先頭にある言語で、まず有効な説明を表示しようとします。Languages は 短い形式や長い形式の言語コードで、定義できます。すべてのアーカイブが、全言語の
+Translation
+ファイルを、提供しているわけではないことに注意してください。長い言語コードは特に見かけません。
+<P>
+デフォルトのリストには &quot;environment&quot; と &quot;en&quot; があります。&quot;environment&quot; はここでは特殊な意味があります。これは実行時に、LC_MESSAGES
+環境変数から取得した言語コードに置換されます。また、このリストには、同じコードが2度現れないように確認してください。LC_MESSAGES
+が &quot;C&quot; に設定されているだけの場合、Translation-en
+ファイルを (利用可能であれば) 使用します。強制的に APT が Translation ファイルを使用しないようにするには、Acquire::Languages=none
+と設定してください。&quot;none&quot; はもうひとつの特殊な意味を持つコードで、適切な
+Translation
+ファイルの検索を中止します。環境から実際の言語を指定されなかった場合、この値を用いて APT に翻訳をダウンロードさせます。そのため、以下の設定例では、英語ロケールの場合 &quot;en, de&quot; の順になり、ドイツ語ロケールの場合 &quot;de, en&quot; の順になります。&quot;fr&quot; はダウンロードされますが、フランス語ロケール (&quot;fr, de, en&quot; の順になる) でないと、APT が使用しないことに注意してください。
+<P>
+<DL COMPACT><DT id="46"><DD>
+
+
+
+<PRE>
+Acquire::Languages { &quot;environment&quot;; &quot;de&quot;; &quot;en&quot;; &quot;none&quot;; &quot;fr&quot;; };
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+注意: 異なる環境 (例: 異なるユーザや他のプログラム) で APT を実行したことによる問題を防ぐため、/var/lib/apt/lists/
+にあるすべての Translation ファイルを、リストの最後 (暗黙の &quot;none&quot; の後) に追加します。
+</DL>
+
+<P>
+
+<B>ForceIPv4</B>
+<DL COMPACT><DT id="47"><DD>
+ダウンロード時に IPv4 プロトコルだけを使うように強制します。
+</DL>
+
+<P>
+
+<B>ForceIPv6</B>
+<DL COMPACT><DT id="48"><DD>
+ダウンロード時に IPv6 プロトコルだけを使うように強制します。
+</DL>
+
+<P>
+
+<B>MaxReleaseFileSize</B>
+<DL COMPACT><DT id="49"><DD>
+Release/Release.gpg/InRelease ファイルの最大ファイルサイズです。デフォルトは 10MB です。
+</DL>
+
+<P>
+
+<B>EnableSrvRecords</B>
+<DL COMPACT><DT id="50"><DD>
+apt が 接続するための代替サーバを選択するために RFC 2782 で指定された DRS SRV サーバレコードを使う場合は、このオプションを制御します。デフォルトは &quot;true&quot; です。
+</DL>
+
+<P>
+
+<B>AllowInsecureRepositories</B>
+<DL COMPACT><DT id="51"><DD>
+十分なセキュリティ情報を提供していないリポジトリからのデータファイル読み込みを行う更新操作を許可します。デフォルトは「false」です。概念や影響、代替手段については
+<B><A HREF="/cgi-bin/man/man2html?8+apt-secure">apt-secure</A></B>(8)
+で説明しています。
+</DL>
+
+<P>
+
+<B>AllowWeakRepositories</B>
+<DL COMPACT><DT id="52"><DD>
+セキュリティ情報を提供してはいるものの暗号的に十分に強いものとは見なされなくなっている場合に、そういったリポジトリからのデータファイル読み込みを行う更新操作を許可します。デフォルトは「false」です。概念や影響、代替手段については
+<B><A HREF="/cgi-bin/man/man2html?8+apt-secure">apt-secure</A></B>(8)
+で説明しています。
+</DL>
+
+<P>
+
+<B>AllowDowngradeToInsecureRepositories</B>
+<DL COMPACT><DT id="53"><DD>
+以前に GPG 署名されたリポジトリが、更新操作中に署名なしにすることを許可します。以前に信頼されたリポジトリの有効な署名が存在しない場合、更新を拒否します。このオプションは、この保護を無効にするために使用することができます。ほぼ確実に、これを有効にすることはありません。デフォルトは
+false
+です。概念や影響、代替手段については
+<B><A HREF="/cgi-bin/man/man2html?8+apt-secure">apt-secure</A></B>(8)
+で説明しています。
+</DL>
+
+<P>
+
+<B>Changelogs::URI</B> スコープ
+<DL COMPACT><DT id="54"><DD>
+URI は、それらを取得する場所から知られている場合は、変更履歴の取得のみ行うことができます。好ましいリリースファイルは、「変更履歴」フィールドでこのことを示します。これが利用できない場合、Acquire::Changelogs::URI::Label::<I>LABEL</I>
+または
+Acquire::Changelogs::URI::Origin::<I>ORIGIN</I>
+オプションが存在し、そしてこの値が取られてる場合は、リリースファイルの Label/Origin フィールドが確認するために使用されます。リリースファイル内の値は、Acquire::Changelogs::URI::Override::Label::<I>LABEL</I>
+または
+Acquire::Changelogs::URI::Override::Origin::<I>ORIGIN</I>
+で上書きできます。そのパッケージ固有のデータが
+@CHANGEPATH@
+プレースホルダに置き換えられている場合以外は、値はテキストファイルへの正常な URI にする必要があります。値は次の通りです: 1. パッケージがコンポーネント (例えば、main) からのものである場合、それ以外の場合は省略されている最初の部分です、2. ソースパッケージ名の最初の文字。ただし、ソースパッケージ名が 'lib' で始まる場合を除きます (その場合は 最初の 4 文字になります)。3. 完全なソースパッケージ名。4. 再び完全な名前および 5. ソースのバージョン。(存在する場合は) 最初、第二、第三、第四の部分はスラッシュ ('/') で区切られ、第四と第五の部分の間はアンダースコア ('_') です。このソースから変更履歴を取得することができないことを示す特別な値 'no' がこのオプションで利用可能です。この場合、可能であれば別のソースが試行されます。
+</DL>
+
+<A NAME="lbAG">&nbsp;</A>
+<H2>バイナリユーザ設定</H2>
+
+<P>
+
+特に、<B>apt</B>
+のバイナリの導入では、<B>APT::Get::Show-Versions</B>
+が
+<B>apt</B>
+と同様に
+<B>apt-get</B>
+に効果を与えるように、特定のバイナリのみに影響を与えるように見えるオプションであっても、特定のバイナリのために特定のオプションを設定することは有用であり得ます。
+<P>
+
+特定のバイナリ用のオプション設定は、<B>Binary::</B><B></B><I>specific-binary</I>
+スコープ内でオプションを設定して達成することができます。
+<B>apt</B>
+用の<B>APT::Get::Show-Versions</B>
+オプションの設定は、例えば、<B>Binary::apt::APT::Get::Show-Versions</B>
+設定の代わりに実行されることができます。
+<P>
+
+さらに上記の説明の節に見られるように、コマンドライン上のオプション自体またはコマンドラインからロードされた設定ファイル中でバイナリ固有のオプションを設定することはできません。
+<A NAME="lbAH">&nbsp;</A>
+<H2>ディレクトリ</H2>
+
+<P>
+
+Dir::State
+セクションは、ローカル状態情報に関するディレクトリを保持します。lists
+は、ダウンロードしたパッケージ一覧を格納するディレクトリで、status
+は
+<B><A HREF="/cgi-bin/man/man2html?1+dpkg">dpkg</A></B>(1)
+の状態ファイルの名前を表します。preferences
+は APT の
+preferences
+ファイルの名前です。Dir::State
+には、/
+や
+./
+で始まらないサブアイテムすべてに、前に付加するデフォルトディレクトリを含んでいます。
+<P>
+
+Dir::Cache
+は、ローカルキャッシュ情報に関する場所を格納しています。これは、ダウンロード済アーカイブの場所を示す
+Dir::Cache::archives
+と同様に、srcpkgcache
+と
+pkgcache
+のパッケージキャッシュの場所になります。pkgcache
+や
+srcpkgcache
+に
+&quot;&quot;
+をセットすることで、キャッシュの生成を無効にできます。これにより起動時に遅くなりますが、ディスク容量を節約できます。おそらく、srcpkgcache よりも pkgcache を無効にすることが多いと思います。Dir::State
+と同様、Dir::Cache
+はデフォルトディレクトリを含んでいます。
+<P>
+
+Dir::Etc
+は設定ファイルの場所を格納しています。sourcelist
+はソースリストの場所を示し、main
+はデフォルトの設定ファイルです。(<B>APT_CONFIG</B>
+で設定ファイルを指定された場合のみ、この設定の効果があります)
+<P>
+
+Dir::Parts
+設定は、指定されたディレクトリから、字句単位の全ての設定断片を読みこみます。これを設定した後に、メイン設定ファイルをロードします。
+<P>
+
+バイナリプログラムは
+Dir::Bin
+で指定します。Dir::Bin::Methods
+はメソッドハンドラの場所を指定し、gzip,
+bzip2,
+lzma,
+dpkg,
+apt-get
+dpkg-source
+dpkg-buildpackage,
+apt-cache
+はそれぞれプログラムの場所を指定します。
+<P>
+
+設定項目
+RootDir
+は特別な意味を持ちます。設定されていると、すべてのパスは
+<I>絶対パスとして指定しても</I>RootDir
+からの相対パスとなります。そのため例えば、RootDir
+が
+/tmp/staging
+にセットされており、Dir::State::status
+が
+/var/lib/dpkg/status
+にセットされている場合、status ファイルを
+/tmp/staging/var/lib/dpkg/status
+から探します。相対バスのみをプレフィックスにしたい場合は、代わりに
+Dir
+を設定します。
+<P>
+
+Ignore-Files-Silently
+リストは、断片ディレクトリの解析中に、APT が黙って無視をするファイルを指定します。デフォルトではそれぞれ、.disabled,
+~,
+.bak,
+.dpkg-[a-z]+
+で終わるものが、黙って無視されます。最後のデフォルト値を見ればわかる通り、このパターンには正規表現を使用できます。
+<A NAME="lbAI">&nbsp;</A>
+<H2>DSELECT での APT</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?1+dselect">dselect</A></B>(1)
+メソッドで APT を使用する際、いくつかの設定ディレクティブでデフォルトの動作を制御します。これは
+DSelect
+セクション以下にあります。
+<P>
+
+<B>Clean</B>
+<DL COMPACT><DT id="55"><DD>
+キャッシュクリーンモード - この値は
+always,
+prompt,
+auto,
+pre-auto,
+never
+のうちひとつを取ります。always
+と
+prompt
+は更新後、全パッケージをキャッシュから削除します。prompt
+(デフォルト) では条件付きで削除します。auto
+はダウンロード不能パッケージ (例えば新バージョンで置き換えられたもの) を削除します。pre-auto
+はこの動作を、新パッケージをダウンロードする直前に行います。
+</DL>
+
+<P>
+
+<B>options</B>
+<DL COMPACT><DT id="56"><DD>
+この変数の内容は、install 時のコマンドラインオプションと同様に
+<B><A HREF="/cgi-bin/man/man2html?8+apt-get">apt-get</A></B>(8)
+に渡されます。
+</DL>
+
+<P>
+
+<B>Updateoptions</B>
+<DL COMPACT><DT id="57"><DD>
+この変数の内容は、update 時のコマンドラインオプションと同様に
+<B><A HREF="/cgi-bin/man/man2html?8+apt-get">apt-get</A></B>(8)
+に渡されます。
+</DL>
+
+<P>
+
+<B>PromptAfterUpdate</B>
+<DL COMPACT><DT id="58"><DD>
+true の場合、<B><A HREF="/cgi-bin/man/man2html?1+dselect">dselect</A></B>(1)
+の [U]pdate 実行時に、続行のためのプロンプトを毎回表示します。デフォルトはエラーが発生した場合のみです。
+</DL>
+
+<A NAME="lbAJ">&nbsp;</A>
+<H2>APT が <A HREF="/cgi-bin/man/man2html?1+DPKG">DPKG</A>(1) を呼ぶ方法</H2>
+
+<P>
+
+いくつかの設定項目で APT がどのように
+<B><A HREF="/cgi-bin/man/man2html?1+dpkg">dpkg</A></B>(1)
+を呼び出すかを制御できます。DPkg
+セクションにあります。
+<P>
+
+<B>options</B>
+<DL COMPACT><DT id="59"><DD>
+<B><A HREF="/cgi-bin/man/man2html?1+dpkg">dpkg</A></B>(1)
+に渡すオプションのリストです。オプションは、リスト記法を使用して指定しなければなりません。また、各リストは単一の引数として
+<B><A HREF="/cgi-bin/man/man2html?1+dpkg">dpkg</A></B>(1)
+に渡されます。
+</DL>
+
+<P>
+
+<B>Path</B>
+<DL COMPACT><DT id="60"><DD>
+This is a string that defines the
+<B>PATH</B>
+environment variable used when running dpkg. It may be set to any valid value of that environment variable; or the empty string, in which case the variable is not changed.
+</DL>
+
+<P>
+
+<B>Pre-Invoke</B>, <B>Post-Invoke</B>
+<DL COMPACT><DT id="61"><DD>
+<B><A HREF="/cgi-bin/man/man2html?1+dpkg">dpkg</A></B>(1)
+を呼び出す前後で実行するシェルコマンドのリストです。options
+のようにリスト記法で指定しなければなりません。コマンドは
+/bin/sh
+を通して呼び出され、何か問題があれば APT が異常終了します。
+</DL>
+
+<P>
+
+<B>Pre-Install-Pkgs</B>
+<DL COMPACT><DT id="62"><DD>
+<B><A HREF="/cgi-bin/man/man2html?1+dpkg">dpkg</A></B>(1)
+を呼び出す前に実行するシェルコマンドのリストです。options
+のようにリスト記法で指定しなければなりません。コマンドは
+/bin/sh
+を通して呼び出され、何か問題があれば、APT は異常終了します。APT はインストールしようとする全 .deb ファイルのファイル名を、要求したファイルディスクリプタについて1 行ずつ、デフォルトではコマンドの標準入力に送ります。
+<P>
+このプロトコルのバージョン 2 は、要求されたファイルディスクリプタを介してより多くの情報を送信します: テキスト
+VERSION 2
+の行、APT 設定空間、ファイル名とバージョン情報を持つパッケージ処理のリスト。
+<P>
+各設定ディレクティブ行は、key=value
+形式です。特殊文字 (key
+中のイコール記号、改行、非印字可能文字、引用符、およびパーセント記号、および
+value
+中の改行、非印字可能文字、およびパーセント記号) は、% エンコードされます。リストは、同じキーを持つ複数のkey::=value
+行で表されます。設定セクションは、空白行で終わります。
+<P>
+バージョン 2 ではパッケージアクション行は 5 つのフィールドで構成されています: パッケージ名 (例え外国だとしてもアーキテクチャ資格なしで)、旧バージョン、バージョン変更の方向 (&lt; アップグレード、&gt; ダウングレード、= 変化なし)、新バージョン、処理。バージョンなしの場合は、バージョンフィールドはすべて &quot;-&quot; です (例えば、初めてパッケージをインストール時、バージョンなしは、任意の実際のバージョンよりも前として扱われます。そのため、- &lt; 1.23.4はアップグレードとなります)。パッケージが設定されている場合のアクションフィールドは &quot;**CONFIGURE**&quot; で、削除されている場合は &quot;**REMOVE**&quot; 、解凍されている場合は .deb ファイルのファイル名です。
+<P>
+バージョン 3 では、各バージョンフィールドの後に、このバージョンのアーキテクチャが続きます。バージョンなしの場合は &quot;-&quot; 、そして MultiArch 型 &quot;same&quot;、&quot;foreign&quot;、&quot;allowed&quot; または &quot;none&quot; を示すフィールド。&quot;none&quot; は単に互換性を維持するために残された、誤った型名であることに注意してください。それは&quot;no&quot; と読まれるべきで、ユーザは両方をサポートすることをお勧めします。
+<P>
+コマンド
+<I>cmd</I>
+で利用するプロトコルのバージョンは
+DPkg::Tools::options::<I>cmd</I>::Version
+の設定により選択でき、デフォルトはバージョン 1 となっています。リクエストしたバージョンを APT がサポートしていない場合はサポートしている最大のバージョンの情報を代わりに送ります。
+<P>
+情報の送信に利用するファイルディスクリプタは
+DPkg::Tools::options::<I>cmd</I>::InfoFD
+によりリクエストでき、デフォルトは
+0
+で標準入力を指定します。バージョン 0.9.11 から利用可能となりました。環境変数
+<B>APT_HOOK_INFO_FD</B>
+を見ることでこのオプションに対応していることを検出でき、それには確認として利用しているファイルディスクリプタの番号が収録されています。
+</DL>
+
+<P>
+
+<B>Run-Directory</B>
+<DL COMPACT><DT id="63"><DD>
+APT は
+<B><A HREF="/cgi-bin/man/man2html?1+dpkg">dpkg</A></B>(1)
+を呼び出す前にこのディレクトリに移動します。デフォルトは
+/
+です。
+</DL>
+
+<P>
+
+<B>Build-options</B>
+<DL COMPACT><DT id="64"><DD>
+これらのオプションは、パッケージのコンパイル時に
+<B><A HREF="/cgi-bin/man/man2html?1+dpkg-buildpackage">dpkg-buildpackage</A></B>(1)
+に渡されます。デフォルトでは署名を無効にし、全バイナリを生成します。
+</DL>
+
+<P>
+
+<B>DPkg::ConfigurePending</B>
+<DL COMPACT><DT id="65"><DD>
+このオプションがセットされると、<B><A HREF="/cgi-bin/man/man2html?1+dpkg">dpkg</A></B>(1)
+にすべての必要な設定とトリガを扱わせるように、APT は
+<B>dpkg --configure --pending</B>
+を呼び出します。このオプションは、デフォルトで有効となっていますが、APT を複数回連続して実行する場合 (インストーラなど) には、無効にしたほうが便利かもしれません。このシナリオでは、最後以外のすべての実行で、無効にできます。
+</DL>
+
+<A NAME="lbAK">&nbsp;</A>
+<H2>PERIODIC オプションと ARCHIVES オプション</H2>
+
+<P>
+
+オプションの
+APT::Periodic
+グループと
+APT::Archives
+グループは、/usr/lib/apt/apt.systemd.daily
+スクリプトを使用して、apt の定期更新の挙動を設定します。このオプションのドキュメントは、このスクリプトの先頭を参照してください。
+<A NAME="lbAL">&nbsp;</A>
+<H2>デバッグオプション</H2>
+
+<P>
+
+Debug::
+セクションのオプションを有効にすると、apt
+ライブラリを利用するプログラムの標準エラー出力に、デバッグ情報を送るようになったり、主に
+apt
+の挙動をデバッグするのに便利な、特殊モードを有効にしたりできます。普通のユーザには、ほとんどのオプションは興味がないでしょうが、以下のものは興味を引くかもしれません。
+<P>
+<DL COMPACT><DT id="66"><DD>
+&bull;
+
+
+Debug::pkgProblemResolver
+は、dist-upgrade, upgrade, install, remove, purge
+で行われた判断についての出力を有効にします。
+</DL>
+
+<P>
+<DL COMPACT><DT id="67"><DD>
+&bull;
+
+
+Debug::NoLocking
+はファイルロックをすべて無効にします。これは、非 root ユーザとして操作 (例えば
+apt-get -s install) を行う場合に使用します。
+</DL>
+
+<P>
+<DL COMPACT><DT id="68"><DD>
+&bull;
+
+
+Debug::pkgDPkgPM
+は
+apt
+が実際に
+<B><A HREF="/cgi-bin/man/man2html?1+dpkg">dpkg</A></B>(1)
+を起動する際の各コマンドラインを表示します。
+</DL>
+
+<P>
+<DL COMPACT><DT id="69"><DD>
+&bull;
+
+
+<P>
+Debug::IdentCdrom
+は CD-ROM ID にある statfs データを含めないようにします。
+</DL>
+
+<P>
+
+以下は apt に対するデバッグオプションのすべてです。
+<P>
+
+<B>Debug::Acquire::cdrom</B>
+<DL COMPACT><DT id="70"><DD>
+cdrom://
+ソースへのアクセスに関する情報を出力します。
+</DL>
+
+<P>
+
+<B>Debug::Acquire::ftp</B>
+<DL COMPACT><DT id="71"><DD>
+FTP を用いたパッケージのダウンロードに関する情報を出力します。
+</DL>
+
+<P>
+
+<B>Debug::Acquire::http</B>
+<DL COMPACT><DT id="72"><DD>
+HTTP を用いたパッケージのダウンロードに関する情報を出力します。
+</DL>
+
+<P>
+
+<B>Debug::Acquire::https</B>
+<DL COMPACT><DT id="73"><DD>
+HTTPS を用いたパッケージのダウンロードに関する情報を出力します。
+</DL>
+
+<P>
+
+<B>Debug::Acquire::gpgv</B>
+<DL COMPACT><DT id="74"><DD>
+gpg
+を用いた暗号署名の検証に関する情報を出力します。
+</DL>
+
+<P>
+
+<B>Debug::aptcdrom</B>
+<DL COMPACT><DT id="75"><DD>
+CD-ROM にあるパッケージ集合に対して、アクセスするプロセスについての情報を出力します。
+</DL>
+
+<P>
+
+<B>Debug::BuildDeps</B>
+<DL COMPACT><DT id="76"><DD>
+<B><A HREF="/cgi-bin/man/man2html?8+apt-get">apt-get</A></B>(8)
+での構築依存関係解決のプロセスを説明します。
+</DL>
+
+<P>
+
+<B>Debug::Hashes</B>
+<DL COMPACT><DT id="77"><DD>
+apt
+ライブラリが生成した、暗号化ハッシュを出力します。
+</DL>
+
+<P>
+
+<B>Debug::IdentCDROM</B>
+<DL COMPACT><DT id="78"><DD>
+CD-ROM の ID を生成する際に
+statfs
+という、CD-ROM ファイルシステムにある使用済・未使用ブロックの数からの情報を含めないようにします。
+</DL>
+
+<P>
+
+<B>Debug::NoLocking</B>
+<DL COMPACT><DT id="79"><DD>
+ファイルのロックをすべて無効にします。例えば、同時にふたつの
+「apt-get update」
+を実行できるようになります。
+</DL>
+
+<P>
+
+<B>Debug::pkgAcquire</B>
+<DL COMPACT><DT id="80"><DD>
+グローバルダウンロードキューに対する項目の追加・削除の際にログを出力します。
+</DL>
+
+<P>
+
+<B>Debug::pkgAcquire::Auth</B>
+<DL COMPACT><DT id="81"><DD>
+ダウンロードしたファイルのチェックサムや暗号署名の確認に関する、状態メッセージやエラーを出力します。
+</DL>
+
+<P>
+
+<B>Debug::pkgAcquire::Diffs</B>
+<DL COMPACT><DT id="82"><DD>
+パッケージインデックスリスト差分のダウンロード・適用時の、情報やエラーを出力します。
+</DL>
+
+<P>
+
+<B>Debug::pkgAcquire::RRed</B>
+<DL COMPACT><DT id="83"><DD>
+インデックス全体ではなくインデックス差分のダウンロードの際に、apt パッケージリストへのパッチ適用に関する情報を出力します。
+</DL>
+
+<P>
+
+<B>Debug::pkgAcquire::Worker</B>
+<DL COMPACT><DT id="84"><DD>
+実際のダウンロードを行う際の、サブプロセスとのやりとりをログに出力します。
+</DL>
+
+<P>
+
+<B>Debug::pkgAutoRemove</B>
+<DL COMPACT><DT id="85"><DD>
+パッケージの自動インストールや、不要パッケージの削除に関するイベントを、ログに出力します。
+</DL>
+
+<P>
+
+<B>Debug::pkgDepCache::AutoInstall</B>
+<DL COMPACT><DT id="86"><DD>
+依存関係解決のために、どのパッケージが自動的にインストールされたかのデバッグメッセージを生成します。これは完全な
+apt
+依存関係解決プログラム (Debug::pkgProblemResolver
+を参照) ではなく、例えば
+apt-get install
+で実行された、初期の自動インストール経路に対応しています。
+</DL>
+
+<P>
+
+<B>Debug::pkgDepCache::Marker</B>
+<DL COMPACT><DT id="87"><DD>
+ProblemResolver が動作する際に、一時保留・インストール・削除としてマークされたパッケージに関する、デバッグメッセージを生成します。各追加・削除は追加アクションのトリガとなり、これをオリジナルのエントリの下に、空白 2 個でインデントして表示します。各行は、MarkKeep,
+MarkDelete,
+MarkInstall
+となり、package-name &lt;a.b.c -&gt; d.e.f | x.y.z&gt; (section)
+が続きます。ここで、a.b.c
+は、そのパッケージの現在のバージョン、d.e.fは、インストール予定のバージョン、x.y.z
+はより新しいけれどインストール対象外のバージョン (pin のスコアが低いため) です。後のふたつは、存在しない、ないしインストール中のバージョンと同じ場合、省略されます。section
+はパッケージが現れるセクション名です。
+</DL>
+
+<P>
+
+<B>Debug::pkgDPkgPM</B>
+<DL COMPACT><DT id="88"><DD>
+<B><A HREF="/cgi-bin/man/man2html?1+dpkg">dpkg</A></B>(1)
+起動時に、起動した際の正確なコマンドラインを出力します。引数は空白で区切られます。
+</DL>
+
+<P>
+
+<B>Debug::pkgDPkgProgressReporting</B>
+<DL COMPACT><DT id="89"><DD>
+状態ファイルディスクリプタに、<B><A HREF="/cgi-bin/man/man2html?1+dpkg">dpkg</A></B>(1)
+から受信したすべてのデータと、そのデータを解析中に発生したエラーを出力します。
+</DL>
+
+<P>
+
+<B>Debug::pkgOrderList</B>
+<DL COMPACT><DT id="90"><DD>
+apt
+が
+<B><A HREF="/cgi-bin/man/man2html?1+dpkg">dpkg</A></B>(1)
+にパッケージを渡す順番を決める、アルゴリズムのトレースを生成します。
+</DL>
+
+<P>
+
+<B>Debug::pkgPackageManager</B>
+<DL COMPACT><DT id="91"><DD>
+<B><A HREF="/cgi-bin/man/man2html?1+dpkg">dpkg</A></B>(1)
+を呼び出す際に、実行手順を追跡した状態メッセージを出力します。
+</DL>
+
+<P>
+
+<B>Debug::pkgPolicy</B>
+<DL COMPACT><DT id="92"><DD>
+起動時の各パッケージの優先度を表示します。
+</DL>
+
+<P>
+
+<B>Debug::pkgProblemResolver</B>
+<DL COMPACT><DT id="93"><DD>
+依存関係解決システムの実行内容を追跡します (これは複雑な依存関係の問題に遭遇した場合にのみ、適用されます)。
+</DL>
+
+<P>
+
+<B>Debug::pkgProblemResolver::ShowScores</B>
+<DL COMPACT><DT id="94"><DD>
+全インストール済みパッケージの、pkgProblemResolver が計算したスコアを一覧表示します。パッケージの説明は、Debug::pkgDepCache::Marker
+で説明したものと同じです。
+</DL>
+
+<P>
+
+<B>Debug::sourceList</B>
+<DL COMPACT><DT id="95"><DD>
+/etc/apt/vendors.list
+から読み込んだ、ベンダの情報を出力します。
+</DL>
+
+<P>
+
+<B>Debug::RunScripts</B>
+<DL COMPACT><DT id="96"><DD>
+aptのフックにより呼び出される外部コマンドを表示します。これには例えば、設定オプション
+DPkg::{Pre,Post}-Invoke
+や
+APT::Update::{Pre,Post}-Invoke
+があります。
+</DL>
+
+<A NAME="lbAM">&nbsp;</A>
+<H2>サンプル</H2>
+
+<P>
+
+/usr/share/doc/apt/examples/configure-index.gz
+は、全利用可能オプション値のサンプルを参照できる、設定ファイルのサンプルです。
+<A NAME="lbAN">&nbsp;</A>
+<H2>ファイル</H2>
+
+<P>
+
+/etc/apt/apt.conf
+<DL COMPACT><DT id="97"><DD>
+APT 設定ファイル。 設定項目:
+Dir::Etc::Main
+</DL>
+
+<P>
+
+/etc/apt/apt.conf.d/
+<DL COMPACT><DT id="98"><DD>
+APT 設定ファイル断片。 設定項目:
+Dir::Etc::Parts
+</DL>
+
+<A NAME="lbAO">&nbsp;</A>
+<H2>関連項目</H2>
+
+<P>
+
+<P>
+<B><A HREF="/cgi-bin/man/man2html?8+apt-cache">apt-cache</A></B>(8),
+<B><A HREF="/cgi-bin/man/man2html?8+apt-config">apt-config</A></B>(8),
+<B><A HREF="/cgi-bin/man/man2html?5+apt_preferences">apt_preferences</A></B>(5).
+<A NAME="lbAP">&nbsp;</A>
+<H2>バグ</H2>
+
+<P>
+
+m[blue]<B>APT バグページ</B>m[]<FONT SIZE="-2">[1]</FONT>
+をご覧ください。 APT のバグを報告する場合は、
+/usr/share/doc/debian/bug-reporting.txt
+や
+<B><A HREF="/cgi-bin/man/man2html?1+reportbug">reportbug</A></B>(1)
+コマンドをご覧ください。
+<A NAME="lbAQ">&nbsp;</A>
+<H2>翻訳</H2>
+
+<P>
+
+倉澤 望
+&lt;<A HREF="mailto:nabetaro@debian.or.jp">nabetaro@debian.or.jp</A>&gt;
+(2003-2006,2009-2012), Takuma Yamada
+&lt;<A HREF="mailto:tyamada@takumayamada.com">tyamada@takumayamada.com</A>&gt;
+(2016), Debian JP Documentation ML
+&lt;<A HREF="mailto:debian-doc@debian.or.jp">debian-doc@debian.or.jp</A>&gt;
+<P>
+
+この翻訳文書には未訳部分が含まれている可能性があることに 注意してください。 翻訳がオリジナルに追従できていない場合、 内容を失わないようにこのようにしています。
+<A NAME="lbAR">&nbsp;</A>
+<H2>著者</H2>
+
+<P>
+
+<B>Gunthorpe Jason[FAMILY Given]</B>
+<DL COMPACT><DT id="99"><DD>
+</DL>
+
+<P>
+
+<B>[FAMILY Given]</B>
+<DL COMPACT><DT id="100"><DD>
+</DL>
+
+<P>
+
+<B>Burrows Daniel[FAMILY Given]</B> &lt;<A HREF="mailto:dburrows@debian.org">dburrows@debian.org</A>&gt;
+<DL COMPACT><DT id="101"><DD>
+Debug::* に関する最初のドキュメント
+</DL>
+
+<A NAME="lbAS">&nbsp;</A>
+<H2>注記</H2>
+
+<DL COMPACT>
+<DT id="102"> 1.<DD>
+APT バグページ
+<DL COMPACT><DT id="103"><DD>
+<A HREF="http://bugs.debian.org/src:apt">http://bugs.debian.org/src:apt</A>
+</DL>
+
+<P>
+</DL>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="104"><A HREF="#lbAB">名前</A><DD>
+<DT id="105"><A HREF="#lbAC">説明</A><DD>
+<DT id="106"><A HREF="#lbAD">構文</A><DD>
+<DT id="107"><A HREF="#lbAE">APT グループ</A><DD>
+<DT id="108"><A HREF="#lbAF">ACQUIRE グループ</A><DD>
+<DT id="109"><A HREF="#lbAG">バイナリユーザ設定</A><DD>
+<DT id="110"><A HREF="#lbAH">ディレクトリ</A><DD>
+<DT id="111"><A HREF="#lbAI">DSELECT での APT</A><DD>
+<DT id="112"><A HREF="#lbAJ">APT が DPKG(1) を呼ぶ方法</A><DD>
+<DT id="113"><A HREF="#lbAK">PERIODIC オプションと ARCHIVES オプション</A><DD>
+<DT id="114"><A HREF="#lbAL">デバッグオプション</A><DD>
+<DT id="115"><A HREF="#lbAM">サンプル</A><DD>
+<DT id="116"><A HREF="#lbAN">ファイル</A><DD>
+<DT id="117"><A HREF="#lbAO">関連項目</A><DD>
+<DT id="118"><A HREF="#lbAP">バグ</A><DD>
+<DT id="119"><A HREF="#lbAQ">翻訳</A><DD>
+<DT id="120"><A HREF="#lbAR">著者</A><DD>
+<DT id="121"><A HREF="#lbAS">注記</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:05 GMT, March 31, 2021
+</BODY>
+</HTML>

@@ -1,0 +1,278 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of Glib::Error</TITLE>
+</HEAD><BODY>
+<H1>Glib::Error</H1>
+Section: User Contributed Perl Documentation (3pm)<BR>Updated: 2020-02-18<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+Glib::Error -  Exception Objects based on GError
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+
+
+
+
+<PRE>
+  eval {
+     my $pixbuf = Gtk2::Gdk::Pixbuf-&gt;new_from_file ($filename);
+     $image-&gt;set_from_pixbuf ($pixbuf);
+  };
+  if ($@) {
+     print &quot;$@\n&quot;;
+     if (Glib::Error::matches ($@, 'Gtk2::Gdk::Pixbuf::Error',
+                                   'unknown-format')) {
+        change_format_and_try_again ();
+     } elsif (Glib::Error::matches ($@, 'Glib::File::Error', 'noent')) {
+        change_source_dir_and_try_again ();
+     } else {
+        # don't know how to handle this
+        die $@;
+     }
+  }
+
+</PRE>
+
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+
+Gtk2-Perl translates GLib's GError runtime errors into Perl exceptions, by
+creating exception objects based on Glib::Error.  Glib::Error overloads the
+stringification operator, so a Glib::Error object will act like a string if
+used with <B>print()</B> or <B>warn()</B>, so most code using $@ will not even know the
+difference.
+<P>
+
+The point of having exception objects, however, is that the error messages
+in GErrors are often localized with <FONT SIZE="-1">NLS</FONT> translation.  Thus, it's not good
+for your code to attempt to handle errors by string matching on the the 
+error message.  Glib::Error provides a way to get to the deterministic
+error code.
+<P>
+
+You will typically deal with objects that inherit from Glib::Error, such as
+Glib::Convert::Error, Glib::File::Error, Gtk2::Gdk::Pixbuf::Error, etc; these
+classes are provided by the libraries that define the error domains.  However,
+it is possible to get a base Glib::Error when the bindings encounter an unknown
+or unbound error domain.  The interface used here degrades nicely in such a
+situation, but in general you should submit a bug report to the binding
+maintainer if you get such an exception.
+<A NAME="lbAE">&nbsp;</A>
+<H2>HIERARCHY</H2>
+
+
+
+
+
+<PRE>
+  Glib::Boxed
+  +----Glib::Error
+
+</PRE>
+
+
+<A NAME="lbAF">&nbsp;</A>
+<H2>METHODS</H2>
+
+
+
+<A NAME="lbAG">&nbsp;</A>
+<H3>scalar = Glib::Error::new ($class, $code, $message)</H3>
+
+
+
+
+
+<A NAME="lbAH">&nbsp;</A>
+<H3>scalar = $class-&gt;<B>new</B> ($code, $message)</H3>
+
+
+
+
+
+<DL COMPACT>
+<DT id="1">&bull;<DD>
+<TT>$code</TT> (Glib::Enum) an enumeration value, depends on <I></I>$class<I></I>
+<DT id="2">&bull;<DD>
+<TT>$message</TT> (string)
+</DL>
+<P>
+
+Create a new exception object of type <I></I>$class<I></I>, where <I></I>$class<I></I> is associated
+with a GError domain.  <I></I>$code<I></I> should be a value from the enumeration type
+associated with this error domain.  <I></I>$message<I></I> can be anything you like, but
+should explain what happened from the point of view of a user.
+<A NAME="lbAI">&nbsp;</A>
+<H3>integer = $error-&gt;<B>code</B></H3>
+
+
+
+
+
+This is the numeric error code.  Normally, you'll want to use <TT>&quot;value&quot;</TT> instead,
+for readability.
+<A NAME="lbAJ">&nbsp;</A>
+<H3>string = $error-&gt;<B>domain</B></H3>
+
+
+
+
+
+The error domain.  You normally do not need this, as the object will be blessed
+into a corresponding class.
+<A NAME="lbAK">&nbsp;</A>
+<H3>string = $error-&gt;<B>location</B></H3>
+
+
+
+
+
+The source line and file closest to the emission of the exception, in the same
+format that you'd get from <B>croak()</B> or <B>die()</B>.
+<P>
+
+If there's non-ascii characters in the filename Perl leaves them as
+raw bytes, so you may have to put the string through
+Glib::filename_display_name for a wide-char form.
+<A NAME="lbAL">&nbsp;</A>
+<H3>boolean = $error-&gt;<B>matches</B> ($domain, $code)</H3>
+
+
+
+
+
+<DL COMPACT>
+<DT id="3">&bull;<DD>
+<TT>$domain</TT> (string)
+<DT id="4">&bull;<DD>
+<TT>$code</TT> (scalar)
+</DL>
+<P>
+
+Returns true if the exception in <I></I>$error<I></I> matches the given <I></I>$domain<I></I> and
+<I></I>$code<I></I>.  <I></I>$domain<I></I> may be a class name or domain quark (that is, the real
+string used in C).  <I></I>$code<I></I> may be an integer value or an enum nickname;
+the enum type depends on the value of <I></I>$domain<I></I>.
+<A NAME="lbAM">&nbsp;</A>
+<H3>string = $error-&gt;<B>message</B></H3>
+
+
+
+
+
+The error message.  This may be localized, as it is intended to be shown to a
+user.
+<A NAME="lbAN">&nbsp;</A>
+<H3>Glib::Error::register ($package, $enum_package)</H3>
+
+
+
+
+
+<DL COMPACT>
+<DT id="5">&bull;<DD>
+<TT>$package</TT> (string) class name to register as a Glib::Error.
+<DT id="6">&bull;<DD>
+<TT>$enum_package</TT> (string) class name of the enum type to use for this domain's error codes.
+</DL>
+<P>
+
+Register a new error domain.  Glib::Error will be added @<I>package</I>::ISA for
+you.  <I>enum_package</I> must be a valid Glib::Enum type, either from a C library
+or registered with <TT>&quot;Glib::Type::register_enum&quot;</TT>.  After registering an
+error domain, you can create or throw exceptions of this type.
+<A NAME="lbAO">&nbsp;</A>
+<H3>scalar = Glib::Error::throw ($class, $code, $message)</H3>
+
+
+
+
+
+<A NAME="lbAP">&nbsp;</A>
+<H3>scalar = $class-&gt;<B>throw</B> ($code, $message)</H3>
+
+
+
+
+
+<DL COMPACT>
+<DT id="7">&bull;<DD>
+<TT>$code</TT> (Glib::Enum) an enumeration value, depends on <I></I>$class<I></I>
+<DT id="8">&bull;<DD>
+<TT>$message</TT> (string)
+</DL>
+<P>
+
+Throw an exception with a Glib::Error exception object.
+Equivalent to <TT>&quot;croak (Glib::Error::new ($class, $code, $message));&quot;</TT>.
+<A NAME="lbAQ">&nbsp;</A>
+<H3>string = $error-&gt;<B>value</B></H3>
+
+
+
+
+
+The enumeration value nickname of the integer value in <TT>&quot;$error-&gt;code&quot;</TT>, 
+according to this error domain.  This will not be available if the error
+object is a base Glib::Error, because the bindings will have no idea how to
+get to the correct nickname.
+<A NAME="lbAR">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+
+Glib, Glib::Boxed
+<A NAME="lbAS">&nbsp;</A>
+<H2>COPYRIGHT</H2>
+
+
+
+Copyright (C) 2003-2011 by the gtk2-perl team.
+<P>
+
+This software is licensed under the <FONT SIZE="-1">LGPL.</FONT>  See Glib for a full notice.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="9"><A HREF="#lbAB">NAME</A><DD>
+<DT id="10"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="11"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="12"><A HREF="#lbAE">HIERARCHY</A><DD>
+<DT id="13"><A HREF="#lbAF">METHODS</A><DD>
+<DL>
+<DT id="14"><A HREF="#lbAG">scalar = Glib::Error::new ($class, $code, $message)</A><DD>
+<DT id="15"><A HREF="#lbAH">scalar = $class-&gt;<B>new</B> ($code, $message)</A><DD>
+<DT id="16"><A HREF="#lbAI">integer = $error-&gt;<B>code</B></A><DD>
+<DT id="17"><A HREF="#lbAJ">string = $error-&gt;<B>domain</B></A><DD>
+<DT id="18"><A HREF="#lbAK">string = $error-&gt;<B>location</B></A><DD>
+<DT id="19"><A HREF="#lbAL">boolean = $error-&gt;<B>matches</B> ($domain, $code)</A><DD>
+<DT id="20"><A HREF="#lbAM">string = $error-&gt;<B>message</B></A><DD>
+<DT id="21"><A HREF="#lbAN">Glib::Error::register ($package, $enum_package)</A><DD>
+<DT id="22"><A HREF="#lbAO">scalar = Glib::Error::throw ($class, $code, $message)</A><DD>
+<DT id="23"><A HREF="#lbAP">scalar = $class-&gt;<B>throw</B> ($code, $message)</A><DD>
+<DT id="24"><A HREF="#lbAQ">string = $error-&gt;<B>value</B></A><DD>
+</DL>
+<DT id="25"><A HREF="#lbAR">SEE ALSO</A><DD>
+<DT id="26"><A HREF="#lbAS">COPYRIGHT</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:44 GMT, March 31, 2021
+</BODY>
+</HTML>

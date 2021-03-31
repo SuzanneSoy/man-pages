@@ -1,0 +1,459 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of File::FcntlLock::Inline</TITLE>
+</HEAD><BODY>
+<H1>File::FcntlLock::Inline</H1>
+Section: User Contributed Perl Documentation (3pm)<BR>Updated: 2019-10-18<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+File::FcntlLock - File locking with <A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A>(2)
+<P>
+
+This text also documents the following sub-packages:
+<DL COMPACT>
+<DT id="1">File::FcntlLock::XS<DD>
+
+
+
+<DT id="2">File::FcntlLock::Pure<DD>
+
+
+<DT id="3">File::FcntlLock::Inline<DD>
+
+
+
+</DL>
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+
+
+
+
+<PRE>
+  use File::FcntlLock;
+
+  my $fs = new File::FcntlLock;
+  $fs-&gt;l_type( F_RDLCK );
+  $fs-&gt;l_whence( SEEK_CUR );
+  $fs-&gt;l_start( 100 );
+  $fs-&gt;l_len( 123 );
+
+  open my $fh, '&lt;', 'file_name' or die &quot;Can't open file: $!\n&quot;;
+  $fs-&gt;lock( $fh, F_SETLK )
+      or print &quot;Locking failed: &quot; . $fs-&gt;error . &quot;\n&quot;;
+  $fs-&gt;l_type( F_UNLCK );
+  $fs-&gt;lock( $fh, F_SETLK )
+      or print &quot;Unlocking failed: &quot; . $fs-&gt;error . &quot;\n&quot;;
+
+</PRE>
+
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+
+File locking in Perl is usually done using the <TT>&quot;flock&quot;</TT> function.
+Unfortunately, this only allows locks on whole files and is often
+implemented in terms of the <B><A HREF="/cgi-bin/man/man2html?2+flock">flock</A></B>(2) system function which has
+some shortcomings (especially concerning locks on remotely mounted
+file systems) and slightly different behaviour than <B><A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A></B>(2).
+<P>
+
+Using this module file locking via <B><A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A></B>(2) can be done (obviously,
+this restricts the use of the module to systems that have a <B><A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A></B>(2)
+system call). Before a file (or parts of a file) can be locked, an
+object simulating a flock structure, containing information in a
+binary format to be passed to <B><A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A></B>(2) for locking requests, must
+be created and its properties set. Afterwards, by calling the <B>lock()</B>
+method a lock can be set and removed or it can be determined if and which
+process currently holds the lock.
+<P>
+
+File::FcntlLock (or its alias File::FcntlLock::XS) uses a shared library,
+build during installation, to call the <B><A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A></B>(2) system function directly.
+If this is unsuitable there are two alternatives, File::FcntlLock::Pure and
+File::FcntlLock::Inline. Both call the Perl <TT>&quot;fcntl&quot;</TT> function instead and
+use Perl code to assemble and disassemble the structure. For this at some
+time the (system-dependent) binary layout of the flock structure must
+have been determined via a program written in C. The difference between
+File::FcntlLock::Pure and File::FcntlLock::Inline is that for the former
+this happened when the package is installed while for the latter it is
+done each time the package is loaded (e.g., with <TT>&quot;use&quot;</TT>). Thus, for
+File::FcntlLock::Inline to work a C compiler must be available. There
+are some minor differences in the functionality and the behaviour on
+passing the method for locking invalid arguments to be described below.
+<A NAME="lbAE">&nbsp;</A>
+<H3>Creating objects</H3>
+
+
+
+<DL COMPACT>
+<DT id="4">&quot;new()&quot;<DD>
+
+
+
+
+To create a new object, representing a flock structure, call <B>new()</B>:
+
+
+<P>
+
+
+
+
+<PRE>
+  $fs = new File::FcntlLock;
+
+</PRE>
+
+
+
+
+<P>
+
+
+The object has a number of properties, reflecting the members of the
+flock structure to be passed to <B><A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A></B>(2) (see below). Per default
+on object creation the l_type property is set to <TT>&quot;F_RDLCK&quot;</TT>,
+l_whence to <TT>&quot;SEEK_SET&quot;</TT>, and both l_start and l_len to 0,
+i.e., the settings for a read lock on the whole file.
+
+
+<P>
+
+
+These defaults can be overruled by passing the <B>new()</B> method a set
+of key-value pairs to initialize the objects properties, e.g. use
+
+
+<P>
+
+
+
+
+<PRE>
+  $fs = new File::FcntlLock( l_type   =&gt; F_WRLCK,
+                             l_whence =&gt; SEEK_SET,
+                             l_start  =&gt; 0,
+                             l_len    =&gt; 100 );
+
+</PRE>
+
+
+
+
+<P>
+
+
+if you intend to obtain a write lock for the first 100 bytes of a file.
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H3>Object properties</H3>
+
+
+
+Once the object simulating the flock structure has been created
+the following methods allow to query and, in most cases, to also
+modify its properties.
+<DL COMPACT>
+<DT id="5">&quot;l_type()&quot;<DD>
+
+
+
+
+If called without an argument the method returns the current setting
+of the lock type, otherwise the lock type is set to the argument's value
+which must be either <TT>&quot;F_RDLCK&quot;</TT>, <TT>&quot;F_WRLCK&quot;</TT> or <TT>&quot;F_UNLCK&quot;</TT> (for read lock,
+write lock or unlock).
+<DT id="6">&quot;l_whence()&quot;<DD>
+
+
+
+
+This method sets, when called with an argument, the l_whence
+property of the flock object, determining if the l_start value
+is relative to the start of the file, to the current position in
+the file or to the end of the file. These values are <TT>&quot;SEEK_SET&quot;</TT>,
+<TT>&quot;SEEK_CUR&quot;</TT> and <TT>&quot;SEEK_END&quot;</TT> (also see the man page for <B><A HREF="/cgi-bin/man/man2html?2+lseek">lseek</A></B>(2)).
+If called with no argument the current value of the property is
+returned.
+<DT id="7">&quot;l_start()&quot;<DD>
+
+
+
+
+Queries or sets the start position (offset) of the lock in the file
+according to the mode selected by the l_whence member. See also
+the man page for <B><A HREF="/cgi-bin/man/man2html?2+lseek">lseek</A></B>(2).
+<DT id="8">&quot;l_len()&quot;<DD>
+
+
+
+
+Queries or sets the length of the region (in bytes) in the file to
+be locked. A value of 0 is interpreted to mean a lock, starting at
+<TT>&quot;l_start&quot;</TT>, to the end of the file. E.g., a lock obtained with
+l_whence set to <TT>&quot;SEEK_SET&quot;</TT> and both l_start and l_len set
+to 0 locks the complete file.
+
+
+<P>
+
+
+According to SUSv3 support for negative values for l_len are
+permitted, resulting in a lock ranging from <TT>&quot;l_start+l_len&quot;</TT> up to
+and including <TT>&quot;l_start-1&quot;</TT>. But not all systems support negative
+values for l_len and will return an error when you try to obtain
+such a lock, so please read the <B><A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A></B>(2) man page of the system
+carefully for details.
+<DT id="9">&quot;l_pid()&quot;<DD>
+
+
+
+
+If a call of the <B>lock()</B> method with <TT>&quot;F_GETLK&quot;</TT> indicates that
+another process is holding the lock (in which case the l_type
+property will be either <TT>&quot;F_WRLCK&quot;</TT> or <TT>&quot;F_RDLCK&quot;</TT>) a call of the
+<B>l_pid()</B> method returns the <FONT SIZE="-1">PID</FONT> of the process holding the lock.
+This method does not accept any arguments.
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H3>Locking</H3>
+
+
+
+After having set up the object representing a flock structure one
+can then try to obtain a lock, release it or determine the current
+holder of the lock by invoking the <B>lock()</B> method:
+<DL COMPACT>
+<DT id="10">&quot;lock()&quot;<DD>
+
+
+
+
+This method expects two arguments. The first one is a file handle
+(or typeglob). File::FcntlLock, and thus File::FcntlLock::XS (<B>but
+neither</B> File::FcntlLock::Pure <B>nor</B> File::FcntlLock::Inline), also
+accepts a ``raw'' integer file descriptor. The second argument is a
+flag indicating the action to be taken. So call it as in
+
+
+<P>
+
+
+
+
+<PRE>
+  $fs-&gt;lock( $fh, F_SETLK );
+
+</PRE>
+
+
+
+
+<P>
+
+
+There are three values that can be used as the second argument:
+<DL COMPACT><DT id="11"><DD>
+<DL COMPACT>
+<DT id="12">&quot;F_SETLK&quot;<DD>
+
+
+
+
+With <TT>&quot;F_SETLK&quot;</TT> the <B>lock()</B> method tries to obtain a lock (when
+l_type is set to either <TT>&quot;F_WRLCK&quot;</TT> or <TT>&quot;F_RDLCK&quot;</TT>) or releases it
+(if l_type is set to <TT>&quot;F_UNLCK&quot;</TT>). If an attempt is made to obtain
+a lock but a lock is already being held by some other process the
+method returns <TT>&quot;undef&quot;</TT> and <TT>&quot;errno&quot;</TT> is set to <TT>&quot;EACCESS&quot;</TT> or
+<TT>&quot;EAGAIN&quot;</TT> (please see the the man page for <B><A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A></B>(2) for more
+details).
+<DT id="13">&quot;F_SETLKW&quot;<DD>
+
+
+
+
+is similar to <TT>&quot;F_SETLK&quot;</TT>, but instead of returning an error if the
+lock can't be obtained immediately it puts the calling process to
+sleep, i.e., it blocks, until the lock is obtained at some later
+time. If a signal is received while waiting for the lock the
+method returns <TT>&quot;undef&quot;</TT> and <TT>&quot;errno&quot;</TT> is set to <TT>&quot;EINTR&quot;</TT>.
+<DT id="14">&quot;F_GETLK&quot;<DD>
+
+
+
+
+With <TT>&quot;F_GETLK&quot;</TT> the <B>lock()</B> method determines if and which process
+currently is holding the lock.  If there's no other lock the l_type
+property will be set to <TT>&quot;F_UNLCK&quot;</TT>. Otherwise the flock structure object
+is set to the values that would prevent us from obtaining a lock. There
+may be several processes that keep us from getting a lock, including
+some that themselves are blocked waiting to obtain a lock. <TT>&quot;F_GETLK&quot;</TT>
+will only make details of one of these processes visible, and one has
+no control over which process this is.
+</DL>
+</DL>
+
+<DL COMPACT><DT id="15"><DD>
+
+
+<P>
+
+
+On success the <B>lock()</B> method returns the string ``0 but true'',
+i.e., a value that is true in boolean but 0 in numeric context. If
+the method fails (as indicated by an <TT>&quot;undef&quot;</TT> return value) you can
+either immediately evaluate the error number (using $!, <TT>$ERRNO</TT> or
+<TT>$OS_ERROR</TT>) or check for it via the methods discussed below at some
+later time.
+</DL>
+
+</DL>
+<A NAME="lbAH">&nbsp;</A>
+<H3>Error handling</H3>
+
+
+
+There are minor differences between File::FcntlLock on the one hand
+and File::FcntlLock::Pure and File::FcntlLock::Inline on the other,
+due to the first calling the system function <B><A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A></B>(2) directly
+while the latter two invoke the Perl <TT>&quot;fcntl&quot;</TT> function. Perl's
+<TT>&quot;fcntl&quot;</TT> function already returns a Perl error on some types of
+invalid arguments. In contrast File::FcntlLock passes them on to the
+<B><A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A></B>(2) system call and then returns the systems response to the
+caller.
+<P>
+
+There are three methods for obtaining information about the
+reason the a call of the <B>lock()</B> method failed:
+<DL COMPACT>
+<DT id="16">&quot;lock_errno()&quot;<DD>
+
+
+
+
+Returns the <TT>&quot;errno&quot;</TT> error number from the latest call of <B>lock()</B>.
+If the last call did not result in an error <TT>&quot;undef&quot;</TT> is returned.
+<DT id="17">&quot;error()&quot;<DD>
+
+
+
+
+Returns a short description of the error that happened during the
+latest call of <B>lock()</B>. Please take the messages with a grain of
+salt, they represent what SUSv3 (<FONT SIZE="-1">IEEE 1003.1-2001</FONT>) and the Linux,
+<FONT SIZE="-1">TRUE64,</FONT> OpenBSD3 and Solaris8 man pages tell what the error numbers
+mean. There could be differences (and additional error numbers) on
+other systems. If there was no error the method returns <TT>&quot;undef&quot;</TT>.
+<DT id="18">&quot;system_error()&quot;<DD>
+
+
+
+
+While the <B>error()</B> method tries to return a string with some direct
+relevance to the locking operation (i.e., ``File or segment already
+locked by other process(es)'' instead of ``Permission denied'') this method
+returns the ``normal'' system error message associated with <TT>&quot;errno&quot;</TT>. The
+method returns <TT>&quot;undef&quot;</TT> if there was no error.
+</DL>
+<A NAME="lbAI">&nbsp;</A>
+<H3><FONT SIZE="-1">EXPORT</FONT></H3>
+
+
+
+The package exports the following constants:
+<DL COMPACT>
+<DT id="19">F_GETLK F_SETLK F_SETLKW<DD>
+
+
+
+<DT id="20">F_RDLCK F_WRLCK F_UNLCK<DD>
+
+
+<DT id="21"><FONT SIZE="-1">SEEK_SET SEEK_CUR SEEK_END</FONT><DD>
+
+
+
+</DL>
+<A NAME="lbAJ">&nbsp;</A>
+<H2>INCOMPATIBILITIES</H2>
+
+
+
+Obviously, this module requires that there's a <B><A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A></B>(2) system
+call. Note also that under certain circumstances the File::FcntlLock::Pure
+and File::FcntlLock::Inline modules may not have been installed. This
+happens on 32-bit systems that use 64-bit integers in their flock
+structure but where the installed Perl version doesn't support the 'q'
+format for its <TT>&quot;pack&quot;</TT> and <TT>&quot;unpack&quot;</TT> functions.
+<A NAME="lbAK">&nbsp;</A>
+<H2>CREDITS</H2>
+
+
+
+Thanks to Mark Jason Dominus and Benjamin Goldberg for helpful discussions,
+code examples and encouragement. Glenn Herteg pointed out several problems
+and also helped improve the documentation. Julian Moreno Patino helped
+correcting the documentation and pointed out problems arising on <FONT SIZE="-1">GNU</FONT> Hurd
+which seems to have only very rudimentary support for locking with
+<B><A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A></B>(2). Niko Tyni and Guillem Jover encouraged and helped with
+implementing alternatives to an XS-only approach which hopefully will
+make the module more useful under certain circumstances.
+<A NAME="lbAL">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+
+
+Jens Thoms Toerring &lt;<A HREF="mailto:jt@toerring.de">jt@toerring.de</A>&gt;
+<A NAME="lbAM">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+
+<B><A HREF="/cgi-bin/man/man2html?1+perl">perl</A></B>(1), <B><A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A></B>(2), <B><A HREF="/cgi-bin/man/man2html?2+lseek">lseek</A></B>(2).
+<A NAME="lbAN">&nbsp;</A>
+<H2>LICENSE</H2>
+
+
+
+This library is free software. You can redistribute it and/or modify it
+under the same terms as Perl itself.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="22"><A HREF="#lbAB">NAME</A><DD>
+<DT id="23"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="24"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DL>
+<DT id="25"><A HREF="#lbAE">Creating objects</A><DD>
+<DT id="26"><A HREF="#lbAF">Object properties</A><DD>
+<DT id="27"><A HREF="#lbAG">Locking</A><DD>
+<DT id="28"><A HREF="#lbAH">Error handling</A><DD>
+<DT id="29"><A HREF="#lbAI"><FONT SIZE="-1">EXPORT</FONT></A><DD>
+</DL>
+<DT id="30"><A HREF="#lbAJ">INCOMPATIBILITIES</A><DD>
+<DT id="31"><A HREF="#lbAK">CREDITS</A><DD>
+<DT id="32"><A HREF="#lbAL">AUTHOR</A><DD>
+<DT id="33"><A HREF="#lbAM">SEE ALSO</A><DD>
+<DT id="34"><A HREF="#lbAN">LICENSE</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:43 GMT, March 31, 2021
+</BODY>
+</HTML>

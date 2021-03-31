@@ -1,0 +1,2203 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of STRACE</TITLE>
+</HEAD><BODY>
+<H1>STRACE</H1>
+Section: User Commands  (1)<BR>Updated: 2020-02-04<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+strace - trace system calls and signals
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+
+[ <B>-ACdffhikqqrtttTvVwxxyyzZ</B> ]
+
+
+
+[ <B>-I </B><I>n</I> ]
+
+[ <B>-b </B><I>execve</I> ]
+
+
+[<B>-e</B><I>&nbsp;expr</I>]...
+
+
+
+
+[ <B>-a </B><I>column</I> ]
+
+[ <B>-o </B><I>file</I> ]
+
+[ <B>-s </B><I>strsize</I> ]
+
+[ <B>-X </B><I>format</I> ]
+
+
+[<B>-P</B><I>&nbsp;path</I>]...
+
+
+
+
+
+[<B>-p</B><I>&nbsp;pid</I>]...
+
+
+
+
+[ <B>--seccomp-bpf</B> ]
+
+<B></B>{
+
+
+<B>-p</B><I>&nbsp;pid</I>
+
+
+
+
+<B></B>|
+
+[ <B>-DDD</B> ]
+
+
+[<B>-E</B><I>&nbsp;var[=<I>val</I>]</I>]...
+
+
+
+
+[ <B>-u </B><I>username</I> ]
+
+<I>command</I> [<I>args</I>]
+
+<B></B>}
+
+
+
+<B>-c</B>
+
+[ <B>-dfwzZ</B> ]
+
+[ <B>-I </B><I>n</I> ]
+
+[ <B>-b </B><I>execve</I> ]
+
+
+[<B>-e</B><I>&nbsp;expr</I>]...
+
+
+
+
+[ <B>-O </B><I>overhead</I> ]
+
+[ <B>-S </B><I>sortby</I> ]
+
+
+[<B>-P</B><I>&nbsp;path</I>]...
+
+
+
+
+
+[<B>-p</B><I>&nbsp;pid</I>]...
+
+
+
+
+[ <B>--seccomp-bpf</B> ]
+
+<B></B>{
+
+
+<B>-p</B><I>&nbsp;pid</I>
+
+
+
+
+<B></B>|
+
+[ <B>-DDD</B> ]
+
+
+[<B>-E</B><I>&nbsp;var[=<I>val</I>]</I>]...
+
+
+
+
+[ <B>-u </B><I>username</I> ]
+
+<I>command</I> [<I>args</I>]
+
+<B></B>}
+
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<A NAME="ixAAB"></A>
+<P>
+
+In the simplest case
+<B>strace</B>
+
+runs the specified
+<I>command</I>
+
+until it exits.
+It intercepts and records the system calls which are called
+by a process and the signals which are received by a process.
+The name of each system call, its arguments and its return value
+are printed on standard error or to the file specified with the
+<B>-o</B>
+
+option.
+<P>
+
+<B>strace</B>
+
+is a useful diagnostic, instructional, and debugging tool.
+System administrators, diagnosticians and trouble-shooters will find
+it invaluable for solving problems with
+programs for which the source is not readily available since
+they do not need to be recompiled in order to trace them.
+Students, hackers and the overly-curious will find that
+a great deal can be learned about a system and its system calls by
+tracing even ordinary programs.  And programmers will find that
+since system calls and signals are events that happen at the user/kernel
+interface, a close examination of this boundary is very
+useful for bug isolation, sanity checking and
+attempting to capture race conditions.
+<P>
+
+Each line in the trace contains the system call name, followed
+by its arguments in parentheses and its return value.
+An example from stracing the command &quot;cat /dev/null&quot; is:
+
+<P>
+
+<PRE>
+open(&quot;/dev/null&quot;, O_RDONLY) = 3
+
+</PRE>
+
+
+<P>
+
+Errors (typically a return value of -1) have the errno symbol
+and error string appended.
+
+<P>
+
+<PRE>
+open(&quot;/foo/bar&quot;, O_RDONLY) = -1 ENOENT (No such file or directory)
+
+</PRE>
+
+
+<P>
+
+Signals are printed as signal symbol and decoded siginfo structure.
+An excerpt from stracing and interrupting the command &quot;sleep 666&quot; is:
+
+<P>
+
+<PRE>
+sigsuspend([] &lt;unfinished ...&gt;
+--- SIGINT {si_signo=SIGINT, si_code=SI_USER, si_pid=...} ---
++++ killed by SIGINT +++
+
+</PRE>
+
+
+<P>
+
+If a system call is being executed and meanwhile another one is being called
+from a different thread/process then
+<B>strace</B>
+
+will try to preserve the order of those events and mark the ongoing call as
+being
+<I>unfinished</I>.
+
+When the call returns it will be marked as
+<I>resumed</I>.
+
+
+<P>
+
+<PRE>
+[pid 28772] select(4, [3], NULL, NULL, NULL &lt;unfinished ...&gt;
+[pid 28779] clock_gettime(CLOCK_REALTIME, {1130322148, 939977000}) = 0
+[pid 28772] &lt;... select resumed&gt; )      = 1 (in [3])
+
+</PRE>
+
+
+<P>
+
+Interruption of a (restartable) system call by a signal delivery is processed
+differently as kernel terminates the system call and also arranges its
+immediate reexecution after the signal handler completes.
+
+<P>
+
+<PRE>
+read(0, 0x7ffff72cf5cf, 1)              = ? ERESTARTSYS (To be restarted)
+--- SIGALRM ... ---
+rt_sigreturn(0xe)                       = 0
+read(0, &quot;&quot;, 1)                          = 0
+
+</PRE>
+
+
+<P>
+
+Arguments are printed in symbolic form with passion.
+This example shows the shell performing &quot;&gt;&gt;xyzzy&quot; output redirection:
+
+<P>
+
+<PRE>
+open(&quot;xyzzy&quot;, O_WRONLY|O_APPEND|O_CREAT, 0666) = 3
+
+</PRE>
+
+
+<P>
+
+Here, the third argument of
+<B><A HREF="/cgi-bin/man/man2html?2+open">open</A></B>(2)
+
+is decoded by breaking down the
+flag argument into its three bitwise-OR constituents and printing the
+mode value in octal by tradition.  Where the traditional or native
+usage differs from ANSI or POSIX, the latter forms are preferred.
+In some cases,
+<B>strace</B>
+
+output is proven to be more readable than the source.
+<P>
+
+Structure pointers are dereferenced and the members are displayed
+as appropriate.  In most cases, arguments are formatted in the most C-like
+fashion possible.
+For example, the essence of the command &quot;ls -l /dev/null&quot; is captured as:
+
+<P>
+
+<PRE>
+lstat(&quot;/dev/null&quot;, {st_mode=S_IFCHR|0666, st_rdev=makedev(0x1, 0x3), ...}) = 0
+
+</PRE>
+
+
+<P>
+
+Notice how the 'struct stat' argument is dereferenced and how each member is
+displayed symbolically.  In particular, observe how the
+<B>st_mode</B>
+
+member is carefully decoded into a bitwise-OR of symbolic and numeric values.
+Also notice in this example that the first argument to
+<B><A HREF="/cgi-bin/man/man2html?2+lstat">lstat</A></B>(2)
+
+is an input to the system call and the second argument is an output.
+Since output arguments are not modified if the system call fails, arguments may
+not always be dereferenced.  For example, retrying the &quot;ls -l&quot; example
+with a non-existent file produces the following line:
+
+<P>
+
+<PRE>
+lstat(&quot;/foo/bar&quot;, 0xb004) = -1 ENOENT (No such file or directory)
+
+</PRE>
+
+
+<P>
+
+In this case the porch light is on but nobody is home.
+<P>
+
+Syscalls unknown to
+<B>strace</B>
+
+are printed raw, with the unknown system call number printed in hexadecimal form
+and prefixed with &quot;syscall_&quot;:
+
+<P>
+
+<PRE>
+syscall_0xbad(0x1, 0x2, 0x3, 0x4, 0x5, 0x6) = -1 ENOSYS (Function not implemented)
+
+</PRE>
+
+
+<P>
+
+<P>
+
+Character pointers are dereferenced and printed as C strings.
+Non-printing characters in strings are normally represented by
+ordinary C escape codes.
+Only the first
+<I>strsize</I>
+
+(32 by default) bytes of strings are printed;
+longer strings have an ellipsis appended following the closing quote.
+Here is a line from &quot;ls -l&quot; where the
+<B><A HREF="/cgi-bin/man/man2html?3+getpwuid">getpwuid</A></B>(3)
+
+library routine is reading the password file:
+
+<P>
+
+<PRE>
+read(3, &quot;root::0:0:System Administrator:/&quot;..., 1024) = 422
+
+</PRE>
+
+
+<P>
+
+While structures are annotated using curly braces, simple pointers
+and arrays are printed using square brackets with commas separating
+elements.  Here is an example from the command
+<B><A HREF="/cgi-bin/man/man2html?1+id">id</A></B>(1)
+
+on a system with supplementary group ids:
+
+<P>
+
+<PRE>
+getgroups(32, [100, 0]) = 2
+
+</PRE>
+
+
+<P>
+
+On the other hand, bit-sets are also shown using square brackets,
+but set elements are separated only by a space.
+Here is the shell, preparing to execute an external command:
+
+<P>
+
+<PRE>
+sigprocmask(SIG_BLOCK, [CHLD TTOU], []) = 0
+
+</PRE>
+
+
+<P>
+
+Here, the second argument is a bit-set of two signals,
+<B>SIGCHLD</B> and <B>SIGTTOU</B>.
+
+In some cases, the bit-set is so full that printing out the unset
+elements is more valuable.  In that case, the bit-set is prefixed by
+a tilde like this:
+
+<P>
+
+<PRE>
+sigprocmask(SIG_UNBLOCK, ~[], NULL) = 0
+
+</PRE>
+
+
+<P>
+
+Here, the second argument represents the full set of all signals.
+<A NAME="lbAE">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<A NAME="lbAF">&nbsp;</A>
+<H3>General</H3>
+
+<DL COMPACT>
+<DT id="1"><B>-e </B><I>expr</I>
+
+<DD>
+A qualifying expression which modifies which events to trace
+or how to trace them.  The format of the expression is:
+<DL COMPACT><DT id="2"><DD>
+<DL COMPACT>
+<DT id="3"><DD>
+[,<I>qualifier/</I><B>=</B>][<B>!</B>],<I>value/</I>[<B>,</B>,<I>value/</I>]...
+</DL>
+</DL>
+
+<DT id="4"><DD>
+where
+<I>qualifier</I>
+
+is one of
+<B>trace</B>,
+
+<B>abbrev</B>,
+
+<B>verbose</B>,
+
+<B>raw</B>,
+
+<B>signal</B>,
+
+<B>read</B>,
+
+<B>write</B>,
+
+<B>fault</B>,
+
+<B>inject</B>,
+
+<B>status</B>,
+
+or
+<B>kvm</B>,
+
+and
+<I>value</I>
+
+is a qualifier-dependent symbol or number.  The default
+qualifier is
+<B>trace</B>.
+
+Using an exclamation mark negates the set of values.  For example,
+<B>-e</B>&nbsp;<B>open</B>
+
+means literally
+<B>-e</B>&nbsp;<B>trace</B>=<B>open</B>
+
+which in turn means trace only the
+<B>open</B>
+
+system call.  By contrast,
+<B>-e</B>&nbsp;<B>trace</B>=!<B>open</B>
+
+means to trace every system call except
+<B>open</B>.
+
+In addition, the special values
+<B>all</B>
+
+and
+<B>none</B>
+
+have the obvious meanings.
+<DT id="5"><DD>
+Note that some shells use the exclamation point for history
+expansion even inside quoted arguments.  If so, you must escape
+the exclamation point with a backslash.
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H3>Startup</H3>
+
+<DL COMPACT>
+<DT id="6"><B>-E&nbsp;</B><I>var</I>=,<I>val</I><DD>
+
+<B>--env</B>=<B></B><I>var</I>=<B></B><I>val</I>
+
+Run command with
+<I>var</I>=<I>val</I>
+
+in its list of environment variables.
+<DT id="7"><B>-E </B><I>var</I>
+
+<DD>
+
+<B>--env</B>=<B></B><I>var</I>
+
+Remove
+<I>var</I>
+
+from the inherited list of environment variables before passing it on to
+the command.
+<DT id="8"><B>-p </B><I>pid</I>
+
+<DD>
+
+<B>--attach</B>=<B></B><I>pid</I>
+
+Attach to the process with the process
+<FONT SIZE="-1">ID</FONT>
+<I>pid</I>
+
+and begin tracing.
+The trace may be terminated
+at any time by a keyboard interrupt signal
+(<B>CTRL-C</B>).
+
+<B>strace</B>
+
+will respond by detaching itself from the traced process(es)
+leaving it (them) to continue running.
+Multiple
+<B>-p</B>
+
+options can be used to attach to many processes in addition to
+<I>command</I>
+
+(which is optional if at least one
+<B>-p</B>
+
+option is given).
+<B>-p</B>
+
+&quot;`pidof PROG`&quot; syntax is supported.
+<DT id="9"><B>-u </B><I>username</I>
+
+<DD>
+
+<B>--user</B>=<B></B><I>username</I>
+
+Run command with the user <FONT SIZE="-1">ID</FONT>, group <FONT SIZE="-2">ID</FONT>, and
+supplementary groups of
+<I>username</I>.
+
+This option is only useful when running as root and enables the
+correct execution of setuid and/or setgid binaries.
+Unless this option is used setuid and setgid programs are executed
+without effective privileges.
+</DL>
+<A NAME="lbAH">&nbsp;</A>
+<H3>Tracing</H3>
+
+<DL COMPACT>
+<DT id="10"><B>-b </B><I>syscall</I>
+
+<DD>
+
+<B>--detach-on</B>=<B></B><I>syscall</I>
+
+If specified syscall is reached, detach from traced process.
+Currently, only
+<B><A HREF="/cgi-bin/man/man2html?2+execve">execve</A></B>(2)
+
+syscall is supported.  This option is useful if you want to trace
+multi-threaded process and therefore require
+<B>-f</B>,
+
+but don't want to trace its (potentially very complex) children.
+<DT id="11"><B>-D</B>
+
+<DD>
+Run tracer process as a grandchild, not as the parent of the
+tracee.  This reduces the visible effect of
+<B>strace</B>
+
+by keeping the tracee a direct child of the calling process.
+<DT id="12"><B>-DD</B>
+
+<DD>
+Run tracer process as tracee's grandchild in a separate process group.
+In addition to reduction of the visible effect of
+<B>strace</B>,
+
+it also avoids killing of
+<B>strace</B>
+
+with
+<B><A HREF="/cgi-bin/man/man2html?2+kill">kill</A></B>(2)
+
+issued to the whole process group.
+<DT id="13"><B>-DDD</B>
+
+<DD>
+Run tracer process as tracee's grandchild in a separate session
+(&quot;true daemonisation&quot;).
+In addition to reduction of the visible effect of
+<B>strace</B>,
+
+it also avoids killing of
+<B>strace</B>
+
+upon session termination.
+<DT id="14"><B>-f</B>
+
+<DD>
+Trace child processes as they are created by currently traced
+processes as a result of the
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+vfork">vfork</A></B>(2)
+
+and
+<B><A HREF="/cgi-bin/man/man2html?2+clone">clone</A></B>(2)
+
+system calls.  Note that
+<B>-p</B>
+
+<I>PID</I>
+
+<B>-f</B>
+
+will attach all threads of process
+<I>PID</I>
+
+if it is multi-threaded, not only thread with
+<I>thread_id</I> = <I>PID</I>.
+
+<DT id="15"><B>-ff</B>
+
+<DD>
+If the
+<B>-o</B>
+
+<I>filename</I>
+
+option is in effect, each processes trace is written to
+<I>filename</I>.<I>pid</I>
+
+where
+<I>pid</I>
+
+is the numeric process id of each process.
+This is incompatible with
+<B>-c</B>,
+
+since no per-process counts are kept.
+<DT id="16"><DD>
+One might want to consider using
+<B><A HREF="/cgi-bin/man/man2html?1+strace-log-merge">strace-log-merge</A></B>(1)
+
+to obtain a combined strace log view.
+<DT id="17"><B>-I </B><I>interruptible</I>
+
+<DD>
+When
+<B>strace</B>
+
+can be interrupted by signals (such as pressing
+<B>CTRL-C</B>).
+
+<DL COMPACT><DT id="18"><DD>
+<DL COMPACT>
+<DT id="19"><B>1</B>
+
+<DD>
+no signals are blocked;
+
+<B>2</B>
+
+fatal signals are blocked while decoding syscall (default);
+
+<B>3</B>
+
+fatal signals are always blocked (default if
+<B>-o</B> <B></B><I>FILE</I> <B></B><I>PROG</I>);
+
+
+<B>4</B>
+
+fatal signals and
+<B>SIGTSTP</B> (<B>CTRL-Z</B>)
+
+are always blocked (useful to make
+<B>strace -o </B><I>FILE PROG</I>
+
+not stop on
+<B>CTRL-Z</B>,
+
+default if
+<B>-D</B>).
+
+</DL>
+</DL>
+
+</DL>
+<A NAME="lbAI">&nbsp;</A>
+<H3>Filtering</H3>
+
+<DL COMPACT>
+<DT id="20"><B>-e&nbsp;trace</B>=,<I>syscall_set</I><DD>
+
+<B>--trace</B>=,<I>syscall_set</I>
+Trace only the specified set of system calls.
+<I>syscall_set</I>
+
+is defined as
+[<B>!</B>],<I>value</I>[<B>,</B>,<I>value/</I>],
+and
+<I>value</I>
+
+can be one of the following:
+<DL COMPACT><DT id="21"><DD>
+<DL COMPACT>
+<DT id="22"><I>syscall</I>
+
+<DD>
+Trace specific syscall, specified by its name (but see
+<B>NOTES</B>).
+
+<DT id="23"><B>?</B><I>value</I>
+
+<DD>
+Question mark before the syscall qualification allows suppression of error
+in case no syscalls matched the qualification provided.
+<DT id="24"><B>/</B><I>regex</I>
+
+<DD>
+Trace only those system calls that match the
+<I>regex</I>.
+
+You can use
+<B>POSIX</B>
+
+Extended Regular Expression syntax (see
+<B><A HREF="/cgi-bin/man/man2html?7+regex">regex</A></B>(7)).
+
+<DT id="25"><I>syscall</I><B>@64</B>
+
+<DD>
+Trace
+<I>syscall</I>
+
+only for the 64-bit personality.
+<DT id="26"><I>syscall</I><B>@32</B>
+
+<DD>
+Trace
+<I>syscall</I>
+
+only for the 32-bit personality.
+<DT id="27"><I>syscall</I><B>@x32</B>
+
+<DD>
+Trace
+<I>syscall</I>
+
+only for the 32-on-64-bit personality.
+<DT id="28"><B>%file</B>
+
+<DD>
+
+<B>file</B>
+
+Trace all system calls which take a file name as an argument.  You
+can think of this as an abbreviation for
+<B>-e&nbsp;trace</B>=<B>open</B>,<B>stat</B>,<B>chmod</B>,<B>unlink</B>,...
+
+which is useful to seeing what files the process is referencing.
+Furthermore, using the abbreviation will ensure that you don't
+accidentally forget to include a call like
+<B><A HREF="/cgi-bin/man/man2html?2+lstat">lstat</A></B>(2)
+
+in the list.  Betchya woulda forgot that one.
+The syntax without a preceding percent sign
+(&quot;<B>-e trace</B>=<B>file</B>&quot;)
+
+is deprecated.
+<DT id="29"><B>%process</B>
+
+<DD>
+
+<B>process</B>
+
+Trace all system calls which involve process management.  This
+is useful for watching the fork, wait, and exec steps of a process.
+The syntax without a preceding percent sign
+(&quot;<B>-e trace</B>=<B>process</B>&quot;)
+
+is deprecated.
+<DT id="30"><B>%net</B>
+
+<DD>
+
+<B>%network</B>
+
+
+<B>network</B>
+
+Trace all the network related system calls.
+The syntax without a preceding percent sign
+(&quot;<B>-e trace</B>=<B>network</B>&quot;)
+
+is deprecated.
+<DT id="31"><B>%signal</B>
+
+<DD>
+
+<B>signal</B>
+
+Trace all signal related system calls.
+The syntax without a preceding percent sign
+(&quot;<B>-e trace</B>=<B>signal</B>&quot;)
+
+is deprecated.
+<DT id="32"><B>%ipc</B>
+
+<DD>
+
+<B>ipc</B>
+
+Trace all IPC related system calls.
+The syntax without a preceding percent sign
+(&quot;<B>-e trace</B>=<B>ipc</B>&quot;)
+
+is deprecated.
+<DT id="33"><B>%desc</B>
+
+<DD>
+
+<B>desc</B>
+
+Trace all file descriptor related system calls.
+The syntax without a preceding percent sign
+(&quot;<B>-e trace</B>=<B>desc</B>&quot;)
+
+is deprecated.
+<DT id="34"><B>%memory</B>
+
+<DD>
+
+<B>memory</B>
+
+Trace all memory mapping related system calls.
+The syntax without a preceding percent sign
+(&quot;<B>-e trace</B>=<B>memory</B>&quot;)
+
+is deprecated.
+<DT id="35"><B>%creds</B>
+
+<DD>
+Trace system calls that read or modify user and group identifiers or capability sets.
+<DT id="36"><B>%stat</B>
+
+<DD>
+Trace stat syscall variants.
+<DT id="37"><B>%lstat</B>
+
+<DD>
+Trace lstat syscall variants.
+<DT id="38"><B>%fstat</B>
+
+<DD>
+Trace fstat and fstatat syscall variants.
+<DT id="39"><B>%%stat</B>
+
+<DD>
+Trace syscalls used for requesting file status (stat, lstat, fstat, fstatat,
+statx, and their variants).
+<DT id="40"><B>%statfs</B>
+
+<DD>
+Trace statfs, statfs64, statvfs, osf_statfs, and osf_statfs64 system calls.
+The same effect can be achieved with
+<B>-e&nbsp;trace</B>=<B>/^(.*_)?statv?fs</B>
+
+regular expression.
+<DT id="41"><B>%fstatfs</B>
+
+<DD>
+Trace fstatfs, fstatfs64, fstatvfs, osf_fstatfs, and osf_fstatfs64 system calls.
+The same effect can be achieved with
+<B>-e&nbsp;trace</B>=<B>/fstatv?fs</B>
+
+regular expression.
+<DT id="42"><B>%%statfs</B>
+
+<DD>
+Trace syscalls related to file system statistics (statfs-like, fstatfs-like,
+and ustat).  The same effect can be achieved with
+<B>-e&nbsp;trace</B>=<B>/statv?fs|fsstat|ustat</B>
+
+regular expression.
+<DT id="43"><B>%pure</B>
+
+<DD>
+Trace syscalls that always succeed and have no arguments.
+Currently, this list includes
+<B><A HREF="/cgi-bin/man/man2html?2+arc_gettls">arc_gettls</A></B>(2), <B><A HREF="/cgi-bin/man/man2html?2+getdtablesize">getdtablesize</A></B>(2), <B><A HREF="/cgi-bin/man/man2html?2+getegid">getegid</A></B>(2), <B><A HREF="/cgi-bin/man/man2html?2+getegid32">getegid32</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+geteuid">geteuid</A></B>(2), <B><A HREF="/cgi-bin/man/man2html?2+geteuid32">geteuid32</A></B>(2), <B><A HREF="/cgi-bin/man/man2html?2+getgid">getgid</A></B>(2), <B><A HREF="/cgi-bin/man/man2html?2+getgid32">getgid32</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+getpagesize">getpagesize</A></B>(2), <B><A HREF="/cgi-bin/man/man2html?2+getpgrp">getpgrp</A></B>(2), <B><A HREF="/cgi-bin/man/man2html?2+getpid">getpid</A></B>(2), <B><A HREF="/cgi-bin/man/man2html?2+getppid">getppid</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+get_thread_area">get_thread_area</A></B>(2)
+
+(on architectures other than x86),
+<B><A HREF="/cgi-bin/man/man2html?2+gettid">gettid</A></B>(2), <B><A HREF="/cgi-bin/man/man2html?2+get_tls">get_tls</A></B>(2), <B><A HREF="/cgi-bin/man/man2html?2+getuid">getuid</A></B>(2), <B><A HREF="/cgi-bin/man/man2html?2+getuid32">getuid32</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+getxgid">getxgid</A></B>(2), <B><A HREF="/cgi-bin/man/man2html?2+getxpid">getxpid</A></B>(2), <B><A HREF="/cgi-bin/man/man2html?2+getxuid">getxuid</A></B>(2), <B><A HREF="/cgi-bin/man/man2html?2+kern_features">kern_features</A></B>(2), and
+
+<B><A HREF="/cgi-bin/man/man2html?2+metag_get_tls">metag_get_tls</A></B>(2)
+
+syscalls.
+</DL>
+</DL>
+
+<DT id="44"><DD>
+The
+<B>-c</B>
+
+option is useful for determining which system calls might be useful
+to trace.  For example,
+<B>trace</B>=<B>open,close,read,write</B>
+
+means to only
+trace those four system calls.  Be careful when making inferences
+about the user/kernel boundary if only a subset of system calls
+are being monitored.  The default is
+<B>trace</B>=<B>all</B>.
+
+<DT id="45"><B>-e&nbsp;signal</B>=,<I>set</I><DD>
+
+<B>--signal</B>=,<I>set</I>
+Trace only the specified subset of signals.  The default is
+<B>signal</B>=<B>all</B>.
+
+For example,
+<B>signal</B>=!<B>SIGIO</B>
+
+(or
+<B>signal</B>=!<B>io</B>)
+
+causes
+<B>SIGIO</B>
+
+signals not to be traced.
+<DT id="46"><B>-e&nbsp;status</B>=,<I>set</I><DD>
+
+<B>--status</B>=,<I>set</I>
+Print only system calls with the specified return status.  The default is
+<B>status</B>=<B>all</B>.
+
+When using the
+<B>status</B>
+
+qualifier, because
+<B>strace</B>
+
+waits for system calls to return before deciding whether they should be printed
+or not, the traditional order of events may not be preserved anymore.  If two
+system calls are executed by concurrent threads,
+<B>strace</B>
+
+will first print both the entry and exit of the first system call to exit,
+regardless of their respective entry time.  The entry and exit of the second
+system call to exit will be printed afterwards.  Here is an example when
+<B><A HREF="/cgi-bin/man/man2html?2+select">select</A></B>(2)
+
+is called, but a different thread calls
+<B><A HREF="/cgi-bin/man/man2html?2+clock_gettime">clock_gettime</A></B>(2)
+
+before
+<B><A HREF="/cgi-bin/man/man2html?2+select">select</A></B>(2)
+
+finishes:
+
+<P>
+
+<PRE>
+[pid 28779] 1130322148.939977 clock_gettime(CLOCK_REALTIME, {1130322148, 939977000}) = 0
+[pid 28772] 1130322148.438139 select(4, [3], NULL, NULL, NULL) = 1 (in [3])
+
+</PRE>
+
+
+<P>
+
+<I>set</I>
+
+can include the following elements:
+<DL COMPACT><DT id="47"><DD>
+<DL COMPACT>
+<DT id="48"><B>successful</B>
+
+<DD>
+Trace system calls that returned without an error code.
+The
+<B>-z</B>
+
+option has the effect of
+<B>status</B>=<B>successful</B>.
+
+
+<B>failed</B>
+
+Trace system calls that returned with an error code.
+The
+<B>-Z</B>
+
+option has the effect of
+<B>status</B>=<B>failed</B>.
+
+
+<B>unfinished</B>
+
+Trace system calls that did not return.  This might happen, for example, due to
+an execve call in a neighbour thread.
+
+<B>unavailable</B>
+
+Trace system calls that returned but strace failed to fetch the error status.
+
+<B>detached</B>
+
+Trace system calls for which strace detached before the return.
+</DL>
+</DL>
+
+<DT id="49"><B>-P </B><I>path</I>
+
+<DD>
+
+<B>--trace-path</B>=<B></B><I>path</I>
+
+Trace only system calls accessing
+<I>path</I>.
+
+Multiple
+<B>-P</B>
+
+options can be used to specify several paths.
+<DT id="50"><B>-z</B>
+
+<DD>
+Print only syscalls that returned without an error code.
+<DT id="51"><B>-Z</B>
+
+<DD>
+Print only syscalls that returned with an error code.
+</DL>
+<A NAME="lbAJ">&nbsp;</A>
+<H3>Output format</H3>
+
+<DL COMPACT>
+<DT id="52"><B>-a </B><I>column</I>
+
+<DD>
+
+<B>--columns</B>=<B></B><I>column</I>
+
+Align return values in a specific column (default column 40).
+<DT id="53"><B>-e&nbsp;abbrev</B>=,<I>syscall_set</I><DD>
+
+<B>--abbrev</B>=,<I>syscall_set</I>
+Abbreviate the output from printing each member of large structures.
+The syntax of the
+<I>syscall_set</I>
+
+specification is the same as in the
+<B>-e trace</B>
+
+option.
+The default is
+<B>abbrev</B>=<B>all</B>.
+
+The
+<B>-v</B>
+
+option has the effect of
+<B>abbrev</B>=<B>none</B>.
+
+<DT id="54"><B>-e&nbsp;verbose</B>=,<I>syscall_set</I><DD>
+
+<B>--verbose</B>=,<I>syscall_set</I>
+Dereference structures for the specified set of system calls.
+The syntax of the
+<I>syscall_set</I>
+
+specification is the same as in the
+<B>-e trace</B>
+
+option.
+The default is
+<B>verbose</B>=<B>all</B>.
+
+<DT id="55"><B>-e&nbsp;raw</B>=,<I>syscall_set</I><DD>
+
+<B>--raw</B>=,<I>syscall_set</I>
+Print raw, undecoded arguments for the specified set of system calls.
+The syntax of the
+<I>syscall_set</I>
+
+specification is the same as in the
+<B>-e trace</B>
+
+option.
+This option has the effect of causing all arguments to be printed
+in hexadecimal.  This is mostly useful if you don't trust the
+decoding or you need to know the actual numeric value of an
+argument.
+See also
+<B>-X raw</B>
+
+option.
+<DT id="56"><B>-e&nbsp;read</B>=,<I>set</I><DD>
+
+<B>--read</B>=,<I>set</I>
+Perform a full hexadecimal and ASCII dump of all the data read from
+file descriptors listed in the specified set.  For example, to see
+all input activity on file descriptors
+<I>3</I>
+
+and
+<I>5</I>
+
+use
+<B>-e&nbsp;read</B>=,<I>3</I>,<I>5</I>.
+Note that this is independent from the normal tracing of the
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)
+
+system call which is controlled by the option
+<B>-e</B>&nbsp;<B>trace</B>=<B>read</B>.
+
+<DT id="57"><B>-e&nbsp;write</B>=,<I>set</I><DD>
+
+<B>--write</B>=,<I>set</I>
+Perform a full hexadecimal and ASCII dump of all the data written to
+file descriptors listed in the specified set.  For example, to see
+all output activity on file descriptors
+<I>3</I>
+
+and
+<I>5</I>
+
+use
+<B>-e&nbsp;write</B>=,<I>3</I>,,<I>5</I>.
+Note that this is independent from the normal tracing of the
+<B><A HREF="/cgi-bin/man/man2html?2+write">write</A></B>(2)
+
+system call which is controlled by the option
+<B>-e</B>&nbsp;<B>trace</B>=<B>write</B>.
+
+<DT id="58"><B>-e&nbsp;kvm</B>=<B>vcpu</B>
+
+<DD>
+
+<B>--kvm</B>=<B>vcpu</B>
+
+Print the exit reason of kvm vcpu.  Requires Linux kernel version 4.16.0
+or higher.
+<DT id="59"><B>-i</B>
+
+<DD>
+
+<B>--instruction-pointer</B>
+
+Print the instruction pointer at the time of the system call.
+<DT id="60"><B>-k</B>
+
+
+<DD>
+
+
+
+<B>--stack-traces</B>
+
+
+Print the execution stack trace of the traced
+processes after each system call.
+<DT id="61"><B>-o </B><I>filename</I>
+
+<DD>
+
+<B>--output</B>=<B></B><I>filename</I>
+
+Write the trace output to the file
+<I>filename</I>
+
+rather than to stderr.
+<I>filename</I>.<I>pid</I>
+
+form is used if
+<B>-ff</B>
+
+option is supplied.
+If the argument begins with '|' or '!', the rest of the
+argument is treated as a command and all output is piped to it.
+This is convenient for piping the debugging output to a program
+without affecting the redirections of executed programs.
+The latter is not compatible with
+<B>-ff</B>
+
+option currently.
+<DT id="62"><B>-A</B>
+
+<DD>
+
+<B>--output-append-mode</B>
+
+Open the file provided in the
+<B>-o</B>
+
+option in append mode.
+<DT id="63"><B>-q</B>
+
+<DD>
+Suppress messages about attaching, detaching etc.  This happens
+automatically when output is redirected to a file and the command
+is run directly instead of attaching.
+<DT id="64"><B>-qq</B>
+
+<DD>
+If given twice, suppress messages about process exit status.
+<DT id="65"><B>-r</B>
+
+<DD>
+Print a relative timestamp upon entry to each system call.  This
+records the time difference between the beginning of successive
+system calls.
+Note that since
+<B>-r</B>
+
+option uses the monotonic clock time for measuring time difference and not the
+wall clock time, its measurements can differ from the difference in time
+reported by the
+<B>-t</B>
+
+option.
+<DT id="66"><B>-s </B><I>strsize</I>
+
+<DD>
+
+<B>--string-limit</B>=<B></B><I>strsize</I>
+
+Specify the maximum string size to print (the default is 32).  Note
+that filenames are not considered strings and are always printed in
+full.
+<DT id="67"><B>-t</B>
+
+<DD>
+Prefix each line of the trace with the wall clock time.
+<DT id="68"><B>-tt</B>
+
+<DD>
+If given twice, the time printed will include the microseconds.
+<DT id="69"><B>-ttt</B>
+
+<DD>
+If given thrice, the time printed will include the microseconds
+and the leading portion will be printed as the number
+of seconds since the epoch.
+<DT id="70"><B>-T</B>
+
+<DD>
+Show the time spent in system calls.  This records the time
+difference between the beginning and the end of each system call.
+<DT id="71"><B>-v</B>
+
+<DD>
+
+<B>--no-abbrev</B>
+
+Print unabbreviated versions of environment, stat, termios, etc.
+calls.  These structures are very common in calls and so the default
+behavior displays a reasonable subset of structure members.  Use
+this option to get all of the gory details.
+<DT id="72"><B>-x</B>
+
+<DD>
+Print all non-ASCII strings in hexadecimal string format.
+<DT id="73"><B>-xx</B>
+
+<DD>
+Print all strings in hexadecimal string format.
+<DT id="74"><B>-X </B><I>format</I>
+
+<DD>
+
+<B>--const-print-style</B>=<B></B><I>format</I>
+
+Set the format for printing of named constants and flags.
+Supported
+<I>format</I>
+
+values are:
+<DL COMPACT><DT id="75"><DD>
+<DL COMPACT>
+<DT id="76"><B>raw</B>
+
+<DD>
+Raw number output, without decoding.
+
+<B>abbrev</B>
+
+Output a named constant or a set of flags instead of the raw number if they are
+found.
+This is the default
+<B>strace</B>
+
+behaviour.
+
+<B>verbose</B>
+
+Output both the raw value and the decoded string (as a comment).
+</DL>
+</DL>
+
+<DT id="77"><B>-y</B>
+
+<DD>
+Print paths associated with file descriptor arguments.
+<DT id="78"><B>-yy</B>
+
+<DD>
+Print protocol specific information associated with socket file descriptors,
+and block/character device number associated with device file descriptors.
+</DL>
+<A NAME="lbAK">&nbsp;</A>
+<H3>Statistics</H3>
+
+<DL COMPACT>
+<DT id="79"><B>-c</B>
+
+<DD>
+
+<B>--summary-only</B>
+
+Count time, calls, and errors for each system call and report a summary on
+program exit, suppressing the regular output.
+This attempts to show system time (CPU time spent running
+in the kernel) independent of wall clock time.  If
+<B>-c</B>
+
+is used with
+<B>-f</B>,
+
+only aggregate totals for all traced processes are kept.
+<DT id="80"><B>-C</B>
+
+<DD>
+
+<B>--summary</B>
+
+Like
+<B>-c</B>
+
+but also print regular output while processes are running.
+<DT id="81"><B>-O </B><I>overhead</I>
+
+<DD>
+Set the overhead for tracing system calls to
+<I>overhead</I>.
+
+This is useful for overriding the default heuristic for guessing
+how much time is spent in mere measuring when timing system calls using
+the
+<B>-c</B>
+
+option.  The accuracy of the heuristic can be gauged by timing a given
+program run without tracing (using
+<B><A HREF="/cgi-bin/man/man2html?1+time">time</A></B>(1))
+
+and comparing the accumulated
+system call time to the total produced using
+<B>-c</B>.
+
+<DT id="82"><DD>
+The format of
+<I>overhead</I>
+
+specification is described in section
+<I>Time specification format description.</I>
+
+<DT id="83"><B>-S </B><I>sortby</I>
+
+<DD>
+
+<B>--summary-sort-by</B>=<B></B><I>sortby</I>
+
+Sort the output of the histogram printed by the
+<B>-c</B>
+
+option by the specified criterion.  Legal values are
+<B>time</B> (or <B>time_total</B> or <B>total_time</B>),
+
+<B>calls</B> (or <B>count</B>),
+
+<B>errors</B> (or <B>error</B>),
+
+<B>name</B> (or <B>syscall</B> or <B>syscall_name</B>),
+
+and
+<B>nothing</B> (or <B>none</B>);
+
+default is
+<B>time</B>.
+
+<DT id="84"><B>-w</B>
+
+<DD>
+
+<B>--summary-wall-clock</B>
+
+Summarise the time difference between the beginning and end of
+each system call.  The default is to summarise the system time.
+</DL>
+<A NAME="lbAL">&nbsp;</A>
+<H3>Tampering</H3>
+
+<DL COMPACT>
+<DT id="85"><B>-e&nbsp;inject</B>=,<I>syscall_set/</I>[:<B>error</B>=,<I>errno/</I>|:<B>retval</B>=,<I>value/</I>][:<B>signal</B>=,<I>sig/</I>][:<B>syscall</B>=<I>syscall</I>][:<B>delay_enter</B>=,<I>delay/</I>][:<B>delay_exit</B>=,<I>delay/</I>][:<B>when</B>=,<I>expr/</I>]<DD>
+
+<B>--inject</B>=,<I>syscall_set/</I>[:<B>error</B>=,<I>errno/</I>|:<B>retval</B>=,<I>value/</I>][:<B>signal</B>=,<I>sig/</I>][:<B>syscall</B>=<I>syscall</I>][:<B>delay_enter</B>=,<I>delay/</I>][:<B>delay_exit</B>=,<I>delay/</I>][:<B>when</B>=,<I>expr/</I>]
+Perform syscall tampering for the specified set of syscalls.
+The syntax of the
+<I>syscall_set</I>
+
+specification is the same as in the
+<B>-e trace</B>
+
+option.
+<DT id="86"><DD>
+At least one of
+<B>error</B>,
+
+<B>retval</B>,
+
+<B>signal</B>,
+
+<B>delay_enter</B>,
+
+or
+<B>delay_exit</B>
+
+options has to be specified.
+<B>error</B>
+
+and
+<B>retval</B>
+
+are mutually exclusive.
+<DT id="87"><DD>
+If :<B>error</B>=,<I>errno/</I> option is specified,
+a fault is injected into a syscall invocation:
+the syscall number is replaced by -1 which corresponds to an invalid syscall
+(unless a syscall is specified with :<B>syscall=</B> option),
+and the error code is specified using a symbolic
+<I>errno</I>
+
+value like
+<B>ENOSYS</B>
+
+or a numeric value within 1..4095 range.
+<DT id="88"><DD>
+If :<B>retval</B>=,<I>value/</I> option is specified,
+success injection is performed: the syscall number is replaced by -1,
+but a bogus success value is returned to the callee.
+<DT id="89"><DD>
+If :<B>signal</B>=,<I>sig/</I> option is specified with either a symbolic value
+like
+<B>SIGSEGV</B>
+
+or a numeric value within 1..<B>SIGRTMAX</B> range,
+that signal is delivered on entering every syscall specified by the
+<I>set</I>.
+
+<DT id="90"><DD>
+If :<B>delay_enter</B>=,<I>delay/</I> or :<B>delay_exit</B>=,<I>delay/</I>
+options are specified, delay injection is performed: the tracee is delayed
+by time period specified by
+<I>delay</I>
+
+on entering or exiting the syscall, respectively.
+The format of
+<I>delay</I>
+
+specification is described in section
+<I>Time specification format description.</I>
+
+<DT id="91"><DD>
+If :<B>signal</B>=,<I>sig/</I> option is specified without
+:<B>error</B>=,<I>errno/</I>, :<B>retval</B>=,<I>value/</I> or
+:<B>delay_{enter,exit}</B>=,<I>usecs/</I> options,
+then only a signal
+<I>sig</I>
+
+is delivered without a syscall fault or delay injection.
+Conversely, :<B>error</B>=,<I>errno/</I> or
+:<B>retval</B>=,<I>value/</I> option without
+:<B>delay_enter</B>=,<I>delay/</I>,
+:<B>delay_exit</B>=,<I>delay/</I> or
+:<B>signal</B>=,<I>sig/</I> options injects a fault without delivering a signal
+or injecting a delay, etc.
+<DT id="92"><DD>
+If both :<B>error</B>=,<I>errno/</I> or :<B>retval</B>=,<I>value/</I>
+and :<B>signal</B>=,<I>sig/</I> options are specified, then both
+a fault or success is injected and a signal is delivered.
+<DT id="93"><DD>
+if :<B>syscall</B>=<I>syscall</I> option is specified, the corresponding syscall
+with no side effects is injected instead of -1.
+Currently, only &quot;pure&quot; (see
+<B>-e trace</B>=<B>%pure</B>
+
+description) syscalls can be specified there.
+<DT id="94"><DD>
+Unless a :<B>when</B>=,<I>expr</I> subexpression is specified,
+an injection is being made into every invocation of each syscall from the
+<I>set</I>.
+
+<DT id="95"><DD>
+The format of the subexpression is one of the following:
+<DL COMPACT><DT id="96"><DD>
+<DL COMPACT>
+<DT id="97"><I>first</I>
+
+<DD>
+For every syscall from the
+<I>set</I>,
+
+perform an injection for the syscall invocation number
+<I>first</I>
+
+only.
+
+<I>first/</I><B>+</B>
+For every syscall from the
+<I>set</I>,
+
+perform injections for the syscall invocation number
+<I>first</I>
+
+and all subsequent invocations.
+
+<I>first/</I><B>+</B><I>step</I>
+For every syscall from the
+<I>set</I>,
+
+perform injections for syscall invocations number
+<I>first</I>,
+
+<I>first</I>+<I>step</I>,
+
+<I>first</I>+<I>step</I>+<I>step</I>,
+
+and so on.
+</DL>
+</DL>
+
+<DT id="98"><DD>
+For example, to fail each third and subsequent chdir syscalls with
+<B>ENOENT</B>,
+
+use
+<B>-e&nbsp;inject</B>=,<I>chdir/</I>:<B>error</B>=,<I>ENOENT/</I>:<B>when</B>=,<I>3/</I><B>+</B>.
+<DT id="99"><DD>
+The valid range for numbers
+<I>first</I>
+
+and
+<I>step</I>
+
+is 1..65535.
+<DT id="100"><DD>
+An injection expression can contain only one
+<B>error</B>=
+
+or
+<B>retval</B>=
+
+specification, and only one
+<B>signal</B>=
+
+specification.  If an injection expression contains multiple
+<B>when</B>=
+
+specifications, the last one takes precedence.
+<DT id="101"><DD>
+Accounting of syscalls that are subject to injection
+is done per syscall and per tracee.
+<DT id="102"><DD>
+Specification of syscall injection can be combined
+with other syscall filtering options, for example,
+<B>-P </B><I>/dev/urandom </I><B>-e inject</B>=,<I>file/</I>:<B>error</B>=,<I>ENOENT</I>.
+<DT id="103"><B>-e&nbsp;fault</B>=,<I>syscall_set/</I>[:<B>error</B>=,<I>errno/</I>][:<B>when</B>=,<I>expr/</I>]<DD>
+
+<B>--fault</B>=,<I>syscall_set/</I>[:<B>error</B>=,<I>errno/</I>][:<B>when</B>=,<I>expr/</I>]
+Perform syscall fault injection for the specified set of syscalls.
+<DT id="104"><DD>
+This is equivalent to more generic
+<B>-e&nbsp;inject</B>= expression with default value of
+<I>errno</I>
+
+option set to
+<B>ENOSYS</B>.
+
+</DL>
+<A NAME="lbAM">&nbsp;</A>
+<H3>Miscellaneous</H3>
+
+<DL COMPACT>
+<DT id="105"><B>-d</B>
+
+<DD>
+
+<B>--debug</B>
+
+Show some debugging output of
+<B>strace</B>
+
+itself on the standard error.
+<DT id="106"><B>-F</B>
+
+<DD>
+This option is deprecated.  It is retained for backward compatibility only
+and may be removed in future releases.
+Usage of multiple instances of
+<B>-F</B>
+
+option is still equivalent to a single
+<B>-f</B>,
+
+and it is ignored at all if used along with one or more instances of
+<B>-f</B>
+
+option.
+<DT id="107"><B>-h</B>
+
+<DD>
+
+<B>--help</B>
+
+Print the help summary.
+<DT id="108"><B>--seccomp-bpf</B>
+
+<DD>
+Enable (experimental) usage of seccomp-bpf (see
+<B><A HREF="/cgi-bin/man/man2html?2+seccomp">seccomp</A></B>(2))
+
+to have
+<B><A HREF="/cgi-bin/man/man2html?2+ptrace">ptrace</A></B>(2)-stops
+
+only when system calls that are being traced occur in the traced processes.
+Implies the
+<B>-f</B>
+
+option.
+An attempt to rely on seccomp-bpf to filter system calls may fail for various
+reasons, e.g. there are too many system calls to filter, the seccomp API is not
+available, or
+<B>strace</B>
+
+itself is being traced.
+<B>--seccomp-bpf</B>
+
+is also ineffective on processes attached using
+<B>-p</B>.
+
+In cases when seccomp-bpf filter setup failed,
+<B>strace</B>
+
+proceeds as usual and stops traced processes on every system call.
+<DT id="109"><B>-V</B>
+
+<DD>
+
+<B>--version</B>
+
+Print the version number of
+<B>strace</B>.
+
+</DL>
+<A NAME="lbAN">&nbsp;</A>
+<H3>Time specification format description</H3>
+
+<P>
+
+Time values can be specified as a decimal floating point number
+(in a format accepted by
+<B><A HREF="/cgi-bin/man/man2html?3+strtod">strtod</A></B>(3)),
+
+optionally followed by one of the following suffices that specify
+the unit of time:
+<B>s</B>
+
+(seconds),
+<B>ms</B>
+
+(milliseconds),
+<B>us</B>
+
+(microseconds), or
+<B>ns</B>
+
+(nanoseconds).
+If no suffix is specified, the value is interpreted as microseconds.
+<P>
+
+The described format is used for
+<B>-O</B>, <B>-e inject</B>=<B>delay_enter</B>, and <B>-e inject</B>=<B>delay_exit</B>
+
+options.
+<A NAME="lbAO">&nbsp;</A>
+<H2>DIAGNOSTICS</H2>
+
+When
+<I>command</I>
+
+exits,
+<B>strace</B>
+
+exits with the same exit status.
+If
+<I>command</I>
+
+is terminated by a signal,
+<B>strace</B>
+
+terminates itself with the same signal, so that
+<B>strace</B>
+
+can be used as a wrapper process transparent to the invoking parent process.
+Note that parent-child relationship (signal stop notifications,
+<B><A HREF="/cgi-bin/man/man2html?2+getppid">getppid</A></B>(2)
+
+value, etc) between traced process and its parent are not preserved
+unless
+<B>-D</B>
+
+is used.
+<P>
+
+When using
+<B>-p</B>
+
+without a
+<I>command</I>,
+
+the exit status of
+<B>strace</B>
+
+is zero unless no processes has been attached or there was an unexpected error
+in doing the tracing.
+<A NAME="lbAP">&nbsp;</A>
+<H2>SETUID INSTALLATION</H2>
+
+If
+<B>strace</B>
+
+is installed setuid to root then the invoking user will be able to
+attach to and trace processes owned by any user.
+In addition setuid and setgid programs will be executed and traced
+with the correct effective privileges.
+Since only users trusted with full root privileges should be allowed
+to do these things,
+it only makes sense to install
+<B>strace</B>
+
+as setuid to root when the users who can execute it are restricted
+to those users who have this trust.
+For example, it makes sense to install a special version of
+<B>strace</B>
+
+with mode 'rwsr-xr--', user
+<B>root</B>
+
+and group
+<B>trace</B>,
+
+where members of the
+<B>trace</B>
+
+group are trusted users.
+If you do use this feature, please remember to install
+a regular non-setuid version of
+<B>strace</B>
+
+for ordinary users to use.
+<A NAME="lbAQ">&nbsp;</A>
+<H2>MULTIPLE PERSONALITIES SUPPORT</H2>
+
+On some architectures,
+<B>strace</B>
+
+supports decoding of syscalls for processes that use different ABI rather than
+the one
+<B>strace</B>
+
+uses.
+Specifically, in addition to decoding native ABI,
+<B>strace</B>
+
+can decode the following ABIs on the following architectures:
+<TABLE BORDER>
+<TR VALIGN=top><TD><B>Architecture</B></TD><TD><B>ABIs supported</B><BR></TD></TR>
+<TR VALIGN=top><TD>x86_64</TD><TD>i386, x32 [1]; i386 [2]<BR></TD></TR>
+<TR VALIGN=top><TD>AArch64</TD><TD>ARM 32-bit EABI<BR></TD></TR>
+<TR VALIGN=top><TD>PowerPC 64-bit [3]</TD><TD>PowerPC 32-bit<BR></TD></TR>
+<TR VALIGN=top><TD>s390x</TD><TD>s390<BR></TD></TR>
+<TR VALIGN=top><TD>SPARC 64-bit</TD><TD>SPARC 32-bit<BR></TD></TR>
+<TR VALIGN=top><TD>TILE 64-bit</TD><TD>TILE 32-bit<BR></TD></TR>
+</TABLE>
+
+<DL COMPACT><DT id="110"><DD>
+<DL COMPACT>
+<DT id="111">[1]<DD>
+When
+<B>strace</B>
+
+is built as an x86_64 application
+
+[2]
+When
+<B>strace</B>
+
+is built as an x32 application
+
+[3]
+Big endian only
+</DL>
+</DL>
+
+<P>
+
+This support is optional and relies on ability to generate and parse structure
+definitions during the build time.
+Please refer to the output of the
+<B>strace -V</B>
+
+command in order to figure out what support is available in your
+<B>strace</B>
+
+build (&quot;non-native&quot; refers to an ABI that differs from the ABI
+<B>strace</B>
+
+has):
+<DL COMPACT>
+<DT id="112"><B>m32-mpers</B>
+
+<DD>
+<B>strace</B>
+
+can trace and properly decode non-native 32-bit binaries.
+
+<B>no-m32-mpers</B>
+
+<B>strace</B>
+
+can trace, but cannot properly decode non-native 32-bit binaries.
+
+<B>mx32-mpers</B>
+
+<B>strace</B>
+
+can trace and properly decode non-native 32-on-64-bit binaries.
+
+<B>no-mx32-mpers</B>
+
+<B>strace</B>
+
+can trace, but cannot properly decode non-native 32-on-64-bit binaries.
+</DL>
+<P>
+
+If the output contains neither
+<B>m32-mpers</B>
+
+nor
+<B>no-m32-mpers</B>,
+
+then decoding of non-native 32-bit binaries is not implemented at all
+or not applicable.
+<P>
+
+Likewise, if the output contains neither
+<B>mx32-mpers</B>
+
+nor
+<B>no-mx32-mpers</B>,
+
+then decoding of non-native 32-on-64-bit binaries is not implemented at all
+or not applicable.
+<A NAME="lbAR">&nbsp;</A>
+<H2>NOTES</H2>
+
+It is a pity that so much tracing clutter is produced by systems
+employing shared libraries.
+<P>
+
+It is instructive to think about system call inputs and outputs
+as data-flow across the user/kernel boundary.  Because user-space
+and kernel-space are separate and address-protected, it is
+sometimes possible to make deductive inferences about process
+behavior using inputs and outputs as propositions.
+<P>
+
+In some cases, a system call will differ from the documented behavior
+or have a different name.  For example, the
+<B><A HREF="/cgi-bin/man/man2html?2+faccessat">faccessat</A></B>(2)
+
+system call does not have
+<I>flags</I>
+
+argument, and the
+<B><A HREF="/cgi-bin/man/man2html?2+setrlimit">setrlimit</A></B>(2)
+
+library function uses
+<B><A HREF="/cgi-bin/man/man2html?2+prlimit64">prlimit64</A></B>(2)
+
+system call on modern (2.6.38+) kernels.  These
+discrepancies are normal but idiosyncratic characteristics of the
+system call interface and are accounted for by C library wrapper
+functions.
+<P>
+
+Some system calls have different names in different architectures and
+personalities.  In these cases, system call filtering and printing
+uses the names that match corresponding
+<B>__NR_</B>*
+
+kernel macros of the tracee's architecture and personality.
+There are two exceptions from this general rule:
+<B><A HREF="/cgi-bin/man/man2html?2+arm_fadvise64_64">arm_fadvise64_64</A></B>(2)
+
+ARM syscall and
+<B><A HREF="/cgi-bin/man/man2html?2+xtensa_fadvise64_64">xtensa_fadvise64_64</A></B>(2)
+
+Xtensa syscall are filtered and printed as
+<B><A HREF="/cgi-bin/man/man2html?2+fadvise64_64">fadvise64_64</A></B>(2).
+
+<P>
+
+On x32, syscalls that are intended to be used by 64-bit processes and not x32
+ones (for example,
+<B><A HREF="/cgi-bin/man/man2html?2+readv">readv</A></B>(2),
+
+that has syscall number 19 on x86_64, with its x32 counterpart has syscall
+number 515), but called with
+<B>__X32_SYSCALL_BIT</B>
+
+flag being set, are designated with
+<B>#64</B>
+
+suffix.
+<P>
+
+On some platforms a process that is attached to with the
+<B>-p</B>
+
+option may observe a spurious
+<B>EINTR</B>
+
+return from the current system call that is not restartable.
+(Ideally, all system calls should be restarted on
+<B>strace</B>
+
+attach, making the attach invisible
+to the traced process, but a few system calls aren't.
+Arguably, every instance of such behavior is a kernel bug.)
+This may have an unpredictable effect on the process
+if the process takes no action to restart the system call.
+<P>
+
+As
+<B>strace</B>
+
+executes the specified
+<I>command</I>
+
+directly and does not employ a shell for that, scripts without shebang
+that usually run just fine when invoked by shell fail to execute with
+<B>ENOEXEC</B>
+
+error.
+It is advisable to manually supply a shell as a
+<I>command</I>
+
+with the script as its argument.
+<A NAME="lbAS">&nbsp;</A>
+<H2>BUGS</H2>
+
+Programs that use the
+<I>setuid</I>
+
+bit do not have
+effective user
+<FONT SIZE="-1">ID</FONT>
+privileges while being traced.
+<P>
+
+A traced process runs slowly.
+<P>
+
+Traced processes which are descended from
+<I>command</I>
+
+may be left running after an interrupt signal
+(<B>CTRL-C</B>).
+
+<A NAME="lbAT">&nbsp;</A>
+<H2>HISTORY</H2>
+
+The original
+<B>strace</B>
+
+was written by Paul Kranenburg
+for SunOS and was inspired by its
+<B>trace</B>
+
+utility.
+The SunOS version of
+<B>strace</B>
+
+was ported to Linux and enhanced
+by Branko Lankester, who also wrote the Linux kernel support.
+Even though Paul released
+<B>strace</B>
+
+2.5 in 1992,
+Branko's work was based on Paul's
+<B>strace</B>
+
+1.5 release from 1991.
+In 1993, Rick Sladkey merged
+<B>strace</B>
+
+2.5 for SunOS and the second release of
+<B>strace</B>
+
+for Linux, added many of the features of
+<B><A HREF="/cgi-bin/man/man2html?1+truss">truss</A></B>(1)
+
+from SVR4, and produced an
+<B>strace</B>
+
+that worked on both platforms.  In 1994 Rick ported
+<B>strace</B>
+
+to SVR4 and Solaris and wrote the
+automatic configuration support.  In 1995 he ported
+<B>strace</B>
+
+to Irix
+and tired of writing about himself in the third person.
+<P>
+
+Beginning with 1996,
+<B>strace</B>
+
+was maintained by Wichert Akkerman.
+During his tenure,
+<B>strace</B>
+
+development migrated to CVS; ports to FreeBSD and many architectures on Linux
+(including ARM, IA-64, MIPS, PA-RISC, PowerPC, s390, SPARC) were introduced.
+In 2002, the burden of
+<B>strace</B>
+
+maintainership was transferred to Roland McGrath.
+Since then,
+<B>strace</B>
+
+gained support for several new Linux architectures (AMD64, s390x, SuperH),
+bi-architecture support for some of them, and received numerous additions and
+improvements in syscalls decoders on Linux;
+<B>strace</B>
+
+development migrated to
+<B>git</B>
+
+during that period.
+Since 2009,
+<B>strace</B>
+
+is actively maintained by Dmitry Levin.
+<B>strace</B>
+
+gained support for AArch64, ARC, AVR32, Blackfin, Meta, Nios II, OpenSISC 1000,
+RISC-V, Tile/TileGx, Xtensa architectures since that time.
+In 2012, unmaintained and apparently broken support for non-Linux operating
+systems was removed.
+Also, in 2012
+<B>strace</B>
+
+gained support for path tracing and file descriptor path decoding.
+In 2014, support for stack traces printing was added.
+In 2016, syscall fault injection was implemented.
+<P>
+
+For the additional information, please refer to the
+<B>NEWS</B>
+
+file and
+<B>strace</B>
+
+repository commit log.
+<A NAME="lbAU">&nbsp;</A>
+<H2>REPORTING BUGS</H2>
+
+Problems with
+<B>strace</B>
+
+should be reported to the
+
+<B>strace</B>
+
+mailing list
+
+<A NAME="lbAV">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?1+strace-log-merge">strace-log-merge</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?1+ltrace">ltrace</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?1+perf-trace">perf-trace</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?1+trace-cmd">trace-cmd</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?1+time">time</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?2+ptrace">ptrace</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?5+proc">proc</A></B>(5)
+
+<P>
+
+
+<B>strace</B>
+
+Home Page
+
+<A NAME="lbAW">&nbsp;</A>
+<H2>AUTHORS</H2>
+
+The complete list of
+<B>strace</B>
+
+contributors can be found in the
+<B>CREDITS</B>
+
+file.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="113"><A HREF="#lbAB">NAME</A><DD>
+<DT id="114"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="115"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="116"><A HREF="#lbAE">OPTIONS</A><DD>
+<DL>
+<DT id="117"><A HREF="#lbAF">General</A><DD>
+<DT id="118"><A HREF="#lbAG">Startup</A><DD>
+<DT id="119"><A HREF="#lbAH">Tracing</A><DD>
+<DT id="120"><A HREF="#lbAI">Filtering</A><DD>
+<DT id="121"><A HREF="#lbAJ">Output format</A><DD>
+<DT id="122"><A HREF="#lbAK">Statistics</A><DD>
+<DT id="123"><A HREF="#lbAL">Tampering</A><DD>
+<DT id="124"><A HREF="#lbAM">Miscellaneous</A><DD>
+<DT id="125"><A HREF="#lbAN">Time specification format description</A><DD>
+</DL>
+<DT id="126"><A HREF="#lbAO">DIAGNOSTICS</A><DD>
+<DT id="127"><A HREF="#lbAP">SETUID INSTALLATION</A><DD>
+<DT id="128"><A HREF="#lbAQ">MULTIPLE PERSONALITIES SUPPORT</A><DD>
+<DT id="129"><A HREF="#lbAR">NOTES</A><DD>
+<DT id="130"><A HREF="#lbAS">BUGS</A><DD>
+<DT id="131"><A HREF="#lbAT">HISTORY</A><DD>
+<DT id="132"><A HREF="#lbAU">REPORTING BUGS</A><DD>
+<DT id="133"><A HREF="#lbAV">SEE ALSO</A><DD>
+<DT id="134"><A HREF="#lbAW">AUTHORS</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:27 GMT, March 31, 2021
+</BODY>
+</HTML>

@@ -1,0 +1,416 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of PAM_UNIX</TITLE>
+</HEAD><BODY>
+<H1>PAM_UNIX</H1>
+Section: Linux-PAM Manual (8)<BR>Updated: 05/18/2017<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+pam_unix - Module for traditional password authentication
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<DL COMPACT>
+<DT id="1">
+<B>pam_unix.so</B> [...]
+</DL>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+<DD>This is the standard Unix authentication module. It uses standard calls from the system's libraries to retrieve and set account information as well as authentication. Usually this is obtained from the /etc/passwd and the /etc/shadow file as well if shadow is enabled.
+<P>
+
+The account component performs the task of establishing the status of the user's account and password based on the following
+<I>shadow</I>
+elements: expire, last_change, max_change, min_change, warn_change. In the case of the latter, it may offer advice to the user on changing their password or, through the
+<B>PAM_AUTHTOKEN_REQD</B>
+return, delay giving service to the user until they have established a new password. The entries listed above are documented in the
+<B><A HREF="/cgi-bin/man/man2html?5+shadow">shadow</A></B>(5)
+manual page. Should the user's record not contain one or more of these entries, the corresponding
+<I>shadow</I>
+check is not performed.
+<P>
+
+The authentication component performs the task of checking the users credentials (password). The default action of this module is to not permit the user access to a service if their official password is blank.
+<P>
+
+A helper binary,
+<B><A HREF="/cgi-bin/man/man2html?8+unix_chkpwd">unix_chkpwd</A></B>(8), is provided to check the user's password when it is stored in a read protected database. This binary is very simple and will only check the password of the user invoking it. It is called transparently on behalf of the user by the authenticating component of this module. In this way it is possible for applications like
+<B><A HREF="/cgi-bin/man/man2html?1+xlock">xlock</A></B>(1)
+to work without being setuid-root. The module, by default, will temporarily turn off SIGCHLD handling for the duration of execution of the helper binary. This is generally the right thing to do, as many applications are not prepared to handle this signal from a child they didn't know was
+<B>fork()</B>d. The
+<B>noreap</B>
+module argument can be used to suppress this temporary shielding and may be needed for use with certain applications.
+<P>
+
+The maximum length of a password supported by the pam_unix module via the helper binary is
+<I>PAM_MAX_RESP_SIZE</I>
+- currently 512 bytes. The rest of the password provided by the conversation function to the module will be ignored.
+<P>
+
+The password component of this module performs the task of updating the user's password. The default encryption hash is taken from the
+<B>ENCRYPT_METHOD</B>
+variable from
+<I>/etc/login.defs</I>
+<P>
+
+The session component of this module logs when a user logins or leave the system.
+<P>
+
+Remaining arguments, supported by others functions of this module, are silently ignored. Other arguments are logged as errors through
+<B><A HREF="/cgi-bin/man/man2html?3+syslog">syslog</A></B>(3).
+<A NAME="lbAE">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<P>
+
+<B>debug</B>
+<DL COMPACT><DT id="2"><DD>
+Turns on debugging via
+<B><A HREF="/cgi-bin/man/man2html?3+syslog">syslog</A></B>(3).
+</DL>
+
+<P>
+
+<B>audit</B>
+<DL COMPACT><DT id="3"><DD>
+A little more extreme than debug.
+</DL>
+
+<P>
+
+<B>quiet</B>
+<DL COMPACT><DT id="4"><DD>
+Turns off informational messages namely messages about session open and close via
+<B><A HREF="/cgi-bin/man/man2html?3+syslog">syslog</A></B>(3).
+</DL>
+
+<P>
+
+<B>nullok</B>
+<DL COMPACT><DT id="5"><DD>
+The default action of this module is to not permit the user access to a service if their official password is blank. The
+<B>nullok</B>
+argument overrides this default and allows any user with a blank password to access the service.
+</DL>
+
+<P>
+
+<B>nullok_secure</B>
+<DL COMPACT><DT id="6"><DD>
+The default action of this module is to not permit the user access to a service if their official password is blank. The
+<B>nullok_secure</B>
+argument overrides this default and allows any user with a blank password to access the service as long as the value of PAM_TTY is set to one of the values found in /etc/securetty.
+</DL>
+
+<P>
+
+<B>try_first_pass</B>
+<DL COMPACT><DT id="7"><DD>
+Before prompting the user for their password, the module first tries the previous stacked module's password in case that satisfies this module as well.
+</DL>
+
+<P>
+
+<B>use_first_pass</B>
+<DL COMPACT><DT id="8"><DD>
+The argument
+<B>use_first_pass</B>
+forces the module to use a previous stacked modules password and will never prompt the user - if no password is available or the password is not appropriate, the user will be denied access.
+</DL>
+
+<P>
+
+<B>nodelay</B>
+<DL COMPACT><DT id="9"><DD>
+This argument can be used to discourage the authentication component from requesting a delay should the authentication as a whole fail. The default action is for the module to request a delay-on-failure of the order of two second.
+</DL>
+
+<P>
+
+<B>use_authtok</B>
+<DL COMPACT><DT id="10"><DD>
+When password changing enforce the module to set the new password to the one provided by a previously stacked
+<B>password</B>
+module (this is used in the example of the stacking of the
+<B>pam_cracklib</B>
+module documented below).
+</DL>
+
+<P>
+
+<B>authtok_type=</B><B></B><I>type</I>
+<DL COMPACT><DT id="11"><DD>
+This argument can be used to modify the password prompt when changing passwords to include the type of the password. Empty by default.
+</DL>
+
+<P>
+
+<B>nis</B>
+<DL COMPACT><DT id="12"><DD>
+NIS RPC is used for setting new passwords.
+</DL>
+
+<P>
+
+<B>remember=</B><B></B><I>n</I>
+<DL COMPACT><DT id="13"><DD>
+The last
+<I>n</I>
+passwords for each user are saved in
+/etc/security/opasswd
+in order to force password change history and keep the user from alternating between the same password too frequently. The MD5 password hash algorithm is used for storing the old passwords. Instead of this option the
+<B>pam_pwhistory</B>
+module should be used.
+</DL>
+
+<P>
+
+<B>shadow</B>
+<DL COMPACT><DT id="14"><DD>
+Try to maintain a shadow based system.
+</DL>
+
+<P>
+
+<B>md5</B>
+<DL COMPACT><DT id="15"><DD>
+When a user changes their password next, encrypt it with the MD5 algorithm.
+</DL>
+
+<P>
+
+<B>bigcrypt</B>
+<DL COMPACT><DT id="16"><DD>
+When a user changes their password next, encrypt it with the DEC C2 algorithm.
+</DL>
+
+<P>
+
+<B>sha256</B>
+<DL COMPACT><DT id="17"><DD>
+When a user changes their password next, encrypt it with the SHA256 algorithm. If the SHA256 algorithm is not known to the
+<B><A HREF="/cgi-bin/man/man2html?3+crypt">crypt</A></B>(3)
+function, fall back to MD5.
+</DL>
+
+<P>
+
+<B>sha512</B>
+<DL COMPACT><DT id="18"><DD>
+When a user changes their password next, encrypt it with the SHA512 algorithm. If the SHA512 algorithm is not known to the
+<B><A HREF="/cgi-bin/man/man2html?3+crypt">crypt</A></B>(3)
+function, fall back to MD5.
+</DL>
+
+<P>
+
+<B>blowfish</B>
+<DL COMPACT><DT id="19"><DD>
+When a user changes their password next, encrypt it with the blowfish algorithm. If the blowfish algorithm is not known to the
+<B><A HREF="/cgi-bin/man/man2html?3+crypt">crypt</A></B>(3)
+function, fall back to MD5.
+</DL>
+
+<P>
+
+<B>rounds=</B><B></B><I>n</I>
+<DL COMPACT><DT id="20"><DD>
+Set the optional number of rounds of the SHA256, SHA512 and blowfish password hashing algorithms to
+<I>n</I>.
+</DL>
+
+<P>
+
+<B>broken_shadow</B>
+<DL COMPACT><DT id="21"><DD>
+Ignore errors reading shadow information for users in the account management module.
+</DL>
+
+<P>
+
+<B>minlen=</B><B></B><I>n</I>
+<DL COMPACT><DT id="22"><DD>
+Set a minimum password length of
+<I>n</I>
+characters. The default value is 6. The maximum for DES crypt-based passwords is 8 characters.
+</DL>
+
+<P>
+
+<B>obscure</B>
+<DL COMPACT><DT id="23"><DD>
+Enable some extra checks on password strength. These checks are based on the &quot;obscure&quot; checks in the original shadow package. The behavior is similar to the pam_cracklib module, but for non-dictionary-based checks. The following checks are implemented:
+<P>
+
+<B>Palindrome</B>
+<DL COMPACT><DT id="24"><DD>
+Verifies that the new password is not a palindrome of (i.e., the reverse of) the previous one.
+</DL>
+
+<P>
+
+<B>Case Change Only</B>
+<DL COMPACT><DT id="25"><DD>
+Verifies that the new password isn't the same as the old one with a change of case.
+</DL>
+
+<P>
+
+<B>Similar</B>
+<DL COMPACT><DT id="26"><DD>
+Verifies that the new password isn't too much like the previous one.
+</DL>
+
+<P>
+
+<B>Simple</B>
+<DL COMPACT><DT id="27"><DD>
+Is the new password too simple? This is based on the length of the password and the number of different types of characters (alpha, numeric, etc.) used.
+</DL>
+
+<P>
+
+<B>Rotated</B>
+<DL COMPACT><DT id="28"><DD>
+Is the new password a rotated version of the old password? (E.g., &quot;billy&quot; and &quot;illyb&quot;)
+</DL>
+
+<P>
+</DL>
+
+<P>
+
+<B>no_pass_expiry</B>
+<DL COMPACT><DT id="29"><DD>
+When set ignore password expiration as defined by the
+<I>shadow</I>
+entry of the user. The option has an effect only in case
+<I>pam_unix</I>
+was not used for the authentication or it returned authentication failure meaning that other authentication source or method succeeded. The example can be public key authentication in
+<I>sshd</I>. The module will return
+<B>PAM_SUCCESS</B>
+instead of eventual
+<B>PAM_NEW_AUTHTOK_REQD</B>
+or
+<B>PAM_AUTHTOK_EXPIRED</B>.
+</DL>
+
+<P>
+
+Invalid arguments are logged with
+<B><A HREF="/cgi-bin/man/man2html?3+syslog">syslog</A></B>(3).
+<A NAME="lbAF">&nbsp;</A>
+<H2>MODULE TYPES PROVIDED</H2>
+
+<P>
+
+All module types (<B>account</B>,
+<B>auth</B>,
+<B>password</B>
+and
+<B>session</B>) are provided.
+<A NAME="lbAG">&nbsp;</A>
+<H2>RETURN VALUES</H2>
+
+<P>
+
+PAM_IGNORE
+<DL COMPACT><DT id="30"><DD>
+Ignore this module.
+</DL>
+
+<A NAME="lbAH">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+<P>
+
+An example usage for
+/etc/pam.d/login
+would be:
+<P>
+<DL COMPACT><DT id="31"><DD>
+
+
+
+<PRE>
+# Authenticate the user
+auth       required   pam_unix.so
+# Ensure users account and password are still active
+account    required   pam_unix.so
+# Change the user's password, but at first check the strength
+# with <A HREF="/cgi-bin/man/man2html?8+pam_cracklib">pam_cracklib</A>(8)
+password   required   pam_cracklib.so retry=3 minlen=6 difok=3
+password   required   pam_unix.so use_authtok nullok md5
+session    required   pam_unix.so
+      
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<A NAME="lbAI">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?5+login.defs">login.defs</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?5+pam.conf">pam.conf</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?5+pam.d">pam.d</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?7+pam">pam</A></B>(7)
+<A NAME="lbAJ">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+<P>
+
+pam_unix was written by various people.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="32"><A HREF="#lbAB">NAME</A><DD>
+<DT id="33"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="34"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="35"><A HREF="#lbAE">OPTIONS</A><DD>
+<DT id="36"><A HREF="#lbAF">MODULE TYPES PROVIDED</A><DD>
+<DT id="37"><A HREF="#lbAG">RETURN VALUES</A><DD>
+<DT id="38"><A HREF="#lbAH">EXAMPLES</A><DD>
+<DT id="39"><A HREF="#lbAI">SEE ALSO</A><DD>
+<DT id="40"><A HREF="#lbAJ">AUTHOR</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:15 GMT, March 31, 2021
+</BODY>
+</HTML>

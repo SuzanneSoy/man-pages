@@ -1,0 +1,565 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of GIT-DAEMON</TITLE>
+</HEAD><BODY>
+<H1>GIT-DAEMON</H1>
+Section: Git Manual (1)<BR>Updated: 03/04/2021<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+git-daemon - A really simple server for Git repositories
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+<PRE>
+<I>git daemon</I> [--verbose] [--syslog] [--export-all]
+             [--timeout=&lt;n&gt;] [--init-timeout=&lt;n&gt;] [--max-connections=&lt;n&gt;]
+             [--strict-paths] [--base-path=&lt;path&gt;] [--base-path-relaxed]
+             [--user-path | --user-path=&lt;path&gt;]
+             [--interpolated-path=&lt;pathtemplate&gt;]
+             [--reuseaddr] [--detach] [--pid-file=&lt;file&gt;]
+             [--enable=&lt;service&gt;] [--disable=&lt;service&gt;]
+             [--allow-override=&lt;service&gt;] [--forbid-override=&lt;service&gt;]
+             [--access-hook=&lt;path&gt;] [--[no-]informative-errors]
+             [--inetd |
+              [--listen=&lt;host_or_ipaddr&gt;] [--port=&lt;n&gt;]
+              [--user=&lt;user&gt; [--group=&lt;group&gt;]]]
+             [--log-destination=(stderr|syslog|none)]
+             [&lt;directory&gt;...]
+</PRE>
+
+<P>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+A really simple TCP Git daemon that normally listens on port &quot;DEFAULT_GIT_PORT&quot; aka 9418. It waits for a connection asking for a service, and will serve that service if it is enabled.
+<P>
+It verifies that the directory has the magic file &quot;git-daemon-export-ok&quot;, and it will refuse to export any Git directory that hasn't explicitly been marked for export this way (unless the <B>--export-all</B> parameter is specified). If you pass some directory paths as <I>git daemon</I> arguments, you can further restrict the offers to a whitelist comprising of those.
+<P>
+By default, only <B>upload-pack</B> service is enabled, which serves <I>git fetch-pack</I> and <I>git ls-remote</I> clients, which are invoked from <I>git fetch</I>, <I>git pull</I>, and <I>git clone</I>.
+<P>
+This is ideally suited for read-only updates, i.e., pulling from Git repositories.
+<P>
+An <B>upload-archive</B> also exists to serve <I>git archive</I>.
+<A NAME="lbAE">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<P>
+
+--strict-paths
+<DL COMPACT><DT id="1"><DD>
+Match paths exactly (i.e. don't allow &quot;/foo/repo&quot; when the real path is &quot;/foo/repo.git&quot; or &quot;/foo/repo/.git&quot;) and don't do user-relative paths.
+<I>git daemon</I>
+will refuse to start when this option is enabled and no whitelist is specified.
+</DL>
+
+<P>
+
+--base-path=&lt;path&gt;
+<DL COMPACT><DT id="2"><DD>
+Remap all the path requests as relative to the given path. This is sort of &quot;Git root&quot; - if you run
+<I>git daemon</I>
+with
+<I>--base-path=/srv/git</I>
+on example.com, then if you later try to pull
+<I><A HREF="git://example.com/hello.git">git://example.com/hello.git</A></I>,
+<I>git daemon</I>
+will interpret the path as
+<B>/srv/git/hello.git</B>.
+</DL>
+
+<P>
+
+--base-path-relaxed
+<DL COMPACT><DT id="3"><DD>
+If --base-path is enabled and repo lookup fails, with this option
+<I>git daemon</I>
+will attempt to lookup without prefixing the base path. This is useful for switching to --base-path usage, while still allowing the old paths.
+</DL>
+
+<P>
+
+--interpolated-path=&lt;pathtemplate&gt;
+<DL COMPACT><DT id="4"><DD>
+To support virtual hosting, an interpolated path template can be used to dynamically construct alternate paths. The template supports %H for the target hostname as supplied by the client but converted to all lowercase, %CH for the canonical hostname, %IP for the server's IP address, %P for the port number, and %D for the absolute path of the named repository. After interpolation, the path is validated against the directory whitelist.
+</DL>
+
+<P>
+
+--export-all
+<DL COMPACT><DT id="5"><DD>
+Allow pulling from all directories that look like Git repositories (have the
+<I>objects</I>
+and
+<I>refs</I>
+subdirectories), even if they do not have the
+<I>git-daemon-export-ok</I>
+file.
+</DL>
+
+<P>
+
+--inetd
+<DL COMPACT><DT id="6"><DD>
+Have the server run as an inetd service. Implies --syslog (may be overridden with
+<B>--log-destination=</B>). Incompatible with --detach, --port, --listen, --user and --group options.
+</DL>
+
+<P>
+
+--listen=&lt;host_or_ipaddr&gt;
+<DL COMPACT><DT id="7"><DD>
+Listen on a specific IP address or hostname. IP addresses can be either an IPv4 address or an IPv6 address if supported. If IPv6 is not supported, then --listen=hostname is also not supported and --listen must be given an IPv4 address. Can be given more than once. Incompatible with
+<B>--inetd</B>
+option.
+</DL>
+
+<P>
+
+--port=&lt;n&gt;
+<DL COMPACT><DT id="8"><DD>
+Listen on an alternative port. Incompatible with
+<B>--inetd</B>
+option.
+</DL>
+
+<P>
+
+--init-timeout=&lt;n&gt;
+<DL COMPACT><DT id="9"><DD>
+Timeout (in seconds) between the moment the connection is established and the client request is received (typically a rather low value, since that should be basically immediate).
+</DL>
+
+<P>
+
+--timeout=&lt;n&gt;
+<DL COMPACT><DT id="10"><DD>
+Timeout (in seconds) for specific client sub-requests. This includes the time it takes for the server to process the sub-request and the time spent waiting for the next client's request.
+</DL>
+
+<P>
+
+--max-connections=&lt;n&gt;
+<DL COMPACT><DT id="11"><DD>
+Maximum number of concurrent clients, defaults to 32. Set it to zero for no limit.
+</DL>
+
+<P>
+
+--syslog
+<DL COMPACT><DT id="12"><DD>
+Short for
+<B>--log-destination=syslog</B>.
+</DL>
+
+<P>
+
+--log-destination=&lt;destination&gt;
+<DL COMPACT><DT id="13"><DD>
+Send log messages to the specified destination. Note that this option does not imply --verbose, thus by default only error conditions will be logged. The &lt;destination&gt; must be one of:
+<P>
+
+stderr
+<DL COMPACT><DT id="14"><DD>
+Write to standard error. Note that if
+<B>--detach</B>
+is specified, the process disconnects from the real standard error, making this destination effectively equivalent to
+<B>none</B>.
+</DL>
+
+<P>
+
+syslog
+<DL COMPACT><DT id="15"><DD>
+Write to syslog, using the
+<B>git-daemon</B>
+identifier.
+</DL>
+
+<P>
+
+none
+<DL COMPACT><DT id="16"><DD>
+Disable all logging.
+</DL>
+
+<P>
+The default destination is
+<B>syslog</B>
+if
+<B>--inetd</B>
+or
+<B>--detach</B>
+is specified, otherwise
+<B>stderr</B>.
+</DL>
+
+<P>
+
+--user-path, --user-path=&lt;path&gt;
+<DL COMPACT><DT id="17"><DD>
+Allow ~user notation to be used in requests. When specified with no parameter, requests to <A HREF="git://host/~alice/foo">git://host/~alice/foo</A> is taken as a request to access
+<I>foo</I>
+repository in the home directory of user
+<B>alice</B>. If
+<B>--user-path=path</B>
+is specified, the same request is taken as a request to access
+<B>path/foo</B>
+repository in the home directory of user
+<B>alice</B>.
+</DL>
+
+<P>
+
+--verbose
+<DL COMPACT><DT id="18"><DD>
+Log details about the incoming connections and requested files.
+</DL>
+
+<P>
+
+--reuseaddr
+<DL COMPACT><DT id="19"><DD>
+Use SO_REUSEADDR when binding the listening socket. This allows the server to restart without waiting for old connections to time out.
+</DL>
+
+<P>
+
+--detach
+<DL COMPACT><DT id="20"><DD>
+Detach from the shell. Implies --syslog.
+</DL>
+
+<P>
+
+--pid-file=&lt;file&gt;
+<DL COMPACT><DT id="21"><DD>
+Save the process id in
+<I>file</I>. Ignored when the daemon is run under
+<B>--inetd</B>.
+</DL>
+
+<P>
+
+--user=&lt;user&gt;, --group=&lt;group&gt;
+<DL COMPACT><DT id="22"><DD>
+Change daemon's uid and gid before entering the service loop. When only
+<B>--user</B>
+is given without
+<B>--group</B>, the primary group ID for the user is used. The values of the option are given to
+<B><A HREF="/cgi-bin/man/man2html?3+getpwnam">getpwnam</A>(3)</B>
+and
+<B><A HREF="/cgi-bin/man/man2html?3+getgrnam">getgrnam</A>(3)</B>
+and numeric IDs are not supported.
+<P>
+Giving these options is an error when used with
+<B>--inetd</B>; use the facility of inet daemon to achieve the same before spawning
+<I>git daemon</I>
+if needed.
+<P>
+Like many programs that switch user id, the daemon does not reset environment variables such as
+<B>$HOME</B>
+when it runs git programs, e.g.
+<B>upload-pack</B>
+and
+<B>receive-pack</B>. When using this option, you may also want to set and export
+<B>HOME</B>
+to point at the home directory of
+<B>&lt;user&gt;</B>
+before starting the daemon, and make sure any Git configuration files in that directory are readable by
+<B>&lt;user&gt;</B>.
+</DL>
+
+<P>
+
+--enable=&lt;service&gt;, --disable=&lt;service&gt;
+<DL COMPACT><DT id="23"><DD>
+Enable/disable the service site-wide per default. Note that a service disabled site-wide can still be enabled per repository if it is marked overridable and the repository enables the service with a configuration item.
+</DL>
+
+<P>
+
+--allow-override=&lt;service&gt;, --forbid-override=&lt;service&gt;
+<DL COMPACT><DT id="24"><DD>
+Allow/forbid overriding the site-wide default with per repository configuration. By default, all the services may be overridden.
+</DL>
+
+<P>
+
+--[no-]informative-errors
+<DL COMPACT><DT id="25"><DD>
+When informative errors are turned on, git-daemon will report more verbose errors to the client, differentiating conditions like &quot;no such repository&quot; from &quot;repository not exported&quot;. This is more convenient for clients, but may leak information about the existence of unexported repositories. When informative errors are not enabled, all errors report &quot;access denied&quot; to the client. The default is --no-informative-errors.
+</DL>
+
+<P>
+
+--access-hook=&lt;path&gt;
+<DL COMPACT><DT id="26"><DD>
+Every time a client connects, first run an external command specified by the &lt;path&gt; with service name (e.g. &quot;upload-pack&quot;), path to the repository, hostname (%H), canonical hostname (%CH), IP address (%IP), and TCP port (%P) as its command-line arguments. The external command can decide to decline the service by exiting with a non-zero status (or to allow it by exiting with a zero status). It can also look at the $REMOTE_ADDR and
+<B>$REMOTE_PORT</B>
+environment variables to learn about the requestor when making this decision.
+<P>
+The external command can optionally write a single line to its standard output to be sent to the requestor as an error message when it declines the service.
+</DL>
+
+<P>
+
+&lt;directory&gt;
+<DL COMPACT><DT id="27"><DD>
+A directory to add to the whitelist of allowed directories. Unless --strict-paths is specified this will also include subdirectories of each named directory.
+</DL>
+
+<A NAME="lbAF">&nbsp;</A>
+<H2>SERVICES</H2>
+
+<P>
+These services can be globally enabled/disabled using the command-line options of this command. If finer-grained control is desired (e.g. to allow <I>git archive</I> to be run against only in a few selected repositories the daemon serves), the per-repository configuration file can be used to enable or disable them.
+<P>
+
+upload-pack
+<DL COMPACT><DT id="28"><DD>
+This serves
+<I>git fetch-pack</I>
+and
+<I>git ls-remote</I>
+clients. It is enabled by default, but a repository can disable it by setting
+<B>daemon.uploadpack</B>
+configuration item to
+<B>false</B>.
+</DL>
+
+<P>
+
+upload-archive
+<DL COMPACT><DT id="29"><DD>
+This serves
+<I>git archive --remote</I>. It is disabled by default, but a repository can enable it by setting
+<B>daemon.uploadarch</B>
+configuration item to
+<B>true</B>.
+</DL>
+
+<P>
+
+receive-pack
+<DL COMPACT><DT id="30"><DD>
+This serves
+<I>git send-pack</I>
+clients, allowing anonymous push. It is disabled by default, as there is
+<I>no</I>
+authentication in the protocol (in other words, anybody can push anything into the repository, including removal of refs). This is solely meant for a closed LAN setting where everybody is friendly. This service can be enabled by setting
+<B>daemon.receivepack</B>
+configuration item to
+<B>true</B>.
+</DL>
+
+<A NAME="lbAG">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+<P>
+
+We assume the following in /etc/services
+<DL COMPACT><DT id="31"><DD>
+<P>
+<DL COMPACT><DT id="32"><DD>
+
+
+
+<PRE>
+$ grep 9418 /etc/services
+git             9418/tcp                # Git Version Control System
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+</DL>
+
+<P>
+
+<I>git daemon</I> as inetd server
+<DL COMPACT><DT id="33"><DD>
+To set up
+<I>git daemon</I>
+as an inetd service that handles any repository under the whitelisted set of directories, /pub/foo and /pub/bar, place an entry like the following into /etc/inetd all on one line:
+<P>
+<DL COMPACT><DT id="34"><DD>
+
+
+
+<PRE>
+        git stream tcp nowait nobody  /usr/bin/git
+                git daemon --inetd --verbose --export-all
+                /pub/foo /pub/bar
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+</DL>
+
+<P>
+
+<I>git daemon</I> as inetd server for virtual hosts
+<DL COMPACT><DT id="35"><DD>
+To set up
+<I>git daemon</I>
+as an inetd service that handles repositories for different virtual hosts,
+<B><A HREF="http://www.example.com">www.example.com</A></B>
+and
+<B><A HREF="http://www.example.org">www.example.org</A></B>, place an entry like the following into
+<B>/etc/inetd</B>
+all on one line:
+<P>
+<DL COMPACT><DT id="36"><DD>
+
+
+
+<PRE>
+        git stream tcp nowait nobody /usr/bin/git
+                git daemon --inetd --verbose --export-all
+                --interpolated-path=/pub/%H%D
+                /pub/<A HREF="http://www.example.org">www.example.org</A>/software
+                /pub/<A HREF="http://www.example.com">www.example.com</A>/software
+                /software
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+In this example, the root-level directory
+<B>/pub</B>
+will contain a subdirectory for each virtual host name supported. Further, both hosts advertise repositories simply as
+<B><A HREF="git://www.example.com/software/repo.git">git://www.example.com/software/repo.git</A></B>. For pre-1.4.0 clients, a symlink from
+<B>/software</B>
+into the appropriate default repository could be made as well.
+</DL>
+
+<P>
+
+<I>git daemon</I> as regular daemon for virtual hosts
+<DL COMPACT><DT id="37"><DD>
+To set up
+<I>git daemon</I>
+as a regular, non-inetd service that handles repositories for multiple virtual hosts based on their IP addresses, start the daemon like this:
+<P>
+<DL COMPACT><DT id="38"><DD>
+
+
+
+<PRE>
+        git daemon --verbose --export-all
+                --interpolated-path=/pub/%IP/%D
+                /pub/192.168.1.200/software
+                /pub/10.10.220.23/software
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+In this example, the root-level directory
+<B>/pub</B>
+will contain a subdirectory for each virtual host IP address supported. Repositories can still be accessed by hostname though, assuming they correspond to these IP addresses.
+</DL>
+
+<P>
+
+selectively enable/disable services per repository
+<DL COMPACT><DT id="39"><DD>
+To enable
+<I>git archive --remote</I>
+and disable
+<I>git fetch</I>
+against a repository, have the following in the configuration file in the repository (that is the file
+<I>config</I>
+next to
+<B>HEAD</B>,
+<I>refs</I>
+and
+<I>objects</I>).
+<P>
+<DL COMPACT><DT id="40"><DD>
+
+
+
+<PRE>
+        [daemon]
+                uploadpack = false
+                uploadarch = true
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+</DL>
+
+<A NAME="lbAH">&nbsp;</A>
+<H2>ENVIRONMENT</H2>
+
+<P>
+<I>git daemon</I> will set REMOTE_ADDR to the IP address of the client that connected to it, if the IP address is available. REMOTE_ADDR will be available in the environment of hooks called when services are performed.
+<A NAME="lbAI">&nbsp;</A>
+<H2>GIT</H2>
+
+<P>
+Part of the <B><A HREF="/cgi-bin/man/man2html?1+git">git</A></B>(1) suite
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="41"><A HREF="#lbAB">NAME</A><DD>
+<DT id="42"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="43"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="44"><A HREF="#lbAE">OPTIONS</A><DD>
+<DT id="45"><A HREF="#lbAF">SERVICES</A><DD>
+<DT id="46"><A HREF="#lbAG">EXAMPLES</A><DD>
+<DT id="47"><A HREF="#lbAH">ENVIRONMENT</A><DD>
+<DT id="48"><A HREF="#lbAI">GIT</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:13 GMT, March 31, 2021
+</BODY>
+</HTML>

@@ -1,0 +1,2061 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of GIT-FAST-IMPORT</TITLE>
+</HEAD><BODY>
+<H1>GIT-FAST-IMPORT</H1>
+Section: Git Manual (1)<BR>Updated: 03/04/2021<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+git-fast-import - Backend for fast Git data importers
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+<PRE>
+frontend | <I>git fast-import</I> [&lt;options&gt;]
+</PRE>
+
+<P>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+This program is usually not what the end user wants to run directly. Most end users want to use one of the existing frontend programs, which parses a specific type of foreign source and feeds the contents stored there to <I>git fast-import</I>.
+<P>
+fast-import reads a mixed command/data stream from standard input and writes one or more packfiles directly into the current repository. When EOF is received on standard input, fast import writes out updated branch and tag refs, fully updating the current repository with the newly imported data.
+<P>
+The fast-import backend itself can import into an empty repository (one that has already been initialized by <I>git init</I>) or incrementally update an existing populated repository. Whether or not incremental imports are supported from a particular foreign source depends on the frontend program in use.
+<A NAME="lbAE">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<P>
+
+--force
+<DL COMPACT><DT id="1"><DD>
+Force updating modified existing branches, even if doing so would cause commits to be lost (as the new commit does not contain the old commit).
+</DL>
+
+<P>
+
+--quiet
+<DL COMPACT><DT id="2"><DD>
+Disable the output shown by --stats, making fast-import usually be silent when it is successful. However, if the import stream has directives intended to show user output (e.g.
+<B>progress</B>
+directives), the corresponding messages will still be shown.
+</DL>
+
+<P>
+
+--stats
+<DL COMPACT><DT id="3"><DD>
+Display some basic statistics about the objects fast-import has created, the packfiles they were stored into, and the memory used by fast-import during this run. Showing this output is currently the default, but can be disabled with --quiet.
+</DL>
+
+<P>
+
+--allow-unsafe-features
+<DL COMPACT><DT id="4"><DD>
+Many command-line options can be provided as part of the fast-import stream itself by using the
+<B>feature</B>
+or
+<B>option</B>
+commands. However, some of these options are unsafe (e.g., allowing fast-import to access the filesystem outside of the repository). These options are disabled by default, but can be allowed by providing this option on the command line. This currently impacts only the
+<B>export-marks</B>,
+<B>import-marks</B>, and
+<B>import-marks-if-exists</B>
+feature commands.
+<P>
+<DL COMPACT><DT id="5"><DD>
+
+
+
+<PRE>
+Only enable this option if you trust the program generating the
+fast-import stream! This option is enabled automatically for
+remote-helpers that use the `import` capability, as they are
+already trusted to run their own code.
+</PRE>
+
+</DL>
+
+
+
+
+</DL>
+
+<A NAME="lbAF">&nbsp;</A>
+<H3>Options for Frontends</H3>
+
+<P>
+
+--cat-blob-fd=&lt;fd&gt;
+<DL COMPACT><DT id="6"><DD>
+Write responses to
+<B>get-mark</B>,
+<B>cat-blob</B>, and
+<B>ls</B>
+queries to the file descriptor &lt;fd&gt; instead of
+<B>stdout</B>. Allows
+<B>progress</B>
+output intended for the end-user to be separated from other output.
+</DL>
+
+<P>
+
+--date-format=&lt;fmt&gt;
+<DL COMPACT><DT id="7"><DD>
+Specify the type of dates the frontend will supply to fast-import within
+<B>author</B>,
+<B>committer</B>
+and
+<B>tagger</B>
+commands. See "Date Formats" below for details about which formats are supported, and their syntax.
+</DL>
+
+<P>
+
+--done
+<DL COMPACT><DT id="8"><DD>
+Terminate with error if there is no
+<B>done</B>
+command at the end of the stream. This option might be useful for detecting errors that cause the frontend to terminate before it has started to write a stream.
+</DL>
+
+<A NAME="lbAG">&nbsp;</A>
+<H3>Locations of Marks Files</H3>
+
+<P>
+
+--export-marks=&lt;file&gt;
+<DL COMPACT><DT id="9"><DD>
+Dumps the internal marks table to &lt;file&gt; when complete. Marks are written one per line as
+<B>:markid SHA-1</B>. Frontends can use this file to validate imports after they have been completed, or to save the marks table across incremental runs. As &lt;file&gt; is only opened and truncated at checkpoint (or completion) the same path can also be safely given to --import-marks.
+</DL>
+
+<P>
+
+--import-marks=&lt;file&gt;
+<DL COMPACT><DT id="10"><DD>
+Before processing any input, load the marks specified in &lt;file&gt;. The input file must exist, must be readable, and must use the same format as produced by --export-marks. Multiple options may be supplied to import more than one set of marks. If a mark is defined to different values, the last file wins.
+</DL>
+
+<P>
+
+--import-marks-if-exists=&lt;file&gt;
+<DL COMPACT><DT id="11"><DD>
+Like --import-marks but instead of erroring out, silently skips the file if it does not exist.
+</DL>
+
+<P>
+
+--[no-]relative-marks
+<DL COMPACT><DT id="12"><DD>
+After specifying --relative-marks the paths specified with --import-marks= and --export-marks= are relative to an internal directory in the current repository. In git-fast-import this means that the paths are relative to the .git/info/fast-import directory. However, other importers may use a different location.
+<P>
+Relative and non-relative marks may be combined by interweaving --(no-)-relative-marks with the --(import|export)-marks= options.
+</DL>
+
+<A NAME="lbAH">&nbsp;</A>
+<H3>Performance and Compression Tuning</H3>
+
+<P>
+
+--active-branches=&lt;n&gt;
+<DL COMPACT><DT id="13"><DD>
+Maximum number of branches to maintain active at once. See "Memory Utilization" below for details. Default is 5.
+</DL>
+
+<P>
+
+--big-file-threshold=&lt;n&gt;
+<DL COMPACT><DT id="14"><DD>
+Maximum size of a blob that fast-import will attempt to create a delta for, expressed in bytes. The default is 512m (512 MiB). Some importers may wish to lower this on systems with constrained memory.
+</DL>
+
+<P>
+
+--depth=&lt;n&gt;
+<DL COMPACT><DT id="15"><DD>
+Maximum delta depth, for blob and tree deltification. Default is 50.
+</DL>
+
+<P>
+
+--export-pack-edges=&lt;file&gt;
+<DL COMPACT><DT id="16"><DD>
+After creating a packfile, print a line of data to &lt;file&gt; listing the filename of the packfile and the last commit on each branch that was written to that packfile. This information may be useful after importing projects whose total object set exceeds the 4 GiB packfile limit, as these commits can be used as edge points during calls to
+<I>git pack-objects</I>.
+</DL>
+
+<P>
+
+--max-pack-size=&lt;n&gt;
+<DL COMPACT><DT id="17"><DD>
+Maximum size of each output packfile. The default is unlimited.
+</DL>
+
+<P>
+
+fastimport.unpackLimit
+<DL COMPACT><DT id="18"><DD>
+See
+<B><A HREF="/cgi-bin/man/man2html?1+git-config">git-config</A></B>(1)
+</DL>
+
+<A NAME="lbAI">&nbsp;</A>
+<H2>PERFORMANCE</H2>
+
+<P>
+The design of fast-import allows it to import large projects in a minimum amount of memory usage and processing time. Assuming the frontend is able to keep up with fast-import and feed it a constant stream of data, import times for projects holding 10+ years of history and containing 100,000+ individual commits are generally completed in just 1-2 hours on quite modest (~$2,000 USD) hardware.
+<P>
+Most bottlenecks appear to be in foreign source data access (the source just cannot extract revisions fast enough) or disk IO (fast-import writes as fast as the disk will take the data). Imports will run faster if the source data is stored on a different drive than the destination Git repository (due to less IO contention).
+<A NAME="lbAJ">&nbsp;</A>
+<H2>DEVELOPMENT COST</H2>
+
+<P>
+A typical frontend for fast-import tends to weigh in at approximately 200 lines of Perl/Python/Ruby code. Most developers have been able to create working importers in just a couple of hours, even though it is their first exposure to fast-import, and sometimes even to Git. This is an ideal situation, given that most conversion tools are throw-away (use once, and never look back).
+<A NAME="lbAK">&nbsp;</A>
+<H2>PARALLEL OPERATION</H2>
+
+<P>
+Like <I>git push</I> or <I>git fetch</I>, imports handled by fast-import are safe to run alongside parallel <B>git repack -a -d</B> or <B>git gc</B> invocations, or any other Git operation (including <I>git prune</I>, as loose objects are never used by fast-import).
+<P>
+fast-import does not lock the branch or tag refs it is actively importing. After the import, during its ref update phase, fast-import tests each existing branch ref to verify the update will be a fast-forward update (the commit stored in the ref is contained in the new history of the commit to be written). If the update is not a fast-forward update, fast-import will skip updating that ref and instead prints a warning message. fast-import will always attempt to update all branch refs, and does not stop on the first failure.
+<P>
+Branch updates can be forced with --force, but it's recommended that this only be used on an otherwise quiet repository. Using --force is not necessary for an initial import into an empty repository.
+<A NAME="lbAL">&nbsp;</A>
+<H2>TECHNICAL DISCUSSION</H2>
+
+<P>
+fast-import tracks a set of branches in memory. Any branch can be created or modified at any point during the import process by sending a <B>commit</B> command on the input stream. This design allows a frontend program to process an unlimited number of branches simultaneously, generating commits in the order they are available from the source data. It also simplifies the frontend programs considerably.
+<P>
+fast-import does not use or alter the current working directory, or any file within it. (It does however update the current Git repository, as referenced by <B>GIT_DIR</B>.) Therefore an import frontend may use the working directory for its own purposes, such as extracting file revisions from the foreign source. This ignorance of the working directory also allows fast-import to run very quickly, as it does not need to perform any costly file update operations when switching between branches.
+<A NAME="lbAM">&nbsp;</A>
+<H2>INPUT FORMAT</H2>
+
+<P>
+With the exception of raw file data (which Git does not interpret) the fast-import input format is text (ASCII) based. This text based format simplifies development and debugging of frontend programs, especially when a higher level language such as Perl, Python or Ruby is being used.
+<P>
+fast-import is very strict about its input. Where we say SP below we mean <B>exactly</B> one space. Likewise LF means one (and only one) linefeed and HT one (and only one) horizontal tab. Supplying additional whitespace characters will cause unexpected results, such as branch names or file names with leading or trailing spaces in their name, or early termination of fast-import when it encounters unexpected input.
+<A NAME="lbAN">&nbsp;</A>
+<H3>Stream Comments</H3>
+
+<P>
+To aid in debugging frontends fast-import ignores any line that begins with <B>#</B> (ASCII pound/hash) up to and including the line ending <B>LF</B>. A comment line may contain any sequence of bytes that does not contain an LF and therefore may be used to include any detailed debugging information that might be specific to the frontend and useful when inspecting a fast-import data stream.
+<A NAME="lbAO">&nbsp;</A>
+<H3>Date Formats</H3>
+
+<P>
+The following date formats are supported. A frontend should select the format it will use for this import by passing the format name in the --date-format=&lt;fmt&gt; command-line option.
+<P>
+
+<B>raw</B>
+<DL COMPACT><DT id="19"><DD>
+This is the Git native format and is
+<B>&lt;time&gt; SP &lt;offutc&gt;</B>. It is also fast-import's default format, if --date-format was not specified.
+<P>
+The time of the event is specified by
+<B>&lt;time&gt;</B>
+as the number of seconds since the UNIX epoch (midnight, Jan 1, 1970, UTC) and is written as an ASCII decimal integer.
+<P>
+The local offset is specified by
+<B>&lt;offutc&gt;</B>
+as a positive or negative offset from UTC. For example EST (which is 5 hours behind UTC) would be expressed in
+<B>&lt;tz&gt;</B>
+by "-0500" while UTC is "+0000". The local offset does not affect
+<B>&lt;time&gt;</B>; it is used only as an advisement to help formatting routines display the timestamp.
+<P>
+If the local offset is not available in the source material, use "+0000", or the most common local offset. For example many organizations have a CVS repository which has only ever been accessed by users who are located in the same location and time zone. In this case a reasonable offset from UTC could be assumed.
+<P>
+Unlike the
+<B>rfc2822</B>
+format, this format is very strict. Any variation in formatting will cause fast-import to reject the value.
+</DL>
+
+<P>
+
+<B>rfc2822</B>
+<DL COMPACT><DT id="20"><DD>
+This is the standard email format as described by RFC 2822.
+<P>
+An example value is "Tue Feb 6 11:22:18 2007 -0500". The Git parser is accurate, but a little on the lenient side. It is the same parser used by
+<I>git am</I>
+when applying patches received from email.
+<P>
+Some malformed strings may be accepted as valid dates. In some of these cases Git will still be able to obtain the correct date from the malformed string. There are also some types of malformed strings which Git will parse wrong, and yet consider valid. Seriously malformed strings will be rejected.
+<P>
+Unlike the
+<B>raw</B>
+format above, the time zone/UTC offset information contained in an RFC 2822 date string is used to adjust the date value to UTC prior to storage. Therefore it is important that this information be as accurate as possible.
+<P>
+If the source material uses RFC 2822 style dates, the frontend should let fast-import handle the parsing and conversion (rather than attempting to do it itself) as the Git parser has been well tested in the wild.
+<P>
+Frontends should prefer the
+<B>raw</B>
+format if the source material already uses UNIX-epoch format, can be coaxed to give dates in that format, or its format is easily convertible to it, as there is no ambiguity in parsing.
+</DL>
+
+<P>
+
+<B>now</B>
+<DL COMPACT><DT id="21"><DD>
+Always use the current time and time zone. The literal
+<B>now</B>
+must always be supplied for
+<B>&lt;when&gt;</B>.
+<P>
+This is a toy format. The current time and time zone of this system is always copied into the identity string at the time it is being created by fast-import. There is no way to specify a different time or time zone.
+<P>
+This particular format is supplied as it's short to implement and may be useful to a process that wants to create a new commit right now, without needing to use a working directory or
+<I>git update-index</I>.
+<P>
+If separate
+<B>author</B>
+and
+<B>committer</B>
+commands are used in a
+<B>commit</B>
+the timestamps may not match, as the system clock will be polled twice (once for each command). The only way to ensure that both author and committer identity information has the same timestamp is to omit
+<B>author</B>
+(thus copying from
+<B>committer</B>) or to use a date format other than
+<B>now</B>.
+</DL>
+
+<A NAME="lbAP">&nbsp;</A>
+<H3>Commands</H3>
+
+<P>
+fast-import accepts several commands to update the current repository and control the current import process. More detailed discussion (with examples) of each command follows later.
+<P>
+
+<B>commit</B>
+<DL COMPACT><DT id="22"><DD>
+Creates a new branch or updates an existing branch by creating a new commit and updating the branch to point at the newly created commit.
+</DL>
+
+<P>
+
+<B>tag</B>
+<DL COMPACT><DT id="23"><DD>
+Creates an annotated tag object from an existing commit or branch. Lightweight tags are not supported by this command, as they are not recommended for recording meaningful points in time.
+</DL>
+
+<P>
+
+<B>reset</B>
+<DL COMPACT><DT id="24"><DD>
+Reset an existing branch (or a new branch) to a specific revision. This command must be used to change a branch to a specific revision without making a commit on it.
+</DL>
+
+<P>
+
+<B>blob</B>
+<DL COMPACT><DT id="25"><DD>
+Convert raw file data into a blob, for future use in a
+<B>commit</B>
+command. This command is optional and is not needed to perform an import.
+</DL>
+
+<P>
+
+<B>alias</B>
+<DL COMPACT><DT id="26"><DD>
+Record that a mark refers to a given object without first creating any new object. Using --import-marks and referring to missing marks will cause fast-import to fail, so aliases can provide a way to set otherwise pruned commits to a valid value (e.g. the nearest non-pruned ancestor).
+</DL>
+
+<P>
+
+<B>checkpoint</B>
+<DL COMPACT><DT id="27"><DD>
+Forces fast-import to close the current packfile, generate its unique SHA-1 checksum and index, and start a new packfile. This command is optional and is not needed to perform an import.
+</DL>
+
+<P>
+
+<B>progress</B>
+<DL COMPACT><DT id="28"><DD>
+Causes fast-import to echo the entire line to its own standard output. This command is optional and is not needed to perform an import.
+</DL>
+
+<P>
+
+<B>done</B>
+<DL COMPACT><DT id="29"><DD>
+Marks the end of the stream. This command is optional unless the
+<B>done</B>
+feature was requested using the
+<B>--done</B>
+command-line option or
+<B>feature done</B>
+command.
+</DL>
+
+<P>
+
+<B>get-mark</B>
+<DL COMPACT><DT id="30"><DD>
+Causes fast-import to print the SHA-1 corresponding to a mark to the file descriptor set with
+<B>--cat-blob-fd</B>, or
+<B>stdout</B>
+if unspecified.
+</DL>
+
+<P>
+
+<B>cat-blob</B>
+<DL COMPACT><DT id="31"><DD>
+Causes fast-import to print a blob in
+<I>cat-file --batch</I>
+format to the file descriptor set with
+<B>--cat-blob-fd</B>
+or
+<B>stdout</B>
+if unspecified.
+</DL>
+
+<P>
+
+<B>ls</B>
+<DL COMPACT><DT id="32"><DD>
+Causes fast-import to print a line describing a directory entry in
+<I>ls-tree</I>
+format to the file descriptor set with
+<B>--cat-blob-fd</B>
+or
+<B>stdout</B>
+if unspecified.
+</DL>
+
+<P>
+
+<B>feature</B>
+<DL COMPACT><DT id="33"><DD>
+Enable the specified feature. This requires that fast-import supports the specified feature, and aborts if it does not.
+</DL>
+
+<P>
+
+<B>option</B>
+<DL COMPACT><DT id="34"><DD>
+Specify any of the options listed under OPTIONS that do not change stream semantic to suit the frontend's needs. This command is optional and is not needed to perform an import.
+</DL>
+
+<A NAME="lbAQ">&nbsp;</A>
+<H3><B>commit</B></H3>
+
+<P>
+Create or update a branch with a new commit, recording one logical change to the project.
+<P>
+<DL COMPACT><DT id="35"><DD>
+
+
+
+<PRE>
+        'commit' SP &lt;ref&gt; LF
+        mark?
+        original-oid?
+        ('author' (SP &lt;name&gt;)? SP LT &lt;email&gt; GT SP &lt;when&gt; LF)?
+        'committer' (SP &lt;name&gt;)? SP LT &lt;email&gt; GT SP &lt;when&gt; LF
+        ('encoding' SP &lt;encoding&gt;)?
+        data
+        ('from' SP &lt;commit-ish&gt; LF)?
+        ('merge' SP &lt;commit-ish&gt; LF)*
+        (filemodify | filedelete | filecopy | filerename | filedeleteall | notemodify)*
+        LF?
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+where <B>&lt;ref&gt;</B> is the name of the branch to make the commit on. Typically branch names are prefixed with <B>refs/heads/</B> in Git, so importing the CVS branch symbol <B>RELENG-1_0</B> would use <B>refs/heads/RELENG-1_0</B> for the value of <B>&lt;ref&gt;</B>. The value of <B>&lt;ref&gt;</B> must be a valid refname in Git. As <B>LF</B> is not valid in a Git refname, no quoting or escaping syntax is supported here.
+<P>
+A <B>mark</B> command may optionally appear, requesting fast-import to save a reference to the newly created commit for future use by the frontend (see below for format). It is very common for frontends to mark every commit they create, thereby allowing future branch creation from any imported commit.
+<P>
+The <B>data</B> command following <B>committer</B> must supply the commit message (see below for <B>data</B> command syntax). To import an empty commit message use a 0 length data. Commit messages are free-form and are not interpreted by Git. Currently they must be encoded in UTF-8, as fast-import does not permit other encodings to be specified.
+<P>
+Zero or more <B>filemodify</B>, <B>filedelete</B>, <B>filecopy</B>, <B>filerename</B>, <B>filedeleteall</B> and <B>notemodify</B> commands may be included to update the contents of the branch prior to creating the commit. These commands may be supplied in any order. However it is recommended that a <B>filedeleteall</B> command precede all <B>filemodify</B>, <B>filecopy</B>, <B>filerename</B> and <B>notemodify</B> commands in the same commit, as <B>filedeleteall</B> wipes the branch clean (see below).
+<P>
+The <B>LF</B> after the command is optional (it used to be required). Note that for reasons of backward compatibility, if the commit ends with a <B>data</B> command (i.e. it has no <B>from</B>, <B>merge</B>, <B>filemodify</B>, <B>filedelete</B>, <B>filecopy</B>, <B>filerename</B>, <B>filedeleteall</B> or <B>notemodify</B> commands) then two <B>LF</B> commands may appear at the end of the command instead of just one.
+<P>
+
+
+
+<BR>
+
+<FONT SIZE="+1">
+<B>author</B>
+<DL COMPACT><DT id="36"><DD>
+<P>
+An <B>author</B> command may optionally appear, if the author information might differ from the committer information. If <B>author</B> is omitted then fast-import will automatically use the committer's information for the author portion of the commit. See below for a description of the fields in <B>author</B>, as they are identical to <B>committer</B>.
+</DL>
+
+<P>
+
+
+
+<BR>
+
+</FONT><FONT SIZE="+2">
+<B>committer</B>
+<DL COMPACT><DT id="37"><DD>
+<P>
+The <B>committer</B> command indicates who made this commit, and when they made it.
+<P>
+Here <B>&lt;name&gt;</B> is the person's display name (for example "Com M Itter") and <B>&lt;email&gt;</B> is the person's email address ("<A HREF="mailto:cm@example.com">cm@example.com</A>"). <B>LT</B> and <B>GT</B> are the literal less-than (\x3c) and greater-than (\x3e) symbols. These are required to delimit the email address from the other fields in the line. Note that <B>&lt;name&gt;</B> and <B>&lt;email&gt;</B> are free-form and may contain any sequence of bytes, except <B>LT</B>, <B>GT</B> and <B>LF</B>. <B>&lt;name&gt;</B> is typically UTF-8 encoded.
+<P>
+The time of the change is specified by <B>&lt;when&gt;</B> using the date format that was selected by the --date-format=&lt;fmt&gt; command-line option. See "Date Formats" above for the set of supported formats, and their syntax.
+</DL>
+
+<P>
+
+
+
+<BR>
+
+</FONT><FONT SIZE="+3">
+<B>encoding</B>
+<DL COMPACT><DT id="38"><DD>
+<P>
+The optional <B>encoding</B> command indicates the encoding of the commit message. Most commits are UTF-8 and the encoding is omitted, but this allows importing commit messages into git without first reencoding them.
+</DL>
+
+<P>
+
+
+
+<BR>
+
+</FONT><FONT SIZE="+4">
+<B>from</B>
+<DL COMPACT><DT id="39"><DD>
+<P>
+The <B>from</B> command is used to specify the commit to initialize this branch from. This revision will be the first ancestor of the new commit. The state of the tree built at this commit will begin with the state at the <B>from</B> commit, and be altered by the content modifications in this commit.
+<P>
+Omitting the <B>from</B> command in the first commit of a new branch will cause fast-import to create that commit with no ancestor. This tends to be desired only for the initial commit of a project. If the frontend creates all files from scratch when making a new branch, a <B>merge</B> command may be used instead of <B>from</B> to start the commit with an empty tree. Omitting the <B>from</B> command on existing branches is usually desired, as the current commit on that branch is automatically assumed to be the first ancestor of the new commit.
+<P>
+As <B>LF</B> is not valid in a Git refname or SHA-1 expression, no quoting or escaping syntax is supported within <B>&lt;commit-ish&gt;</B>.
+<P>
+Here <B>&lt;commit-ish&gt;</B> is any of the following:
+<P>
+<DL COMPACT><DT id="40"><DD>
+&bull;
+
+
+The name of an existing branch already in fast-import's internal branch table. If fast-import doesn't know the name, it's treated as a SHA-1 expression.
+</DL>
+
+<P>
+<DL COMPACT><DT id="41"><DD>
+&bull;
+
+
+A mark reference,
+<B>:&lt;idnum&gt;</B>, where
+<B>&lt;idnum&gt;</B>
+is the mark number.
+<P>
+The reason fast-import uses
+<B>:</B>
+to denote a mark reference is this character is not legal in a Git branch name. The leading
+<B>:</B>
+makes it easy to distinguish between the mark 42 (<B>:42</B>) and the branch 42 (<B>42</B>
+or
+<B>refs/heads/42</B>), or an abbreviated SHA-1 which happened to consist only of base-10 digits.
+<P>
+Marks must be declared (via
+<B>mark</B>) before they can be used.
+</DL>
+
+<P>
+<DL COMPACT><DT id="42"><DD>
+&bull;
+
+
+A complete 40 byte or abbreviated commit SHA-1 in hex.
+</DL>
+
+<P>
+<DL COMPACT><DT id="43"><DD>
+&bull;
+
+
+Any valid Git SHA-1 expression that resolves to a commit. See "SPECIFYING REVISIONS" in
+<B><A HREF="/cgi-bin/man/man2html?7+gitrevisions">gitrevisions</A></B>(7)
+for details.
+</DL>
+
+<P>
+<DL COMPACT><DT id="44"><DD>
+&bull;
+
+
+The special null SHA-1 (40 zeros) specifies that the branch is to be removed.
+</DL>
+
+<P>
+The special case of restarting an incremental import from the current branch value should be written as:
+<P>
+<DL COMPACT><DT id="45"><DD>
+
+
+
+</FONT><PRE>
+        from refs/heads/branch^0
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+The <B>^0</B> suffix is necessary as fast-import does not permit a branch to start from itself, and the branch is created in memory before the <B>from</B> command is even read from the input. Adding <B>^0</B> will force fast-import to resolve the commit through Git's revision parsing library, rather than its internal branch table, thereby loading in the existing value of the branch.
+</DL>
+
+<P>
+
+
+
+<BR>
+
+<FONT SIZE="+1">
+<B>merge</B>
+<DL COMPACT><DT id="46"><DD>
+<P>
+Includes one additional ancestor commit. The additional ancestry link does not change the way the tree state is built at this commit. If the <B>from</B> command is omitted when creating a new branch, the first <B>merge</B> commit will be the first ancestor of the current commit, and the branch will start out with no files. An unlimited number of <B>merge</B> commands per commit are permitted by fast-import, thereby establishing an n-way merge.
+<P>
+Here <B>&lt;commit-ish&gt;</B> is any of the commit specification expressions also accepted by <B>from</B> (see above).
+</DL>
+
+<P>
+
+
+
+<BR>
+
+</FONT><FONT SIZE="+2">
+<B>filemodify</B>
+<DL COMPACT><DT id="47"><DD>
+<P>
+Included in a <B>commit</B> command to add a new file or change the content of an existing file. This command has two different means of specifying the content of the file.
+<P>
+
+External data format
+<DL COMPACT><DT id="48"><DD>
+The data content for the file was already supplied by a prior
+<B>blob</B>
+command. The frontend just needs to connect it.
+<P>
+<DL COMPACT><DT id="49"><DD>
+
+
+
+</FONT><PRE>
+        'M' SP &lt;mode&gt; SP &lt;dataref&gt; SP &lt;path&gt; LF
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+Here usually
+<B>&lt;dataref&gt;</B>
+must be either a mark reference (<B>:&lt;idnum&gt;</B>) set by a prior
+<B>blob</B>
+command, or a full 40-byte SHA-1 of an existing Git blob object. If
+<B>&lt;mode&gt;</B>
+is
+<B>040000`</B>
+then
+<B>&lt;dataref&gt;</B>
+must be the full 40-byte SHA-1 of an existing Git tree object or a mark reference set with
+<B>--import-marks</B>.
+</DL>
+
+<P>
+
+Inline data format
+<DL COMPACT><DT id="50"><DD>
+The data content for the file has not been supplied yet. The frontend wants to supply it as part of this modify command.
+<P>
+<DL COMPACT><DT id="51"><DD>
+
+
+
+<PRE>
+        'M' SP &lt;mode&gt; SP 'inline' SP &lt;path&gt; LF
+        data
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+See below for a detailed description of the
+<B>data</B>
+command.
+</DL>
+
+<P>
+In both formats <B>&lt;mode&gt;</B> is the type of file entry, specified in octal. Git only supports the following modes:
+<P>
+<DL COMPACT><DT id="52"><DD>
+&bull;
+
+
+<B>100644</B>
+or
+<B>644</B>: A normal (not-executable) file. The majority of files in most projects use this mode. If in doubt, this is what you want.
+</DL>
+
+<P>
+<DL COMPACT><DT id="53"><DD>
+&bull;
+
+
+<B>100755</B>
+or
+<B>755</B>: A normal, but executable, file.
+</DL>
+
+<P>
+<DL COMPACT><DT id="54"><DD>
+&bull;
+
+
+<B>120000</B>: A symlink, the content of the file will be the link target.
+</DL>
+
+<P>
+<DL COMPACT><DT id="55"><DD>
+&bull;
+
+
+<B>160000</B>: A gitlink, SHA-1 of the object refers to a commit in another repository. Git links can only be specified by SHA or through a commit mark. They are used to implement submodules.
+</DL>
+
+<P>
+<DL COMPACT><DT id="56"><DD>
+&bull;
+
+
+<B>040000</B>: A subdirectory. Subdirectories can only be specified by SHA or through a tree mark set with
+<B>--import-marks</B>.
+</DL>
+
+<P>
+In both formats <B>&lt;path&gt;</B> is the complete path of the file to be added (if not already existing) or modified (if already existing).
+<P>
+A <B>&lt;path&gt;</B> string must use UNIX-style directory separators (forward slash <B>/</B>), may contain any byte other than <B>LF</B>, and must not start with double quote (<B>&quot;</B>).
+<P>
+A path can use C-style string quoting; this is accepted in all cases and mandatory if the filename starts with double quote or contains <B>LF</B>. In C-style quoting, the complete name should be surrounded with double quotes, and any <B>LF</B>, backslash, or double quote characters must be escaped by preceding them with a backslash (e.g., <B>&quot;path/with\n, \\ and \&quot; in it&quot;</B>).
+<P>
+The value of <B>&lt;path&gt;</B> must be in canonical form. That is it must not:
+<P>
+<DL COMPACT><DT id="57"><DD>
+&bull;
+
+
+contain an empty directory component (e.g.
+<B>foo//bar</B>
+is invalid),
+</DL>
+
+<P>
+<DL COMPACT><DT id="58"><DD>
+&bull;
+
+
+end with a directory separator (e.g.
+<B>foo/</B>
+is invalid),
+</DL>
+
+<P>
+<DL COMPACT><DT id="59"><DD>
+&bull;
+
+
+start with a directory separator (e.g.
+<B>/foo</B>
+is invalid),
+</DL>
+
+<P>
+<DL COMPACT><DT id="60"><DD>
+&bull;
+
+
+contain the special component
+<B>.</B>
+or
+<B>..</B>
+(e.g.
+<B>foo/./bar</B>
+and
+<B>foo/../bar</B>
+are invalid).
+</DL>
+
+<P>
+The root of the tree can be represented by an empty string as <B>&lt;path&gt;</B>.
+<P>
+It is recommended that <B>&lt;path&gt;</B> always be encoded using UTF-8.
+</DL>
+
+<P>
+
+
+
+<BR>
+
+<FONT SIZE="+1">
+<B>filedelete</B>
+<DL COMPACT><DT id="61"><DD>
+<P>
+Included in a <B>commit</B> command to remove a file or recursively delete an entire directory from the branch. If the file or directory removal makes its parent directory empty, the parent directory will be automatically removed too. This cascades up the tree until the first non-empty directory or the root is reached.
+<P>
+<DL COMPACT><DT id="62"><DD>
+
+
+
+</FONT><PRE>
+        'D' SP &lt;path&gt; LF
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+here <B>&lt;path&gt;</B> is the complete path of the file or subdirectory to be removed from the branch. See <B>filemodify</B> above for a detailed description of <B>&lt;path&gt;</B>.
+</DL>
+
+<P>
+
+
+
+<BR>
+
+<FONT SIZE="+1">
+<B>filecopy</B>
+<DL COMPACT><DT id="63"><DD>
+<P>
+Recursively copies an existing file or subdirectory to a different location within the branch. The existing file or directory must exist. If the destination exists it will be completely replaced by the content copied from the source.
+<P>
+<DL COMPACT><DT id="64"><DD>
+
+
+
+</FONT><PRE>
+        'C' SP &lt;path&gt; SP &lt;path&gt; LF
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+here the first <B>&lt;path&gt;</B> is the source location and the second <B>&lt;path&gt;</B> is the destination. See <B>filemodify</B> above for a detailed description of what <B>&lt;path&gt;</B> may look like. To use a source path that contains SP the path must be quoted.
+<P>
+A <B>filecopy</B> command takes effect immediately. Once the source location has been copied to the destination any future commands applied to the source location will not impact the destination of the copy.
+</DL>
+
+<P>
+
+
+
+<BR>
+
+<FONT SIZE="+1">
+<B>filerename</B>
+<DL COMPACT><DT id="65"><DD>
+<P>
+Renames an existing file or subdirectory to a different location within the branch. The existing file or directory must exist. If the destination exists it will be replaced by the source directory.
+<P>
+<DL COMPACT><DT id="66"><DD>
+
+
+
+</FONT><PRE>
+        'R' SP &lt;path&gt; SP &lt;path&gt; LF
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+here the first <B>&lt;path&gt;</B> is the source location and the second <B>&lt;path&gt;</B> is the destination. See <B>filemodify</B> above for a detailed description of what <B>&lt;path&gt;</B> may look like. To use a source path that contains SP the path must be quoted.
+<P>
+A <B>filerename</B> command takes effect immediately. Once the source location has been renamed to the destination any future commands applied to the source location will create new files there and not impact the destination of the rename.
+<P>
+Note that a <B>filerename</B> is the same as a <B>filecopy</B> followed by a <B>filedelete</B> of the source location. There is a slight performance advantage to using <B>filerename</B>, but the advantage is so small that it is never worth trying to convert a delete/add pair in source material into a rename for fast-import. This <B>filerename</B> command is provided just to simplify frontends that already have rename information and don't want bother with decomposing it into a <B>filecopy</B> followed by a <B>filedelete</B>.
+</DL>
+
+<P>
+
+
+
+<BR>
+
+<FONT SIZE="+1">
+<B>filedeleteall</B>
+<DL COMPACT><DT id="67"><DD>
+<P>
+Included in a <B>commit</B> command to remove all files (and also all directories) from the branch. This command resets the internal branch structure to have no files in it, allowing the frontend to subsequently add all interesting files from scratch.
+<P>
+<DL COMPACT><DT id="68"><DD>
+
+
+
+</FONT><PRE>
+        'deleteall' LF
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+This command is extremely useful if the frontend does not know (or does not care to know) what files are currently on the branch, and therefore cannot generate the proper <B>filedelete</B> commands to update the content.
+<P>
+Issuing a <B>filedeleteall</B> followed by the needed <B>filemodify</B> commands to set the correct content will produce the same results as sending only the needed <B>filemodify</B> and <B>filedelete</B> commands. The <B>filedeleteall</B> approach may however require fast-import to use slightly more memory per active branch (less than 1 MiB for even most large projects); so frontends that can easily obtain only the affected paths for a commit are encouraged to do so.
+</DL>
+
+<P>
+
+
+
+<BR>
+
+<FONT SIZE="+1">
+<B>notemodify</B>
+<DL COMPACT><DT id="69"><DD>
+<P>
+Included in a <B>commit</B> <B>&lt;notes_ref&gt;</B> command to add a new note annotating a <B>&lt;commit-ish&gt;</B> or change this annotation contents. Internally it is similar to filemodify 100644 on <B>&lt;commit-ish&gt;</B> path (maybe split into subdirectories). It's not advised to use any other commands to write to the <B>&lt;notes_ref&gt;</B> tree except <B>filedeleteall</B> to delete all existing notes in this tree. This command has two different means of specifying the content of the note.
+<P>
+
+External data format
+<DL COMPACT><DT id="70"><DD>
+The data content for the note was already supplied by a prior
+<B>blob</B>
+command. The frontend just needs to connect it to the commit that is to be annotated.
+<P>
+<DL COMPACT><DT id="71"><DD>
+
+
+
+</FONT><PRE>
+        'N' SP &lt;dataref&gt; SP &lt;commit-ish&gt; LF
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+Here
+<B>&lt;dataref&gt;</B>
+can be either a mark reference (<B>:&lt;idnum&gt;</B>) set by a prior
+<B>blob</B>
+command, or a full 40-byte SHA-1 of an existing Git blob object.
+</DL>
+
+<P>
+
+Inline data format
+<DL COMPACT><DT id="72"><DD>
+The data content for the note has not been supplied yet. The frontend wants to supply it as part of this modify command.
+<P>
+<DL COMPACT><DT id="73"><DD>
+
+
+
+<PRE>
+        'N' SP 'inline' SP &lt;commit-ish&gt; LF
+        data
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+See below for a detailed description of the
+<B>data</B>
+command.
+</DL>
+
+<P>
+In both formats <B>&lt;commit-ish&gt;</B> is any of the commit specification expressions also accepted by <B>from</B> (see above).
+</DL>
+
+<A NAME="lbAR">&nbsp;</A>
+<H3><B>mark</B></H3>
+
+<P>
+Arranges for fast-import to save a reference to the current object, allowing the frontend to recall this object at a future point in time, without knowing its SHA-1. Here the current object is the object creation command the <B>mark</B> command appears within. This can be <B>commit</B>, <B>tag</B>, and <B>blob</B>, but <B>commit</B> is the most common usage.
+<P>
+<DL COMPACT><DT id="74"><DD>
+
+
+
+<PRE>
+        'mark' SP ':' &lt;idnum&gt; LF
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+where <B>&lt;idnum&gt;</B> is the number assigned by the frontend to this mark. The value of <B>&lt;idnum&gt;</B> is expressed as an ASCII decimal integer. The value 0 is reserved and cannot be used as a mark. Only values greater than or equal to 1 may be used as marks.
+<P>
+New marks are created automatically. Existing marks can be moved to another object simply by reusing the same <B>&lt;idnum&gt;</B> in another <B>mark</B> command.
+<A NAME="lbAS">&nbsp;</A>
+<H3><B>original-oid</B></H3>
+
+<P>
+Provides the name of the object in the original source control system. fast-import will simply ignore this directive, but filter processes which operate on and modify the stream before feeding to fast-import may have uses for this information
+<P>
+<DL COMPACT><DT id="75"><DD>
+
+
+
+<PRE>
+        'original-oid' SP &lt;object-identifier&gt; LF
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+where <B>&lt;object-identifer&gt;</B> is any string not containing LF.
+<A NAME="lbAT">&nbsp;</A>
+<H3><B>tag</B></H3>
+
+<P>
+Creates an annotated tag referring to a specific commit. To create lightweight (non-annotated) tags see the <B>reset</B> command below.
+<P>
+<DL COMPACT><DT id="76"><DD>
+
+
+
+<PRE>
+        'tag' SP &lt;name&gt; LF
+        mark?
+        'from' SP &lt;commit-ish&gt; LF
+        original-oid?
+        'tagger' (SP &lt;name&gt;)? SP LT &lt;email&gt; GT SP &lt;when&gt; LF
+        data
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+where <B>&lt;name&gt;</B> is the name of the tag to create.
+<P>
+Tag names are automatically prefixed with <B>refs/tags/</B> when stored in Git, so importing the CVS branch symbol <B>RELENG-1_0-FINAL</B> would use just <B>RELENG-1_0-FINAL</B> for <B>&lt;name&gt;</B>, and fast-import will write the corresponding ref as <B>refs/tags/RELENG-1_0-FINAL</B>.
+<P>
+The value of <B>&lt;name&gt;</B> must be a valid refname in Git and therefore may contain forward slashes. As <B>LF</B> is not valid in a Git refname, no quoting or escaping syntax is supported here.
+<P>
+The <B>from</B> command is the same as in the <B>commit</B> command; see above for details.
+<P>
+The <B>tagger</B> command uses the same format as <B>committer</B> within <B>commit</B>; again see above for details.
+<P>
+The <B>data</B> command following <B>tagger</B> must supply the annotated tag message (see below for <B>data</B> command syntax). To import an empty tag message use a 0 length data. Tag messages are free-form and are not interpreted by Git. Currently they must be encoded in UTF-8, as fast-import does not permit other encodings to be specified.
+<P>
+Signing annotated tags during import from within fast-import is not supported. Trying to include your own PGP/GPG signature is not recommended, as the frontend does not (easily) have access to the complete set of bytes which normally goes into such a signature. If signing is required, create lightweight tags from within fast-import with <B>reset</B>, then create the annotated versions of those tags offline with the standard <I>git tag</I> process.
+<A NAME="lbAU">&nbsp;</A>
+<H3><B>reset</B></H3>
+
+<P>
+Creates (or recreates) the named branch, optionally starting from a specific revision. The reset command allows a frontend to issue a new <B>from</B> command for an existing branch, or to create a new branch from an existing commit without creating a new commit.
+<P>
+<DL COMPACT><DT id="77"><DD>
+
+
+
+<PRE>
+        'reset' SP &lt;ref&gt; LF
+        ('from' SP &lt;commit-ish&gt; LF)?
+        LF?
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+For a detailed description of <B>&lt;ref&gt;</B> and <B>&lt;commit-ish&gt;</B> see above under <B>commit</B> and <B>from</B>.
+<P>
+The <B>LF</B> after the command is optional (it used to be required).
+<P>
+The <B>reset</B> command can also be used to create lightweight (non-annotated) tags. For example:
+<P>
+<DL COMPACT><DT id="78"><DD>
+
+
+
+<PRE>
+reset refs/tags/938
+from :938
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+would create the lightweight tag <B>refs/tags/938</B> referring to whatever commit mark <B>:938</B> references.
+<A NAME="lbAV">&nbsp;</A>
+<H3><B>blob</B></H3>
+
+<P>
+Requests writing one file revision to the packfile. The revision is not connected to any commit; this connection must be formed in a subsequent <B>commit</B> command by referencing the blob through an assigned mark.
+<P>
+<DL COMPACT><DT id="79"><DD>
+
+
+
+<PRE>
+        'blob' LF
+        mark?
+        original-oid?
+        data
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+The mark command is optional here as some frontends have chosen to generate the Git SHA-1 for the blob on their own, and feed that directly to <B>commit</B>. This is typically more work than it's worth however, as marks are inexpensive to store and easy to use.
+<A NAME="lbAW">&nbsp;</A>
+<H3><B>data</B></H3>
+
+<P>
+Supplies raw data (for use as blob/file content, commit messages, or annotated tag messages) to fast-import. Data can be supplied using an exact byte count or delimited with a terminating line. Real frontends intended for production-quality conversions should always use the exact byte count format, as it is more robust and performs better. The delimited format is intended primarily for testing fast-import.
+<P>
+Comment lines appearing within the <B>&lt;raw&gt;</B> part of <B>data</B> commands are always taken to be part of the body of the data and are therefore never ignored by fast-import. This makes it safe to import any file/message content whose lines might start with <B>#</B>.
+<P>
+
+Exact byte count format
+<DL COMPACT><DT id="80"><DD>
+The frontend must specify the number of bytes of data.
+<P>
+<DL COMPACT><DT id="81"><DD>
+
+
+
+<PRE>
+        'data' SP &lt;count&gt; LF
+        &lt;raw&gt; LF?
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+where
+<B>&lt;count&gt;</B>
+is the exact number of bytes appearing within
+<B>&lt;raw&gt;</B>. The value of
+<B>&lt;count&gt;</B>
+is expressed as an ASCII decimal integer. The
+<B>LF</B>
+on either side of
+<B>&lt;raw&gt;</B>
+is not included in
+<B>&lt;count&gt;</B>
+and will not be included in the imported data.
+<P>
+The
+<B>LF</B>
+after
+<B>&lt;raw&gt;</B>
+is optional (it used to be required) but recommended. Always including it makes debugging a fast-import stream easier as the next command always starts in column 0 of the next line, even if
+<B>&lt;raw&gt;</B>
+did not end with an
+<B>LF</B>.
+</DL>
+
+<P>
+
+Delimited format
+<DL COMPACT><DT id="82"><DD>
+A delimiter string is used to mark the end of the data. fast-import will compute the length by searching for the delimiter. This format is primarily useful for testing and is not recommended for real data.
+<P>
+<DL COMPACT><DT id="83"><DD>
+
+
+
+<PRE>
+        'data' SP '&lt;&lt;' &lt;delim&gt; LF
+        &lt;raw&gt; LF
+        &lt;delim&gt; LF
+        LF?
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+where
+<B>&lt;delim&gt;</B>
+is the chosen delimiter string. The string
+<B>&lt;delim&gt;</B>
+must not appear on a line by itself within
+<B>&lt;raw&gt;</B>, as otherwise fast-import will think the data ends earlier than it really does. The
+<B>LF</B>
+immediately trailing
+<B>&lt;raw&gt;</B>
+is part of
+<B>&lt;raw&gt;</B>. This is one of the limitations of the delimited format, it is impossible to supply a data chunk which does not have an LF as its last byte.
+<P>
+The
+<B>LF</B>
+after
+<B>&lt;delim&gt; LF</B>
+is optional (it used to be required).
+</DL>
+
+<A NAME="lbAX">&nbsp;</A>
+<H3><B>alias</B></H3>
+
+<P>
+Record that a mark refers to a given object without first creating any new object.
+<P>
+<DL COMPACT><DT id="84"><DD>
+
+
+
+<PRE>
+        'alias' LF
+        mark
+        'to' SP &lt;commit-ish&gt; LF
+        LF?
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+For a detailed description of <B>&lt;commit-ish&gt;</B> see above under <B>from</B>.
+<A NAME="lbAY">&nbsp;</A>
+<H3><B>checkpoint</B></H3>
+
+<P>
+Forces fast-import to close the current packfile, start a new one, and to save out all current branch refs, tags and marks.
+<P>
+<DL COMPACT><DT id="85"><DD>
+
+
+
+<PRE>
+        'checkpoint' LF
+        LF?
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+Note that fast-import automatically switches packfiles when the current packfile reaches --max-pack-size, or 4 GiB, whichever limit is smaller. During an automatic packfile switch fast-import does not update the branch refs, tags or marks.
+<P>
+As a <B>checkpoint</B> can require a significant amount of CPU time and disk IO (to compute the overall pack SHA-1 checksum, generate the corresponding index file, and update the refs) it can easily take several minutes for a single <B>checkpoint</B> command to complete.
+<P>
+Frontends may choose to issue checkpoints during extremely large and long running imports, or when they need to allow another Git process access to a branch. However given that a 30 GiB Subversion repository can be loaded into Git through fast-import in about 3 hours, explicit checkpointing may not be necessary.
+<P>
+The <B>LF</B> after the command is optional (it used to be required).
+<A NAME="lbAZ">&nbsp;</A>
+<H3><B>progress</B></H3>
+
+<P>
+Causes fast-import to print the entire <B>progress</B> line unmodified to its standard output channel (file descriptor 1) when the command is processed from the input stream. The command otherwise has no impact on the current import, or on any of fast-import's internal state.
+<P>
+<DL COMPACT><DT id="86"><DD>
+
+
+
+<PRE>
+        'progress' SP &lt;any&gt; LF
+        LF?
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+The <B>&lt;any&gt;</B> part of the command may contain any sequence of bytes that does not contain <B>LF</B>. The <B>LF</B> after the command is optional. Callers may wish to process the output through a tool such as sed to remove the leading part of the line, for example:
+<P>
+<DL COMPACT><DT id="87"><DD>
+
+
+
+<PRE>
+frontend | git fast-import | sed 's/^progress //'
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+Placing a <B>progress</B> command immediately after a <B>checkpoint</B> will inform the reader when the <B>checkpoint</B> has been completed and it can safely access the refs that fast-import updated.
+<A NAME="lbBA">&nbsp;</A>
+<H3><B>get-mark</B></H3>
+
+<P>
+Causes fast-import to print the SHA-1 corresponding to a mark to stdout or to the file descriptor previously arranged with the <B>--cat-blob-fd</B> argument. The command otherwise has no impact on the current import; its purpose is to retrieve SHA-1s that later commits might want to refer to in their commit messages.
+<P>
+<DL COMPACT><DT id="88"><DD>
+
+
+
+<PRE>
+        'get-mark' SP ':' &lt;idnum&gt; LF
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+See "Responses To Commands" below for details about how to read this output safely.
+<A NAME="lbBB">&nbsp;</A>
+<H3><B>cat-blob</B></H3>
+
+<P>
+Causes fast-import to print a blob to a file descriptor previously arranged with the <B>--cat-blob-fd</B> argument. The command otherwise has no impact on the current import; its main purpose is to retrieve blobs that may be in fast-import's memory but not accessible from the target repository.
+<P>
+<DL COMPACT><DT id="89"><DD>
+
+
+
+<PRE>
+        'cat-blob' SP &lt;dataref&gt; LF
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+The <B>&lt;dataref&gt;</B> can be either a mark reference (<B>:&lt;idnum&gt;</B>) set previously or a full 40-byte SHA-1 of a Git blob, preexisting or ready to be written.
+<P>
+Output uses the same format as <B>git cat-file --batch</B>:
+<P>
+<DL COMPACT><DT id="90"><DD>
+
+
+
+<PRE>
+&lt;sha1&gt; SP 'blob' SP &lt;size&gt; LF
+&lt;contents&gt; LF
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+This command can be used where a <B>filemodify</B> directive can appear, allowing it to be used in the middle of a commit. For a <B>filemodify</B> using an inline directive, it can also appear right before the <B>data</B> directive.
+<P>
+See "Responses To Commands" below for details about how to read this output safely.
+<A NAME="lbBC">&nbsp;</A>
+<H3><B>ls</B></H3>
+
+<P>
+Prints information about the object at a path to a file descriptor previously arranged with the <B>--cat-blob-fd</B> argument. This allows printing a blob from the active commit (with <B>cat-blob</B>) or copying a blob or tree from a previous commit for use in the current one (with <B>filemodify</B>).
+<P>
+The <B>ls</B> command can also be used where a <B>filemodify</B> directive can appear, allowing it to be used in the middle of a commit.
+<P>
+
+Reading from the active commit
+<DL COMPACT><DT id="91"><DD>
+This form can only be used in the middle of a
+<B>commit</B>. The path names a directory entry within fast-import's active commit. The path must be quoted in this case.
+<P>
+<DL COMPACT><DT id="92"><DD>
+
+
+
+<PRE>
+        'ls' SP &lt;path&gt; LF
+</PRE>
+
+</DL>
+
+
+
+
+</DL>
+
+<P>
+
+Reading from a named tree
+<DL COMPACT><DT id="93"><DD>
+The
+<B>&lt;dataref&gt;</B>
+can be a mark reference (<B>:&lt;idnum&gt;</B>) or the full 40-byte SHA-1 of a Git tag, commit, or tree object, preexisting or waiting to be written. The path is relative to the top level of the tree named by
+<B>&lt;dataref&gt;</B>.
+<P>
+<DL COMPACT><DT id="94"><DD>
+
+
+
+<PRE>
+        'ls' SP &lt;dataref&gt; SP &lt;path&gt; LF
+</PRE>
+
+</DL>
+
+
+
+
+</DL>
+
+<P>
+See <B>filemodify</B> above for a detailed description of <B>&lt;path&gt;</B>.
+<P>
+Output uses the same format as <B>git ls-tree &lt;tree&gt; -- &lt;path&gt;</B>:
+<P>
+<DL COMPACT><DT id="95"><DD>
+
+
+
+<PRE>
+&lt;mode&gt; SP ('blob' | 'tree' | 'commit') SP &lt;dataref&gt; HT &lt;path&gt; LF
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+The &lt;dataref&gt; represents the blob, tree, or commit object at &lt;path&gt; and can be used in later <I>get-mark</I>, <I>cat-blob</I>, <I>filemodify</I>, or <I>ls</I> commands.
+<P>
+If there is no file or subtree at that path, <I>git fast-import</I> will instead report
+<P>
+<DL COMPACT><DT id="96"><DD>
+
+
+
+<PRE>
+missing SP &lt;path&gt; LF
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+See "Responses To Commands" below for details about how to read this output safely.
+<A NAME="lbBD">&nbsp;</A>
+<H3><B>feature</B></H3>
+
+<P>
+Require that fast-import supports the specified feature, or abort if it does not.
+<P>
+<DL COMPACT><DT id="97"><DD>
+
+
+
+<PRE>
+        'feature' SP &lt;feature&gt; ('=' &lt;argument&gt;)? LF
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+The &lt;feature&gt; part of the command may be any one of the following:
+<P>
+
+date-format, export-marks, relative-marks, no-relative-marks, force
+<DL COMPACT><DT id="98"><DD>
+Act as though the corresponding command-line option with a leading
+<B>--</B>
+was passed on the command line (see OPTIONS, above).
+</DL>
+
+<P>
+
+import-marks, import-marks-if-exists
+<DL COMPACT><DT id="99"><DD>
+Like --import-marks except in two respects: first, only one &quot;feature import-marks&quot; or &quot;feature import-marks-if-exists&quot; command is allowed per stream; second, an --import-marks= or --import-marks-if-exists command-line option overrides any of these &quot;feature&quot; commands in the stream; third, &quot;feature import-marks-if-exists&quot; like a corresponding command-line option silently skips a nonexistent file.
+</DL>
+
+<P>
+
+get-mark, cat-blob, ls
+<DL COMPACT><DT id="100"><DD>
+Require that the backend support the
+<I>get-mark</I>,
+<I>cat-blob</I>, or
+<I>ls</I>
+command respectively. Versions of fast-import not supporting the specified command will exit with a message indicating so. This lets the import error out early with a clear message, rather than wasting time on the early part of an import before the unsupported command is detected.
+</DL>
+
+<P>
+
+notes
+<DL COMPACT><DT id="101"><DD>
+Require that the backend support the
+<I>notemodify</I>
+(N) subcommand to the
+<I>commit</I>
+command. Versions of fast-import not supporting notes will exit with a message indicating so.
+</DL>
+
+<P>
+
+done
+<DL COMPACT><DT id="102"><DD>
+Error out if the stream ends without a
+<I>done</I>
+command. Without this feature, errors causing the frontend to end abruptly at a convenient point in the stream can go undetected. This may occur, for example, if an import front end dies in mid-operation without emitting SIGTERM or SIGKILL at its subordinate git fast-import instance.
+</DL>
+
+<A NAME="lbBE">&nbsp;</A>
+<H3><B>option</B></H3>
+
+<P>
+Processes the specified option so that git fast-import behaves in a way that suits the frontend's needs. Note that options specified by the frontend are overridden by any options the user may specify to git fast-import itself.
+<P>
+<DL COMPACT><DT id="103"><DD>
+
+
+
+<PRE>
+    'option' SP &lt;option&gt; LF
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+The <B>&lt;option&gt;</B> part of the command may contain any of the options listed in the OPTIONS section that do not change import semantics, without the leading <B>--</B> and is treated in the same way.
+<P>
+Option commands must be the first commands on the input (not counting feature commands), to give an option command after any non-option command is an error.
+<P>
+The following command-line options change import semantics and may therefore not be passed as option:
+<P>
+<DL COMPACT><DT id="104"><DD>
+&bull;
+
+
+date-format
+</DL>
+
+<P>
+<DL COMPACT><DT id="105"><DD>
+&bull;
+
+
+import-marks
+</DL>
+
+<P>
+<DL COMPACT><DT id="106"><DD>
+&bull;
+
+
+export-marks
+</DL>
+
+<P>
+<DL COMPACT><DT id="107"><DD>
+&bull;
+
+
+cat-blob-fd
+</DL>
+
+<P>
+<DL COMPACT><DT id="108"><DD>
+&bull;
+
+
+force
+</DL>
+
+<A NAME="lbBF">&nbsp;</A>
+<H3><B>done</B></H3>
+
+<P>
+If the <B>done</B> feature is not in use, treated as if EOF was read. This can be used to tell fast-import to finish early.
+<P>
+If the <B>--done</B> command-line option or <B>feature done</B> command is in use, the <B>done</B> command is mandatory and marks the end of the stream.
+<A NAME="lbBG">&nbsp;</A>
+<H2>RESPONSES TO COMMANDS</H2>
+
+<P>
+New objects written by fast-import are not available immediately. Most fast-import commands have no visible effect until the next checkpoint (or completion). The frontend can send commands to fill fast-import's input pipe without worrying about how quickly they will take effect, which improves performance by simplifying scheduling.
+<P>
+For some frontends, though, it is useful to be able to read back data from the current repository as it is being updated (for example when the source material describes objects in terms of patches to be applied to previously imported objects). This can be accomplished by connecting the frontend and fast-import via bidirectional pipes:
+<P>
+<DL COMPACT><DT id="109"><DD>
+
+
+
+<PRE>
+mkfifo fast-import-output
+frontend &lt;fast-import-output |
+git fast-import &gt;fast-import-output
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+A frontend set up this way can use <B>progress</B>, <B>get-mark</B>, <B>ls</B>, and <B>cat-blob</B> commands to read information from the import in progress.
+<P>
+To avoid deadlock, such frontends must completely consume any pending output from <B>progress</B>, <B>ls</B>, <B>get-mark</B>, and <B>cat-blob</B> before performing writes to fast-import that might block.
+<A NAME="lbBH">&nbsp;</A>
+<H2>CRASH REPORTS</H2>
+
+<P>
+If fast-import is supplied invalid input it will terminate with a non-zero exit status and create a crash report in the top level of the Git repository it was importing into. Crash reports contain a snapshot of the internal fast-import state as well as the most recent commands that lead up to the crash.
+<P>
+All recent commands (including stream comments, file changes and progress commands) are shown in the command history within the crash report, but raw file data and commit messages are excluded from the crash report. This exclusion saves space within the report file and reduces the amount of buffering that fast-import must perform during execution.
+<P>
+After writing a crash report fast-import will close the current packfile and export the marks table. This allows the frontend developer to inspect the repository state and resume the import from the point where it crashed. The modified branches and tags are not updated during a crash, as the import did not complete successfully. Branch and tag information can be found in the crash report and must be applied manually if the update is needed.
+<P>
+An example crash:
+<P>
+<DL COMPACT><DT id="110"><DD>
+
+
+
+<PRE>
+$ cat &gt;in &lt;&lt;END_OF_INPUT
+# my very first test commit
+commit refs/heads/master
+committer Shawn O. Pearce &lt;spearce&gt; 19283 -0400
+# who is that guy anyway?
+data &lt;&lt;EOF
+this is my commit
+EOF
+M 644 inline .gitignore
+data &lt;&lt;EOF
+.gitignore
+EOF
+M 777 inline bob
+END_OF_INPUT
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<DL COMPACT><DT id="111"><DD>
+
+
+
+<PRE>
+$ git fast-import &lt;in
+fatal: Corrupt mode: M 777 inline bob
+fast-import: dumping crash report to .git/fast_import_crash_8434
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<DL COMPACT><DT id="112"><DD>
+
+
+
+<PRE>
+$ cat .git/fast_import_crash_8434
+fast-import crash report:
+    fast-import process: 8434
+    parent process     : 1391
+    at Sat Sep 1 00:58:12 2007
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<DL COMPACT><DT id="113"><DD>
+
+
+
+<PRE>
+fatal: Corrupt mode: M 777 inline bob
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<DL COMPACT><DT id="114"><DD>
+
+
+
+<PRE>
+Most Recent Commands Before Crash
+---------------------------------
+  # my very first test commit
+  commit refs/heads/master
+  committer Shawn O. Pearce &lt;spearce&gt; 19283 -0400
+  # who is that guy anyway?
+  data &lt;&lt;EOF
+  M 644 inline .gitignore
+  data &lt;&lt;EOF
+* M 777 inline bob
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<DL COMPACT><DT id="115"><DD>
+
+
+
+<PRE>
+Active Branch LRU
+-----------------
+    active_branches = 1 cur, 5 max
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<DL COMPACT><DT id="116"><DD>
+
+
+
+<PRE>
+pos  clock name
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 1)      0 refs/heads/master
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<DL COMPACT><DT id="117"><DD>
+
+
+
+<PRE>
+Inactive Branches
+-----------------
+refs/heads/master:
+  status      : active loaded dirty
+  tip commit  : 0000000000000000000000000000000000000000
+  old tree    : 0000000000000000000000000000000000000000
+  cur tree    : 0000000000000000000000000000000000000000
+  commit clock: 0
+  last pack   :
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<DL COMPACT><DT id="118"><DD>
+
+
+
+<PRE>
+-------------------
+END OF CRASH REPORT
+</PRE>
+
+</DL>
+
+
+
+
+<A NAME="lbBI">&nbsp;</A>
+<H2>TIPS AND TRICKS</H2>
+
+<P>
+The following tips and tricks have been collected from various users of fast-import, and are offered here as suggestions.
+<A NAME="lbBJ">&nbsp;</A>
+<H3>Use One Mark Per Commit</H3>
+
+<P>
+When doing a repository conversion, use a unique mark per commit (<B>mark :&lt;n&gt;</B>) and supply the --export-marks option on the command line. fast-import will dump a file which lists every mark and the Git object SHA-1 that corresponds to it. If the frontend can tie the marks back to the source repository, it is easy to verify the accuracy and completeness of the import by comparing each Git commit to the corresponding source revision.
+<P>
+Coming from a system such as Perforce or Subversion this should be quite simple, as the fast-import mark can also be the Perforce changeset number or the Subversion revision number.
+<A NAME="lbBK">&nbsp;</A>
+<H3>Freely Skip Around Branches</H3>
+
+<P>
+Don't bother trying to optimize the frontend to stick to one branch at a time during an import. Although doing so might be slightly faster for fast-import, it tends to increase the complexity of the frontend code considerably.
+<P>
+The branch LRU builtin to fast-import tends to behave very well, and the cost of activating an inactive branch is so low that bouncing around between branches has virtually no impact on import performance.
+<A NAME="lbBL">&nbsp;</A>
+<H3>Handling Renames</H3>
+
+<P>
+When importing a renamed file or directory, simply delete the old name(s) and modify the new name(s) during the corresponding commit. Git performs rename detection after-the-fact, rather than explicitly during a commit.
+<A NAME="lbBM">&nbsp;</A>
+<H3>Use Tag Fixup Branches</H3>
+
+<P>
+Some other SCM systems let the user create a tag from multiple files which are not from the same commit/changeset. Or to create tags which are a subset of the files available in the repository.
+<P>
+Importing these tags as-is in Git is impossible without making at least one commit which "fixes up" the files to match the content of the tag. Use fast-import's <B>reset</B> command to reset a dummy branch outside of your normal branch space to the base commit for the tag, then commit one or more file fixup commits, and finally tag the dummy branch.
+<P>
+For example since all normal branches are stored under <B>refs/heads/</B> name the tag fixup branch <B>TAG_FIXUP</B>. This way it is impossible for the fixup branch used by the importer to have namespace conflicts with real branches imported from the source (the name <B>TAG_FIXUP</B> is not <B>refs/heads/TAG_FIXUP</B>).
+<P>
+When committing fixups, consider using <B>merge</B> to connect the commit(s) which are supplying file revisions to the fixup branch. Doing so will allow tools such as <I>git blame</I> to track through the real commit history and properly annotate the source files.
+<P>
+After fast-import terminates the frontend will need to do <B>rm .git/TAG_FIXUP</B> to remove the dummy branch.
+<A NAME="lbBN">&nbsp;</A>
+<H3>Import Now, Repack Later</H3>
+
+<P>
+As soon as fast-import completes the Git repository is completely valid and ready for use. Typically this takes only a very short time, even for considerably large projects (100,000+ commits).
+<P>
+However repacking the repository is necessary to improve data locality and access performance. It can also take hours on extremely large projects (especially if -f and a large --window parameter is used). Since repacking is safe to run alongside readers and writers, run the repack in the background and let it finish when it finishes. There is no reason to wait to explore your new Git project!
+<P>
+If you choose to wait for the repack, don't try to run benchmarks or performance tests until repacking is completed. fast-import outputs suboptimal packfiles that are simply never seen in real use situations.
+<A NAME="lbBO">&nbsp;</A>
+<H3>Repacking Historical Data</H3>
+
+<P>
+If you are repacking very old imported data (e.g. older than the last year), consider expending some extra CPU time and supplying --window=50 (or higher) when you run <I>git repack</I>. This will take longer, but will also produce a smaller packfile. You only need to expend the effort once, and everyone using your project will benefit from the smaller repository.
+<A NAME="lbBP">&nbsp;</A>
+<H3>Include Some Progress Messages</H3>
+
+<P>
+Every once in a while have your frontend emit a <B>progress</B> message to fast-import. The contents of the messages are entirely free-form, so one suggestion would be to output the current month and year each time the current commit date moves into the next month. Your users will feel better knowing how much of the data stream has been processed.
+<A NAME="lbBQ">&nbsp;</A>
+<H2>PACKFILE OPTIMIZATION</H2>
+
+<P>
+When packing a blob fast-import always attempts to deltify against the last blob written. Unless specifically arranged for by the frontend, this will probably not be a prior version of the same file, so the generated delta will not be the smallest possible. The resulting packfile will be compressed, but will not be optimal.
+<P>
+Frontends which have efficient access to all revisions of a single file (for example reading an RCS/CVS ,v file) can choose to supply all revisions of that file as a sequence of consecutive <B>blob</B> commands. This allows fast-import to deltify the different file revisions against each other, saving space in the final packfile. Marks can be used to later identify individual file revisions during a sequence of <B>commit</B> commands.
+<P>
+The packfile(s) created by fast-import do not encourage good disk access patterns. This is caused by fast-import writing the data in the order it is received on standard input, while Git typically organizes data within packfiles to make the most recent (current tip) data appear before historical data. Git also clusters commits together, speeding up revision traversal through better cache locality.
+<P>
+For this reason it is strongly recommended that users repack the repository with <B>git repack -a -d</B> after fast-import completes, allowing Git to reorganize the packfiles for faster data access. If blob deltas are suboptimal (see above) then also adding the <B>-f</B> option to force recomputation of all deltas can significantly reduce the final packfile size (30-50% smaller can be quite typical).
+<P>
+Instead of running <B>git repack</B> you can also run <B>git gc --aggressive</B>, which will also optimize other things after an import (e.g. pack loose refs). As noted in the &quot;AGGRESSIVE&quot; section in <B><A HREF="/cgi-bin/man/man2html?1+git-gc">git-gc</A></B>(1) the <B>--aggressive</B> option will find new deltas with the <B>-f</B> option to <B><A HREF="/cgi-bin/man/man2html?1+git-repack">git-repack</A></B>(1). For the reasons elaborated on above using <B>--aggressive</B> after a fast-import is one of the few cases where it's known to be worthwhile.
+<A NAME="lbBR">&nbsp;</A>
+<H2>MEMORY UTILIZATION</H2>
+
+<P>
+There are a number of factors which affect how much memory fast-import requires to perform an import. Like critical sections of core Git, fast-import uses its own memory allocators to amortize any overheads associated with malloc. In practice fast-import tends to amortize any malloc overheads to 0, due to its use of large block allocations.
+<A NAME="lbBS">&nbsp;</A>
+<H3>per object</H3>
+
+<P>
+fast-import maintains an in-memory structure for every object written in this execution. On a 32 bit system the structure is 32 bytes, on a 64 bit system the structure is 40 bytes (due to the larger pointer sizes). Objects in the table are not deallocated until fast-import terminates. Importing 2 million objects on a 32 bit system will require approximately 64 MiB of memory.
+<P>
+The object table is actually a hashtable keyed on the object name (the unique SHA-1). This storage configuration allows fast-import to reuse an existing or already written object and avoid writing duplicates to the output packfile. Duplicate blobs are surprisingly common in an import, typically due to branch merges in the source.
+<A NAME="lbBT">&nbsp;</A>
+<H3>per mark</H3>
+
+<P>
+Marks are stored in a sparse array, using 1 pointer (4 bytes or 8 bytes, depending on pointer size) per mark. Although the array is sparse, frontends are still strongly encouraged to use marks between 1 and n, where n is the total number of marks required for this import.
+<A NAME="lbBU">&nbsp;</A>
+<H3>per branch</H3>
+
+<P>
+Branches are classified as active and inactive. The memory usage of the two classes is significantly different.
+<P>
+Inactive branches are stored in a structure which uses 96 or 120 bytes (32 bit or 64 bit systems, respectively), plus the length of the branch name (typically under 200 bytes), per branch. fast-import will easily handle as many as 10,000 inactive branches in under 2 MiB of memory.
+<P>
+Active branches have the same overhead as inactive branches, but also contain copies of every tree that has been recently modified on that branch. If subtree <B>include</B> has not been modified since the branch became active, its contents will not be loaded into memory, but if subtree <B>src</B> has been modified by a commit since the branch became active, then its contents will be loaded in memory.
+<P>
+As active branches store metadata about the files contained on that branch, their in-memory storage size can grow to a considerable size (see below).
+<P>
+fast-import automatically moves active branches to inactive status based on a simple least-recently-used algorithm. The LRU chain is updated on each <B>commit</B> command. The maximum number of active branches can be increased or decreased on the command line with --active-branches=.
+<A NAME="lbBV">&nbsp;</A>
+<H3>per active tree</H3>
+
+<P>
+Trees (aka directories) use just 12 bytes of memory on top of the memory required for their entries (see "per active file" below). The cost of a tree is virtually 0, as its overhead amortizes out over the individual file entries.
+<A NAME="lbBW">&nbsp;</A>
+<H3>per active file entry</H3>
+
+<P>
+Files (and pointers to subtrees) within active trees require 52 or 64 bytes (32/64 bit platforms) per entry. To conserve space, file and tree names are pooled in a common string table, allowing the filename "Makefile" to use just 16 bytes (after including the string header overhead) no matter how many times it occurs within the project.
+<P>
+The active branch LRU, when coupled with the filename string pool and lazy loading of subtrees, allows fast-import to efficiently import projects with 2,000+ branches and 45,114+ files in a very limited memory footprint (less than 2.7 MiB per active branch).
+<A NAME="lbBX">&nbsp;</A>
+<H2>SIGNALS</H2>
+
+<P>
+Sending <B>SIGUSR1</B> to the <I>git fast-import</I> process ends the current packfile early, simulating a <B>checkpoint</B> command. The impatient operator can use this facility to peek at the objects and refs from an import in progress, at the cost of some added running time and worse compression.
+<A NAME="lbBY">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+<B><A HREF="/cgi-bin/man/man2html?1+git-fast-export">git-fast-export</A></B>(1)
+<A NAME="lbBZ">&nbsp;</A>
+<H2>GIT</H2>
+
+<P>
+Part of the <B><A HREF="/cgi-bin/man/man2html?1+git">git</A></B>(1) suite
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="119"><A HREF="#lbAB">NAME</A><DD>
+<DT id="120"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="121"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="122"><A HREF="#lbAE">OPTIONS</A><DD>
+<DL>
+<DT id="123"><A HREF="#lbAF">Options for Frontends</A><DD>
+<DT id="124"><A HREF="#lbAG">Locations of Marks Files</A><DD>
+<DT id="125"><A HREF="#lbAH">Performance and Compression Tuning</A><DD>
+</DL>
+<DT id="126"><A HREF="#lbAI">PERFORMANCE</A><DD>
+<DT id="127"><A HREF="#lbAJ">DEVELOPMENT COST</A><DD>
+<DT id="128"><A HREF="#lbAK">PARALLEL OPERATION</A><DD>
+<DT id="129"><A HREF="#lbAL">TECHNICAL DISCUSSION</A><DD>
+<DT id="130"><A HREF="#lbAM">INPUT FORMAT</A><DD>
+<DL>
+<DT id="131"><A HREF="#lbAN">Stream Comments</A><DD>
+<DT id="132"><A HREF="#lbAO">Date Formats</A><DD>
+<DT id="133"><A HREF="#lbAP">Commands</A><DD>
+<DT id="134"><A HREF="#lbAQ"><B>commit</B></A><DD>
+<DT id="135"><A HREF="#lbAR"><B>mark</B></A><DD>
+<DT id="136"><A HREF="#lbAS"><B>original-oid</B></A><DD>
+<DT id="137"><A HREF="#lbAT"><B>tag</B></A><DD>
+<DT id="138"><A HREF="#lbAU"><B>reset</B></A><DD>
+<DT id="139"><A HREF="#lbAV"><B>blob</B></A><DD>
+<DT id="140"><A HREF="#lbAW"><B>data</B></A><DD>
+<DT id="141"><A HREF="#lbAX"><B>alias</B></A><DD>
+<DT id="142"><A HREF="#lbAY"><B>checkpoint</B></A><DD>
+<DT id="143"><A HREF="#lbAZ"><B>progress</B></A><DD>
+<DT id="144"><A HREF="#lbBA"><B>get-mark</B></A><DD>
+<DT id="145"><A HREF="#lbBB"><B>cat-blob</B></A><DD>
+<DT id="146"><A HREF="#lbBC"><B>ls</B></A><DD>
+<DT id="147"><A HREF="#lbBD"><B>feature</B></A><DD>
+<DT id="148"><A HREF="#lbBE"><B>option</B></A><DD>
+<DT id="149"><A HREF="#lbBF"><B>done</B></A><DD>
+</DL>
+<DT id="150"><A HREF="#lbBG">RESPONSES TO COMMANDS</A><DD>
+<DT id="151"><A HREF="#lbBH">CRASH REPORTS</A><DD>
+<DT id="152"><A HREF="#lbBI">TIPS AND TRICKS</A><DD>
+<DL>
+<DT id="153"><A HREF="#lbBJ">Use One Mark Per Commit</A><DD>
+<DT id="154"><A HREF="#lbBK">Freely Skip Around Branches</A><DD>
+<DT id="155"><A HREF="#lbBL">Handling Renames</A><DD>
+<DT id="156"><A HREF="#lbBM">Use Tag Fixup Branches</A><DD>
+<DT id="157"><A HREF="#lbBN">Import Now, Repack Later</A><DD>
+<DT id="158"><A HREF="#lbBO">Repacking Historical Data</A><DD>
+<DT id="159"><A HREF="#lbBP">Include Some Progress Messages</A><DD>
+</DL>
+<DT id="160"><A HREF="#lbBQ">PACKFILE OPTIMIZATION</A><DD>
+<DT id="161"><A HREF="#lbBR">MEMORY UTILIZATION</A><DD>
+<DL>
+<DT id="162"><A HREF="#lbBS">per object</A><DD>
+<DT id="163"><A HREF="#lbBT">per mark</A><DD>
+<DT id="164"><A HREF="#lbBU">per branch</A><DD>
+<DT id="165"><A HREF="#lbBV">per active tree</A><DD>
+<DT id="166"><A HREF="#lbBW">per active file entry</A><DD>
+</DL>
+<DT id="167"><A HREF="#lbBX">SIGNALS</A><DD>
+<DT id="168"><A HREF="#lbBY">SEE ALSO</A><DD>
+<DT id="169"><A HREF="#lbBZ">GIT</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:13 GMT, March 31, 2021
+</BODY>
+</HTML>

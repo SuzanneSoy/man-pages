@@ -1,0 +1,424 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of LOOP</TITLE>
+</HEAD><BODY>
+<H1>LOOP</H1>
+Section: Linux Programmer's Manual (4)<BR>Updated: 2020-02-09<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+loop, loop-control - loop devices
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+#include &lt;<A HREF="file:///usr/include/linux/loop.h">linux/loop.h</A>&gt;
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+The loop device is a block device that maps its data blocks not to a
+physical device such as a hard disk or optical disk drive,
+but to the blocks of
+a regular file in a filesystem or to another block device.
+This can be useful for example to provide a block device for a filesystem
+image stored in a file, so that it can be mounted with the
+<B><A HREF="/cgi-bin/man/man2html?8+mount">mount</A></B>(8)
+
+command.
+You could do
+<P>
+
+
+
+$ <B>dd if=/dev/zero of=file.img bs=1MiB count=10</B>
+$ <B>sudo losetup /dev/loop4 file.img </B>
+$ <B>sudo mkfs -t ext4 /dev/loop4</B>
+$ <B>sudo mkdir /myloopdev</B>
+$ <B>sudo mount /dev/loop4 /myloopdev</B>
+
+
+<P>
+
+See
+<B><A HREF="/cgi-bin/man/man2html?8+losetup">losetup</A></B>(8)
+
+for another example.
+<P>
+
+A transfer function can be specified for each loop device for
+encryption and decryption purposes.
+<P>
+
+The following
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+operations are provided by the loop block device:
+<DL COMPACT>
+<DT id="1"><B>LOOP_SET_FD</B>
+
+<DD>
+Associate the loop device with the open file whose file descriptor is
+passed as the (third)
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+argument.
+<DT id="2"><B>LOOP_CLR_FD</B>
+
+<DD>
+Disassociate the loop device from any file descriptor.
+<DT id="3"><B>LOOP_SET_STATUS</B>
+
+<DD>
+Set the status of the loop device using the (third)
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+argument.
+This argument is a pointer to
+<I>loop_info</I>
+
+structure, defined in
+<I>&lt;<A HREF="file:///usr/include/linux/loop.h">linux/loop.h</A>&gt;</I>
+
+as:
+<DT id="4"><DD>
+
+
+struct loop_info {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lo_number;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;ioctl&nbsp;r/o&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;dev_t&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lo_device;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;ioctl&nbsp;r/o&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;unsigned&nbsp;long&nbsp;lo_inode;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;ioctl&nbsp;r/o&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;dev_t&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lo_rdevice;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;ioctl&nbsp;r/o&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lo_offset;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lo_encrypt_type;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lo_encrypt_key_size;&nbsp;&nbsp;/*&nbsp;ioctl&nbsp;w/o&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lo_flags;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;ioctl&nbsp;r/o&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lo_name[LO_NAME_SIZE];
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;unsigned&nbsp;char&nbsp;lo_encrypt_key[LO_KEY_SIZE];
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;ioctl&nbsp;w/o&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;unsigned&nbsp;long&nbsp;lo_init[2];
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;reserved[4];
+};
+
+
+<DT id="5"><DD>
+The encryption type
+(<I>lo_encrypt_type</I>)
+
+should be one of
+<B>LO_CRYPT_NONE</B>,
+
+<B>LO_CRYPT_XOR</B>,
+
+<B>LO_CRYPT_DES</B>,
+
+<B>LO_CRYPT_FISH2</B>,
+
+<B>LO_CRYPT_BLOW</B>,
+
+<B>LO_CRYPT_CAST128</B>,
+
+<B>LO_CRYPT_IDEA</B>,
+
+<B>LO_CRYPT_DUMMY</B>,
+
+<B>LO_CRYPT_SKIPJACK</B>,
+
+or (since Linux 2.6.0)
+<B>LO_CRYPT_CRYPTOAPI</B>.
+
+<DT id="6"><DD>
+The
+<I>lo_flags</I>
+
+field is a bit mask that can include zero or more of the following:
+<DL COMPACT><DT id="7"><DD>
+<DL COMPACT>
+<DT id="8"><B>LO_FLAGS_READ_ONLY</B>
+
+<DD>
+The loopback device is read-only.
+<DT id="9"><B>LO_FLAGS_AUTOCLEAR</B> (since Linux 2.6.25)
+
+<DD>
+
+The loopback device will autodestruct on last close.
+<DT id="10"><B>LO_FLAGS_PARTSCAN</B> (since Linux 3.2)
+
+<DD>
+
+Allow automatic partition scanning.
+</DL>
+</DL>
+
+<DT id="11"><B>LOOP_GET_STATUS</B>
+
+<DD>
+Get the status of the loop device.
+The (third)
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+argument must be a pointer to a
+<I>struct loop_info</I>.
+
+<DT id="12"><B>LOOP_CHANGE_FD</B> (since Linux 2.6.5)
+
+<DD>
+Switch the backing store of the loop device to the new file identified
+file descriptor specified in the (third)
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+argument, which is an integer.
+This operation is possible only if the loop device is read-only and
+the new backing store is the same size and type as the old backing store.
+<DT id="13"><B>LOOP_SET_CAPACITY</B> (since Linux 2.6.30)
+
+<DD>
+
+Resize a live loop device.
+One can change the size of the underlying backing store and then use this
+operation so that the loop driver learns about the new size.
+This operation takes no argument.
+<DT id="14"><B>LOOP_SET_DIRECT_IO</B> (since Linux 4.10)
+
+<DD>
+
+Set DIRECT I/O mode on the loop device, so that
+it can be used to open backing file.
+The (third)
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+argument is an unsigned long value.
+A non-zero represents direct I/O mode.
+<DT id="15"><B>LOOP_SET_BLOCK_SIZE</B> (since Linux 4.14)
+
+<DD>
+
+Set the block size of the loop device.
+The (third)
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+argument is an unsigned long value.
+This value must be a power of two in the range
+[512,pagesize];
+otherwise, an
+<B>EINVAL</B>
+
+error results.
+</DL>
+<P>
+
+Since Linux 2.6, there are two new
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+operations:
+<DL COMPACT>
+<DT id="16"><B>LOOP_SET_STATUS64</B>, <B>LOOP_GET_STATUS64</B>
+
+<DD>
+These are similar to
+<B>LOOP_SET_STATUS</B> and <B>LOOP_GET_STATUS</B>
+
+described above but use the
+<I>loop_info64</I>
+
+structure,
+which has some additional fields and a larger range for some other fields:
+<DT id="17"><DD>
+
+
+struct loop_info64 {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;lo_device;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;ioctl&nbsp;r/o&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;lo_inode;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;ioctl&nbsp;r/o&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;lo_rdevice;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;ioctl&nbsp;r/o&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;lo_offset;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;lo_sizelimit;/*&nbsp;bytes,&nbsp;0&nbsp;==&nbsp;max&nbsp;available&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;lo_number;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;ioctl&nbsp;r/o&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;lo_encrypt_type;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;lo_encrypt_key_size;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;ioctl&nbsp;w/o&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;lo_flags;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;ioctl&nbsp;r/o&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint8_t&nbsp;&nbsp;lo_file_name[LO_NAME_SIZE];
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint8_t&nbsp;&nbsp;lo_crypt_name[LO_NAME_SIZE];
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint8_t&nbsp;&nbsp;lo_encrypt_key[LO_KEY_SIZE];&nbsp;/*&nbsp;ioctl&nbsp;w/o&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;lo_init[2];
+};
+
+
+</DL>
+<A NAME="lbAE">&nbsp;</A>
+<H3>/dev/loop-control</H3>
+
+Since Linux 3.1,
+
+the kernel provides the
+<I>/dev/loop-control</I>
+
+device, which permits an application to dynamically find a free device,
+and to add and remove loop devices from the system.
+To perform these operations, one first opens
+<I>/dev/loop-control</I>
+
+and then employs one of the following
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+operations:
+<DL COMPACT>
+<DT id="18"><B>LOOP_CTL_GET_FREE</B>
+
+<DD>
+Allocate or find a free loop device for use.
+On success, the device number is returned as the result of the call.
+This operation takes no argument.
+<DT id="19"><B>LOOP_CTL_ADD</B>
+
+<DD>
+Add the new loop device whose device number is specified
+as a long integer in the third
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+argument.
+On success, the device index is returned as the result of the call.
+If the device is already allocated, the call fails with the error
+<B>EEXIST</B>.
+
+<DT id="20"><B>LOOP_CTL_REMOVE</B>
+
+<DD>
+Remove the loop device whose device number is specified
+as a long integer in the third
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+argument.
+On success, the device number is returned as the result of the call.
+If the device is in use, the call fails with the error
+<B>EBUSY</B>.
+
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>FILES</H2>
+
+<DL COMPACT>
+<DT id="21"><I>/dev/loop*</I>
+
+<DD>
+The loop block special device files.
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+The program below uses the
+<I>/dev/loop-control</I>
+
+device to find a free loop device, opens the loop device,
+opens a file to be used as the underlying storage for the device,
+and then associates the loop device with the backing store.
+The following shell session demonstrates the use of the program:
+<P>
+
+
+
+$ <B>dd if=/dev/zero of=file.img bs=1MiB count=10</B>
+10+0 records in
+10+0 records out
+10485760 bytes (10 MB) copied, 0.00609385 s, 1.7 GB/s
+$ <B>sudo ./mnt_loop file.img</B>
+loopname = /dev/loop5
+
+
+<A NAME="lbAH">&nbsp;</A>
+<H3>Program source</H3>
+
+
+
+#include &lt;<A HREF="file:///usr/include/fcntl.h">fcntl.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/linux/loop.h">linux/loop.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/sys/ioctl.h">sys/ioctl.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdlib.h">stdlib.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/unistd.h">unistd.h</A>&gt;
+<P>
+#define errExit(msg)    do { perror(msg); exit(EXIT_FAILURE); \
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;while&nbsp;(0)
+<P>
+int
+main(int argc, char *argv[])
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;loopctlfd,&nbsp;loopfd,&nbsp;backingfile;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;long&nbsp;devnr;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;loopname[4096];
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(argc&nbsp;!=&nbsp;2)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;Usage:&nbsp;%s&nbsp;backing-file\n&quot;,&nbsp;argv[0]);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;loopctlfd&nbsp;=&nbsp;open(&quot;/dev/loop-control&quot;,&nbsp;O_RDWR);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(loopctlfd&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errExit(&quot;open:&nbsp;/dev/loop-control&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;devnr&nbsp;=&nbsp;ioctl(loopctlfd,&nbsp;LOOP_CTL_GET_FREE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(devnr&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errExit(&quot;ioctl-LOOP_CTL_GET_FREE&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;sprintf(loopname,&nbsp;&quot;/dev/loop%ld&quot;,&nbsp;devnr);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;loopname&nbsp;=&nbsp;%s\n&quot;,&nbsp;loopname);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;loopfd&nbsp;=&nbsp;open(loopname,&nbsp;O_RDWR);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(loopfd&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errExit(&quot;open:&nbsp;loopname&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;backingfile&nbsp;=&nbsp;open(argv[1],&nbsp;O_RDWR);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(backingfile&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errExit(&quot;open:&nbsp;backing-file&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(ioctl(loopfd,&nbsp;LOOP_SET_FD,&nbsp;backingfile)&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errExit(&quot;ioctl-LOOP_SET_FD&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_SUCCESS);
+}
+
+<A NAME="lbAI">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?8+losetup">losetup</A></B>(8),
+
+<B><A HREF="/cgi-bin/man/man2html?8+mount">mount</A></B>(8)
+
+<A NAME="lbAJ">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="22"><A HREF="#lbAB">NAME</A><DD>
+<DT id="23"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="24"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DL>
+<DT id="25"><A HREF="#lbAE">/dev/loop-control</A><DD>
+</DL>
+<DT id="26"><A HREF="#lbAF">FILES</A><DD>
+<DT id="27"><A HREF="#lbAG">EXAMPLE</A><DD>
+<DL>
+<DT id="28"><A HREF="#lbAH">Program source</A><DD>
+</DL>
+<DT id="29"><A HREF="#lbAI">SEE ALSO</A><DD>
+<DT id="30"><A HREF="#lbAJ">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:01 GMT, March 31, 2021
+</BODY>
+</HTML>

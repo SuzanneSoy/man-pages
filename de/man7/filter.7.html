@@ -1,0 +1,284 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of filter</TITLE>
+</HEAD><BODY>
+<H1>filter</H1>
+Section: Apple Inc. (7)<BR>Updated: CUPS<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+filter - CUPS-Datei-Umwandlungsfilter-Schnittstelle
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<B>filter</B> <I>Auftrag</I> <I>Benutzer</I> <I>Titel</I> <I>Anz-Kopien</I> <I>Optionen</I> [
+<I>Dateiname</I> ]
+<PRE>
+
+<B>#include &lt;<A HREF="file:///usr/include/cups/cups.h">cups/cups.h</A>&gt;</B>
+
+<B>ssize_t cupsBackChannelRead</B>(<B>char *</B><I>buffer</I>, <B>size_t </B><I>bytes</I>,
+                            <B>double </B><I>timeout</I>);
+
+<B>cups_sc_status_t cupsSideChannelDoRequest</B>(<B>cups_sc_command_t </B><I>command</I>,
+                                          <B>char *</B><I>data</I>, <B>int *</B><I>datalen</I>,
+                                          <B>double </B><I>timeout</I>);
+
+<B>#include &lt;<A HREF="file:///usr/include/cups/ppd.h">cups/ppd.h</A>&gt;</B>
+
+<B>const char *cupsGetOption</B>(<B>const char *</B><I>name</I>, <B>int </B><I>num_options</I>,
+                 <B>cups_option_t *</B><I>options</I>);
+
+<B>int cupsMarkOptions</B>(<B>ppd_file_t *</B><I>ppd</I>, <B>int </B><I>num_options</I>,
+                    <B>cups_option_t *</B><I>options</I>);
+
+<B>int cupsParseOptions</B>(<B>const char *</B><I>arg</I>, <B>int </B><I>num_options</I>,
+                     <B>cups_option_t **</B><I>options</I>);
+
+<B>ppd_choice_t *ppdFindMarkedChoice</B>(<B>ppd_file_t *</B><I>ppd</I>, <B>const char *</B><I>keyword</I>);
+
+<B>void ppdMarkDefaults</B>(<B>ppd_file_t *</B><I>ppd</I>);
+
+<B>ppd_file_t *ppdOpenFile</B>(<B>const char *</B><I>filename</I>);
+</PRE>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>BESCHREIBUNG</H2>
+
+Die CUPS-Filterschnittstelle stellt eine Standardmethode zum Hinzufügen von
+Unterstützungen für neue Dokumententypen oder Drucker zu CUPS bereit. Jeder
+Filter ist in der Lage, von einem oder mehreren Eingabeformaten in andere
+Ausgabeformate zu konvertieren, die entweder direkt gedruckt oder an einen
+weiteren Filter weitergeleitet werden können, der es dann in ein druckbares
+Format wandelt.
+<P>
+
+Filter <B>MÜSSEN</B> in der Lage sein, aus einem Dateinamen auf der Befehlszeile
+oder der Standardeingabe zu lesen und in letzterem Fall die Standardeingabe
+in eine temporäre Datei zu kopieren, wie dies vom Dateiformat benötigt
+wird. Die gesamte Ausgabe <B>MUSS</B> an die Standardausgabe gesandt
+werden. Filter <B>DÜRFEN NICHT</B> versuchen, direkt mit dem Drucker, anderen
+Prozessen oder Diensten zu kommunizieren.
+<P>
+
+Der Befehlsname (<I>argv[0]</I>) wird auf den Namen des Zieldruckers gesetzt. Er
+ist aber auch über die <I>Umgebungsvariable</I> <B>PRINTER</B> verfügbar.
+<A NAME="lbAE">&nbsp;</A>
+<H2>OPTIONEN</H2>
+
+Optionen werden in <I>argv[5]</I> übergeben und aus den bei der Einreichung des
+Auftrags entsprechenden IPP-Attributen kodiert. Verwenden Sie die Funktion
+<B>cupsParseOptions</B>(), um die Optionen in ein Feld <B>cups_option_t</B> zu laden
+und die Funktion <B>cupsGetOption</B>(), um den Wert eines bestimmten Attributes
+zu ermitteln. Seien Sie vorsichtig, nach häufigen Alias von IPP-Attributen,
+wie »landscape« für das IPP-Attribut »orientation-requested«, Ausblick zu
+halten.
+<P>
+
+Auf der Befehlszeile übergebene Optionen enthalten typischerweise nicht die
+Standardauswahl aus der PPD-Datei des Druckers. Verwenden Sie die Funktionen
+<B>ppdMarkDefaults</B>() und <B>cupsMarkOptions</B>() in der CUPS-Bibliothek, um die
+Optionen auf die PPD-Vorgaben anzuwenden und alle IPP-Attribute auf die
+entsprechenden Optionen abzubilden. Verwenden Sie <B>ppdFindMarkedChoice</B>(),
+um die vom Benutzer getroffene Auswahl für eine PPD-Option zu ermitteln. Ein
+Filter kann beispielsweise den folgenden Code verwenden, um den aktuellen
+Wert der PPD-Option <B>Duplex</B> zu ermitteln:
+<PRE>
+
+    ppd_file_t *ppd = ppdOpenFile(getenv(&quot;PPD&quot;));
+    cups_option_t *options = NULL;
+    int num_options = cupsParseOptions(argv[5], 0, &amp;options);
+
+    ppdMarkDefaults(ppd);
+    cupsMarkOptions(ppd, num_options, options);
+
+    ppd_choice_t *choice = ppdFindMarkedChoice(ppd, &quot;Duplex&quot;);
+</PRE>
+
+<P>
+
+Rasterfilter sollten ausgewählte Optionen benutzen, die durch die
+Rasterseitenkopfzeilen gesetzt wurden, da jene die tatsächlichen Optionen
+für eine angegebene Seite wiedergeben. Auf der Befehlszeile angegebene
+Optionen legen die Vorgabewerte für den ganzen Druckauftrag, die auf
+seitenweiser Basis überschrieben werden können, fest.
+<A NAME="lbAF">&nbsp;</A>
+<H2>PROTOKOLLNACHRICHTEN</H2>
+
+Nachrichten, die an die Standard-Fehlerausgabe gesandt werden, werden im
+Allgemeinen im Attribut »printer-state-message« des Druckers und der
+aktuellen <B>ErrorLog</B>-Datei gespeichert. Jede Zeile beginnt mit einem
+Standard-Präfix:
+<DL COMPACT>
+<DT id="1"><B>ALERT: </B><I>Nachricht</I><DD>
+Setzt das Attribut »printer-state-message« und fügt die angegebene Nachricht
+zum aktuellen <B>ErrorLog</B> unter Verwendung der Protokollstufe »alert« hinzu.
+<DT id="2"><B>ATTR: </B><I>Attribut=Wert </I>[ <I>… Attribut=Wert</I>]<DD>
+Setzt das/die <A HREF="/cgi-bin/man/man2html?n+benannte">benannte</A>(n) Auftrags- oder Drucker-Attribut(e). Die folgenden
+Auftragsattribute können gesetzt werden: »job-media-progress«. Die folgenden
+Druckerattribute können gesetzt werden: »auth-info-required«,
+»marker-colors«, »marker-high-levels«, »marker-levels«, »marker-low-levels«,
+»marker-message«, »marker-names«, »marker-types«, »printer-alert« und
+»printer-alert-description«.
+<DT id="3"><B>CRIT: </B><I>Nachricht</I><DD>
+Setzt das Attribut »printer-state-message« und fügt die angegebene Nachricht
+zum aktuellen <B>ErrorLog</B> unter Verwendung der Protokollstufe »critical«
+hinzu.
+<DT id="4"><B>DEBUG: </B><I>Nachricht</I><DD>
+Fügt die angegebene Nachricht zu dem aktuellen <B>ErrorLog</B> mit der
+Protokollstufe »debug« hinzu. <B>DEBUG</B>-Nachrichten werden nie im Attribut
+»printer-state-message« gespeichert.
+<DT id="5"><B>DEBUG2: </B><I>Nachricht</I><DD>
+<BR>
+
+Fügt die angegebene Nachricht zu dem aktuellen <B>ErrorLog</B> mit der
+Protokollstufe »debug2« hinzu. <B>DEBUG2</B>-Nachrichten werden nie im Attribut
+»printer-state-message« gespeichert.
+<DT id="6"><B>EMERG: </B><I>Nachricht</I><DD>
+Setzt das Attribut »printer-state-message« und fügt die angegebene Nachricht
+zum aktuellen <B>ErrorLog</B> unter Verwendung der Protokollstufe »emergency«
+hinzu.
+<DT id="7"><B>ERROR:</B><I> Nachricht</I><DD>
+Setzt das Attribut »printer-state-message« und fügt die angegebene Nachricht
+zum aktuellen <B>ErrorLog</B> unter Verwendung der Protokollstufe »error« hinzu.
+<DT id="8"><B>INFO:</B><I> Nachricht</I><DD>
+Setzt das Attribut »printer-state-message«. Wenn der aktuelle <B>LogLevel</B>
+auf »debug2« gesetzt ist, wird die angegebene Nachricht außerdem dem
+aktuellen <B>ErrorLog</B> unter Benutzung der »info«-Protokollstufe hinzugefügt.
+<DT id="9"><B>NOTICE:</B><I> Nachricht</I><DD>
+Setzt das Attribut »printer-state-message« und fügt die angegebene Nachricht
+zum aktuellen <B>ErrorLog</B> unter Verwendung der Protokollstufe »notice«
+hinzu.
+<DT id="10"><B>PAGE:</B><I> Seitenzahl #-Kopien</I><DD>
+<DT id="11"><B>PAGE:</B><I> Gesamt #-Seiten</I><DD>
+Fügt einen Eintrag zum aktuellen <B>PageLog</B> hinzu. Die erste Form fügt
+<I>#-Kopien</I> zum Attribut »job-media-sheets-completed« hinzu. Die zweite Form
+setzt das Attribut »job-media-sheets-completed« auf <I>#-Seiten</I>.
+<DT id="12"><B>PPD:</B><I> Schlüsselwort=Wert</I> [ <I>… SchlüsselwortN=Wert</I> ]<DD>
+Setzt die genannten Schlüsselworte in die PPD-Datei des Druckers. Dies wird
+normalerweise benutzt, um Standardschlüsselwortoptionen, wie
+<B>DefaultPageSize</B> und verschiedene installierbare Optionen in der
+PPD-Datei, zu aktualisieren.
+<DT id="13"><B>STATE:</B><I> Drucker-Zustand-Grund </I>[ <I>… Drucker-Zustand-Grund</I> ]<DD>
+<DT id="14"><B>STATE: +</B><I> Drucker-Zustand-Grund </I>[ <I>… Drucker-Zustand-Grund</I> ]<DD>
+<DT id="15"><B>STATE: -</B><I> Drucker-Zustand-Grund </I>[ <I>… Drucker-Zustand-Grund</I> ]<DD>
+Setzt, entfernt oder fügt »printer-state-reason«-Schlüsselwörter für die
+aktuelle Druckwarteschlange hinzu. Typischerweise wird dies benutzt, um
+Medien-, Tinten- und Toner-Bedingungen auf einem Drucker anzuzeigen.
+<DT id="16"><B>WARNING:</B><I> Nachricht</I><DD>
+Setzt das Attribut »printer-state-message« und fügt die angegebene Nachricht
+zum aktuellen <B>ErrorLog</B> unter Verwendung der Protokollstufe »warning«
+hinzu.
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H2>UMGEBUNGSVARIABLEN</H2>
+
+Die folgenden Umgebungsvariablen sind vom CUPS-Server beim Ausführen von
+Filtern gesetzt:
+<DL COMPACT>
+<DT id="17"><B>CHARSET</B><DD>
+Der Standard-Textzeichensatz, typischerweise »utf-8«.
+<DT id="18"><B>CLASS</B><DD>
+Wenn ein Druckauftrag an eine Druckerklasse gesandt wird, enthält er den
+Namen der Bestimmungsdruckerklasse. Ansonsten wird diese Umgebungsvariable
+nicht gesetzt.
+<DT id="19"><B>CONTENT_TYPE</B><DD>
+Der MIME-Typ, der der eingereichten Druckdatei zugeordnet ist
+(z.B. »application/postscript«).
+<DT id="20"><B>CUPS_CACHEDIR</B><DD>
+Das Verzeichnis, in dem halb-beständige Zwischenspeicherdateien gefunden und
+gespeichert werden.
+<DT id="21"><B>CUPS_DATADIR</B><DD>
+Das Verzeichnis, in dem Datendateien gefunden werden können.
+<DT id="22"><B>CUPS_FILETYPE</B><DD>
+Der Typ der Datei, die gedruckt wird: »job-sheet« für ein Deckblatt und
+»document« für eine reguläre Druckdatei.
+<DT id="23"><B>CUPS_MAX_MESSAGE</B><DD>
+Die maximale Größe einer nach <I>stderr</I> gesandten Nachricht. Enthält alle
+Präfixe und den abschließenden Zeilenumbruch.
+<DT id="24"><B>CUPS_SERVERROOT</B><DD>
+Das Wurzelverzeichnis des Servers.
+<DT id="25"><B>FINAL_CONTENT_TYPE</B><DD>
+Der MIME-Medientyp, der der dem Drucker bestimmten Ausgabe zugeordnet ist
+(z.B. application/vnd.cups-postscript).
+<DT id="26"><B>LANG</B><DD>
+Die Standardsprach-Standorteinstellung (normalerweise C oder en).
+<DT id="27"><B>PATH</B><DD>
+Der Standard-Ausführungspfad für externe Programme, die vom Filter
+ausgeführt werden dürfen.
+<DT id="28"><B>PPD</B><DD>
+Der komplette Pfadname zu der PostScript-Printer-Description-(PPD)-Datei für
+diesen Drucker.
+<DT id="29"><B>PRINTER</B><DD>
+Der Name des Druckers.
+<DT id="30"><B>RIP_CACHE</B><DD>
+Die empfohlene Speichermenge zum Einsatz für Raster Image Processors (RIPs).
+<DT id="31"><B>SOFTWARE</B><DD>
+Der Name und die Versionsnummer des Servers (typischerweise
+CUPS/<I>Haupt.Neben</I>).
+<DT id="32"><B>TZ</B><DD>
+Die Zeitzone des Servers.
+<DT id="33"><B>USER</B><DD>
+Der Benutzer, der den Filter ausführt, typischerweise »lp« oder »root«;
+schauen Sie in die Datei <I>cups-files.conf</I> für die aktuellen Einstellungen.
+</DL>
+<A NAME="lbAH">&nbsp;</A>
+<H2>KONFORMITÄT</H2>
+
+Während die Filterschnittstelle mit den Schnittstellenskripten von System V
+kompatibel ist, unterstützt CUPS nicht die System-V-Schnittstellenskripte.
+<A NAME="lbAI">&nbsp;</A>
+<H2>HINWEISE</H2>
+
+CUPS-Druckertreiber und -Backends sind veraltet und werden in einer
+zukünftigen Funktionsveröffentlichung von CUPS nicht mehr
+unterstützt. Drucker, die IPP nicht unterstützen, können mittels Anwendungen
+wie <B><A HREF="/cgi-bin/man/man2html?1+ippeveprinter">ippeveprinter</A></B>(1) unterstützt werden.
+<P>
+
+CUPS-Filter sind nicht für die direkte Ausführung durch Benutzer
+gedacht. Abgesehen von Problemen der veralteten System-V-Schnittstelle
+(<I>argv[0</I>] ist der Druckername) erwarten CUPS-Filter auch bestimmte
+Umgebungsvariablen und Dateideskriptoren und laufen typischerweise auch in
+einer Benutzersitzung, die (unter macOS) zusätzlichen Beschränkungen
+unterliegt, die die Ausführung betreffen. Sofern Sie kein Entwickler sind
+und nicht wissen, was Sie tun, führen Sie keine Filter direkt aus. Verwenden
+Sie stattdessen das Programm <B><A HREF="/cgi-bin/man/man2html?8+cupsfilter">cupsfilter</A></B>(8), um die angemessenen Filter
+für die von Ihnen benötigten Umwandlungen auszuführen.
+<A NAME="lbAJ">&nbsp;</A>
+<H2>SIEHE AUCH</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?7+backend">backend</A></B>(7), <B><A HREF="/cgi-bin/man/man2html?1+cups">cups</A></B>(1), <B><A HREF="/cgi-bin/man/man2html?5+cups-files.conf">cups-files.conf</A></B>(5), <B><A HREF="/cgi-bin/man/man2html?8+cupsd">cupsd</A></B>(8),
+<B><A HREF="/cgi-bin/man/man2html?8+cupsfilter">cupsfilter</A></B>(8),
+<BR>
+
+CUPS-Online-Hilfe (<A HREF="http://localhost:631/help)">http://localhost:631/help)</A>
+<A NAME="lbAK">&nbsp;</A>
+<H2>COPYRIGHT</H2>
+
+Copyright &#169; 2007-2019 by Apple Inc.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="34"><A HREF="#lbAB">NAME</A><DD>
+<DT id="35"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="36"><A HREF="#lbAD">BESCHREIBUNG</A><DD>
+<DT id="37"><A HREF="#lbAE">OPTIONEN</A><DD>
+<DT id="38"><A HREF="#lbAF">PROTOKOLLNACHRICHTEN</A><DD>
+<DT id="39"><A HREF="#lbAG">UMGEBUNGSVARIABLEN</A><DD>
+<DT id="40"><A HREF="#lbAH">KONFORMITÄT</A><DD>
+<DT id="41"><A HREF="#lbAI">HINWEISE</A><DD>
+<DT id="42"><A HREF="#lbAJ">SIEHE AUCH</A><DD>
+<DT id="43"><A HREF="#lbAK">COPYRIGHT</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:04:58 GMT, March 31, 2021
+</BODY>
+</HTML>

@@ -1,0 +1,384 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of DLADDR</TITLE>
+</HEAD><BODY>
+<H1>DLADDR</H1>
+Section: Linux Programmer's Manual (3)<BR>Updated: 2017-09-15<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+dladdr, dladdr1 - translate address to symbolic information
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<PRE>
+<B>#define _GNU_SOURCE</B>
+<B>#include &lt;<A HREF="file:///usr/include/dlfcn.h">dlfcn.h</A>&gt;</B>
+
+<B>int dladdr(void *</B><I>addr</I><B>, Dl_info *</B><I>info</I><B>);</B>
+
+<B>int dladdr1(void *</B><I>addr</I><B>, Dl_info *</B><I>info</I><B>, void **</B><I></I><B>extra_info</B><I>, int </I><B>flags</B><I>);</I>
+
+Link with <I>-ldl</I>.
+</PRE>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+The function
+<B>dladdr</B>()
+
+determines whether the address specified in
+<I>addr</I>
+
+is located in one of the shared objects loaded by the calling application.
+If it is, then
+<B>dladdr</B>()
+
+returns information about the shared object and symbol that overlaps
+<I>addr</I>.
+
+This information is returned in a
+<I>Dl_info</I>
+
+structure:
+<P>
+
+
+
+typedef struct {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;const&nbsp;char&nbsp;*dli_fname;&nbsp;&nbsp;/*&nbsp;Pathname&nbsp;of&nbsp;shared&nbsp;object&nbsp;that
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;contains&nbsp;address&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;void&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*dli_fbase;&nbsp;&nbsp;/*&nbsp;Base&nbsp;address&nbsp;at&nbsp;which&nbsp;shared
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;object&nbsp;is&nbsp;loaded&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;const&nbsp;char&nbsp;*dli_sname;&nbsp;&nbsp;/*&nbsp;Name&nbsp;of&nbsp;symbol&nbsp;whose&nbsp;definition
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;overlaps&nbsp;<I>addr</I>&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;void&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*dli_saddr;&nbsp;&nbsp;/*&nbsp;Exact&nbsp;address&nbsp;of&nbsp;symbol&nbsp;named
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;in&nbsp;<I>dli_sname</I>&nbsp;*/
+} Dl_info;
+
+
+<P>
+
+If no symbol matching
+<I>addr</I>
+
+could be found, then
+<I>dli_sname</I>
+
+and
+<I>dli_saddr</I>
+
+are set to NULL.
+<P>
+
+The function
+<B>dladdr1</B>()
+
+is like
+<B>dladdr</B>(),
+
+but returns additional information via the argument
+<I>extra_info</I>.
+
+The information returned depends on the value specified in
+<I>flags</I>,
+
+which can have one of the following values:
+<DL COMPACT>
+<DT id="1"><B>RTLD_DL_LINKMAP</B>
+
+<DD>
+Obtain a pointer to the link map for the matched file.
+The
+<I>extra_info</I>
+
+argument points to a pointer to a
+<I>link_map</I>
+
+structure (i.e.,
+<I>struct link_map&nbsp;**</I>),
+
+defined in
+<I>&lt;<A HREF="file:///usr/include/link.h">link.h</A>&gt;</I>
+
+as:
+<DT id="2"><DD>
+
+
+struct link_map {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;ElfW(Addr)&nbsp;l_addr;&nbsp;&nbsp;/*&nbsp;Difference&nbsp;between&nbsp;the
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;address&nbsp;in&nbsp;the&nbsp;ELF&nbsp;file&nbsp;and
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;the&nbsp;address&nbsp;in&nbsp;memory&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*l_name;&nbsp;&nbsp;/*&nbsp;Absolute&nbsp;pathname&nbsp;where
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;object&nbsp;was&nbsp;found&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;ElfW(Dyn)&nbsp;*l_ld;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Dynamic&nbsp;section&nbsp;of&nbsp;the
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;shared&nbsp;object&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;link_map&nbsp;*l_next,&nbsp;*l_prev;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Chain&nbsp;of&nbsp;loaded&nbsp;objects&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Plus&nbsp;additional&nbsp;fields&nbsp;private&nbsp;to&nbsp;the
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;implementation&nbsp;*/
+};
+
+
+<DT id="3"><B>RTLD_DL_SYMENT</B>
+
+<DD>
+Obtain a pointer to the ELF symbol table entry of the matching symbol.
+The
+<I>extra_info</I>
+
+argument is a pointer to a symbol pointer:
+<I>const ElfW(Sym) **</I>.
+
+The
+<I>ElfW</I>()
+
+macro definition turns its argument into the name of an ELF data
+type suitable for the hardware architecture.
+For example, on a 64-bit platform,
+<I>ElfW(Sym)</I>
+
+yields the data type name
+<I>Elf64_Sym</I>,
+
+which is defined in
+<I>&lt;<A HREF="file:///usr/include/elf.h">elf.h</A>&gt;</I>
+
+as:
+<DT id="4"><DD>
+
+
+typedef struct  {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;Elf64_Word&nbsp;&nbsp;&nbsp;&nbsp;st_name;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Symbol&nbsp;name&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;unsigned&nbsp;char&nbsp;st_info;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Symbol&nbsp;type&nbsp;and&nbsp;binding&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;unsigned&nbsp;char&nbsp;st_other;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Symbol&nbsp;visibility&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;Elf64_Section&nbsp;st_shndx;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Section&nbsp;index&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;Elf64_Addr&nbsp;&nbsp;&nbsp;&nbsp;st_value;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Symbol&nbsp;value&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;Elf64_Xword&nbsp;&nbsp;&nbsp;st_size;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Symbol&nbsp;size&nbsp;*/
+} Elf64_Sym;
+
+
+<DT id="5"><DD>
+The
+<I>st_name</I>
+
+field is an index into the string table.
+<DT id="6"><DD>
+The
+<I>st_info</I>
+
+field encodes the symbol's type and binding.
+The type can be extracted using the macro
+<B>ELF64_ST_TYPE(st_info)</B>
+
+(or
+<B>ELF32_ST_TYPE()</B>
+
+on 32-bit platforms), which yields one of the following values:
+
+<TABLE>
+<TR VALIGN=top><TD><B>Value</B></TD><TD><B>Description</B><BR></TD></TR>
+<TR VALIGN=top><TD><B>STT_NOTYPE</B></TD><TD>Symbol type is unspecified<BR></TD></TR>
+<TR VALIGN=top><TD><B>STT_OBJECT</B></TD><TD>Symbol is a data object<BR></TD></TR>
+<TR VALIGN=top><TD><B>STT_FUNC</B></TD><TD>Symbol is a code object<BR></TD></TR>
+<TR VALIGN=top><TD><B>STT_SECTION</B></TD><TD>Symbol associated with a section<BR></TD></TR>
+<TR VALIGN=top><TD><B>STT_FILE</B></TD><TD>Symbol's name is file name<BR></TD></TR>
+<TR VALIGN=top><TD><B>STT_COMMON</B></TD><TD>Symbol is a common data object<BR></TD></TR>
+<TR VALIGN=top><TD><B>STT_TLS</B></TD><TD>Symbol is thread-local data object<BR></TD></TR>
+<TR VALIGN=top><TD><B>STT_GNU_IFUNC</B></TD><TD>Symbol is indirect code object<BR></TD></TR>
+</TABLE>
+
+
+<DT id="7"><DD>
+The symbol binding can be extracted from the
+<I>st_info</I>
+
+field using the macro
+<B>ELF64_ST_BIND(st_info)</B>
+
+(or
+<B>ELF32_ST_BIND()</B>
+
+on 32-bit platforms), which yields one of the following values:
+
+<TABLE>
+<TR VALIGN=top><TD><B>Value</B></TD><TD><B>Description</B><BR></TD></TR>
+<TR VALIGN=top><TD><B>STB_LOCAL</B></TD><TD>Local symbol<BR></TD></TR>
+<TR VALIGN=top><TD><B>STB_GLOBAL</B></TD><TD>Global symbol<BR></TD></TR>
+<TR VALIGN=top><TD><B>STB_WEAK</B></TD><TD>Weak symbol<BR></TD></TR>
+<TR VALIGN=top><TD><B>STB_GNU_UNIQUE</B></TD><TD>Unique symbol<BR></TD></TR>
+</TABLE>
+
+
+<DT id="8"><DD>
+The
+<I>st_other</I>
+
+field contains the symbol's visibility, which can be extracted using the macro
+<B>ELF64_ST_VISIBILITY(st_info)</B>
+
+(or
+<B>ELF32_ST_VISIBILITY()</B>
+
+on 32-bit platforms), which yields one of the following values:
+
+<TABLE>
+<TR VALIGN=top><TD><B>Value</B></TD><TD><B>Description</B><BR></TD></TR>
+<TR VALIGN=top><TD><B>STV_DEFAULT</B></TD><TD>Default symbol visibility rules<BR></TD></TR>
+<TR VALIGN=top><TD><B>STV_INTERNAL</B></TD><TD>Processor-specific hidden class<BR></TD></TR>
+<TR VALIGN=top><TD><B>STV_HIDDEN</B></TD><TD>Symbol unavailable in other modules<BR></TD></TR>
+<TR VALIGN=top><TD><B>STV_PROTECTED</B></TD><TD>Not preemptible, not exported<BR></TD></TR>
+</TABLE>
+
+
+</DL>
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+On success, these functions return a nonzero value.
+If the address specified in
+<I>addr</I>
+
+could be matched to a shared object,
+but not to a symbol in the shared object, then the
+<I>info-&gt;dli_sname</I>
+
+and
+<I>info-&gt;dli_saddr</I>
+
+fields are set to NULL.
+<P>
+
+If the address specified in
+<I>addr</I>
+
+could not be matched to a shared object, then these functions return 0.
+In this case, an error message is
+<I>not</I>
+
+
+
+available via
+<B><A HREF="/cgi-bin/man/man2html?3+dlerror">dlerror</A></B>(3).
+
+<A NAME="lbAF">&nbsp;</A>
+<H2>VERSIONS</H2>
+
+<B>dladdr</B>()
+
+is present in glibc 2.0 and later.
+<B>dladdr1</B>()
+
+first appeared in glibc 2.3.3.
+<A NAME="lbAG">&nbsp;</A>
+<H2>ATTRIBUTES</H2>
+
+For an explanation of the terms used in this section, see
+<B><A HREF="/cgi-bin/man/man2html?7+attributes">attributes</A></B>(7).
+
+<TABLE BORDER>
+<TR VALIGN=top><TD><B>Interface</B></TD><TD><B>Attribute</B></TD><TD><B>Value</B><BR></TD></TR>
+<TR VALIGN=top><TD>
+<B>dladdr</B>(),
+
+<B>dladdr1</B>()
+
+</TD><TD>Thread safety</TD><TD>MT-Safe<BR></TD></TR>
+</TABLE>
+
+<A NAME="lbAH">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+These functions are nonstandard GNU extensions
+that are also present on Solaris.
+<A NAME="lbAI">&nbsp;</A>
+<H2>BUGS</H2>
+
+Sometimes, the function pointers you pass to
+<B>dladdr</B>()
+
+may surprise you.
+On some architectures (notably i386 and x86-64),
+<I>dli_fname</I>
+
+and
+<I>dli_fbase</I>
+
+may end up pointing back at the object from which you called
+<B>dladdr</B>(),
+
+even if the function used as an argument should come from
+a dynamically linked library.
+<P>
+
+The problem is that the function pointer will still be resolved
+at compile time, but merely point to the
+<I>plt</I>
+
+(Procedure Linkage Table)
+section of the original object (which dispatches the call after
+asking the dynamic linker to resolve the symbol).
+To work around this,
+you can try to compile the code to be position-independent:
+then, the compiler cannot prepare the pointer
+at compile time any more and
+<B><A HREF="/cgi-bin/man/man2html?1+gcc">gcc</A></B>(1)
+
+will generate code that just loads the final symbol address from the
+<I>got</I>
+
+(Global Offset Table) at run time before passing it to
+<B>dladdr</B>().
+
+<A NAME="lbAJ">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?3+dl_iterate_phdr">dl_iterate_phdr</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+dlinfo">dlinfo</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+dlopen">dlopen</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+dlsym">dlsym</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?8+ld.so">ld.so</A></B>(8)
+
+<A NAME="lbAK">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="9"><A HREF="#lbAB">NAME</A><DD>
+<DT id="10"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="11"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="12"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DT id="13"><A HREF="#lbAF">VERSIONS</A><DD>
+<DT id="14"><A HREF="#lbAG">ATTRIBUTES</A><DD>
+<DT id="15"><A HREF="#lbAH">CONFORMING TO</A><DD>
+<DT id="16"><A HREF="#lbAI">BUGS</A><DD>
+<DT id="17"><A HREF="#lbAJ">SEE ALSO</A><DD>
+<DT id="18"><A HREF="#lbAK">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:38 GMT, March 31, 2021
+</BODY>
+</HTML>

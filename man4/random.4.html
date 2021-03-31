@@ -1,0 +1,480 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of RANDOM</TITLE>
+</HEAD><BODY>
+<H1>RANDOM</H1>
+Section: Linux Programmer's Manual (4)<BR>Updated: 2017-09-15<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+random, urandom - kernel random number source devices
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+#include &lt;<A HREF="file:///usr/include/linux/random.h">linux/random.h</A>&gt;
+<P>
+
+<B>int ioctl(</B><I>fd</I><B>, RND</B><I>request</I><B>, </B><I>param</I><B>);</B>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+The character special files <I>/dev/random</I> and
+<I>/dev/urandom</I> (present since Linux 1.3.30)
+provide an interface to the kernel's random number generator.
+The file
+<I>/dev/random</I>
+
+has major device number 1 and minor device number 8.
+The file
+<I>/dev/urandom</I>
+
+has major device number 1 and minor device number 9.
+<P>
+
+The random number generator gathers environmental noise
+from device drivers and other sources into an entropy pool.
+The generator also keeps an estimate of the
+number of bits of noise in the entropy pool.
+From this entropy pool, random numbers are created.
+<P>
+
+Linux 3.17 and later provides the simpler and safer
+<B><A HREF="/cgi-bin/man/man2html?2+getrandom">getrandom</A></B>(2)
+
+interface which requires no special files;
+see the
+<B><A HREF="/cgi-bin/man/man2html?2+getrandom">getrandom</A></B>(2)
+
+manual page for details.
+<P>
+
+When read, the
+<I>/dev/urandom</I>
+
+device returns random bytes using a pseudorandom
+number generator seeded from the entropy pool.
+Reads from this device do not block (i.e., the CPU is not yielded),
+but can incur an appreciable delay when requesting large amounts of data.
+<P>
+
+When read during early boot time,
+<I>/dev/urandom</I>
+
+may return data prior to the entropy pool being initialized.
+
+
+If this is of concern in your application, use
+<B><A HREF="/cgi-bin/man/man2html?2+getrandom">getrandom</A></B>(2)
+
+or <I>/dev/random</I> instead.
+<P>
+
+The <I>/dev/random</I> device is a legacy interface which dates back to
+a time where the cryptographic primitives used in the implementation
+of <I>/dev/urandom</I> were not widely trusted.
+It will return random bytes only within the estimated number of
+bits of fresh noise in the entropy pool, blocking if necessary.
+<I>/dev/random</I> is suitable for applications that need
+high quality randomness, and can afford indeterminate delays.
+<P>
+
+When the entropy pool is empty, reads from <I>/dev/random</I> will block
+until additional environmental noise is gathered.
+If
+<B><A HREF="/cgi-bin/man/man2html?2+open">open</A></B>(2)
+
+is called for
+<I>/dev/random</I>
+
+with the
+<B>O_NONBLOCK</B>
+
+flag, a subsequent
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)
+
+will not block if the requested number of bytes is not available.
+Instead, the available bytes are returned.
+If no byte is available,
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)
+
+will return -1 and
+<I>errno</I>
+
+will be set to
+<B>EAGAIN</B>.
+
+<P>
+
+The
+<B>O_NONBLOCK</B>
+
+flag has no effect when opening
+<I>/dev/urandom</I>.
+
+When calling
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)
+
+for the device
+<I>/dev/urandom</I>,
+
+reads of up to 256 bytes will return as many bytes as are requested
+and will not be interrupted by a signal handler.
+Reads with a buffer over this limit may return less than the
+requested number of bytes or fail with the error
+<B>EINTR</B>,
+
+if interrupted by a signal handler.
+<P>
+
+Since Linux 3.16,
+
+a
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)
+
+from
+<I>/dev/urandom</I>
+
+will return at most 32&nbsp;MB.
+A
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)
+
+from
+<I>/dev/random</I>
+
+will return at most 512 bytes
+
+(340 bytes on Linux kernels before version 2.6.12).
+<P>
+
+Writing to <I>/dev/random</I> or <I>/dev/urandom</I> will update the
+entropy pool with the data written, but this will not result in a
+higher entropy count.
+This means that it will impact the contents
+read from both files, but it will not make reads from
+<I>/dev/random</I> faster.
+<A NAME="lbAE">&nbsp;</A>
+<H3>Usage</H3>
+
+The
+<I>/dev/random</I>
+
+interface is considered a legacy interface, and
+<I>/dev/urandom</I>
+
+is preferred and sufficient in all use cases, with the exception of
+applications which require randomness during early boot time; for
+these applications,
+<B><A HREF="/cgi-bin/man/man2html?2+getrandom">getrandom</A></B>(2)
+
+must be used instead,
+because it will block until the entropy pool is initialized.
+<P>
+
+If a seed file is saved across reboots as recommended below (all major
+Linux distributions have done this since 2000 at least), the output is
+cryptographically secure against attackers without local root access as
+soon as it is reloaded in the boot sequence, and perfectly adequate for
+network encryption session keys.
+Since reads from
+<I>/dev/random</I>
+
+may block, users will usually want to open it in nonblocking mode
+(or perform a read with timeout),
+and provide some sort of user notification if the desired
+entropy is not immediately available.
+
+<A NAME="lbAF">&nbsp;</A>
+<H3>Configuration</H3>
+
+If your system does not have
+<I>/dev/random</I> and <I>/dev/urandom</I> created already, they
+can be created with the following commands:
+<P>
+
+
+
+mknod -m 666 /dev/random c 1 8
+mknod -m 666 /dev/urandom c 1 9
+chown root:root /dev/random /dev/urandom
+
+
+<P>
+
+When a Linux system starts up without much operator interaction,
+the entropy pool may be in a fairly predictable state.
+This reduces the actual amount of noise in the entropy pool
+below the estimate.
+In order to counteract this effect, it helps to carry
+entropy pool information across shut-downs and start-ups.
+To do this, add the lines to an appropriate script
+which is run during the Linux system start-up sequence:
+<P>
+
+
+
+echo &quot;Initializing random number generator...&quot;
+random_seed=/var/run/random-seed
+# Carry a random seed from start-up to start-up
+# Load and then save the whole entropy pool
+if [ -f $random_seed ]; then
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;cat&nbsp;$random_seed&nbsp;&gt;/dev/urandom
+else
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;touch&nbsp;$random_seed
+fi
+chmod 600 $random_seed
+poolfile=/proc/sys/kernel/random/poolsize
+[ -r $poolfile ] &amp;&amp; bits=$(cat $poolfile) || bits=4096
+bytes=$(expr $bits / 8)
+dd if=/dev/urandom of=$random_seed count=1 bs=$bytes
+
+
+<P>
+
+Also, add the following lines in an appropriate script which is
+run during the Linux system shutdown:
+<P>
+
+
+
+# Carry a random seed from shut-down to start-up
+# Save the whole entropy pool
+echo &quot;Saving random seed...&quot;
+random_seed=/var/run/random-seed
+touch $random_seed
+chmod 600 $random_seed
+poolfile=/proc/sys/kernel/random/poolsize
+[ -r $poolfile ] &amp;&amp; bits=$(cat $poolfile) || bits=4096
+bytes=$(expr $bits / 8)
+dd if=/dev/urandom of=$random_seed count=1 bs=$bytes
+
+
+<P>
+
+In the above examples, we assume Linux 2.6.0 or later, where
+<I>/proc/sys/kernel/random/poolsize</I>
+
+returns the size of the entropy pool in bits (see below).
+
+<A NAME="lbAG">&nbsp;</A>
+<H3>/proc interfaces</H3>
+
+The files in the directory
+<I>/proc/sys/kernel/random</I>
+
+(present since 2.3.16) provide additional information about the
+<I>/dev/random</I>
+
+device:
+<DL COMPACT>
+<DT id="1"><I>entropy_avail</I>
+
+<DD>
+This read-only file gives the available entropy, in bits.
+This will be a number in the range 0 to 4096.
+<DT id="2"><I>poolsize</I>
+
+<DD>
+This file
+gives the size of the entropy pool.
+The semantics of this file vary across kernel versions:
+<DL COMPACT><DT id="3"><DD>
+<DL COMPACT>
+<DT id="4">Linux 2.4:<DD>
+This file gives the size of the entropy pool in
+<I>bytes</I>.
+
+Normally, this file will have the value 512, but it is writable,
+and can be changed to any value for which an algorithm is available.
+The choices are 32, 64, 128, 256, 512, 1024, or 2048.
+<DT id="5">Linux 2.6 and later:<DD>
+This file is read-only, and gives the size of the entropy pool in
+<I>bits</I>.
+
+It contains the value 4096.
+</DL>
+</DL>
+
+<DT id="6"><I>read_wakeup_threshold</I>
+
+<DD>
+This file
+contains the number of bits of entropy required for waking up processes
+that sleep waiting for entropy from
+<I>/dev/random</I>.
+
+The default is 64.
+<DT id="7"><I>write_wakeup_threshold</I>
+
+<DD>
+This file
+contains the number of bits of entropy below which we wake up
+processes that do a
+<B><A HREF="/cgi-bin/man/man2html?2+select">select</A></B>(2)
+
+or
+<B><A HREF="/cgi-bin/man/man2html?2+poll">poll</A></B>(2)
+
+for write access to
+<I>/dev/random</I>.
+
+These values can be changed by writing to the files.
+<DT id="8"><I>uuid</I> and <I>boot_id</I>
+
+<DD>
+These read-only files
+contain random strings like 6fd5a44b-35f4-4ad4-a9b9-6b9be13e1fe9.
+The former is generated afresh for each read, the latter was
+generated once.
+
+</DL>
+<A NAME="lbAH">&nbsp;</A>
+<H3><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A>(2) interface</H3>
+
+The following
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+requests are defined on file descriptors connected to either <I>/dev/random</I>
+or <I>/dev/urandom</I>.
+All requests performed will interact with the input
+entropy pool impacting both <I>/dev/random</I> and <I>/dev/urandom</I>.
+The
+<B>CAP_SYS_ADMIN</B>
+
+capability is required for all requests except
+<B>RNDGETENTCNT</B>.
+
+<DL COMPACT>
+<DT id="9"><B>RNDGETENTCNT</B>
+
+<DD>
+Retrieve the entropy count of the input pool, the contents will be the same
+as the
+<I>entropy_avail</I>
+
+file under proc.
+The result will be stored in the int pointed to by the argument.
+<DT id="10"><B>RNDADDTOENTCNT</B>
+
+<DD>
+Increment or decrement the entropy count of the input pool
+by the value pointed to by the argument.
+<DT id="11"><B>RNDGETPOOL</B>
+
+<DD>
+Removed in Linux 2.6.9.
+<DT id="12"><B>RNDADDENTROPY</B>
+
+<DD>
+Add some additional entropy to the input pool,
+incrementing the entropy count.
+This differs from writing to <I>/dev/random</I> or <I>/dev/urandom</I>,
+which only adds some
+data but does not increment the entropy count.
+The following structure is used:
+<DT id="13"><DD>
+
+
+struct rand_pool_info {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;&nbsp;&nbsp;&nbsp;entropy_count;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;&nbsp;&nbsp;&nbsp;buf_size;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u32&nbsp;&nbsp;buf[0];
+};
+
+
+<DT id="14"><DD>
+Here
+<I>entropy_count</I>
+
+is the value added to (or subtracted from) the entropy count, and
+<I>buf</I>
+
+is the buffer of size
+<I>buf_size</I>
+
+which gets added to the entropy pool.
+<DT id="15"><B>RNDZAPENTCNT</B>, <B>RNDCLEARPOOL</B>
+
+<DD>
+Zero the entropy count of all pools and add some system data (such as
+wall clock) to the pools.
+</DL>
+<A NAME="lbAI">&nbsp;</A>
+<H2>FILES</H2>
+
+<I>/dev/random</I>
+
+<BR>
+
+<I>/dev/urandom</I>
+
+<A NAME="lbAJ">&nbsp;</A>
+<H2>NOTES</H2>
+
+For an overview and comparison of the various interfaces that
+can be used to obtain randomness, see
+<B><A HREF="/cgi-bin/man/man2html?7+random">random</A></B>(7).
+
+<A NAME="lbAK">&nbsp;</A>
+<H2>BUGS</H2>
+
+During early boot time, reads from
+<I>/dev/urandom</I>
+
+may return data prior to the entropy pool being initialized.
+
+
+
+<A NAME="lbAL">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?1+mknod">mknod</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?2+getrandom">getrandom</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?7+random">random</A></B>(7)
+
+<P>
+
+RFC&nbsp;1750, &quot;Randomness Recommendations for Security&quot;
+<A NAME="lbAM">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="16"><A HREF="#lbAB">NAME</A><DD>
+<DT id="17"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="18"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DL>
+<DT id="19"><A HREF="#lbAE">Usage</A><DD>
+<DT id="20"><A HREF="#lbAF">Configuration</A><DD>
+<DT id="21"><A HREF="#lbAG">/proc interfaces</A><DD>
+<DT id="22"><A HREF="#lbAH">ioctl(2) interface</A><DD>
+</DL>
+<DT id="23"><A HREF="#lbAI">FILES</A><DD>
+<DT id="24"><A HREF="#lbAJ">NOTES</A><DD>
+<DT id="25"><A HREF="#lbAK">BUGS</A><DD>
+<DT id="26"><A HREF="#lbAL">SEE ALSO</A><DD>
+<DT id="27"><A HREF="#lbAM">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:02 GMT, March 31, 2021
+</BODY>
+</HTML>

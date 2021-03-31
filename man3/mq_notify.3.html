@@ -1,0 +1,403 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of MQ_NOTIFY</TITLE>
+</HEAD><BODY>
+<H1>MQ_NOTIFY</H1>
+Section: Linux Programmer's Manual (3)<BR>Updated: 2019-03-06<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+mq_notify - register for notification when a message is available
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<PRE>
+<B>#include &lt;<A HREF="file:///usr/include/mqueue.h">mqueue.h</A>&gt;</B>
+
+<B>int mq_notify(mqd_t </B><I>mqdes</I><B>, const struct sigevent *</B><I>sevp</I><B>);</B>
+</PRE>
+
+<P>
+
+Link with <I>-lrt</I>.
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<B>mq_notify</B>()
+
+allows the calling process to register or unregister for delivery of
+an asynchronous notification when a new message arrives on
+the empty message queue referred to by the message queue descriptor
+<I>mqdes</I>.
+
+<P>
+
+The
+<I>sevp</I>
+
+argument is a pointer to a
+<I>sigevent</I>
+
+structure.
+For the definition and general details of this structure, see
+<B><A HREF="/cgi-bin/man/man2html?7+sigevent">sigevent</A></B>(7).
+
+<P>
+
+If
+<I>sevp</I>
+
+is a non-null pointer, then
+<B>mq_notify</B>()
+
+registers the calling process to receive message notification.
+The
+<I>sigev_notify</I>
+
+field of the
+<I>sigevent</I>
+
+structure to which
+<I>sevp</I>
+
+points specifies how notification is to be performed.
+This field has one of the following values:
+<DL COMPACT>
+<DT id="1"><B>SIGEV_NONE</B>
+
+<DD>
+A &quot;null&quot; notification: the calling process is registered as the target
+for notification, but when a message arrives, no notification is sent.
+
+<DT id="2"><B>SIGEV_SIGNAL</B>
+
+<DD>
+Notify the process by sending the signal specified in
+<I>sigev_signo</I>.
+
+See
+<B><A HREF="/cgi-bin/man/man2html?7+sigevent">sigevent</A></B>(7)
+
+for general details.
+The
+<I>si_code</I>
+
+field of the
+<I>siginfo_t</I>
+
+structure will be set to
+<B>SI_MESGQ</B>.
+
+In addition,
+
+
+<I>si_pid</I>
+
+will be set to the PID of the process that sent the message, and
+<I>si_uid</I>
+
+will be set to the real user ID of the sending process.
+<DT id="3"><B>SIGEV_THREAD</B>
+
+<DD>
+Upon message delivery, invoke
+<I>sigev_notify_function</I>
+
+as if it were the start function of a new thread.
+See
+<B><A HREF="/cgi-bin/man/man2html?7+sigevent">sigevent</A></B>(7)
+
+for details.
+</DL>
+<P>
+
+Only one process can be registered to receive notification
+from a message queue.
+<P>
+
+If
+<I>sevp</I>
+
+is NULL, and the calling process is currently registered to receive
+notifications for this message queue, then the registration is removed;
+another process can then register to receive a message notification
+for this queue.
+<P>
+
+Message notification occurs only when a new message arrives and
+the queue was previously empty.
+If the queue was not empty at the time
+<B>mq_notify</B>()
+
+was called, then a notification will occur only after
+the queue is emptied and a new message arrives.
+<P>
+
+If another process or thread is waiting to read a message
+from an empty queue using
+<B><A HREF="/cgi-bin/man/man2html?3+mq_receive">mq_receive</A></B>(3),
+
+then any message notification registration is ignored:
+the message is delivered to the process or thread calling
+<B><A HREF="/cgi-bin/man/man2html?3+mq_receive">mq_receive</A></B>(3),
+
+and the message notification registration remains in effect.
+<P>
+
+Notification occurs once: after a notification is delivered,
+the notification registration is removed,
+and another process can register for message notification.
+If the notified process wishes to receive the next notification,
+it can use
+<B>mq_notify</B>()
+
+to request a further notification.
+This should be done before emptying all unread messages from the queue.
+(Placing the queue in nonblocking mode is useful for emptying
+the queue of messages without blocking once it is empty.)
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+On success
+<B>mq_notify</B>()
+
+returns 0; on error, -1 is returned, with
+<I>errno</I>
+
+set to indicate the error.
+<A NAME="lbAF">&nbsp;</A>
+<H2>ERRORS</H2>
+
+<DL COMPACT>
+<DT id="4"><B>EBADF</B>
+
+<DD>
+The message queue descriptor specified in
+<I>mqdes</I>
+
+is invalid.
+<DT id="5"><B>EBUSY</B>
+
+<DD>
+Another process has already registered to receive notification
+for this message queue.
+<DT id="6"><B>EINVAL</B>
+
+<DD>
+<I>sevp-&gt;sigev_notify</I>
+
+is not one of the permitted values; or
+<I>sevp-&gt;sigev_notify</I>
+
+is
+<B>SIGEV_SIGNAL</B>
+
+and
+<I>sevp-&gt;sigev_signo</I>
+
+is not a valid signal number.
+<DT id="7"><B>ENOMEM</B>
+
+<DD>
+Insufficient memory.
+</DL>
+<P>
+
+POSIX.1-2008 says that an implementation
+<I>may</I>
+
+generate an
+<B>EINVAL</B>
+
+
+error if
+<I>sevp</I>
+
+is NULL, and the caller is not currently registered to receive
+notifications for the queue
+<I>mqdes</I>.
+
+<A NAME="lbAG">&nbsp;</A>
+<H2>ATTRIBUTES</H2>
+
+For an explanation of the terms used in this section, see
+<B><A HREF="/cgi-bin/man/man2html?7+attributes">attributes</A></B>(7).
+
+<TABLE BORDER>
+<TR VALIGN=top><TD><B>Interface</B></TD><TD><B>Attribute</B></TD><TD><B>Value</B><BR></TD></TR>
+<TR VALIGN=top><TD>
+<B>mq_notify</B>()
+
+</TD><TD>Thread safety</TD><TD>MT-Safe<BR></TD></TR>
+</TABLE>
+
+<P>
+<A NAME="lbAH">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+POSIX.1-2001.
+<A NAME="lbAI">&nbsp;</A>
+<H2>NOTES</H2>
+
+
+<A NAME="lbAJ">&nbsp;</A>
+<H3>C library/kernel differences</H3>
+
+In the glibc implementation, the
+<B>mq_notify</B>()
+
+library function is implemented on top of the system call of the same name.
+When
+<I>sevp</I>
+
+is NULL, or specifies a notification mechanism other than
+<B>SIGEV_THREAD</B>,
+
+the library function directly invokes the system call.
+For
+<B>SIGEV_THREAD</B>,
+
+much of the implementation resides within the library,
+rather than the kernel.
+(This is necessarily so,
+since the thread involved in handling the notification is one
+that must be managed by the C library POSIX threads implementation.)
+The implementation involves the use of a raw
+<B><A HREF="/cgi-bin/man/man2html?7+netlink">netlink</A></B>(7)
+
+socket and creates a new thread for each notification that is
+delivered to the process.
+<A NAME="lbAK">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+The following program registers a notification request for the
+message queue named in its command-line argument.
+Notification is performed by creating a thread.
+The thread executes a function which reads one message from the
+queue and then terminates the process.
+<A NAME="lbAL">&nbsp;</A>
+<H3>Program source</H3>
+
+
+#include &lt;<A HREF="file:///usr/include/pthread.h">pthread.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/mqueue.h">mqueue.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdlib.h">stdlib.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/unistd.h">unistd.h</A>&gt;
+<P>
+#define handle_error(msg) \
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;do&nbsp;{&nbsp;perror(msg);&nbsp;exit(EXIT_FAILURE);&nbsp;}&nbsp;while&nbsp;(0)
+<P>
+static void                     /* Thread start function */
+tfunc(union sigval sv)
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;mq_attr&nbsp;attr;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;ssize_t&nbsp;nr;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;void&nbsp;*buf;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;mqd_t&nbsp;mqdes&nbsp;=&nbsp;*((mqd_t&nbsp;*)&nbsp;sv.sival_ptr);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Determine&nbsp;max.&nbsp;msg&nbsp;size;&nbsp;allocate&nbsp;buffer&nbsp;to&nbsp;receive&nbsp;msg&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(mq_getattr(mqdes,&nbsp;&amp;attr)&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;handle_error(&quot;mq_getattr&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;buf&nbsp;=&nbsp;malloc(attr.mq_msgsize);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(buf&nbsp;==&nbsp;NULL)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;handle_error(&quot;malloc&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;nr&nbsp;=&nbsp;mq_receive(mqdes,&nbsp;buf,&nbsp;attr.mq_msgsize,&nbsp;NULL);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(nr&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;handle_error(&quot;mq_receive&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;Read&nbsp;%zd&nbsp;bytes&nbsp;from&nbsp;MQ\n&quot;,&nbsp;nr);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;free(buf);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_SUCCESS);&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Terminate&nbsp;the&nbsp;process&nbsp;*/
+}
+<P>
+int
+main(int argc, char *argv[])
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;mqd_t&nbsp;mqdes;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;sigevent&nbsp;sev;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(argc&nbsp;!=&nbsp;2)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;Usage:&nbsp;%s&nbsp;&lt;mq-name&gt;\n&quot;,&nbsp;argv[0]);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;mqdes&nbsp;=&nbsp;mq_open(argv[1],&nbsp;O_RDONLY);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(mqdes&nbsp;==&nbsp;(mqd_t)&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;handle_error(&quot;mq_open&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;sev.sigev_notify&nbsp;=&nbsp;SIGEV_THREAD;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;sev.sigev_notify_function&nbsp;=&nbsp;tfunc;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;sev.sigev_notify_attributes&nbsp;=&nbsp;NULL;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;sev.sigev_value.sival_ptr&nbsp;=&nbsp;&amp;mqdes;&nbsp;&nbsp;&nbsp;/*&nbsp;Arg.&nbsp;to&nbsp;thread&nbsp;func.&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(mq_notify(mqdes,&nbsp;&amp;sev)&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;handle_error(&quot;mq_notify&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;pause();&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Process&nbsp;will&nbsp;be&nbsp;terminated&nbsp;by&nbsp;thread&nbsp;function&nbsp;*/
+}
+
+<A NAME="lbAM">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?3+mq_close">mq_close</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+mq_getattr">mq_getattr</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+mq_open">mq_open</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+mq_receive">mq_receive</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+mq_send">mq_send</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+mq_unlink">mq_unlink</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?7+mq_overview">mq_overview</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+sigevent">sigevent</A></B>(7)
+
+<A NAME="lbAN">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="8"><A HREF="#lbAB">NAME</A><DD>
+<DT id="9"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="10"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="11"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DT id="12"><A HREF="#lbAF">ERRORS</A><DD>
+<DT id="13"><A HREF="#lbAG">ATTRIBUTES</A><DD>
+<DT id="14"><A HREF="#lbAH">CONFORMING TO</A><DD>
+<DT id="15"><A HREF="#lbAI">NOTES</A><DD>
+<DL>
+<DT id="16"><A HREF="#lbAJ">C library/kernel differences</A><DD>
+</DL>
+<DT id="17"><A HREF="#lbAK">EXAMPLE</A><DD>
+<DL>
+<DT id="18"><A HREF="#lbAL">Program source</A><DD>
+</DL>
+<DT id="19"><A HREF="#lbAM">SEE ALSO</A><DD>
+<DT id="20"><A HREF="#lbAN">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:48 GMT, March 31, 2021
+</BODY>
+</HTML>

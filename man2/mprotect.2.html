@@ -1,0 +1,516 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of MPROTECT</TITLE>
+</HEAD><BODY>
+<H1>MPROTECT</H1>
+Section: Linux Programmer's Manual (2)<BR>Updated: 2019-08-02<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+mprotect, pkey_mprotect - set protection on a region of memory
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<PRE>
+<B>#include &lt;<A HREF="file:///usr/include/sys/mman.h">sys/mman.h</A>&gt;</B>
+
+<B>int mprotect(void *</B><I>addr</I><B>, size_t </B><I>len</I><B>, int </B><I>prot</I><B>);</B>
+
+<B>#define _GNU_SOURCE</B>             /* See <A HREF="/cgi-bin/man/man2html?7+feature_test_macros">feature_test_macros</A>(7) */
+<B>#include &lt;<A HREF="file:///usr/include/sys/mman.h">sys/mman.h</A>&gt;</B>
+
+<B>int pkey_mprotect(void *</B><I>addr</I><B>, size_t </B><I>len</I><B>, int </B><I>prot</I><B>, int </B><I>pkey</I><B>);</B>
+</PRE>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<B>mprotect</B>()
+
+changes the access protections for the calling process's memory pages
+containing any part of the address range in the
+interval [<I>addr</I>,&nbsp;<I>addr</I>+<I>len</I>-1].
+<I>addr</I>
+
+must be aligned to a page boundary.
+<P>
+
+If the calling process tries to access memory in a manner
+that violates the protections, then the kernel generates a
+<B>SIGSEGV</B>
+
+signal for the process.
+<P>
+
+<I>prot</I>
+
+is a combination of the following access flags:
+<B>PROT_NONE</B>
+
+or a bitwise-or of the other values in the following list:
+<DL COMPACT>
+<DT id="1"><B>PROT_NONE</B>
+
+<DD>
+The memory cannot be accessed at all.
+<DT id="2"><B>PROT_READ</B>
+
+<DD>
+The memory can be read.
+<DT id="3"><B>PROT_WRITE</B>
+
+<DD>
+The memory can be modified.
+<DT id="4"><B>PROT_EXEC</B>
+
+<DD>
+The memory can be executed.
+<DT id="5"><B>PROT_SEM</B> (since Linux 2.5.7)
+
+<DD>
+The memory can be used for atomic operations.
+This flag was introduced as part of the
+<B><A HREF="/cgi-bin/man/man2html?2+futex">futex</A></B>(2)
+
+implementation (in order to guarantee the ability to perform atomic
+operations required by commands such as
+<B>FUTEX_WAIT</B>),
+
+but is not currently used in on any architecture.
+<DT id="6"><B>PROT_SAO</B> (since Linux 2.6.26)
+
+<DD>
+
+
+The memory should have strong access ordering.
+This feature is specific to
+the PowerPC architecture
+(version 2.06 of the architecture specification adds the SAO CPU feature,
+and it is available on POWER 7 or PowerPC A2, for example).
+</DL>
+<P>
+
+Additionally (since Linux 2.6.0),
+<I>prot</I>
+
+can have one of the following flags set:
+<DL COMPACT>
+<DT id="7">
+<DD>
+
+
+
+<B>PROT_GROWSUP</B>
+
+Apply the protection mode up to the end of a mapping
+that grows upwards.
+(Such mappings are created for the stack area on
+architectures---for example, HP-PARISC---that
+have an upwardly growing stack.)
+
+
+
+
+<DT id="8"><B>PROT_GROWSDOWN</B>
+
+<DD>
+Apply the protection mode down to the beginning of a mapping
+that grows downward
+(which should be a stack segment or a segment mapped with the
+<B>MAP_GROWSDOWN</B>
+
+flag set).
+</DL>
+<P>
+
+Like
+<B>mprotect</B>(),
+
+<B>pkey_mprotect</B>()
+
+changes the protection on the pages specified by
+<I>addr</I>
+
+and
+<I>len</I>.
+
+The
+<I>pkey</I>
+
+argument specifies the protection key (see
+<B><A HREF="/cgi-bin/man/man2html?7+pkeys">pkeys</A></B>(7))
+
+to assign to the memory.
+The protection key must be allocated with
+<B><A HREF="/cgi-bin/man/man2html?2+pkey_alloc">pkey_alloc</A></B>(2)
+
+before it is passed to
+<B>pkey_mprotect</B>().
+
+For an example of the use of this system call, see
+<B><A HREF="/cgi-bin/man/man2html?7+pkeys">pkeys</A></B>(7).
+
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+On success,
+<B>mprotect</B>()
+
+and
+<B>pkey_mprotect</B>()
+
+return zero.
+On error, these system calls return -1, and
+<I>errno</I>
+
+is set appropriately.
+<A NAME="lbAF">&nbsp;</A>
+<H2>ERRORS</H2>
+
+<DL COMPACT>
+<DT id="9"><B>EACCES</B>
+
+<DD>
+The memory cannot be given the specified access.
+This can happen, for example, if you
+<B><A HREF="/cgi-bin/man/man2html?2+mmap">mmap</A></B>(2)
+
+a file to which you have read-only access, then ask
+<B>mprotect</B>()
+
+to mark it
+<B>PROT_WRITE</B>.
+
+<DT id="10"><B>EINVAL</B>
+
+<DD>
+<I>addr</I> is not a valid pointer,
+or not a multiple of the system page size.
+<DT id="11"><B>EINVAL</B>
+
+<DD>
+(<B>pkey_mprotect</B>())
+
+<I>pkey</I> has not been allocated with
+<B><A HREF="/cgi-bin/man/man2html?2+pkey_alloc">pkey_alloc</A></B>(2)
+
+<DT id="12"><B>EINVAL</B>
+
+<DD>
+Both
+<B>PROT_GROWSUP</B>
+
+and
+<B>PROT_GROWSDOWN</B>
+
+were specified in
+<I>prot</I>.
+
+<DT id="13"><B>EINVAL</B>
+
+<DD>
+Invalid flags specified in
+<I>prot</I>.
+
+<DT id="14"><B>EINVAL</B>
+
+<DD>
+(PowerPC architecture)
+<B>PROT_SAO</B>
+
+was specified in
+<I>prot</I>,
+
+but SAO hardware feature is not available.
+<DT id="15"><B>ENOMEM</B>
+
+<DD>
+Internal kernel structures could not be allocated.
+<DT id="16"><B>ENOMEM</B>
+
+<DD>
+Addresses in the range
+[<I>addr</I>,
+
+<I>addr</I>+<I>len</I>-1]
+
+are invalid for the address space of the process,
+or specify one or more pages that are not mapped.
+(Before kernel 2.4.19, the error
+<B>EFAULT</B>
+
+was incorrectly produced for these cases.)
+<DT id="17"><B>ENOMEM</B>
+
+<DD>
+Changing the protection of a memory region would result in the total number of
+mappings with distinct attributes (e.g., read versus read/write protection)
+exceeding the allowed maximum.
+
+(For example, making the protection of a range
+<B>PROT_READ</B>
+
+in the middle of a region currently protected as
+<B>PROT_READ|PROT_WRITE</B>
+
+would result in three mappings:
+two read/write mappings at each end and a read-only mapping in the middle.)
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H2>VERSIONS</H2>
+
+<B>pkey_mprotect</B>()
+
+first appeared in Linux 4.9;
+library support was added in glibc 2.27.
+<A NAME="lbAH">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+<B>mprotect</B>():
+
+POSIX.1-2001, POSIX.1-2008, SVr4.
+
+
+POSIX says that the behavior of
+<B>mprotect</B>()
+
+is unspecified if it is applied to a region of memory that
+was not obtained via
+<B><A HREF="/cgi-bin/man/man2html?2+mmap">mmap</A></B>(2).
+
+<P>
+
+<B>pkey_mprotect</B>()
+
+is a nonportable Linux extension.
+<A NAME="lbAI">&nbsp;</A>
+<H2>NOTES</H2>
+
+On Linux, it is always permissible to call
+<B>mprotect</B>()
+
+on any address in a process's address space (except for the
+kernel vsyscall area).
+In particular, it can be used
+to change existing code mappings to be writable.
+<P>
+
+Whether
+<B>PROT_EXEC</B>
+
+has any effect different from
+<B>PROT_READ</B>
+
+depends on processor architecture, kernel version, and process state.
+If
+<B>READ_IMPLIES_EXEC</B>
+
+is set in the process's personality flags (see
+<B><A HREF="/cgi-bin/man/man2html?2+personality">personality</A></B>(2)),
+
+specifying
+<B>PROT_READ</B>
+
+will implicitly add
+<B>PROT_EXEC</B>.
+
+<P>
+
+On some hardware architectures (e.g., i386),
+<B>PROT_WRITE</B>
+
+implies
+<B>PROT_READ</B>.
+
+<P>
+
+POSIX.1 says that an implementation may permit access
+other than that specified in
+<I>prot</I>,
+
+but at a minimum can allow write access only if
+<B>PROT_WRITE</B>
+
+has been set, and must not allow any access if
+<B>PROT_NONE</B>
+
+has been set.
+<P>
+
+Applications should be careful when mixing use of
+<B>mprotect</B>()
+
+and
+<B>pkey_mprotect</B>().
+
+On x86, when
+<B>mprotect</B>()
+
+is used with
+<I>prot</I>
+
+set to
+<B>PROT_EXEC</B>
+
+a pkey may be allocated and set on the memory implicitly
+by the kernel, but only when the pkey was 0 previously.
+<P>
+
+On systems that do not support protection keys in hardware,
+<B>pkey_mprotect</B>()
+
+may still be used, but
+<I>pkey</I>
+
+must be set to -1.
+When called this way, the operation of
+<B>pkey_mprotect</B>()
+
+is equivalent to
+<B>mprotect</B>().
+
+<A NAME="lbAJ">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+
+<P>
+
+The program below demonstrates the use of
+<B>mprotect</B>().
+
+The program allocates four pages of memory, makes the third
+of these pages read-only, and then executes a loop that walks upward
+through the allocated region modifying bytes.
+<P>
+
+An example of what we might see when running the program is the
+following:
+<P>
+
+
+
+$<B> ./a.out</B>
+
+Start of region:        0x804c000
+Got SIGSEGV at address: 0x804e000
+
+
+<A NAME="lbAK">&nbsp;</A>
+<H3>Program source</H3>
+
+
+
+#include &lt;<A HREF="file:///usr/include/unistd.h">unistd.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/signal.h">signal.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/malloc.h">malloc.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdlib.h">stdlib.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/errno.h">errno.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/sys/mman.h">sys/mman.h</A>&gt;
+<P>
+#define handle_error(msg) \
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;do&nbsp;{&nbsp;perror(msg);&nbsp;exit(EXIT_FAILURE);&nbsp;}&nbsp;while&nbsp;(0)
+<P>
+static char *buffer;
+<P>
+static void
+handler(int sig, siginfo_t *si, void *unused)
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Note:&nbsp;calling&nbsp;printf()&nbsp;from&nbsp;a&nbsp;signal&nbsp;handler&nbsp;is&nbsp;not&nbsp;safe
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(and&nbsp;should&nbsp;not&nbsp;be&nbsp;done&nbsp;in&nbsp;production&nbsp;programs),&nbsp;since
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf()&nbsp;is&nbsp;not&nbsp;async-signal-safe;&nbsp;see&nbsp;<A HREF="/cgi-bin/man/man2html?7+signal-safety">signal-safety</A>(7).
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Nevertheless,&nbsp;we&nbsp;use&nbsp;printf()&nbsp;here&nbsp;as&nbsp;a&nbsp;simple&nbsp;way&nbsp;of
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;showing&nbsp;that&nbsp;the&nbsp;handler&nbsp;was&nbsp;called.&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;Got&nbsp;SIGSEGV&nbsp;at&nbsp;address:&nbsp;0x%lx\n&quot;,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(long)&nbsp;si-&gt;si_addr);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+}
+<P>
+int
+main(int argc, char *argv[])
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;*p;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;pagesize;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;sigaction&nbsp;sa;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;sa.sa_flags&nbsp;=&nbsp;SA_SIGINFO;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;sigemptyset(&amp;sa.sa_mask);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;sa.sa_sigaction&nbsp;=&nbsp;handler;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(sigaction(SIGSEGV,&nbsp;&amp;sa,&nbsp;NULL)&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;handle_error(&quot;sigaction&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;pagesize&nbsp;=&nbsp;sysconf(_SC_PAGE_SIZE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(pagesize&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;handle_error(&quot;sysconf&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Allocate&nbsp;a&nbsp;buffer&nbsp;aligned&nbsp;on&nbsp;a&nbsp;page&nbsp;boundary;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;initial&nbsp;protection&nbsp;is&nbsp;PROT_READ&nbsp;|&nbsp;PROT_WRITE&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;buffer&nbsp;=&nbsp;memalign(pagesize,&nbsp;4&nbsp;*&nbsp;pagesize);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(buffer&nbsp;==&nbsp;NULL)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;handle_error(&quot;memalign&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;Start&nbsp;of&nbsp;region:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0x%lx\n&quot;,&nbsp;(long)&nbsp;buffer);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(mprotect(buffer&nbsp;+&nbsp;pagesize&nbsp;*&nbsp;2,&nbsp;pagesize,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PROT_READ)&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;handle_error(&quot;mprotect&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;(p&nbsp;=&nbsp;buffer&nbsp;;&nbsp;;&nbsp;)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*(p++)&nbsp;=&nbsp;'a';
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;Loop&nbsp;completed\n&quot;);&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Should&nbsp;never&nbsp;happen&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_SUCCESS);
+}
+
+<A NAME="lbAL">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?2+mmap">mmap</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?3+sysconf">sysconf</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?7+pkeys">pkeys</A></B>(7)
+
+<A NAME="lbAM">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="18"><A HREF="#lbAB">NAME</A><DD>
+<DT id="19"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="20"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="21"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DT id="22"><A HREF="#lbAF">ERRORS</A><DD>
+<DT id="23"><A HREF="#lbAG">VERSIONS</A><DD>
+<DT id="24"><A HREF="#lbAH">CONFORMING TO</A><DD>
+<DT id="25"><A HREF="#lbAI">NOTES</A><DD>
+<DT id="26"><A HREF="#lbAJ">EXAMPLE</A><DD>
+<DL>
+<DT id="27"><A HREF="#lbAK">Program source</A><DD>
+</DL>
+<DT id="28"><A HREF="#lbAL">SEE ALSO</A><DD>
+<DT id="29"><A HREF="#lbAM">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:33 GMT, March 31, 2021
+</BODY>
+</HTML>

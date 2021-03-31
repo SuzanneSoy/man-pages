@@ -1,0 +1,310 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of GIT-CHECKOUT-INDEX</TITLE>
+</HEAD><BODY>
+<H1>GIT-CHECKOUT-INDEX</H1>
+Section: Git Manual (1)<BR>Updated: 03/04/2021<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+git-checkout-index - Copy files from the index to the working tree
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+<PRE>
+<I>git checkout-index</I> [-u] [-q] [-a] [-f] [-n] [--prefix=&lt;string&gt;]
+                   [--stage=&lt;number&gt;|all]
+                   [--temp]
+                   [-z] [--stdin]
+                   [--] [&lt;file&gt;...]
+</PRE>
+
+<P>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+Will copy all files listed from the index to the working directory (not overwriting existing files).
+<A NAME="lbAE">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<P>
+
+-u, --index
+<DL COMPACT><DT id="1"><DD>
+update stat information for the checked out entries in the index file.
+</DL>
+
+<P>
+
+-q, --quiet
+<DL COMPACT><DT id="2"><DD>
+be quiet if files exist or are not in the index
+</DL>
+
+<P>
+
+-f, --force
+<DL COMPACT><DT id="3"><DD>
+forces overwrite of existing files
+</DL>
+
+<P>
+
+-a, --all
+<DL COMPACT><DT id="4"><DD>
+checks out all files in the index. Cannot be used together with explicit filenames.
+</DL>
+
+<P>
+
+-n, --no-create
+<DL COMPACT><DT id="5"><DD>
+Don't checkout new files, only refresh files already checked out.
+</DL>
+
+<P>
+
+--prefix=&lt;string&gt;
+<DL COMPACT><DT id="6"><DD>
+When creating files, prepend &lt;string&gt; (usually a directory including a trailing /)
+</DL>
+
+<P>
+
+--stage=&lt;number&gt;|all
+<DL COMPACT><DT id="7"><DD>
+Instead of checking out unmerged entries, copy out the files from named stage. &lt;number&gt; must be between 1 and 3. Note: --stage=all automatically implies --temp.
+</DL>
+
+<P>
+
+--temp
+<DL COMPACT><DT id="8"><DD>
+Instead of copying the files to the working directory write the content to temporary files. The temporary name associations will be written to stdout.
+</DL>
+
+<P>
+
+--stdin
+<DL COMPACT><DT id="9"><DD>
+Instead of taking list of paths from the command line, read list of paths from the standard input. Paths are separated by LF (i.e. one path per line) by default.
+</DL>
+
+<P>
+
+-z
+<DL COMPACT><DT id="10"><DD>
+Only meaningful with
+<B>--stdin</B>; paths are separated with NUL character instead of LF.
+</DL>
+
+<P>
+
+--
+<DL COMPACT><DT id="11"><DD>
+Do not interpret any more arguments as options.
+</DL>
+
+<P>
+The order of the flags used to matter, but not anymore.
+<P>
+Just doing <B>git checkout-index</B> does nothing. You probably meant <B>git checkout-index -a</B>. And if you want to force it, you want <B>git checkout-index -f -a</B>.
+<P>
+Intuitiveness is not the goal here. Repeatability is. The reason for the &quot;no arguments means no work&quot; behavior is that from scripts you are supposed to be able to do:
+<P>
+<DL COMPACT><DT id="12"><DD>
+
+
+
+<PRE>
+$ find . -name '*.h' -print0 | xargs -0 git checkout-index -f --
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+which will force all existing <B>*.h</B> files to be replaced with their cached copies. If an empty command line implied &quot;all&quot;, then this would force-refresh everything in the index, which was not the point. But since <I>git checkout-index</I> accepts --stdin it would be faster to use:
+<P>
+<DL COMPACT><DT id="13"><DD>
+
+
+
+<PRE>
+$ find . -name '*.h' -print0 | git checkout-index -f -z --stdin
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+The <B>--</B> is just a good idea when you know the rest will be filenames; it will prevent problems with a filename of, for example, <B>-a</B>. Using <B>--</B> is probably a good policy in scripts.
+<A NAME="lbAF">&nbsp;</A>
+<H2>USING --TEMP OR --STAGE=ALL</H2>
+
+<P>
+When <B>--temp</B> is used (or implied by <B>--stage=all</B>) <I>git checkout-index</I> will create a temporary file for each index entry being checked out. The index will not be updated with stat information. These options can be useful if the caller needs all stages of all unmerged entries so that the unmerged files can be processed by an external merge tool.
+<P>
+A listing will be written to stdout providing the association of temporary file names to tracked path names. The listing format has two variations:
+<P>
+<DL COMPACT><DT id="14"><DD>
+ 1.
+
+
+tempname TAB path RS
+<P>
+The first format is what gets used when
+<B>--stage</B>
+is omitted or is not
+<B>--stage=all</B>. The field tempname is the temporary file name holding the file content and path is the tracked path name in the index. Only the requested entries are output.
+</DL>
+
+<P>
+<DL COMPACT><DT id="15"><DD>
+ 2.
+
+
+stage1temp SP stage2temp SP stage3tmp TAB path RS
+<P>
+The second format is what gets used when
+<B>--stage=all</B>. The three stage temporary fields (stage1temp, stage2temp, stage3temp) list the name of the temporary file if there is a stage entry in the index or
+<B>.</B>
+if there is no stage entry. Paths which only have a stage 0 entry will always be omitted from the output.
+</DL>
+
+<P>
+In both formats RS (the record separator) is newline by default but will be the null byte if -z was passed on the command line. The temporary file names are always safe strings; they will never contain directory separators or whitespace characters. The path field is always relative to the current directory and the temporary file names are always relative to the top level directory.
+<P>
+If the object being copied out to a temporary file is a symbolic link the content of the link will be written to a normal file. It is up to the end-user or the Porcelain to make use of this information.
+<A NAME="lbAG">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+<P>
+
+To update and refresh only the files already checked out
+<DL COMPACT><DT id="16"><DD>
+<P>
+<DL COMPACT><DT id="17"><DD>
+
+
+
+<PRE>
+$ git checkout-index -n -f -a &amp;&amp; git update-index --ignore-missing --refresh
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+</DL>
+
+<P>
+
+Using <I>git checkout-index</I> to &quot;export an entire tree&quot;
+<DL COMPACT><DT id="18"><DD>
+The prefix ability basically makes it trivial to use
+<I>git checkout-index</I>
+as an &quot;export as tree&quot; function. Just read the desired tree into the index, and do:
+<P>
+<DL COMPACT><DT id="19"><DD>
+
+
+
+<PRE>
+$ git checkout-index --prefix=git-export-dir/ -a
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<B>git checkout-index</B>
+will &quot;export&quot; the index into the specified directory.
+<P>
+The final &quot;/&quot; is important. The exported name is literally just prefixed with the specified string. Contrast this with the following example.
+</DL>
+
+<P>
+
+Export files with a prefix
+<DL COMPACT><DT id="20"><DD>
+<P>
+<DL COMPACT><DT id="21"><DD>
+
+
+
+<PRE>
+$ git checkout-index --prefix=.merged- Makefile
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+This will check out the currently cached copy of
+<B>Makefile</B>
+into the file
+<B>.merged-Makefile</B>.
+</DL>
+
+<A NAME="lbAH">&nbsp;</A>
+<H2>GIT</H2>
+
+<P>
+Part of the <B><A HREF="/cgi-bin/man/man2html?1+git">git</A></B>(1) suite
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="22"><A HREF="#lbAB">NAME</A><DD>
+<DT id="23"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="24"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="25"><A HREF="#lbAE">OPTIONS</A><DD>
+<DT id="26"><A HREF="#lbAF">USING --TEMP OR --STAGE=ALL</A><DD>
+<DT id="27"><A HREF="#lbAG">EXAMPLES</A><DD>
+<DT id="28"><A HREF="#lbAH">GIT</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:13 GMT, March 31, 2021
+</BODY>
+</HTML>

@@ -1,0 +1,251 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of nfsidmap</TITLE>
+</HEAD><BODY>
+<H1>nfsidmap</H1>
+Section: File Formats (5)<BR>Updated: 1 October 2010<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+nfsidmap - The NFS idmapper upcall program
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<B>nfsidmap [-v] [-t timeout] key desc</B>
+
+<BR>
+
+<B>nfsidmap [-v] [-c]</B>
+
+<BR>
+
+<B>nfsidmap [-v] [-u|-g|-r user]</B>
+
+<BR>
+
+<B>nfsidmap -d</B>
+
+<BR>
+
+<B>nfsidmap -l</B>
+
+<BR>
+
+<B>nfsidmap -h</B>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+The NFSv4 protocol represents the local system's UID and GID values
+on the wire as strings of the form
+<I><A HREF="mailto:user@domain">user@domain</A></I>.
+
+The process of translating from UID to string and string to UID is
+referred to as &quot;ID mapping.&quot;
+<P>
+
+The system derives the
+<I>user</I>
+
+part of the string by performing a password or group lookup.
+The lookup mechanism is configured in
+<I>/etc/idmapd.conf</I>.
+
+<P>
+
+By default, the
+<I>domain</I>
+
+part of the string is the system's DNS domain name.
+It can also be specified in
+<I>/etc/idmapd.conf</I>
+
+if the system is multi-homed,
+or if the system's DNS domain name does
+not match the name of the system's Kerberos realm.
+<P>
+
+The
+<I>/usr/sbin/nfsidmap</I>
+
+program performs translations on behalf of the kernel.
+The kernel uses the request-key mechanism to perform
+an upcall.
+<I>/usr/sbin/nfsidmap</I>
+
+is invoked by /sbin/request-key, performs the translation,
+and initializes a key with the resulting information.
+The kernel then caches the translation results in the key.
+<P>
+
+<I>nfsidmap</I>
+
+can also clear cached ID map results in the kernel,
+or revoke one particular key.
+An incorrect cached key can result in file and directory ownership
+reverting to &quot;nobody&quot; on NFSv4 mount points.
+<P>
+
+In addition, the
+<B>-d</B>
+
+and
+<B>-l</B>
+
+options are available to help diagnose misconfigurations.
+They have no effect on the keyring containing ID mapping results.
+<A NAME="lbAE">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<DL COMPACT>
+<DT id="1"><B>-c </B>
+
+<DD>
+Clear the keyring of all the keys.
+<DT id="2"><B>-d</B>
+
+<DD>
+Display the system's effective NFSv4 domain name on
+<I>stdout</I>.
+
+<DT id="3"><B>-g user</B>
+
+<DD>
+Revoke the gid key of the given user.
+<DT id="4"><B>-h</B>
+
+<DD>
+Display usage message.
+<DT id="5"><B>-l</B>
+
+<DD>
+Display on
+<I>stdout</I>
+
+all keys currently in the keyring used to cache ID mapping results.
+These keys are visible only to the superuser.
+<DT id="6"><B>-r user</B>
+
+<DD>
+Revoke both the uid and gid key of the given user.
+<DT id="7"><B>-t timeout</B>
+
+<DD>
+Set the expiration timer, in seconds, on the key.
+The default is 600 seconds (10 mins).
+<DT id="8"><B>-u user</B>
+
+<DD>
+Revoke the uid key of the given user.
+<DT id="9"><B>-v</B>
+
+<DD>
+Increases the verbosity of the output to syslog 
+(can be specified multiple times).
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>CONFIGURING</H2>
+
+The file
+<I>/etc/request-key.conf</I>
+
+will need to be modified so
+<I>/sbin/request-key</I>
+
+can properly direct the upcall. The following line should be added before a call
+to keyctl negate:
+<P>
+
+create<TT>&nbsp;</TT>id_resolver<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>*<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>*<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>/usr/sbin/nfsidmap -t 600 %k %d <BR>
+<P>
+
+This will direct all id_resolver requests to the program
+<I>/usr/sbin/nfsidmap.</I>
+
+The 
+<B>-t 600 </B>
+
+defines how many seconds into the future the key will
+expire.  This is an optional parameter for
+<I>/usr/sbin/nfsidmap</I>
+
+and will default to 600 seconds when not specified.
+<P>
+
+The idmapper system uses four key descriptions:
+<P>
+
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>  uid: Find the UID for the given user<BR>
+<BR>
+
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>  gid: Find the GID for the given group<BR>
+<BR>
+
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT> user: Find the user name for the given UID<BR>
+<BR>
+
+<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>group: Find the group name for the given GID<BR>
+<P>
+
+You can choose to handle any of these individually, rather than using the
+generic upcall program.  If you would like to use your own program for a uid
+lookup then you would edit your request-key.conf so it looks similar to this:
+<P>
+
+create<TT>&nbsp;</TT>id_resolver<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>uid:*<TT>&nbsp;&nbsp;&nbsp;</TT>*<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>/some/other/program %k %d<BR>
+<BR>
+
+create<TT>&nbsp;</TT>id_resolver<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>*<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT><TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>*<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>/usr/sbin/nfsidmap %k %d<BR>
+<P>
+
+Notice that the new line was added above the line for the generic program.
+request-key will find the first matching line and run the corresponding program.
+In this case, /some/other/program will handle all uid lookups, and
+/usr/sbin/nfsidmap will handle gid, user, and group lookups.
+<A NAME="lbAG">&nbsp;</A>
+<H2>FILES</H2>
+
+<DL COMPACT>
+<DT id="10"><I>/etc/idmapd.conf</I>
+
+<DD>
+ID mapping configuration file
+<DT id="11"><I>/etc/request-key.conf</I>
+
+<DD>
+Request key configuration file
+</DL>
+<A NAME="lbAH">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?5+idmapd.conf">idmapd.conf</A></B>(5),
+
+<B><A HREF="/cgi-bin/man/man2html?8+request-key">request-key</A></B>(8)
+
+<A NAME="lbAI">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+Bryan Schumaker, &lt;<A HREF="mailto:bjschuma@netapp.com">bjschuma@netapp.com</A>&gt;
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="12"><A HREF="#lbAB">NAME</A><DD>
+<DT id="13"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="14"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="15"><A HREF="#lbAE">OPTIONS</A><DD>
+<DT id="16"><A HREF="#lbAF">CONFIGURING</A><DD>
+<DT id="17"><A HREF="#lbAG">FILES</A><DD>
+<DT id="18"><A HREF="#lbAH">SEE ALSO</A><DD>
+<DT id="19"><A HREF="#lbAI">AUTHOR</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:04 GMT, March 31, 2021
+</BODY>
+</HTML>

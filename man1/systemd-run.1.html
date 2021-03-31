@@ -1,0 +1,732 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SYSTEMD-RUN</TITLE>
+</HEAD><BODY>
+<H1>SYSTEMD-RUN</H1>
+Section: systemd-run (1)<BR>Updated: <BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+systemd-run - Run programs in transient scope units, service units, or path-, socket-, or timer-triggered service units
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<DL COMPACT>
+<DT id="1">
+<B>systemd-run</B> [OPTIONS...] <I>COMMAND</I>&nbsp;[ARGS...] 
+<DT id="2">
+<B>systemd-run</B> [OPTIONS...] [PATH&nbsp;OPTIONS...] {<I>COMMAND</I>} [ARGS...]
+<DT id="3">
+<B>systemd-run</B> [OPTIONS...] [SOCKET&nbsp;OPTIONS...] {<I>COMMAND</I>} [ARGS...]
+<DT id="4">
+<B>systemd-run</B> [OPTIONS...] [TIMER&nbsp;OPTIONS...] {<I>COMMAND</I>} [ARGS...]
+</DL>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+<B>systemd-run</B>
+<DD>may be used to create and start a transient
+.service
+or
+.scope
+unit and run the specified
+<I>COMMAND</I>
+in it. It may also be used to create and start a transient
+.path,
+.socket, or
+.timer
+unit, that activates a
+.service
+unit when elapsing.
+<P>
+
+If a command is run as transient service unit, it will be started and managed by the service manager like any other service, and thus shows up in the output of
+<B>systemctl list-units</B>
+like any other unit. It will run in a clean and detached execution environment, with the service manager as its parent process. In this mode,
+<B>systemd-run</B>
+will start the service asynchronously in the background and return after the command has begun execution (unless
+<B>--no-block</B>
+or
+<B>--wait</B>
+are specified, see below).
+<P>
+
+If a command is run as transient scope unit, it will be executed by
+<B>systemd-run</B>
+itself as parent process and will thus inherit the execution environment of the caller. However, the processes of the command are managed by the service manager similar to normal services, and will show up in the output of
+<B>systemctl list-units</B>. Execution in this case is synchronous, and will return only when the command finishes. This mode is enabled via the
+<B>--scope</B>
+switch (see below).
+<P>
+
+If a command is run with path, socket, or timer options such as
+<B>--on-calendar=</B>
+(see below), a transient path, socket, or timer unit is created alongside the service unit for the specified command. Only the transient path, socket, or timer unit is started immediately, the transient service unit will be triggered by the path, socket, or timer unit. If the
+<B>--unit=</B>
+option is specified, the
+<I>COMMAND</I>
+may be omitted. In this case,
+<B>systemd-run</B>
+creates only a
+.path,
+.socket, or
+.timer
+unit that triggers the specified unit.
+<P>
+
+By default, services created with
+<B>systemd-run</B>
+default to the
+<B>simple</B>
+type, see the description of
+<I>Type=</I>
+in
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.service">systemd.service</A></B>(5)
+for details. Note that when this type is used the service manager (and thus the
+<B>systemd-run</B>
+command) considers service start-up successful as soon as the
+<B>fork()</B>
+for the main service process succeeded, i.e. before the
+<B>execve()</B>
+is invoked, and thus even if the specified command cannot be started. Consider using the
+<B>exec</B>
+service type (i.e.
+<B>--property=Type=exec</B>) to ensure that
+<B>systemd-run</B>
+returns successfully only if the specified command line has been successfully started.
+<A NAME="lbAE">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<P>
+
+The following options are understood:
+<P>
+
+<B>--no-ask-password</B>
+<DL COMPACT><DT id="5"><DD>
+Do not query the user for authentication for privileged operations.
+</DL>
+
+<P>
+
+<B>--scope</B>
+<DL COMPACT><DT id="6"><DD>
+Create a transient
+.scope
+unit instead of the default transient
+.service
+unit (see above).
+</DL>
+
+<P>
+
+<B>--unit=</B>, <B>-u</B>
+<DL COMPACT><DT id="7"><DD>
+Use this unit name instead of an automatically generated one.
+</DL>
+
+<P>
+
+<B>--property=</B>, <B>-p</B>
+<DL COMPACT><DT id="8"><DD>
+Sets a property on the scope or service unit that is created. This option takes an assignment in the same format as
+<B><A HREF="/cgi-bin/man/man2html?1+systemctl">systemctl</A></B>(1)'s
+<B>set-property</B>
+command.
+</DL>
+
+<P>
+
+<B>--description=</B>
+<DL COMPACT><DT id="9"><DD>
+Provide a description for the service, scope, path, socket, or timer unit. If not specified, the command itself will be used as a description. See
+<I>Description=</I>
+in
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.unit">systemd.unit</A></B>(5).
+</DL>
+
+<P>
+
+<B>--slice=</B>
+<DL COMPACT><DT id="10"><DD>
+Make the new
+.service
+or
+.scope
+unit part of the specified slice, instead of
+system.slice.
+</DL>
+
+<P>
+
+<B>-r</B>, <B>--remain-after-exit</B>
+<DL COMPACT><DT id="11"><DD>
+After the service process has terminated, keep the service around until it is explicitly stopped. This is useful to collect runtime information about the service after it finished running. Also see
+<I>RemainAfterExit=</I>
+in
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.service">systemd.service</A></B>(5).
+</DL>
+
+<P>
+
+<B>--send-sighup</B>
+<DL COMPACT><DT id="12"><DD>
+When terminating the scope or service unit, send a SIGHUP immediately after SIGTERM. This is useful to indicate to shells and shell-like processes that the connection has been severed. Also see
+<I>SendSIGHUP=</I>
+in
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.kill">systemd.kill</A></B>(5).
+</DL>
+
+<P>
+
+<B>--service-type=</B>
+<DL COMPACT><DT id="13"><DD>
+Sets the service type. Also see
+<I>Type=</I>
+in
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.service">systemd.service</A></B>(5). This option has no effect in conjunction with
+<B>--scope</B>. Defaults to
+<B>simple</B>.
+</DL>
+
+<P>
+
+<B>--uid=</B>, <B>--gid=</B>
+<DL COMPACT><DT id="14"><DD>
+Runs the service process under the specified UNIX user and group. Also see
+<I>User=</I>
+and
+<I>Group=</I>
+in
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.exec">systemd.exec</A></B>(5).
+</DL>
+
+<P>
+
+<B>--nice=</B>
+<DL COMPACT><DT id="15"><DD>
+Runs the service process with the specified nice level. Also see
+<I>Nice=</I>
+in
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.exec">systemd.exec</A></B>(5).
+</DL>
+
+<P>
+
+<B>--working-directory=</B>
+<DL COMPACT><DT id="16"><DD>
+Runs the service process with the specified working directory. Also see
+<I>WorkingDirectory=</I>
+in
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.exec">systemd.exec</A></B>(5).
+</DL>
+
+<P>
+
+<B>--same-dir</B>, <B>-d</B>
+<DL COMPACT><DT id="17"><DD>
+Similar to
+<B>--working-directory=</B>
+but uses the current working directory of the caller for the service to execute.
+</DL>
+
+<P>
+
+<B>-E </B><B></B><I>NAME</I><B>=</B><B></B><I>VALUE</I>, <B>--setenv=</B><B></B><I>NAME</I><B>=</B><B></B><I>VALUE</I>
+<DL COMPACT><DT id="18"><DD>
+Runs the service process with the specified environment variable set. Also see
+<I>Environment=</I>
+in
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.exec">systemd.exec</A></B>(5).
+</DL>
+
+<P>
+
+<B>--pty</B>, <B>-t</B>
+<DL COMPACT><DT id="19"><DD>
+When invoking the command, the transient service connects its standard input, output and error to the terminal
+<B>systemd-run</B>
+is invoked on, via a pseudo TTY device. This allows running programs that expect interactive user input/output as services, such as interactive command shells.
+<P>
+Note that
+<B><A HREF="/cgi-bin/man/man2html?1+machinectl">machinectl</A></B>(1)'s
+<B>shell</B>
+command is usually a better alternative for requesting a new, interactive login session on the local host or a local container.
+<P>
+See below for details on how this switch combines with
+<B>--pipe</B>.
+</DL>
+
+<P>
+
+<B>--pipe</B>, <B>-P</B>
+<DL COMPACT><DT id="20"><DD>
+If specified, standard input, output, and error of the transient service are inherited from the
+<B>systemd-run</B>
+command itself. This allows
+<B>systemd-run</B>
+to be used within shell pipelines. Note that this mode is not suitable for interactive command shells and similar, as the service process will not become a TTY controller when invoked on a terminal. Use
+<B>--pty</B>
+instead in that case.
+<P>
+When both
+<B>--pipe</B>
+and
+<B>--pty</B>
+are used in combination the more appropriate option is automatically determined and used. Specifically, when invoked with standard input, output and error connected to a TTY
+<B>--pty</B>
+is used, and otherwise
+<B>--pipe</B>.
+<P>
+When this option is used the original file descriptors
+<B>systemd-run</B>
+receives are passed to the service processes as-is. If the service runs with different privileges than
+<B>systemd-run</B>, this means the service might not be able to re-open the passed file descriptors, due to normal file descriptor access restrictions. If the invoked process is a shell script that uses the
+<B>echo &quot;hello&quot; &gt; /dev/stderr</B>
+construct for writing messages to stderr, this might cause problems, as this only works if stderr can be re-opened. To mitigate this use the construct
+<B>echo &quot;hello&quot; &gt;&amp;2</B>
+instead, which is mostly equivalent and avoids this pitfall.
+</DL>
+
+<P>
+
+<B>--shell</B>, <B>-S</B>
+<DL COMPACT><DT id="21"><DD>
+A shortcut for
+&quot;--pty --same-dir --wait --collect --service-type=exec $SHELL&quot;, i.e. requests an interactive shell in the current working directory, running in service context, accessible with a single switch.
+</DL>
+
+<P>
+
+<B>--quiet</B>, <B>-q</B>
+<DL COMPACT><DT id="22"><DD>
+Suppresses additional informational output while running. This is particularly useful in combination with
+<B>--pty</B>
+when it will suppress the initial message explaining how to terminate the TTY connection.
+</DL>
+
+<P>
+
+<B>--on-active=</B>, <B>--on-boot=</B>, <B>--on-startup=</B>, <B>--on-unit-active=</B>, <B>--on-unit-inactive=</B>
+<DL COMPACT><DT id="23"><DD>
+Defines a monotonic timer relative to different starting points for starting the specified command. See
+<I>OnActiveSec=</I>,
+<I>OnBootSec=</I>,
+<I>OnStartupSec=</I>,
+<I>OnUnitActiveSec=</I>
+and
+<I>OnUnitInactiveSec=</I>
+in
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.timer">systemd.timer</A></B>(5)
+for details. These options are shortcuts for
+<B>--timer-property=</B>
+with the relevant properties. These options may not be combined with
+<B>--scope</B>
+or
+<B>--pty</B>.
+</DL>
+
+<P>
+
+<B>--on-calendar=</B>
+<DL COMPACT><DT id="24"><DD>
+Defines a calendar timer for starting the specified command. See
+<I>OnCalendar=</I>
+in
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.timer">systemd.timer</A></B>(5). This option is a shortcut for
+<B>--timer-property=OnCalendar=</B>. This option may not be combined with
+<B>--scope</B>
+or
+<B>--pty</B>.
+</DL>
+
+<P>
+
+<B>--on-clock-change</B>, <B>--on-timezone-change</B>
+<DL COMPACT><DT id="25"><DD>
+Defines a trigger based on system clock jumps or timezone changes for starting the specified command. See
+<I>OnClockChange=</I>
+and
+<I>OnTimezoneChange=</I>
+in
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.timer">systemd.timer</A></B>(5). These options are shortcuts for
+<B>--timer-property=OnClockChange=yes</B>
+and
+<B>--timer-property=OnTimezoneChange=yes</B>. These options may not be combined with
+<B>--scope</B>
+or
+<B>--pty</B>.
+</DL>
+
+<P>
+
+<B>--path-property=</B>, <B>--socket-property=</B>, <B>--timer-property=</B>
+<DL COMPACT><DT id="26"><DD>
+Sets a property on the path, socket, or timer unit that is created. This option is similar to
+<B>--property=</B>
+but applies to the transient path, socket, or timer unit rather than the transient service unit created. This option takes an assignment in the same format as
+<B><A HREF="/cgi-bin/man/man2html?1+systemctl">systemctl</A></B>(1)'s
+<B>set-property</B>
+command. These options may not be combined with
+<B>--scope</B>
+or
+<B>--pty</B>.
+</DL>
+
+<P>
+
+<B>--no-block</B>
+<DL COMPACT><DT id="27"><DD>
+Do not synchronously wait for the unit start operation to finish. If this option is not specified, the start request for the transient unit will be verified, enqueued and
+<B>systemd-run</B>
+will wait until the unit's start-up is completed. By passing this argument, it is only verified and enqueued. This option may not be combined with
+<B>--wait</B>.
+</DL>
+
+<P>
+
+<B>--wait</B>
+<DL COMPACT><DT id="28"><DD>
+Synchronously wait for the transient service to terminate. If this option is specified, the start request for the transient unit is verified, enqueued, and waited for. Subsequently the invoked unit is monitored, and it is waited until it is deactivated again (most likely because the specified command completed). On exit, terse information about the unit's runtime is shown, including total runtime (as well as CPU usage, if
+<B>--property=CPUAccounting=1</B>
+was set) and the exit code and status of the main process. This output may be suppressed with
+<B>--quiet</B>. This option may not be combined with
+<B>--no-block</B>,
+<B>--scope</B>
+or the various path, socket, or timer options.
+</DL>
+
+<P>
+
+<B>-G</B>, <B>--collect</B>
+<DL COMPACT><DT id="29"><DD>
+Unload the transient unit after it completed, even if it failed. Normally, without this option, all units that ran and failed are kept in memory until the user explicitly resets their failure state with
+<B>systemctl reset-failed</B>
+or an equivalent command. On the other hand, units that ran successfully are unloaded immediately. If this option is turned on the &quot;garbage collection&quot; of units is more aggressive, and unloads units regardless if they exited successfully or failed. This option is a shortcut for
+<B>--property=CollectMode=inactive-or-failed</B>, see the explanation for
+<I>CollectMode=</I>
+in
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.unit">systemd.unit</A></B>(5)
+for further information.
+</DL>
+
+<P>
+
+<B>--user</B>
+<DL COMPACT><DT id="30"><DD>
+Talk to the service manager of the calling user, rather than the service manager of the system.
+</DL>
+
+<P>
+
+<B>--system</B>
+<DL COMPACT><DT id="31"><DD>
+Talk to the service manager of the system. This is the implied default.
+</DL>
+
+<P>
+
+<B>-H</B>, <B>--host=</B>
+<DL COMPACT><DT id="32"><DD>
+Execute the operation remotely. Specify a hostname, or a username and hostname separated by
+&quot;@&quot;, to connect to. The hostname may optionally be suffixed by a port ssh is listening on, separated by
+&quot;:&quot;, and then a container name, separated by
+&quot;/&quot;, which connects directly to a specific container on the specified host. This will use SSH to talk to the remote machine manager instance. Container names may be enumerated with
+<B>machinectl -H </B><B></B><I>HOST</I>. Put IPv6 addresses in brackets.
+</DL>
+
+<P>
+
+<B>-M</B>, <B>--machine=</B>
+<DL COMPACT><DT id="33"><DD>
+Execute operation on a local container. Specify a container name to connect to.
+</DL>
+
+<P>
+
+<B>-h</B>, <B>--help</B>
+<DL COMPACT><DT id="34"><DD>
+Print a short help text and exit.
+</DL>
+
+<P>
+
+<B>--version</B>
+<DL COMPACT><DT id="35"><DD>
+Print a short version string and exit.
+</DL>
+
+<P>
+
+All command line arguments after the first non-option argument become part of the command line of the launched process. If a command is run as service unit, the first argument needs to be an absolute program path.
+<A NAME="lbAF">&nbsp;</A>
+<H2>EXIT STATUS</H2>
+
+<P>
+
+On success, 0 is returned. If
+<B>systemd-run</B>
+failed to start the service, a non-zero return value will be returned. If
+<B>systemd-run</B>
+waits for the service to terminate, the return value will be propagated from the service. 0 will be returned on success, including all the cases where systemd considers a service to have exited cleanly, see the discussion of
+<I>SuccessExitStatus=</I>
+in
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.service">systemd.service</A></B>(5).
+<A NAME="lbAG">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+<P>
+
+<B>Example&nbsp;1.&nbsp;Logging environment variables provided by systemd to services</B>
+<P>
+<DL COMPACT><DT id="36"><DD>
+
+
+
+<PRE>
+# systemd-run env
+Running as unit: run-19945.service
+# journalctl -u run-19945.service
+Sep 08 07:37:21 bupkis systemd[1]: Starting /usr/bin/env...
+Sep 08 07:37:21 bupkis systemd[1]: Started /usr/bin/env.
+Sep 08 07:37:21 bupkis env[19948]: PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
+Sep 08 07:37:21 bupkis env[19948]: LANG=en_US.UTF-8
+Sep 08 07:37:21 bupkis env[19948]: BOOT_IMAGE=/vmlinuz-3.11.0-0.rc5.git6.2.fc20.x86_64
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+<B>Example&nbsp;2.&nbsp;Limiting resources available to a command</B>
+<P>
+<DL COMPACT><DT id="37"><DD>
+
+
+
+<PRE>
+# systemd-run -p BlockIOWeight=10 updatedb
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+This command invokes the
+<B><A HREF="/cgi-bin/man/man2html?8+updatedb">updatedb</A></B>(8)
+tool, but lowers the block I/O weight for it to 10. See
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.resource-control">systemd.resource-control</A></B>(5)
+for more information on the
+<I>BlockIOWeight=</I>
+property.
+<P>
+
+<B>Example&nbsp;3.&nbsp;Running commands at a specified time</B>
+<P>
+
+The following command will touch a file after 30 seconds.
+<P>
+<DL COMPACT><DT id="38"><DD>
+
+
+
+<PRE>
+# date; systemd-run --on-active=30 --timer-property=AccuracySec=100ms /bin/touch /tmp/foo
+Mon Dec  8 20:44:24 KST 2014
+Running as unit: run-71.timer
+Will run service as unit: run-71.service
+# journalctl -b -u run-71.timer
+-- Logs begin at Fri 2014-12-05 19:09:21 KST, end at Mon 2014-12-08 20:44:54 KST. --
+Dec 08 20:44:38 container systemd[1]: Starting /bin/touch /tmp/foo.
+Dec 08 20:44:38 container systemd[1]: Started /bin/touch /tmp/foo.
+# journalctl -b -u run-71.service
+-- Logs begin at Fri 2014-12-05 19:09:21 KST, end at Mon 2014-12-08 20:44:54 KST. --
+Dec 08 20:44:48 container systemd[1]: Starting /bin/touch /tmp/foo...
+Dec 08 20:44:48 container systemd[1]: Started /bin/touch /tmp/foo.
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+<B>Example&nbsp;4.&nbsp;Allowing access to the tty</B>
+<P>
+
+The following command invokes
+/bin/bash
+as a service passing its standard input, output and error to the calling TTY.
+<P>
+<DL COMPACT><DT id="39"><DD>
+
+
+
+<PRE>
+# systemd-run -t --send-sighup /bin/bash
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+<B>Example&nbsp;5.&nbsp;Start screen as a user service</B>
+<P>
+<DL COMPACT><DT id="40"><DD>
+
+
+
+<PRE>
+$ systemd-run --scope --user screen
+Running scope as unit run-r14b0047ab6df45bfb45e7786cc839e76.scope.
+
+$ screen -ls
+There is a screen on:
+        492..laptop     (Detached)
+1 Socket in /var/run/screen/S-fatima.
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+This starts the
+<B>screen</B>
+process as a child of the
+<B>systemd --user</B>
+process that was started by
+<A HREF="mailto:user@.service">user@.service</A>, in a scope unit. A
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.scope">systemd.scope</A></B>(5)
+unit is used instead of a
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.service">systemd.service</A></B>(5)
+unit, because
+<B>screen</B>
+will exit when detaching from the terminal, and a service unit would be terminated. Running
+<B>screen</B>
+as a user unit has the advantage that it is not part of the session scope. If
+<I>KillUserProcesses=yes</I>
+is configured in
+<B><A HREF="/cgi-bin/man/man2html?5+logind.conf">logind.conf</A></B>(5), the default, the session scope will be terminated when the user logs out of that session.
+<P>
+
+The
+<A HREF="mailto:user@.service">user@.service</A>
+is started automatically when the user first logs in, and stays around as long as at least one login session is open. After the user logs out of the last session,
+<A HREF="mailto:user@.service">user@.service</A>
+and all services underneath it are terminated. This behavior is the default, when &quot;lingering&quot; is not enabled for that user. Enabling lingering means that
+<A HREF="mailto:user@.service">user@.service</A>
+is started automatically during boot, even if the user is not logged in, and that the service is not terminated when the user logs out.
+<P>
+
+Enabling lingering allows the user to run processes without being logged in, for example to allow
+<B>screen</B>
+to persist after the user logs out, even if the session scope is terminated. In the default configuration, users can enable lingering for themselves:
+<P>
+<DL COMPACT><DT id="41"><DD>
+
+
+
+<PRE>
+$ loginctl enable-linger
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+<B>Example&nbsp;6.&nbsp;Return value</B>
+<P>
+<DL COMPACT><DT id="42"><DD>
+
+
+
+<PRE>
+$ systemd-run --user --wait true
+$ systemd-run --user --wait -p SuccessExitStatus=11 bash -c 'exit 11'
+$ systemd-run --user --wait -p SuccessExitStatus=SIGUSR1 bash -c 'kill -SIGUSR1 $$$$'
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+Those three invocations will succeed, i.e. terminate with an exit code of 0.
+<A NAME="lbAH">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?1+systemctl">systemctl</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.unit">systemd.unit</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.service">systemd.service</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.scope">systemd.scope</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.slice">systemd.slice</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.exec">systemd.exec</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.resource-control">systemd.resource-control</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.timer">systemd.timer</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?1+systemd-mount">systemd-mount</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?1+machinectl">machinectl</A></B>(1)
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="43"><A HREF="#lbAB">NAME</A><DD>
+<DT id="44"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="45"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="46"><A HREF="#lbAE">OPTIONS</A><DD>
+<DT id="47"><A HREF="#lbAF">EXIT STATUS</A><DD>
+<DT id="48"><A HREF="#lbAG">EXAMPLES</A><DD>
+<DT id="49"><A HREF="#lbAH">SEE ALSO</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:28 GMT, March 31, 2021
+</BODY>
+</HTML>

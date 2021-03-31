@@ -1,0 +1,731 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of PO-DEBCONF</TITLE>
+</HEAD><BODY>
+<H1>PO-DEBCONF</H1>
+Section: po-debconf (7)<BR>Updated: 2018-11-20<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+<PRE>
+  Translation:
+    <A HREF="mailto:debian-l10n-russian@lists.debian.org">debian-l10n-russian@lists.debian.org</A>
+
+    Yuri Kozlov &lt;<A HREF="mailto:kozlov.y@gmail.com">kozlov.y@gmail.com</A>&gt;, 2005, 2006
+
+</PRE>
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>НАЗВАНИЕ</H2>
+
+
+
+po-debconf --- общее описание
+<A NAME="lbAC">&nbsp;</A>
+<H2>ОПИСАНИЕ</H2>
+
+
+
+Задачей <TT>&quot;debconf&quot;</TT> является обеспечение простой настройки пакетов для
+пользователя. Чтобы достигнуть этого, очень важно, чтобы пользователю
+задавались вопросы на родном языке. Переводчикам нужна структура для
+облегчения работы над переводами, чтобы не вникать в суть разработки пакета;
+<TT>&quot;po-debconf&quot;</TT> была разработана совместимой со стандартными инструментами
+<TT>&quot;gettext&quot;</TT> для перевода шаблонов debconf.
+<A NAME="lbAD">&nbsp;</A>
+<H2>ДОБАВЛЕНИЕ ПОДДЕРЖКИ ИНТЕРНАЦИОНАЛИЗАЦИИ (I18N) В ФАЙЛЫ ШАБЛОНОВ DEBCONF</H2>
+
+
+
+Если вы добавляете поддержку debconf в свой пакет, то вам нужно написать
+файл шаблонов на английском языке. Для того чтобы правильно добавить
+поддержку интернационализации (i18n) в свой пакет, требуется:
+<DL COMPACT>
+<DT id="1">- создать <I>debian/po/POTFILES.in</I><DD>
+
+
+Этот файл содержит список мастер-шаблонов. Обычно он содержит только одну
+строку:
+
+
+<P>
+
+
+
+
+<PRE>
+  [type: gettext/rfc822deb] templates
+
+</PRE>
+
+
+
+
+<P>
+
+
+Пути относительно родительского каталога.
+<DT id="2">- в каждом шаблоне в начале переводимых полей указать символ подчёркивания<DD>
+
+
+Обычно переводятся поля <TT>&quot;Description&quot;</TT>, <TT>&quot;Choices&quot;</TT> и иногда <TT>&quot;Default&quot;</TT>.
+<DT id="3">- запустить <B>debconf-updatepo</B><DD>
+
+
+Она создаст файл <I>debian/po/templates.pot</I>, который переводчики будут
+переводить на свой язык.
+<DT id="4">- добавить зависимость сборки от &quot;po-debconf&quot; в файл <I>debian/control</I><DD>
+
+
+
+
+</DL>
+<A NAME="lbAE">&nbsp;</A>
+<H2>ОБНОВЛЕНИЕ ШАБЛОНОВ</H2>
+
+
+
+Чтобы помочь переводчикам, PO-файлы пакета должны всегда поддерживаться в
+актуальном состоянии, иначе переводчики могут потерять своё время впустую,
+переводя неиспользуемые строки. Для этого, просто запустите следующую
+команду без параметров:
+<P>
+
+
+
+<PRE>
+  $ debconf-updatepo
+
+</PRE>
+
+
+<P>
+
+Вы должны запускать эту команду каждый раз не только после изменений в
+английских шаблонах, но и когда получаете новые или обновлённые файлы
+переводов, так как переводчики могли работать над устаревшим PO-файлом.
+<P>
+
+При переименовании, добавлении или удалении файлов шаблонов, также не
+забудьте внести соответствующие изменения в файл <I>debian/po/POTFILES.in</I>,
+иначе английские строки пропадут из PO-файлов и будут показаны пользователям
+даже если PO-файлы полностью переведены.
+<P>
+
+Программа <B>debconf-updatepo</B> является идемпотентной, она изменяет PO-файлы
+только, если для них изменилось содержание. Таким образом лучшим решением
+поддерживать актуальное состояние PO-файлов в пакете --- это запускать эту
+команду в правиле <TT>&quot;clean&quot;</TT> файла <I>debian/rules</I>.
+<P>
+
+Заметьте, что вы должны запускать <B>debconf-updatepo</B> даже в случае
+использования <B>dh_installdebconf</B>. Последний вызывает <B>po2debconf</B>,
+который в свою очередь запускает <B>debconf-updatepo</B>, если обнаруживаются
+устаревшие файлы, но это не очень хорошее решение как минимум по двум
+причинам:
+<DL COMPACT>
+<DT id="5">1.<DD>
+Для обнаружения устаревших файлов <B>po2debconf</B> использует временные отметки
+и может неправильно сработать, если используется <TT>&quot;pbuilder&quot;</TT> или если
+устаревшие переводы были записаны на диск после изменения шаблонов
+<DT id="6">2.<DD>
+<B>dh_installdebconf</B> вызывается уже после генерации файла <TT>&quot;.diff.gz&quot;</TT>
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>ОБЪЕДИНЕНИЕ ПЕРЕВОДОВ И ОРИГИНАЛА</H2>
+
+
+
+Вам нужно проверить, что при сборке пакета переводы попадают в готовый
+пакет. Вы можете делать это вручную или автоматически с помощью сценария
+<B>dh_installdebconf</B> (проверьте, что в зависимостях сборки есть <TT>&quot;debhelper
+(&gt;= 4.1.16)&quot;</TT>).
+<P>
+
+Чтобы сделать это вручную, нужно объединить шаблоны и переводы во время
+сборки (и должна быть зависимость от <TT>&quot;po-debconf&quot;</TT>), например:
+<P>
+
+
+
+<PRE>
+  $ po2debconf debian/templates &gt; debian/tmp/DEBIAN/templates
+
+</PRE>
+
+
+<P>
+
+<B>ОСТОРОЖНО</B>: эти два файла с именем <I>templates</I> имеют разное
+содержимое. Первый содержит только английский текст и некоторые поля,
+помеченные для перевода, а второй содержит текст на всех остальных
+языках. Надо добавить, что вы НЕ МОЖЕТЕ хранить только объединённые шаблоны,
+иначе вы не сможете договориться с переводчиками, чтобы они выполняли
+обновление.
+<A NAME="lbAG">&nbsp;</A>
+<H2>НОВЫЕ МАСТЕР ШАБЛОНЫ</H2>
+
+
+
+Новый формат исходных мастер-шаблонов почти повторяет распространяемый файл
+шаблонов, но здесь переводимые поля начинаются с символа
+подчёркивания. Пример:
+<P>
+
+
+
+<PRE>
+  Template: debconf/frontend
+  Type: select
+  _Choices: Dialog, Readline, Gnome, Editor, Noninteractive
+  Default: Dialog
+  _Description: Interface to use for configuring packages:
+   Packages that use debconf for configuration share a common look and
+   feel.  You can select the type of user interface they use.
+   .
+   The dialog frontend is a full-screen, character based interface,
+   while the readline frontend uses a more traditional plain text
+   interface, and the gnome frontend is a modern X interface.  The
+   editor frontend lets you configure things using your favorite text
+   editor. The noninteractive frontend never asks you any questions.
+
+</PRE>
+
+
+<A NAME="lbAH">&nbsp;</A>
+<H3>РАЗДЕЛЕНИЕ СПИСКА ВЫБОРА</H3>
+
+
+
+Начиная с <TT>&quot;po-debconf&quot;</TT> версии 0.6.0, локализованные имена полей могут
+содержать два начальных подчёркивания. В этом случае предполагается, что
+значением поля является список значений через запятую, которые будут
+помещены в отдельные msgid. То есть, если бы предыдущий пример содержал
+<P>
+
+
+
+<PRE>
+  __Choices: Dialog, Readline, Gnome, Editor, Noninteractive
+
+</PRE>
+
+
+<P>
+
+то было бы 5 разных msgid. Заметим, что пробелы после запятых не
+обязательны.
+<P>
+
+Если список выбора никогда не изменится, то <TT>&quot;_Choices&quot;</TT> замечательно
+подходит. Однако, разделение такого списка может помочь избежать частых
+ошибок в переводах, таких как пропуск варианта или использование
+нестандартных запятых. Поэтому используйте <TT>&quot;__Choices&quot;</TT> --- это облегчит
+работу переводчика.
+<P>
+
+К сожалению, если вы решили переключиться с <TT>&quot;_Choices&quot;</TT> на <TT>&quot;__Choices&quot;</TT>,все
+переводы будут отмечены как неточные. Можно сделать это изменение без потери
+переводов (требуется <TT>&quot;po-debconf&quot;</TT> &gt;= 1.0). Предположим, что вы хотите
+переключить предыдущий пример на <TT>&quot;__Choices&quot;</TT>. Скопируйте файл <I>templates</I>
+во временный файл.
+<P>
+
+
+
+<PRE>
+  $ cp debian/templates debian/foo
+
+</PRE>
+
+
+<P>
+
+Отредактируйте <I>debian/foo</I> и оставьте только поля <TT>&quot;Template&quot;</TT>, <TT>&quot;Type&quot;</TT> и
+<TT>&quot;_Choices&quot;</TT> из этого примера
+<P>
+
+
+
+<PRE>
+  Template: debconf/frontend
+  Type: select
+  _Choices: Dialog, Readline, Gnome, Kde, Editor, Noninteractive
+
+</PRE>
+
+
+<P>
+
+Запустите <B>debconf-gettextize</B> с параметрами <TT>&quot;--merge&quot;</TT> и <TT>&quot;--choices&quot;</TT>,
+чтобы собрать PO-файлы, как если бы было записано <TT>&quot;__Choices&quot;</TT>, и объединить
+эти PO-файлы с существующими:
+<P>
+
+
+
+<PRE>
+  $ debconf-gettextize --merge --choices debian/foo
+
+</PRE>
+
+
+<P>
+
+В конце удалите <I>foo</I> и вручную отредактируйте <I>debian/templates</I> заменив
+<TT>&quot;_Choices&quot;</TT> на <TT>&quot;__Choices&quot;</TT> перед тем как запустить <B>debconf-updatepo</B>.
+<A NAME="lbAI">&nbsp;</A>
+<H3>СОЗДАНИЕ КОММЕНТАРИЕВ ДЛЯ ПЕРЕВОДЧИКОВ</H3>
+
+
+
+Сопровождающие <TT>&quot;Dpkg&quot;</TT> пришли к соглашению, что строки, начинающиеся с знака
+<TT>&quot;#&quot;</TT>, считаются комментариями в файлах <I>debian/control</I>, и <TT>&quot;po-debconf&quot;</TT>
+тоже следует этому правилу. Начиная с <TT>&quot;po-debconf&quot;</TT> версии 0.8.0, эти
+комментарии сохраняются в PO-файлах, и таким образом, могут содержать
+смысловую информацию для переводчиков. Случайно, все предыдущие версии
+<TT>&quot;po-debconf&quot;</TT> игнорировали строки, которые не содержат двоеточия, то есть
+если ваши комментарии не содержат двоеточия, не нужно добавлять зависимость
+от версии сборки <TT>&quot;po-debconf&quot;</TT>. Пример:
+<P>
+
+
+
+<PRE>
+  Template: debconf/button-yes
+  Type: text
+  # Translators, this text will appear on a button, so KEEP IT SHORT
+  _Description: Yes
+
+</PRE>
+
+
+<P>
+
+В <TT>&quot;po-debconf&quot;</TT> 1.0 были добавлены специальные комментарии, учитывающие
+строки с несколькими элементами (например, поле <I>Choices</I>) или параграфы
+(например, в <I>Description</I>). С помощью новых директив разработчики получают
+больший контроль над тем, что показывать переводчикам. Команды имеют вид
+<TT>&quot;#flag:</TT>directive<TT>&quot;</TT>; директивы описаны далее.
+<DL COMPACT>
+<DT id="7"><B>translate:</B><I>spec</I>, <B>translate!:</B><I>spec</I><DD>
+
+
+Отметить только некоторые элементы для перевода; <I>spec</I> является списком
+чисел через запятую, в котором указаны какие строки будут выводиться в
+PO-файлы. Можно указывать диапазоны значений через знак минус (например,
+<TT>&quot;2-6&quot;</TT>), звёздочка (<TT>&quot;*&quot;</TT>) означает все строки. Например, из
+
+
+<P>
+
+
+
+
+<PRE>
+  Template: partman-basicfilesystems/fat_mountpoint
+  Type: select
+  #flag:translate:3,4
+  __Choices: /dos, /windows, Enter manually, Do not mount it
+  _Description: Mount point for this partition:
+
+</PRE>
+
+
+
+
+<P>
+
+
+<TT>&quot;Enter manually&quot;</TT> и <TT>&quot;Do not mount it&quot;</TT> появятся в PO-файлах, а <TT>&quot;/dos&quot;</TT> и
+<TT>&quot;/windows&quot;</TT> --- нет. Если после ключевого слова <B>translate</B> поставить
+восклицательный знак, то в <I>spec</I> указываются какие строки будут исключены
+из PO-файлов, а все остальные строки будут выводиться. Предыдущий пример
+можно переписать как
+
+
+<P>
+
+
+
+
+<PRE>
+  Template: partman-basicfilesystems/fat_mountpoint
+  Type: select
+  #flag:translate!:1,2
+  __Choices: /dos, /windows, Enter manually, Do not mount it
+  _Description: Mount point for this partition:
+
+</PRE>
+
+
+
+
+<P>
+
+
+Это же ключевое слово можно также применить к полю <I>Description</I>, чтобы
+быть уверенным, что некоторые строки не переводятся.
+
+
+<P>
+
+
+
+
+<PRE>
+  Template: partman-crypto/options_missing
+  Type: error
+  #flag:translate!:3
+  _Description: Required encryption options missing
+   The encryption options for ${DEVICE} are incomplete. Please
+   return to the partition menu and select all required options.
+   .
+   ${ITEMS}
+
+</PRE>
+
+
+
+
+<P>
+
+
+Но это опасно, так как из PO-файлов может быть утерян контекст. В этом
+случае добавляйте комментарии, чтобы не запутывать переводчиков.
+<DT id="8"><B>comment:</B><I>spec</I>, <B>comment!:</B><I>spec</I><DD>
+
+
+Комментарий ниже этой директивы относится к строкам, указанным в <I>spec</I>,
+которая задаётся выше. По умолчанию, комментарий записывается перед
+переводимым полем вместе со всеми строками принадлежащими этому
+полю.(Замечание: в <TT>&quot;po-debconf&quot;</TT> &lt; 1.0 комментарий записывался только в
+первой строке)
+
+
+<P>
+
+
+
+
+<PRE>
+  Template: arcboot-installer/prom-variables
+  Type: note
+  # Translators, the 4th string of this description has been dropped
+  # from PO files.  It contains shell commands and should not be
+  # translated.
+  #flag:comment:3
+  # &quot;Stop for Maintenance&quot; should be left in English
+  #flag:translate!:4
+  _Description: Setting PROM variables for Arcboot
+   If this is the first Linux installation on this machine, or if the
+   hard drives have been repartitioned, some variables need to be set
+   in the PROM before the system is able to boot normally.
+   .
+   At the end of this installation stage, the system will reboot.
+   After this, enter the command monitor from the &quot;Stop for
+   Maintenance&quot; option, and enter the following commands:
+   .
+      setenv OSLoader arcboot
+      setenv OSLoadFilename Linux
+   .
+   You will only need to do this once.  Afterwards, enter the &quot;boot&quot;
+   command or reboot the system to proceed to the next stage of the
+   installation.
+
+</PRE>
+
+
+
+
+<P>
+
+
+В примере выше комментарий указывался без директивы <TT>&quot;#flag:comment&quot;</TT>,
+неявным добавлением <TT>&quot;#flag:comment:*&quot;</TT>. Этот комментарий появился во всех
+строках, но указание <I>Stop for Maintenance</I> напечатано только перед
+соответствующей строкой.
+<DT id="9"><B>partial</B><DD>
+
+
+Это ключевое слово указывает <B>po2debconf</B> сохранить переведённые строки,
+даже если не все строки были переведены. Используйте с осторожностью, данное
+ключевое слово было добавлено для очень специфичных случаев.
+</DL>
+<A NAME="lbAJ">&nbsp;</A>
+<H3>УВЕДОМЛЕНИЕ ПЕРЕВОДЧИКОВ ПЕРЕД АНОНСИРОВАНИЕМ НОВОЙ ВЕРСИИ</H3>
+
+
+
+Обычно переводчики уведомляются с веб-страницы состояния проекта (смотрите
+ниже), что перевод устарел и есть ссылка на новый файл будущего выпуска. Но
+разработчикам, перед тем как заливать новую версию, предлагается
+рассмотреть, например, за неделю до срока, попросить сопровождающих перевод
+обновить его. Для этой цели была написана специальная программа ---
+<B>podebconf-report-po</B>. Не бойтесь злоупотреблять ею!
+<A NAME="lbAK">&nbsp;</A>
+<H2>ОТЛАДКА</H2>
+
+
+
+Вы обнаружите, что <B>debconf-loadtemplate</B> не принимает файлы шаблонов с
+добавками i18n. Однако, она принимает объединённый файл, поэтому если вы
+выполняли отладку debconf, например так
+<P>
+
+
+
+<PRE>
+  rm /tmp/{config,templates}.dat{,-old}
+  debconf-loadtemplate debian/templates
+  DEBIAN_PRIORITY=low debconf -freadline debian/config configure 28.0
+
+</PRE>
+
+
+<P>
+
+то теперь вам нужно поступать так:
+<P>
+
+
+
+<PRE>
+  po2debconf debian/templates &gt; debian/tmp/DEBIAN/templates
+  rm /tmp/{config,templates}.dat{,-old}
+  debconf-loadtemplate debian/tmp/DEBIAN/templates
+  DEBIAN_PRIORITY=low debconf -freadline debian/config configure 28.0
+
+</PRE>
+
+
+<A NAME="lbAL">&nbsp;</A>
+<H2>ПРЕДОСТЕРЕЖЕНИЯ</H2>
+
+
+
+<DL COMPACT>
+<DT id="10">&bull;<DD>
+<TT>&quot;Debconf&quot;</TT> 1.2.0 распознаёт поля в виде <I>Имя</I>-<I>язык</I>.<I>кодировка</I>,
+например, <TT>&quot;Description-de.ISO-8859-1&quot;</TT> или <TT>&quot;Choices-ru.KOI8-R&quot;</TT>. По
+умолчанию, <B>po2debconf</B> сохраняет файлы шаблонов в новом формате. Ранние
+версии <TT>&quot;debconf&quot;</TT> игнорируют эти поля и отображают английские
+сообщения. Смотрите в <B><A HREF="/cgi-bin/man/man2html?1+po2debconf">po2debconf</A></B>(1) как изменять кодировку и выходной
+формат.
+<DT id="11">&bull;<DD>
+Определённая английская строка может иметь только один уникальный перевод на
+другой язык. Невозможно задать два разных перевода в зависимости от
+контекста. Чтобы решить эту проблему, вы можете добавить специальные
+добавления к совпадающему тексту в разных местах, чтобы сделать его
+уникальным. (Эти добавления увидят только переводчики и удалят их из строки
+перед показом пользователю)
+
+
+<P>
+
+
+Эти метки должны добавляться в конец строк для перевода, они должны
+начинаться с <TT>&quot;[ &quot;</TT> (левая квадратная скобка с пробелом после) и
+заканчиваться <TT>&quot;]&quot;</TT> (правая скобка), и могут содержать любые символы внутри
+кроме скобок и символов новой строки. Например, <TT>&quot;[ blahblah]&quot;</TT> допустимая
+метка, а <TT>&quot;[ bla[bla]bla]&quot;</TT> нет. Для любителей Perl regexp, метки
+распознаются (и удаляются) с помощью выражения:
+
+
+<P>
+
+
+
+
+<PRE>
+  $msg =~ s/\[\s[^\[\]]*\]$//s;
+
+</PRE>
+
+
+<DT id="12">&bull;<DD>
+Пробелы обрабатываются неодинаково <TT>&quot;po-debconf&quot;</TT> и <TT>&quot;debconf-utils&quot;</TT>;
+последний переформатирует параграфы при обновлении и объединении переводов,
+так как <TT>&quot;debconf-utils&quot;</TT> очень умный и считает, что пробелы не являются
+частью строк, при определении неясных элементов. (то есть, требуется
+внимание переводчика, так как оригинал изменился)
+
+
+<P>
+
+
+С другой стороны, <TT>&quot;po-debconf&quot;</TT> полагается на <TT>&quot;gettext&quot;</TT> при определении
+неясных элементов, и не рассматривает пробелы как специальные символы. То
+есть, лишние пробелы должны быть удалены в конце строк в мастер-файлах
+шаблонов, или они появятся в <FONT SIZE="-1">PO-</FONT> и POT-файлах.
+
+
+<P>
+
+
+По этой же причине, <B>debconf-gettextize</B> может отметить текст как неясный
+из-за несовпадения пробельных символов, и переводчики должны вручную снимать
+неясность с таких строк. Это случается только при преобразовании шаблонов в
+<TT>&quot;po-debconf&quot;</TT> формат, если, конечно, вы произвольно не изменяете пробелы в
+мастер-файлах шаблонов, что болезненно отражается на переводчиках.
+<DT id="13">&bull;<DD>
+Обычно, поле <I>Default:</I> не должно переводиться, если шаблон имеет тип
+<B>Select</B> или <B>Multiselect</B>. В редких случаях (например, при выборе языка
+по умолчанию для приложения) локализованные значения более выразительны.
+
+
+<P>
+
+
+Локализованное значение должно не переводиться, а выбираться из английских
+значений поля <I>Choices</I>. Лучшим путём достигнуть этой цели является вставка
+комментария в файл шаблонов, который будет скопирован в PO-файлы.
+
+
+<P>
+
+
+
+
+<PRE>
+  Template: geneweb/lang
+  Type: select
+  __Choices: Danish (da), Dutch (nl), English (en), Esperanto (eo)
+  #  You must NOT translate this string, but you can change its value.
+  #  The comment between brackets is used to distinguish this msgid
+  #  from the one in the Choices list; you do not have to worry about
+  #  them, and have to simply choose a msgstr among the English values
+  #  listed in the Choices field above, e.g. msgstr &quot;Dutch (nl)&quot;
+  _Default: English (en)[ default language]
+  _Description: Geneweb default language
+
+</PRE>
+
+
+
+
+<P>
+
+
+Значение по умолчанию также присутствует в поле <I>Choices</I>, и оба имеют
+различные переводы: первое содержит не переведённое значение, выбираемое из
+<I>Choices</I>, а второе имеет обычный перевод. Так как <TT>&quot;gettext&quot;</TT> не может
+содержать два различных перевода одного <I>msgid</I>, то <I>msgid</I> должны
+отличаться с помощью комментариев в квадратных скобках, как описывалось в
+предыдущем разделе.
+
+
+<P>
+
+
+До версии <TT>&quot;po-debconf&quot;</TT> 0.8.0, такие комментарии были недоступны и
+сопровождающие заменяли поле <I>_Default:</I> на поле <I>_DefaultChoice:</I>, чтобы
+как-то выделить такие поля в PO-файлах:
+
+
+<P>
+
+
+
+
+<PRE>
+  #. DefaultChoice
+  msgid &quot;&quot;
+  &quot;English[ default: do not translate bracketed material, put your &quot;
+  &quot;own language here but UNTRANSLATED.  If it is not in the list, &quot;
+  &quot;put English (without bracketed material)]&quot;
+  msgstr &quot;&quot;
+  &quot;Swedish&quot;
+
+</PRE>
+
+
+
+
+<P>
+
+
+Простые комментарии менее подвержены ошибкам и приветствуются.
+</DL>
+<A NAME="lbAM">&nbsp;</A>
+<H2>ВЕБ-СТРАНИЦЫ СОСТОЯНИЯ</H2>
+
+
+
+Статистика по <TT>&quot;po-debconf&quot;</TT> переводам доступна здесь
+&lt;<A HREF="http://www.debian.org/intl/l10n/po-debconf/">http://www.debian.org/intl/l10n/po-debconf/</A>&gt; (или с зеркал); она
+обновляется автоматически при поступлении нового пакета. Сюда попадают
+только пакеты, имеющие файлы <I>debian/po/templates.pot</I> и
+<I>debian/po/POTFILES.in</I>, поэтому вы должны проверить, что ваш пакет с
+исходными текстами содержит их.
+<P>
+
+С этой страницы переводчики могут получить <FONT SIZE="-1">PO-</FONT> и POT-файлы, но они всегда
+должны связаться с предыдущим переводчиком (его почтовый адрес можно найти в
+PO-файле) и/или их коллегами переводчиками через
+debian-l10n-<I>&lt;язык&gt;</I><TT>@lists</TT>.debian.org (если такой список
+существует), чтобы удостовериться, что никто в данный момент не работает над
+тем же переводом, а также изучить имеющиеся сообщения об ошибках пакета,
+который они намереваются переводить, чтобы проверить, что о переводе уже не
+сообщено.
+<P>
+
+После перевода этих файлов, они должны быть посланы сопровождающему в виде
+отчёта об ошибке с важностью <B>wishlist</B> и тегом <B>patch</B>.
+<A NAME="lbAN">&nbsp;</A>
+<H2>СМОТРИТЕ ТАКЖЕ</H2>
+
+
+
+<B><A HREF="/cgi-bin/man/man2html?1+debconf-gettextize">debconf-gettextize</A></B>(1), <B><A HREF="/cgi-bin/man/man2html?1+debconf-updatepo">debconf-updatepo</A></B>(1), <B><A HREF="/cgi-bin/man/man2html?1+dh_installdebconf">dh_installdebconf</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?1+podebconf-report-po">podebconf-report-po</A></B>(1), <B><A HREF="/cgi-bin/man/man2html?1+po2debconf">po2debconf</A></B>(1), <B><A HREF="/cgi-bin/man/man2html?7+debconf-devel">debconf-devel</A></B>(7).
+<A NAME="lbAO">&nbsp;</A>
+<H2>АВТОРЫ</H2>
+
+
+
+
+
+<PRE>
+  Мартин Квинсон (Martin Quinson) &lt;<A HREF="mailto:Martin.Quinson@ens-lyon.fr">Martin.Quinson@ens-lyon.fr</A>&gt;
+  Дэнис Барбье (Denis Barbier) &lt;<A HREF="mailto:barbier@linuxfr.org">barbier@linuxfr.org</A>&gt;
+
+</PRE>
+
+
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="14"><A HREF="#lbAB">НАЗВАНИЕ</A><DD>
+<DT id="15"><A HREF="#lbAC">ОПИСАНИЕ</A><DD>
+<DT id="16"><A HREF="#lbAD">ДОБАВЛЕНИЕ ПОДДЕРЖКИ ИНТЕРНАЦИОНАЛИЗАЦИИ (I18N) В ФАЙЛЫ ШАБЛОНОВ DEBCONF</A><DD>
+<DT id="17"><A HREF="#lbAE">ОБНОВЛЕНИЕ ШАБЛОНОВ</A><DD>
+<DT id="18"><A HREF="#lbAF">ОБЪЕДИНЕНИЕ ПЕРЕВОДОВ И ОРИГИНАЛА</A><DD>
+<DT id="19"><A HREF="#lbAG">НОВЫЕ МАСТЕР ШАБЛОНЫ</A><DD>
+<DL>
+<DT id="20"><A HREF="#lbAH">РАЗДЕЛЕНИЕ СПИСКА ВЫБОРА</A><DD>
+<DT id="21"><A HREF="#lbAI">СОЗДАНИЕ КОММЕНТАРИЕВ ДЛЯ ПЕРЕВОДЧИКОВ</A><DD>
+<DT id="22"><A HREF="#lbAJ">УВЕДОМЛЕНИЕ ПЕРЕВОДЧИКОВ ПЕРЕД АНОНСИРОВАНИЕМ НОВОЙ ВЕРСИИ</A><DD>
+</DL>
+<DT id="23"><A HREF="#lbAK">ОТЛАДКА</A><DD>
+<DT id="24"><A HREF="#lbAL">ПРЕДОСТЕРЕЖЕНИЯ</A><DD>
+<DT id="25"><A HREF="#lbAM">ВЕБ-СТРАНИЦЫ СОСТОЯНИЯ</A><DD>
+<DT id="26"><A HREF="#lbAN">СМОТРИТЕ ТАКЖЕ</A><DD>
+<DT id="27"><A HREF="#lbAO">АВТОРЫ</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:23 GMT, March 31, 2021
+</BODY>
+</HTML>

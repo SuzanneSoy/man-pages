@@ -1,0 +1,1491 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of MOUNT_NAMESPACES</TITLE>
+</HEAD><BODY>
+<H1>MOUNT_NAMESPACES</H1>
+Section: Linux Programmer's Manual (7)<BR>Updated: 2019-08-02<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+mount_namespaces - overview of Linux mount namespaces
+<A NAME="lbAC">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+For an overview of namespaces, see
+<B><A HREF="/cgi-bin/man/man2html?7+namespaces">namespaces</A></B>(7).
+
+<P>
+
+Mount namespaces provide isolation of the list of mount points seen
+by the processes in each namespace instance.
+Thus, the processes in each of the mount namespace instances
+will see distinct single-directory hierarchies.
+<P>
+
+The views provided by the
+<I>/proc/[pid]/mounts</I>,
+
+<I>/proc/[pid]/mountinfo</I>,
+
+and
+<I>/proc/[pid]/mountstats</I>
+
+files (all described in
+<B><A HREF="/cgi-bin/man/man2html?5+proc">proc</A></B>(5))
+
+correspond to the mount namespace in which the process with the PID
+<I>[pid]</I>
+
+resides.
+(All of the processes that reside in the same mount namespace
+will see the same view in these files.)
+<P>
+
+A new mount namespace is created using either
+<B><A HREF="/cgi-bin/man/man2html?2+clone">clone</A></B>(2)
+
+or
+<B><A HREF="/cgi-bin/man/man2html?2+unshare">unshare</A></B>(2)
+
+with the
+<B>CLONE_NEWNS</B>
+
+flag.
+When a new mount namespace is created,
+its mount point list is initialized as follows:
+<DL COMPACT>
+<DT id="1">*<DD>
+If the namespace is created using
+<B><A HREF="/cgi-bin/man/man2html?2+clone">clone</A></B>(2),
+
+the mount point list of the child's namespace is a copy
+of the mount point list in the parent's namespace.
+<DT id="2">*<DD>
+If the namespace is created using
+<B><A HREF="/cgi-bin/man/man2html?2+unshare">unshare</A></B>(2),
+
+the mount point list of the new namespace is a copy of
+the mount point list in the caller's previous mount namespace.
+</DL>
+<P>
+
+Subsequent modifications to the mount point list
+(<B><A HREF="/cgi-bin/man/man2html?2+mount">mount</A></B>(2)
+
+and
+<B><A HREF="/cgi-bin/man/man2html?2+umount">umount</A></B>(2))
+
+in either mount namespace will not (by default) affect the
+mount point list seen in the other namespace
+(but see the following discussion of shared subtrees).
+
+
+
+<A NAME="lbAD">&nbsp;</A>
+<H3>Restrictions on mount namespaces</H3>
+
+Note the following points with respect to mount namespaces:
+<DL COMPACT>
+<DT id="3">*<DD>
+Each mount namespace has an owner user namespace.
+As explained above, when a new mount namespace is created,
+its mount point list is initialized as a copy of the mount point list
+of another mount namespace.
+If the new namespace and the namespace from which the mount point list
+was copied are owned by different user namespaces,
+then the new mount namespace is considered
+<I>less privileged</I>.
+
+<DT id="4">*<DD>
+When creating a less privileged mount namespace,
+shared mounts are reduced to slave mounts.
+(Shared and slave mounts are discussed below.)
+This ensures that mappings performed in less
+privileged mount namespaces will not propagate to more privileged
+mount namespaces.
+<DT id="5">*<DD>
+
+
+Mounts that come as a single unit from more privileged mount are
+locked together and may not be separated in a less privileged mount
+namespace.
+(The
+<B><A HREF="/cgi-bin/man/man2html?2+unshare">unshare</A></B>(2)
+
+<B>CLONE_NEWNS</B>
+
+operation brings across all of the mounts from the original
+mount namespace as a single unit,
+and recursive mounts that propagate between
+mount namespaces propagate as a single unit.)
+<DT id="6">*<DD>
+The
+<B><A HREF="/cgi-bin/man/man2html?2+mount">mount</A></B>(2)
+
+flags
+<B>MS_RDONLY</B>,
+
+<B>MS_NOSUID</B>,
+
+<B>MS_NOEXEC</B>,
+
+and the &quot;atime&quot; flags
+(<B>MS_NOATIME</B>,
+
+<B>MS_NODIRATIME</B>,
+
+<B>MS_RELATIME</B>)
+
+settings become locked
+
+
+
+
+
+
+when propagated from a more privileged to
+a less privileged mount namespace,
+and may not be changed in the less privileged mount namespace.
+<DT id="7">*<DD>
+
+A file or directory that is a mount point in one namespace that is not
+a mount point in another namespace, may be renamed, unlinked, or removed
+(<B><A HREF="/cgi-bin/man/man2html?2+rmdir">rmdir</A></B>(2))
+
+in the mount namespace in which it is not a mount point
+(subject to the usual permission checks).
+Consequently, the mount point is removed in the mount namespace
+where it was a mount point.
+<DT id="8"><DD>
+Previously (before Linux 3.18),
+
+
+
+
+
+
+attempting to unlink, rename, or remove a file or directory
+that was a mount point in another mount namespace would result in the error
+<B>EBUSY</B>.
+
+That behavior had technical problems of enforcement (e.g., for NFS)
+and permitted denial-of-service attacks against more privileged users.
+(i.e., preventing individual files from being updated
+by bind mounting on top of them).
+
+</DL>
+<A NAME="lbAE">&nbsp;</A>
+<H2>SHARED SUBTREES</H2>
+
+After the implementation of mount namespaces was completed,
+experience showed that the isolation that they provided was,
+in some cases, too great.
+For example, in order to make a newly loaded optical disk
+available in all mount namespaces,
+a mount operation was required in each namespace.
+For this use case, and others,
+the shared subtree feature was introduced in Linux 2.6.15.
+This feature allows for automatic, controlled propagation of mount and unmount
+<I>events</I>
+
+between namespaces
+(or, more precisely, between the members of a
+<I>peer group</I>
+
+that are propagating events to one another).
+<P>
+
+Each mount point is marked (via
+<B><A HREF="/cgi-bin/man/man2html?2+mount">mount</A></B>(2))
+
+as having one of the following
+<I>propagation types</I>:
+
+<DL COMPACT>
+<DT id="9"><B>MS_SHARED</B>
+
+<DD>
+This mount point shares events with members of a peer group.
+Mount and unmount events immediately under this mount point will propagate
+to the other mount points that are members of the peer group.
+<I>Propagation</I>
+
+here means that the same mount or unmount will automatically occur
+under all of the other mount points in the peer group.
+Conversely, mount and unmount events that take place under
+peer mount points will propagate to this mount point.
+<DT id="10"><B>MS_PRIVATE</B>
+
+<DD>
+This mount point is private; it does not have a peer group.
+Mount and unmount events do not propagate into or out of this mount point.
+<DT id="11"><B>MS_SLAVE</B>
+
+<DD>
+Mount and unmount events propagate into this mount point from
+a (master) shared peer group.
+Mount and unmount events under this mount point do not propagate to any peer.
+<DT id="12"><DD>
+Note that a mount point can be the slave of another peer group
+while at the same time sharing mount and unmount events
+with a peer group of which it is a member.
+(More precisely, one peer group can be the slave of another peer group.)
+<DT id="13"><B>MS_UNBINDABLE</B>
+
+<DD>
+This is like a private mount,
+and in addition this mount can't be bind mounted.
+Attempts to bind mount this mount
+(<B><A HREF="/cgi-bin/man/man2html?2+mount">mount</A></B>(2)
+
+with the
+<B>MS_BIND</B>
+
+flag) will fail.
+<DT id="14"><DD>
+When a recursive bind mount
+(<B><A HREF="/cgi-bin/man/man2html?2+mount">mount</A></B>(2)
+
+with the
+<B>MS_BIND</B>
+
+and
+<B>MS_REC</B>
+
+flags) is performed on a directory subtree,
+any bind mounts within the subtree are automatically pruned
+(i.e., not replicated)
+when replicating that subtree to produce the target subtree.
+</DL>
+<P>
+
+For a discussion of the propagation type assigned to a new mount,
+see NOTES.
+<P>
+
+The propagation type is a per-mount-point setting;
+some mount points may be marked as shared
+(with each shared mount point being a member of a distinct peer group),
+while others are private
+(or slaved or unbindable).
+<P>
+
+Note that a mount's propagation type determines whether
+mounts and unmounts of mount points
+<I>immediately under</I>
+
+the mount point are propagated.
+Thus, the propagation type does not affect propagation of events for
+grandchildren and further removed descendant mount points.
+What happens if the mount point itself is unmounted is determined by
+the propagation type that is in effect for the
+<I>parent</I>
+
+of the mount point.
+<P>
+
+Members are added to a
+<I>peer group</I>
+
+when a mount point is marked as shared and either:
+<DL COMPACT>
+<DT id="15">*<DD>
+the mount point is replicated during the creation of a new mount namespace; or
+<DT id="16">*<DD>
+a new bind mount is created from the mount point.
+</DL>
+<P>
+
+In both of these cases, the new mount point joins the peer group
+of which the existing mount point is a member.
+<P>
+
+A new peer group is also created when a child mount point is created under
+an existing mount point that is marked as shared.
+In this case, the new child mount point is also marked as shared and
+the resulting peer group consists of all the mount points
+that are replicated under the peers of parent mount.
+<P>
+
+A mount ceases to be a member of a peer group when either
+the mount is explicitly unmounted,
+or when the mount is implicitly unmounted because a mount namespace is removed
+(because it has no more member processes).
+<P>
+
+The propagation type of the mount points in a mount namespace
+can be discovered via the &quot;optional fields&quot; exposed in
+<I>/proc/[pid]/mountinfo</I>.
+
+(See
+<B><A HREF="/cgi-bin/man/man2html?5+proc">proc</A></B>(5)
+
+for details of this file.)
+The following tags can appear in the optional fields
+for a record in that file:
+<DL COMPACT>
+<DT id="17"><I>shared:X</I>
+
+<DD>
+This mount point is shared in peer group
+<I>X</I>.
+
+Each peer group has a unique ID that is automatically
+generated by the kernel,
+and all mount points in the same peer group will show the same ID.
+(These IDs are assigned starting from the value 1,
+and may be recycled when a peer group ceases to have any members.)
+<DT id="18"><I>master:X</I>
+
+<DD>
+This mount is a slave to shared peer group
+<I>X</I>.
+
+<DT id="19"><I>propagate_from:X</I> (since Linux 2.6.26)
+
+<DD>
+
+This mount is a slave and receives propagation from shared peer group
+<I>X</I>.
+
+This tag will always appear in conjunction with a
+<I>master:X</I>
+
+tag.
+Here,
+<I>X</I>
+
+is the closest dominant peer group under the process's root directory.
+If
+<I>X</I>
+
+is the immediate master of the mount,
+or if there is no dominant peer group under the same root,
+then only the
+<I>master:X</I>
+
+field is present and not the
+<I>propagate_from:X</I>
+
+field.
+For further details, see below.
+<DT id="20"><I>unbindable</I>
+
+<DD>
+This is an unbindable mount.
+</DL>
+<P>
+
+If none of the above tags is present, then this is a private mount.
+<A NAME="lbAF">&nbsp;</A>
+<H3>MS_SHARED and MS_PRIVATE example</H3>
+
+Suppose that on a terminal in the initial mount namespace,
+we mark one mount point as shared and another as private,
+and then view the mounts in
+<I>/proc/self/mountinfo</I>:
+
+<P>
+
+
+
+sh1# <B>mount --make-shared /mntS</B>
+sh1# <B>mount --make-private /mntP</B>
+sh1# <B>cat /proc/self/mountinfo | grep '/mnt' | sed 's/ - .*//'</B>
+77 61 8:17 / /mntS rw,relatime shared:1
+83 61 8:15 / /mntP rw,relatime
+
+
+<P>
+
+From the
+<I>/proc/self/mountinfo</I>
+
+output, we see that
+<I>/mntS</I>
+
+is a shared mount in peer group 1, and that
+<I>/mntP</I>
+
+has no optional tags, indicating that it is a private mount.
+The first two fields in each record in this file are the unique
+ID for this mount, and the mount ID of the parent mount.
+We can further inspect this file to see that the parent mount point of
+<I>/mntS</I>
+
+and
+<I>/mntP</I>
+
+is the root directory,
+<I>/</I>,
+
+which is mounted as private:
+<P>
+
+
+
+sh1# <B>cat /proc/self/mountinfo | awk '$1 == 61' | sed 's/ - .*//'</B>
+61 0 8:2 / / rw,relatime
+
+
+<P>
+
+On a second terminal,
+we create a new mount namespace where we run a second shell
+and inspect the mounts:
+<P>
+
+
+
+$ <B>PS1='sh2# ' sudo unshare -m --propagation unchanged sh</B>
+sh2# <B>cat /proc/self/mountinfo | grep '/mnt' | sed 's/ - .*//'</B>
+222 145 8:17 / /mntS rw,relatime shared:1
+225 145 8:15 / /mntP rw,relatime
+
+
+<P>
+
+The new mount namespace received a copy of the initial mount namespace's
+mount points.
+These new mount points maintain the same propagation types,
+but have unique mount IDs.
+(The
+<I>--propagation&nbsp;unchanged</I>
+
+option prevents
+<B><A HREF="/cgi-bin/man/man2html?1+unshare">unshare</A></B>(1)
+
+from marking all mounts as private when creating a new mount namespace,
+
+which it does by default.)
+<P>
+
+In the second terminal, we then create submounts under each of
+<I>/mntS</I>
+
+and
+<I>/mntP</I>
+
+and inspect the set-up:
+<P>
+
+
+
+sh2# <B>mkdir /mntS/a</B>
+sh2# <B>mount /dev/sdb6 /mntS/a</B>
+sh2# <B>mkdir /mntP/b</B>
+sh2# <B>mount /dev/sdb7 /mntP/b</B>
+sh2# <B>cat /proc/self/mountinfo | grep '/mnt' | sed 's/ - .*//'</B>
+222 145 8:17 / /mntS rw,relatime shared:1
+225 145 8:15 / /mntP rw,relatime
+178 222 8:22 / /mntS/a rw,relatime shared:2
+230 225 8:23 / /mntP/b rw,relatime
+
+
+<P>
+
+From the above, it can be seen that
+<I>/mntS/a</I>
+
+was created as shared (inheriting this setting from its parent mount) and
+<I>/mntP/b</I>
+
+was created as a private mount.
+<P>
+
+Returning to the first terminal and inspecting the set-up,
+we see that the new mount created under the shared mount point
+<I>/mntS</I>
+
+propagated to its peer mount (in the initial mount namespace),
+but the new mount created under the private mount point
+<I>/mntP</I>
+
+did not propagate:
+<P>
+
+
+
+sh1# <B>cat /proc/self/mountinfo | grep '/mnt' | sed 's/ - .*//'</B>
+77 61 8:17 / /mntS rw,relatime shared:1
+83 61 8:15 / /mntP rw,relatime
+179 77 8:22 / /mntS/a rw,relatime shared:2
+
+
+
+<A NAME="lbAG">&nbsp;</A>
+<H3>MS_SLAVE example</H3>
+
+Making a mount point a slave allows it to receive propagated
+mount and unmount events from a master shared peer group,
+while preventing it from propagating events to that master.
+This is useful if we want to (say) receive a mount event when
+an optical disk is mounted in the master shared peer group
+(in another mount namespace),
+but want to prevent mount and unmount events under the slave mount
+from having side effects in other namespaces.
+<P>
+
+We can demonstrate the effect of slaving by first marking
+two mount points as shared in the initial mount namespace:
+<P>
+
+
+
+sh1# <B>mount --make-shared /mntX</B>
+sh1# <B>mount --make-shared /mntY</B>
+sh1# <B>cat /proc/self/mountinfo | grep '/mnt' | sed 's/ - .*//'</B>
+132 83 8:23 / /mntX rw,relatime shared:1
+133 83 8:22 / /mntY rw,relatime shared:2
+
+
+<P>
+
+On a second terminal,
+we create a new mount namespace and inspect the mount points:
+<P>
+
+
+
+sh2# <B>unshare -m --propagation unchanged sh</B>
+sh2# <B>cat /proc/self/mountinfo | grep '/mnt' | sed 's/ - .*//'</B>
+168 167 8:23 / /mntX rw,relatime shared:1
+169 167 8:22 / /mntY rw,relatime shared:2
+
+
+<P>
+
+In the new mount namespace, we then mark one of the mount points as a slave:
+<P>
+
+
+
+sh2# <B>mount --make-slave /mntY</B>
+sh2# <B>cat /proc/self/mountinfo | grep '/mnt' | sed 's/ - .*//'</B>
+168 167 8:23 / /mntX rw,relatime shared:1
+169 167 8:22 / /mntY rw,relatime master:2
+
+
+<P>
+
+From the above output, we see that
+<I>/mntY</I>
+
+is now a slave mount that is receiving propagation events from
+the shared peer group with the ID 2.
+<P>
+
+Continuing in the new namespace, we create submounts under each of
+<I>/mntX</I>
+
+and
+<I>/mntY</I>:
+
+<P>
+
+
+
+sh2# <B>mkdir /mntX/a</B>
+sh2# <B>mount /dev/sda3 /mntX/a</B>
+sh2# <B>mkdir /mntY/b</B>
+sh2# <B>mount /dev/sda5 /mntY/b</B>
+
+
+<P>
+
+When we inspect the state of the mount points in the new mount namespace,
+we see that
+<I>/mntX/a</I>
+
+was created as a new shared mount
+(inheriting the &quot;shared&quot; setting from its parent mount) and
+<I>/mntY/b</I>
+
+was created as a private mount:
+<P>
+
+
+
+sh2# <B>cat /proc/self/mountinfo | grep '/mnt' | sed 's/ - .*//'</B>
+168 167 8:23 / /mntX rw,relatime shared:1
+169 167 8:22 / /mntY rw,relatime master:2
+173 168 8:3 / /mntX/a rw,relatime shared:3
+175 169 8:5 / /mntY/b rw,relatime
+
+
+<P>
+
+Returning to the first terminal (in the initial mount namespace),
+we see that the mount
+<I>/mntX/a</I>
+
+propagated to the peer (the shared
+<I>/mntX</I>),
+
+but the mount
+<I>/mntY/b</I>
+
+was not propagated:
+<P>
+
+
+
+sh1# <B>cat /proc/self/mountinfo | grep '/mnt' | sed 's/ - .*//'</B>
+132 83 8:23 / /mntX rw,relatime shared:1
+133 83 8:22 / /mntY rw,relatime shared:2
+174 132 8:3 / /mntX/a rw,relatime shared:3
+
+
+<P>
+
+Now we create a new mount point under
+<I>/mntY</I>
+
+in the first shell:
+<P>
+
+
+
+sh1# <B>mkdir /mntY/c</B>
+sh1# <B>mount /dev/sda1 /mntY/c</B>
+sh1# <B>cat /proc/self/mountinfo | grep '/mnt' | sed 's/ - .*//'</B>
+132 83 8:23 / /mntX rw,relatime shared:1
+133 83 8:22 / /mntY rw,relatime shared:2
+174 132 8:3 / /mntX/a rw,relatime shared:3
+178 133 8:1 / /mntY/c rw,relatime shared:4
+
+
+<P>
+
+When we examine the mount points in the second mount namespace,
+we see that in this case the new mount has been propagated
+to the slave mount point,
+and that the new mount is itself a slave mount (to peer group 4):
+<P>
+
+
+
+sh2# <B>cat /proc/self/mountinfo | grep '/mnt' | sed 's/ - .*//'</B>
+168 167 8:23 / /mntX rw,relatime shared:1
+169 167 8:22 / /mntY rw,relatime master:2
+173 168 8:3 / /mntX/a rw,relatime shared:3
+175 169 8:5 / /mntY/b rw,relatime
+179 169 8:1 / /mntY/c rw,relatime master:4
+
+
+
+<A NAME="lbAH">&nbsp;</A>
+<H3>MS_UNBINDABLE example</H3>
+
+One of the primary purposes of unbindable mounts is to avoid
+the &quot;mount point explosion&quot; problem when repeatedly performing bind mounts
+of a higher-level subtree at a lower-level mount point.
+The problem is illustrated by the following shell session.
+<P>
+
+Suppose we have a system with the following mount points:
+<P>
+
+
+
+# <B>mount | awk '{print $1, $2, $3}'</B>
+/dev/sda1 on /
+/dev/sdb6 on /mntX
+/dev/sdb7 on /mntY
+
+
+<P>
+
+Suppose furthermore that we wish to recursively bind mount
+the root directory under several users' home directories.
+We do this for the first user, and inspect the mount points:
+<P>
+
+
+
+# <B>mount --rbind / /home/cecilia/</B>
+# <B>mount | awk '{print $1, $2, $3}'</B>
+/dev/sda1 on /
+/dev/sdb6 on /mntX
+/dev/sdb7 on /mntY
+/dev/sda1 on /home/cecilia
+/dev/sdb6 on /home/cecilia/mntX
+/dev/sdb7 on /home/cecilia/mntY
+
+
+<P>
+
+When we repeat this operation for the second user,
+we start to see the explosion problem:
+<P>
+
+
+
+# <B>mount --rbind / /home/henry</B>
+# <B>mount | awk '{print $1, $2, $3}'</B>
+/dev/sda1 on /
+/dev/sdb6 on /mntX
+/dev/sdb7 on /mntY
+/dev/sda1 on /home/cecilia
+/dev/sdb6 on /home/cecilia/mntX
+/dev/sdb7 on /home/cecilia/mntY
+/dev/sda1 on /home/henry
+/dev/sdb6 on /home/henry/mntX
+/dev/sdb7 on /home/henry/mntY
+/dev/sda1 on /home/henry/home/cecilia
+/dev/sdb6 on /home/henry/home/cecilia/mntX
+/dev/sdb7 on /home/henry/home/cecilia/mntY
+
+
+<P>
+
+Under
+<I>/home/henry</I>,
+
+we have not only recursively added the
+<I>/mntX</I>
+
+and
+<I>/mntY</I>
+
+mounts, but also the recursive mounts of those directories under
+<I>/home/cecilia</I>
+
+that were created in the previous step.
+Upon repeating the step for a third user,
+it becomes obvious that the explosion is exponential in nature:
+<P>
+
+
+
+# <B>mount --rbind / /home/otto</B>
+# <B>mount | awk '{print $1, $2, $3}'</B>
+/dev/sda1 on /
+/dev/sdb6 on /mntX
+/dev/sdb7 on /mntY
+/dev/sda1 on /home/cecilia
+/dev/sdb6 on /home/cecilia/mntX
+/dev/sdb7 on /home/cecilia/mntY
+/dev/sda1 on /home/henry
+/dev/sdb6 on /home/henry/mntX
+/dev/sdb7 on /home/henry/mntY
+/dev/sda1 on /home/henry/home/cecilia
+/dev/sdb6 on /home/henry/home/cecilia/mntX
+/dev/sdb7 on /home/henry/home/cecilia/mntY
+/dev/sda1 on /home/otto
+/dev/sdb6 on /home/otto/mntX
+/dev/sdb7 on /home/otto/mntY
+/dev/sda1 on /home/otto/home/cecilia
+/dev/sdb6 on /home/otto/home/cecilia/mntX
+/dev/sdb7 on /home/otto/home/cecilia/mntY
+/dev/sda1 on /home/otto/home/henry
+/dev/sdb6 on /home/otto/home/henry/mntX
+/dev/sdb7 on /home/otto/home/henry/mntY
+/dev/sda1 on /home/otto/home/henry/home/cecilia
+/dev/sdb6 on /home/otto/home/henry/home/cecilia/mntX
+/dev/sdb7 on /home/otto/home/henry/home/cecilia/mntY
+
+
+<P>
+
+The mount explosion problem in the above scenario can be avoided
+by making each of the new mounts unbindable.
+The effect of doing this is that recursive mounts of the root
+directory will not replicate the unbindable mounts.
+We make such a mount for the first user:
+<P>
+
+
+
+# <B>mount --rbind --make-unbindable / /home/cecilia</B>
+
+
+<P>
+
+Before going further, we show that unbindable mounts are indeed unbindable:
+<P>
+
+
+
+# <B>mkdir /mntZ</B>
+# <B>mount --bind /home/cecilia /mntZ</B>
+mount: wrong fs type, bad option, bad superblock on /home/cecilia,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;missing&nbsp;codepage&nbsp;or&nbsp;helper&nbsp;program,&nbsp;or&nbsp;other&nbsp;error
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;In&nbsp;some&nbsp;cases&nbsp;useful&nbsp;info&nbsp;is&nbsp;found&nbsp;in&nbsp;syslog&nbsp;-&nbsp;try
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dmesg&nbsp;|&nbsp;tail&nbsp;or&nbsp;so.
+
+
+<P>
+
+Now we create unbindable recursive bind mounts for the other two users:
+<P>
+
+
+
+# <B>mount --rbind --make-unbindable / /home/henry</B>
+# <B>mount --rbind --make-unbindable / /home/otto</B>
+
+
+<P>
+
+Upon examining the list of mount points,
+we see there has been no explosion of mount points,
+because the unbindable mounts were not replicated
+under each user's directory:
+<P>
+
+
+
+# <B>mount | awk '{print $1, $2, $3}'</B>
+/dev/sda1 on /
+/dev/sdb6 on /mntX
+/dev/sdb7 on /mntY
+/dev/sda1 on /home/cecilia
+/dev/sdb6 on /home/cecilia/mntX
+/dev/sdb7 on /home/cecilia/mntY
+/dev/sda1 on /home/henry
+/dev/sdb6 on /home/henry/mntX
+/dev/sdb7 on /home/henry/mntY
+/dev/sda1 on /home/otto
+/dev/sdb6 on /home/otto/mntX
+/dev/sdb7 on /home/otto/mntY
+
+
+
+<A NAME="lbAI">&nbsp;</A>
+<H3>Propagation type transitions</H3>
+
+The following table shows the effect that applying a new propagation type
+(i.e.,
+<I>mount --make-xxxx)</I>
+
+has on the existing propagation type of a mount point.
+The rows correspond to existing propagation types,
+and the columns are the new propagation settings.
+For reasons of space, &quot;private&quot; is abbreviated as &quot;priv&quot; and
+&quot;unbindable&quot; as &quot;unbind&quot;.
+<TABLE>
+<TR VALIGN=top><TD><B>&nbsp;&nbsp;</B></TD><TD><B>make-shared&nbsp;&nbsp;</B></TD><TD><B>make-slave&nbsp;&nbsp;</B></TD><TD><B>make-priv&nbsp;&nbsp;</B></TD><TD><B>make-unbind&nbsp;</B><BR></TD></TR>
+<TR VALIGN=top><TD><B>shared</B></TD><TD>shared</TD><TD>slave/priv [1]</TD><TD>priv</TD><TD>unbind<BR></TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B>slave</B></TD><TD>slave+shared</TD><TD>slave [2]</TD><TD>priv</TD><TD>unbind<BR></TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B>slave+shared</B></TD><TD>slave+shared</TD><TD>slave</TD><TD>priv</TD><TD>unbind<BR></TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B>private</B></TD><TD>shared</TD><TD>priv [2]</TD><TD>priv</TD><TD>unbind<BR></TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B>unbindable</B></TD><TD>shared</TD><TD>unbind [2]</TD><TD>priv</TD><TD>unbind<BR></TD><TD><BR></TD></TR>
+</TABLE>
+
+<P>
+Note the following details to the table:
+<DL COMPACT>
+<DT id="21">[1]<DD>
+If a shared mount is the only mount in its peer group,
+making it a slave automatically makes it private.
+<DT id="22">[2]<DD>
+Slaving a nonshared mount has no effect on the mount.
+
+</DL>
+<A NAME="lbAJ">&nbsp;</A>
+<H3>Bind (MS_BIND) semantics</H3>
+
+Suppose that the following command is performed:
+<P>
+
+
+
+mount --bind A/a B/b
+
+
+<P>
+
+Here,
+<I>A</I>
+
+is the source mount point,
+<I>B</I>
+
+is the destination mount point,
+<I>a</I>
+
+is a subdirectory path under the mount point
+<I>A</I>,
+
+and
+<I>b</I>
+
+is a subdirectory path under the mount point
+<I>B</I>.
+
+The propagation type of the resulting mount,
+<I>B/b</I>,
+
+depends on the propagation types of the mount points
+<I>A</I>
+
+and
+<I>B</I>,
+
+and is summarized in the following table.
+<P>
+
+<TABLE>
+<TR VALIGN=top><TD><B>&nbsp;&nbsp;</B></TD><TD><B>&nbsp;</B></TD><TD><B>&nbsp;&nbsp;</B></TD><TD><B>source(A)&nbsp;&nbsp;</B></TD><TD><B>&nbsp;&nbsp;</B></TD><TD><B></B><BR></TD></TR>
+<TR VALIGN=top><TD><B>&nbsp;&nbsp;</B></TD><TD><B>&nbsp;</B></TD><TD><B>shared&nbsp;&nbsp;</B></TD><TD><B>private&nbsp;&nbsp;</B></TD><TD><B>slave&nbsp;&nbsp;</B></TD><TD><B>unbind</B><BR></TD></TR>
+<TR VALIGN=top><TD COLSPAN=6><HR></TD></TR>
+<TR VALIGN=top><TD><B>dest(B)</B></TD><TD><B>shared    |</B></TD><TD>shared</TD><TD>shared</TD><TD>slave+shared</TD><TD>invalid<BR></TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B></B></TD><TD><B>nonshared |</B></TD><TD>shared</TD><TD>private</TD><TD>slave</TD><TD>invalid<BR></TD><TD><BR></TD></TR>
+</TABLE>
+
+<P>
+Note that a recursive bind of a subtree follows the same semantics
+as for a bind operation on each mount in the subtree.
+(Unbindable mounts are automatically pruned at the target mount point.)
+<P>
+
+For further details, see
+<I>Documentation/filesystems/sharedsubtree.txt</I>
+
+in the kernel source tree.
+
+<A NAME="lbAK">&nbsp;</A>
+<H3>Move (MS_MOVE) semantics</H3>
+
+Suppose that the following command is performed:
+<P>
+
+
+
+mount --move A B/b
+
+
+<P>
+
+Here,
+<I>A</I>
+
+is the source mount point,
+<I>B</I>
+
+is the destination mount point, and
+<I>b</I>
+
+is a subdirectory path under the mount point
+<I>B</I>.
+
+The propagation type of the resulting mount,
+<I>B/b</I>,
+
+depends on the propagation types of the mount points
+<I>A</I>
+
+and
+<I>B</I>,
+
+and is summarized in the following table.
+<P>
+
+<TABLE>
+<TR VALIGN=top><TD><B>&nbsp;&nbsp;</B></TD><TD><B>&nbsp;</B></TD><TD><B>&nbsp;&nbsp;</B></TD><TD><B>source(A)&nbsp;&nbsp;</B></TD><TD><B>&nbsp;&nbsp;</B></TD><TD><B></B><BR></TD></TR>
+<TR VALIGN=top><TD><B>&nbsp;&nbsp;</B></TD><TD><B>&nbsp;</B></TD><TD><B>shared&nbsp;&nbsp;</B></TD><TD><B>private&nbsp;&nbsp;</B></TD><TD><B>slave&nbsp;&nbsp;</B></TD><TD><B>unbind</B><BR></TD></TR>
+<TR VALIGN=top><TD COLSPAN=6><HR></TD></TR>
+<TR VALIGN=top><TD><B>dest(B)</B></TD><TD><B>shared    |</B></TD><TD>shared</TD><TD>shared</TD><TD>slave+shared</TD><TD>invalid<BR></TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B></B></TD><TD><B>nonshared |</B></TD><TD>shared</TD><TD>private</TD><TD>slave</TD><TD>unbindable<BR></TD><TD><BR></TD></TR>
+</TABLE>
+
+<P>
+Note: moving a mount that resides under a shared mount is invalid.
+<P>
+
+For further details, see
+<I>Documentation/filesystems/sharedsubtree.txt</I>
+
+in the kernel source tree.
+
+<A NAME="lbAL">&nbsp;</A>
+<H3>Mount semantics</H3>
+
+Suppose that we use the following command to create a mount point:
+<P>
+
+
+
+mount device B/b
+
+
+<P>
+
+Here,
+<I>B</I>
+
+is the destination mount point, and
+<I>b</I>
+
+is a subdirectory path under the mount point
+<I>B</I>.
+
+The propagation type of the resulting mount,
+<I>B/b</I>,
+
+follows the same rules as for a bind mount,
+where the propagation type of the source mount
+is considered always to be private.
+
+<A NAME="lbAM">&nbsp;</A>
+<H3>Unmount semantics</H3>
+
+Suppose that we use the following command to tear down a mount point:
+<P>
+
+
+
+unmount A
+
+
+<P>
+
+Here,
+<I>A</I>
+
+is a mount point on
+<I>B/b</I>,
+
+where
+<I>B</I>
+
+is the parent mount and
+<I>b</I>
+
+is a subdirectory path under the mount point
+<I>B</I>.
+
+If
+<B>B</B>
+
+is shared, then all most-recently-mounted mounts at
+<I>b</I>
+
+on mounts that receive propagation from mount
+<I>B</I>
+
+and do not have submounts under them are unmounted.
+
+<A NAME="lbAN">&nbsp;</A>
+<H3>The /proc/[pid]/mountinfo propagate_from tag</H3>
+
+The
+<I>propagate_from:X</I>
+
+tag is shown in the optional fields of a
+<I>/proc/[pid]/mountinfo</I>
+
+record in cases where a process can't see a slave's immediate master
+(i.e., the pathname of the master is not reachable from
+the filesystem root directory)
+and so cannot determine the
+chain of propagation between the mounts it can see.
+<P>
+
+In the following example, we first create a two-link master-slave chain
+between the mounts
+<I>/mnt</I>,
+
+<I>/tmp/etc</I>,
+
+and
+<I>/mnt/tmp/etc</I>.
+
+Then the
+<B><A HREF="/cgi-bin/man/man2html?1+chroot">chroot</A></B>(1)
+
+command is used to make the
+<I>/tmp/etc</I>
+
+mount point unreachable from the root directory,
+creating a situation where the master of
+<I>/mnt/tmp/etc</I>
+
+is not reachable from the (new) root directory of the process.
+<P>
+
+First, we bind mount the root directory onto
+<I>/mnt</I>
+
+and then bind mount
+<I>/proc</I>
+
+at
+<I>/mnt/proc</I>
+
+so that after the later
+<B><A HREF="/cgi-bin/man/man2html?1+chroot">chroot</A></B>(1)
+
+the
+<B><A HREF="/cgi-bin/man/man2html?5+proc">proc</A></B>(5)
+
+filesystem remains visible at the correct location
+in the chroot-ed environment.
+<P>
+
+
+
+# <B>mkdir -p /mnt/proc</B>
+# <B>mount --bind / /mnt</B>
+# <B>mount --bind /proc /mnt/proc</B>
+
+
+<P>
+
+Next, we ensure that the
+<I>/mnt</I>
+
+mount is a shared mount in a new peer group (with no peers):
+<P>
+
+
+
+# <B>mount --make-private /mnt</B>  # Isolate from any previous peer group
+# <B>mount --make-shared /mnt</B>
+# <B>cat /proc/self/mountinfo | grep '/mnt' | sed 's/ - .*//'</B>
+239 61 8:2 / /mnt ... shared:102
+248 239 0:4 / /mnt/proc ... shared:5
+
+
+<P>
+
+Next, we bind mount
+<I>/mnt/etc</I>
+
+onto
+<I>/tmp/etc</I>:
+
+<P>
+
+
+
+# <B>mkdir -p /tmp/etc</B>
+# <B>mount --bind /mnt/etc /tmp/etc</B>
+# <B>cat /proc/self/mountinfo | egrep '/mnt|/tmp/' | sed 's/ - .*//'</B>
+239 61 8:2 / /mnt ... shared:102
+248 239 0:4 / /mnt/proc ... shared:5
+267 40 8:2 /etc /tmp/etc ... shared:102
+
+
+<P>
+
+Initially, these two mount points are in the same peer group,
+but we then make the
+<I>/tmp/etc</I>
+
+a slave of
+<I>/mnt/etc</I>,
+
+and then make
+<I>/tmp/etc</I>
+
+shared as well,
+so that it can propagate events to the next slave in the chain:
+<P>
+
+
+
+# <B>mount --make-slave /tmp/etc</B>
+# <B>mount --make-shared /tmp/etc</B>
+# <B>cat /proc/self/mountinfo | egrep '/mnt|/tmp/' | sed 's/ - .*//'</B>
+239 61 8:2 / /mnt ... shared:102
+248 239 0:4 / /mnt/proc ... shared:5
+267 40 8:2 /etc /tmp/etc ... shared:105 master:102
+
+
+<P>
+
+Then we bind mount
+<I>/tmp/etc</I>
+
+onto
+<I>/mnt/tmp/etc</I>.
+
+Again, the two mount points are initially in the same peer group,
+but we then make
+<I>/mnt/tmp/etc</I>
+
+a slave of
+<I>/tmp/etc</I>:
+
+<P>
+
+
+
+# <B>mkdir -p /mnt/tmp/etc</B>
+# <B>mount --bind /tmp/etc /mnt/tmp/etc</B>
+# <B>mount --make-slave /mnt/tmp/etc</B>
+# <B>cat /proc/self/mountinfo | egrep '/mnt|/tmp/' | sed 's/ - .*//'</B>
+239 61 8:2 / /mnt ... shared:102
+248 239 0:4 / /mnt/proc ... shared:5
+267 40 8:2 /etc /tmp/etc ... shared:105 master:102
+273 239 8:2 /etc /mnt/tmp/etc ... master:105
+
+
+<P>
+
+From the above, we see that
+<I>/mnt</I>
+
+is the master of the slave
+<I>/tmp/etc</I>,
+
+which in turn is the master of the slave
+<I>/mnt/tmp/etc</I>.
+
+<P>
+
+We then
+<B><A HREF="/cgi-bin/man/man2html?1+chroot">chroot</A></B>(1)
+
+to the
+<I>/mnt</I>
+
+directory, which renders the mount with ID 267 unreachable
+from the (new) root directory:
+<P>
+
+
+
+# <B>chroot /mnt</B>
+
+
+<P>
+
+When we examine the state of the mounts inside the chroot-ed environment,
+we see the following:
+<P>
+
+
+
+# <B>cat /proc/self/mountinfo | sed 's/ - .*//'</B>
+239 61 8:2 / / ... shared:102
+248 239 0:4 / /proc ... shared:5
+273 239 8:2 /etc /tmp/etc ... master:105 propagate_from:102
+
+
+<P>
+
+Above, we see that the mount with ID 273
+is a slave whose master is the peer group 105.
+The mount point for that master is unreachable, and so a
+<I>propagate_from</I>
+
+tag is displayed, indicating that the closest dominant peer group
+(i.e., the nearest reachable mount in the slave chain)
+is the peer group with the ID 102 (corresponding to the
+<I>/mnt</I>
+
+mount point before the
+<B><A HREF="/cgi-bin/man/man2html?1+chroot">chroot</A></B>(1)
+
+was performed.
+
+<A NAME="lbAO">&nbsp;</A>
+<H2>VERSIONS</H2>
+
+Mount namespaces first appeared in Linux 2.4.19.
+<A NAME="lbAP">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+Namespaces are a Linux-specific feature.
+
+<A NAME="lbAQ">&nbsp;</A>
+<H2>NOTES</H2>
+
+The propagation type assigned to a new mount point depends
+on the propagation type of the parent mount.
+If the mount point has a parent (i.e., it is a non-root mount
+point) and the propagation type of the parent is
+<B>MS_SHARED</B>,
+
+then the propagation type of the new mount is also
+<B>MS_SHARED</B>.
+
+Otherwise, the propagation type of the new mount is
+<B>MS_PRIVATE</B>.
+
+<P>
+
+Notwithstanding the fact that the default propagation type
+for new mount points is in many cases
+<B>MS_PRIVATE</B>,
+
+<B>MS_SHARED</B>
+
+is typically more useful.
+For this reason,
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1)
+
+automatically remounts all mount points as
+<B>MS_SHARED</B>
+
+on system startup.
+Thus, on most modern systems, the default propagation type is in practice
+<B>MS_SHARED</B>.
+
+<P>
+
+Since, when one uses
+<B><A HREF="/cgi-bin/man/man2html?1+unshare">unshare</A></B>(1)
+
+to create a mount namespace,
+the goal is commonly to provide full isolation of the mount points
+in the new namespace,
+<B><A HREF="/cgi-bin/man/man2html?1+unshare">unshare</A></B>(1)
+
+(since
+<I>util-linux</I>
+
+version 2.27) in turn reverses the step performed by
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1),
+
+by making all mount points private in the new namespace.
+That is,
+<B><A HREF="/cgi-bin/man/man2html?1+unshare">unshare</A></B>(1)
+
+performs the equivalent of the following in the new mount namespace:
+<P>
+
+
+
+mount --make-rprivate /
+
+
+<P>
+
+To prevent this, one can use the
+<I>--propagation&nbsp;unchanged</I>
+
+option to
+<B><A HREF="/cgi-bin/man/man2html?1+unshare">unshare</A></B>(1).
+
+<P>
+
+An application that creates a new mount namespace directly using
+<B><A HREF="/cgi-bin/man/man2html?2+clone">clone</A></B>(2)
+
+or
+<B><A HREF="/cgi-bin/man/man2html?2+unshare">unshare</A></B>(2)
+
+may desire to prevent propagation of mount events to other mount namespaces
+(as is done by
+<B><A HREF="/cgi-bin/man/man2html?1+unshare">unshare</A></B>(1)).
+
+This can be done by changing the propagation type of
+mount points in the new namespace to either
+<B>MS_SLAVE</B>
+
+or
+<B>MS_PRIVATE</B>.
+
+using a call such as the following:
+<DL COMPACT>
+<DT id="23"><DD>
+
+
+mount(NULL, &quot;/&quot;, MS_SLAVE | MS_REC, NULL);
+
+
+</DL>
+<P>
+
+For a discussion of propagation types when moving mounts
+(<B>MS_MOVE</B>)
+
+and creating bind mounts
+(<B>MS_BIND</B>),
+
+see
+<I>Documentation/filesystems/sharedsubtree.txt</I>.
+
+<A NAME="lbAR">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+See
+<B><A HREF="/cgi-bin/man/man2html?2+pivot_root">pivot_root</A></B>(2).
+
+<A NAME="lbAS">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?1+unshare">unshare</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?2+clone">clone</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+mount">mount</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+pivot_root">pivot_root</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+setns">setns</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+umount">umount</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+unshare">unshare</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?5+proc">proc</A></B>(5),
+
+<B><A HREF="/cgi-bin/man/man2html?7+namespaces">namespaces</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+user_namespaces">user_namespaces</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?8+findmnt">findmnt</A></B>(8),
+
+<B><A HREF="/cgi-bin/man/man2html?8+pivot_root">pivot_root</A></B>(8)
+
+<P>
+
+<I>Documentation/filesystems/sharedsubtree.txt</I>
+
+in the kernel source tree.
+<A NAME="lbAT">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="24"><A HREF="#lbAB">NAME</A><DD>
+<DT id="25"><A HREF="#lbAC">DESCRIPTION</A><DD>
+<DL>
+<DT id="26"><A HREF="#lbAD">Restrictions on mount namespaces</A><DD>
+</DL>
+<DT id="27"><A HREF="#lbAE">SHARED SUBTREES</A><DD>
+<DL>
+<DT id="28"><A HREF="#lbAF">MS_SHARED and MS_PRIVATE example</A><DD>
+<DT id="29"><A HREF="#lbAG">MS_SLAVE example</A><DD>
+<DT id="30"><A HREF="#lbAH">MS_UNBINDABLE example</A><DD>
+<DT id="31"><A HREF="#lbAI">Propagation type transitions</A><DD>
+<DT id="32"><A HREF="#lbAJ">Bind (MS_BIND) semantics</A><DD>
+<DT id="33"><A HREF="#lbAK">Move (MS_MOVE) semantics</A><DD>
+<DT id="34"><A HREF="#lbAL">Mount semantics</A><DD>
+<DT id="35"><A HREF="#lbAM">Unmount semantics</A><DD>
+<DT id="36"><A HREF="#lbAN">The /proc/[pid]/mountinfo propagate_from tag</A><DD>
+</DL>
+<DT id="37"><A HREF="#lbAO">VERSIONS</A><DD>
+<DT id="38"><A HREF="#lbAP">CONFORMING TO</A><DD>
+<DT id="39"><A HREF="#lbAQ">NOTES</A><DD>
+<DT id="40"><A HREF="#lbAR">EXAMPLE</A><DD>
+<DT id="41"><A HREF="#lbAS">SEE ALSO</A><DD>
+<DT id="42"><A HREF="#lbAT">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:09 GMT, March 31, 2021
+</BODY>
+</HTML>

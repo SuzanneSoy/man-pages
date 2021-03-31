@@ -1,0 +1,454 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of ADD_KEY</TITLE>
+</HEAD><BODY>
+<H1>ADD_KEY</H1>
+Section: Linux Key Management Calls (2)<BR>Updated: 2019-03-06<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+add_key - add a key to the kernel's key management facility
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<PRE>
+<B>#include &lt;<A HREF="file:///usr/include/sys/types.h">sys/types.h</A>&gt;</B>
+<B>#include &lt;<A HREF="file:///usr/include/keyutils.h">keyutils.h</A>&gt;</B>
+
+<B>key_serial_t add_key(const char *</B><I>type</I><B>, const char *</B><I>description</I><B>,</B>
+<B>                     const void *</B><I>payload</I><B>, size_t </B><I>plen</I><B>,</B>
+<B>                     key_serial_t </B><I>keyring</I><B>);</B>
+</PRE>
+
+<P>
+
+No glibc wrapper is provided for this system call; see NOTES.
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<B>add_key</B>()
+
+creates or updates a key of the given
+<I>type</I>
+
+and
+<I>description</I>,
+
+instantiates it with the
+<I>payload</I>
+
+of length
+<I>plen</I>,
+
+attaches it to the nominated
+<I>keyring</I>,
+
+and returns the key's serial number.
+<P>
+
+The key may be rejected if the provided data is in the wrong format or
+it is invalid in some other way.
+<P>
+
+If the destination
+<I>keyring</I>
+
+already contains a key that matches the specified
+<I>type</I>
+
+and
+<I>description</I>,
+
+then, if the key type supports it,
+
+
+that key will be updated rather than a new key being created;
+if not, a new key (with a different ID) will be created
+and it will displace the link to the extant key from the keyring.
+
+
+
+
+
+<P>
+
+The destination
+<I>keyring</I>
+
+serial number may be that of a valid keyring for which the caller has
+<I>write</I>
+
+permission.
+Alternatively, it may be one of the following special keyring IDs:
+
+<DL COMPACT>
+<DT id="1"><B>KEY_SPEC_THREAD_KEYRING</B>
+
+<DD>
+This specifies the caller's thread-specific keyring
+(<B><A HREF="/cgi-bin/man/man2html?7+thread-keyring">thread-keyring</A></B>(7)).
+
+<DT id="2"><B>KEY_SPEC_PROCESS_KEYRING</B>
+
+<DD>
+This specifies the caller's process-specific keyring
+(<B><A HREF="/cgi-bin/man/man2html?7+process-keyring">process-keyring</A></B>(7)).
+
+<DT id="3"><B>KEY_SPEC_SESSION_KEYRING</B>
+
+<DD>
+This specifies the caller's session-specific keyring
+(<B><A HREF="/cgi-bin/man/man2html?7+session-keyring">session-keyring</A></B>(7)).
+
+<DT id="4"><B>KEY_SPEC_USER_KEYRING</B>
+
+<DD>
+This specifies the caller's UID-specific keyring
+(<B><A HREF="/cgi-bin/man/man2html?7+user-keyring">user-keyring</A></B>(7)).
+
+<DT id="5"><B>KEY_SPEC_USER_SESSION_KEYRING</B>
+
+<DD>
+This specifies the caller's UID-session keyring
+(<B><A HREF="/cgi-bin/man/man2html?7+user-session-keyring">user-session-keyring</A></B>(7)).
+
+</DL>
+<A NAME="lbAE">&nbsp;</A>
+<H3>Key types</H3>
+
+The key
+<I>type</I>
+
+is a string that specifies the key's type.
+Internally, the kernel defines a number of key types that are
+available in the core key management code.
+Among the types that are available for user-space use
+and can be specified as the
+<I>type</I>
+
+argument to
+<B>add_key</B>()
+
+are the following:
+<DL COMPACT>
+<DT id="6"><I>keyring</I>
+
+<DD>
+Keyrings are special key types that may contain links to sequences of other
+keys of any type.
+If this interface is used to create a keyring, then
+<I>payload</I>
+
+should be NULL and
+<I>plen</I>
+
+should be zero.
+<DT id="7"><I>&quot;user&quot;</I>
+
+<DD>
+This is a general purpose key type whose payload may be read and updated
+by user-space applications.
+The key is kept entirely within kernel memory.
+The payload for keys of this type is a blob of arbitrary data
+of up to 32,767 bytes.
+<DT id="8"><I>&quot;logon&quot;</I> (since Linux 3.3)
+
+<DD>
+
+This key type is essentially the same as
+<I>&quot;user&quot;</I>,
+
+but it does not permit the key to read.
+This is suitable for storing payloads
+that you do not want to be readable from user space.
+</DL>
+<P>
+
+This key type vets the
+<I>description</I>
+
+to ensure that it is qualified by a &quot;service&quot; prefix,
+by checking to ensure that the
+<I>description</I>
+
+contains a ':' that is preceded by other characters.
+<DL COMPACT>
+<DT id="9"><I>&quot;big_key&quot;</I> (since Linux 3.13)
+
+<DD>
+
+This key type is similar to
+<I>&quot;user&quot;</I>,
+
+but may hold a payload of up to 1&nbsp;MiB.
+If the key payload is large enough,
+then it may be stored encrypted in tmpfs
+(which can be swapped out) rather than kernel memory.
+</DL>
+<P>
+
+For further details on these key types, see
+<B><A HREF="/cgi-bin/man/man2html?7+keyrings">keyrings</A></B>(7).
+
+<A NAME="lbAF">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+On success,
+<B>add_key</B>()
+
+returns the serial number of the key it created or updated.
+On error, -1 is returned and
+<I>errno</I>
+
+is set to indicate the cause of the error.
+<A NAME="lbAG">&nbsp;</A>
+<H2>ERRORS</H2>
+
+<DL COMPACT>
+<DT id="10"><B>EACCES</B>
+
+<DD>
+The keyring wasn't available for modification by the user.
+<DT id="11"><B>EDQUOT</B>
+
+<DD>
+The key quota for this user would be exceeded by creating this key or linking
+it to the keyring.
+<DT id="12"><B>EFAULT</B>
+
+<DD>
+One or more of
+<I>type</I>,
+
+<I>description</I>,
+
+and
+<I>payload</I>
+
+points outside process's accessible address space.
+<DT id="13"><B>EINVAL</B>
+
+<DD>
+The size of the string (including the terminating null byte) specified in
+<I>type</I>
+
+or
+<I>description</I>
+
+exceeded the limit (32 bytes and 4096 bytes respectively).
+<DT id="14"><B>EINVAL</B>
+
+<DD>
+The payload data was invalid.
+<DT id="15"><B>EINVAL</B>
+
+<DD>
+<I>type</I>
+
+was
+<I>&quot;logon&quot;</I>
+
+and the
+<I>description</I>
+
+was not qualified with a prefix string of the form
+<I>&quot;service:&quot;</I>.
+
+<DT id="16"><B>EKEYEXPIRED</B>
+
+<DD>
+The keyring has expired.
+<DT id="17"><B>EKEYREVOKED</B>
+
+<DD>
+The keyring has been revoked.
+<DT id="18"><B>ENOKEY</B>
+
+<DD>
+The keyring doesn't exist.
+<DT id="19"><B>ENOMEM</B>
+
+<DD>
+Insufficient memory to create a key.
+<DT id="20"><B>EPERM</B>
+
+<DD>
+The
+<I>type</I>
+
+started with a period ('.').
+Key types that begin with a period are reserved to the implementation.
+<DT id="21"><B>EPERM</B>
+
+<DD>
+<I>type</I>
+
+was
+<I>keyring</I>
+
+and the
+<I>description</I>
+
+started with a period ('.').
+Keyrings with descriptions (names)
+that begin with a period are reserved to the implementation.
+</DL>
+<A NAME="lbAH">&nbsp;</A>
+<H2>VERSIONS</H2>
+
+This system call first appeared in Linux 2.6.10.
+<A NAME="lbAI">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+This system call is a nonstandard Linux extension.
+<A NAME="lbAJ">&nbsp;</A>
+<H2>NOTES</H2>
+
+No wrapper for this system call is provided in glibc.
+A wrapper is provided in the
+<I>libkeyutils</I>
+
+package.
+When employing the wrapper in that library, link with
+<I>-lkeyutils</I>.
+
+<A NAME="lbAK">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+The program below creates a key with the type, description, and payload
+specified in its command-line arguments,
+and links that key into the session keyring.
+The following shell session demonstrates the use of the program:
+<P>
+
+
+
+$ <B>./a.out user mykey &quot;Some payload&quot;</B>
+Key ID is 64a4dca
+$ <B>grep '64a4dca' /proc/keys</B>
+064a4dca I--Q---    1 perm 3f010000  1000  1000 user    mykey: 12
+
+
+<A NAME="lbAL">&nbsp;</A>
+<H3>Program source</H3>
+
+
+
+#include &lt;<A HREF="file:///usr/include/sys/types.h">sys/types.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/keyutils.h">keyutils.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdlib.h">stdlib.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/string.h">string.h</A>&gt;
+<P>
+int
+main(int argc, char *argv[])
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;key_serial_t&nbsp;key;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(argc&nbsp;!=&nbsp;4)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;Usage:&nbsp;%s&nbsp;type&nbsp;description&nbsp;payload\n&quot;,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;argv[0]);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;key&nbsp;=&nbsp;add_key(argv[1],&nbsp;argv[2],&nbsp;argv[3],&nbsp;strlen(argv[3]),
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;KEY_SPEC_SESSION_KEYRING);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(key&nbsp;==&nbsp;-1)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;perror(&quot;add_key&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;Key&nbsp;ID&nbsp;is&nbsp;%lx\n&quot;,&nbsp;(long)&nbsp;key);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_SUCCESS);
+}
+
+<A NAME="lbAM">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+
+<B><A HREF="/cgi-bin/man/man2html?1+keyctl">keyctl</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?2+keyctl">keyctl</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+request_key">request_key</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?3+keyctl">keyctl</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?7+keyrings">keyrings</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+keyutils">keyutils</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+persistent-keyring">persistent-keyring</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+process-keyring">process-keyring</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+session-keyring">session-keyring</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+thread-keyring">thread-keyring</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+user-keyring">user-keyring</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+user-session-keyring">user-session-keyring</A></B>(7)
+
+<P>
+
+The kernel source files
+<I>Documentation/security/keys/core.rst</I>
+
+and
+<I>Documentation/keys/request-key.rst</I>
+
+(or, before Linux 4.13, in the files
+
+<I>Documentation/security/keys.txt</I>
+
+and
+
+<I>Documentation/security/keys-request-key.txt</I>).
+
+<A NAME="lbAN">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="22"><A HREF="#lbAB">NAME</A><DD>
+<DT id="23"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="24"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DL>
+<DT id="25"><A HREF="#lbAE">Key types</A><DD>
+</DL>
+<DT id="26"><A HREF="#lbAF">RETURN VALUE</A><DD>
+<DT id="27"><A HREF="#lbAG">ERRORS</A><DD>
+<DT id="28"><A HREF="#lbAH">VERSIONS</A><DD>
+<DT id="29"><A HREF="#lbAI">CONFORMING TO</A><DD>
+<DT id="30"><A HREF="#lbAJ">NOTES</A><DD>
+<DT id="31"><A HREF="#lbAK">EXAMPLE</A><DD>
+<DL>
+<DT id="32"><A HREF="#lbAL">Program source</A><DD>
+</DL>
+<DT id="33"><A HREF="#lbAM">SEE ALSO</A><DD>
+<DT id="34"><A HREF="#lbAN">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:32 GMT, March 31, 2021
+</BODY>
+</HTML>

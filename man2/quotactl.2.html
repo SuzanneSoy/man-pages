@@ -1,0 +1,1072 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of QUOTACTL</TITLE>
+</HEAD><BODY>
+<H1>QUOTACTL</H1>
+Section: Linux Programmer's Manual (2)<BR>Updated: 2019-11-19<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+quotactl - manipulate disk quotas
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<PRE>
+<B>#include &lt;<A HREF="file:///usr/include/sys/quota.h">sys/quota.h</A>&gt;</B>
+<B>#include &lt;<A HREF="file:///usr/include/xfs/xqm.h">xfs/xqm.h</A>&gt; /* for XFS quotas */</B>
+
+<B>int quotactl(int </B><I>cmd</I><B>, const char *</B><I>special</I><B>, int </B><I>id</I><B>, caddr_t </B><I>addr</I><B>);</B>
+</PRE>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+The quota system can be used to set per-user, per-group, and per-project limits
+on the amount of disk space used on a filesystem.
+For each user and/or group,
+a soft limit and a hard limit can be set for each filesystem.
+The hard limit can't be exceeded.
+The soft limit can be exceeded, but warnings will ensue.
+Moreover, the user can't exceed the soft limit for more than grace period
+duration (one week by default) at a time;
+after this, the soft limit counts as a hard limit.
+<P>
+
+The
+<B>quotactl</B>()
+
+call manipulates disk quotas.
+The
+<I>cmd</I>
+
+argument indicates a command to be applied to the user or
+group ID specified in
+<I>id</I>.
+
+To initialize the
+<I>cmd</I>
+
+argument, use the
+<I>QCMD(subcmd, type)</I>
+
+macro.
+The
+<I>type</I>
+
+value is either
+<B>USRQUOTA</B>,
+
+for user quotas,
+<B>GRPQUOTA</B>,
+
+for group quotas, or (since Linux 4.1)
+
+<B>PRJQUOTA</B>,
+
+for project quotas.
+The
+<I>subcmd</I>
+
+value is described below.
+<P>
+
+The
+<I>special</I>
+
+argument is a pointer to a null-terminated string containing the pathname
+of the (mounted) block special device for the filesystem being manipulated.
+<P>
+
+The
+<I>addr</I>
+
+argument is the address of an optional, command-specific, data structure
+that is copied in or out of the system.
+The interpretation of
+<I>addr</I>
+
+is given with each operation below.
+<P>
+
+The
+<I>subcmd</I>
+
+value is one of the following operations:
+<DL COMPACT>
+<DT id="1"><B>Q_QUOTAON</B>
+
+<DD>
+Turn on quotas for a filesystem.
+The
+<I>id</I>
+
+argument is the identification number of the quota format to be used.
+Currently, there are three supported quota formats:
+<DL COMPACT><DT id="2"><DD>
+<DL COMPACT>
+<DT id="3"><B>QFMT_VFS_OLD</B>
+
+<DD>
+The original quota format.
+<DT id="4"><B>QFMT_VFS_V0</B>
+
+<DD>
+The standard VFS v0 quota format, which can handle 32-bit UIDs and GIDs
+and quota limits up to 2^42 bytes and 2^32 inodes.
+<DT id="5"><B>QFMT_VFS_V1</B>
+
+<DD>
+A quota format that can handle 32-bit UIDs and GIDs
+and quota limits of 2^64 bytes and 2^64 inodes.
+</DL>
+</DL>
+
+<DT id="6"><DD>
+The
+<I>addr</I>
+
+argument points to the pathname of a file containing the quotas for
+the filesystem.
+The quota file must exist; it is normally created with the
+<B><A HREF="/cgi-bin/man/man2html?8+quotacheck">quotacheck</A></B>(8)
+
+program
+<DT id="7"><DD>
+Quota information can be also stored in hidden system inodes
+for ext4, XFS, and other filesystems if the filesystem is configured so.
+In this case, there are no visible quota files and there is no need to
+use
+<B><A HREF="/cgi-bin/man/man2html?8+quotacheck">quotacheck</A></B>(8).
+
+Quota information is always kept consistent by the filesystem and the
+<B>Q_QUOTAON</B>
+
+operation serves only to enable enforcement of quota limits.
+The presence of hidden
+system inodes with quota information is indicated by the
+<B>DQF_SYS_FILE</B>
+
+flag in the
+<I>dqi_flags</I>
+
+field returned by the
+<B>Q_GETINFO</B>
+
+operation.
+<DT id="8"><DD>
+This operation requires privilege
+(<B>CAP_SYS_ADMIN</B>).
+
+<DT id="9"><B>Q_QUOTAOFF</B>
+
+<DD>
+Turn off quotas for a filesystem.
+The
+<I>addr</I>
+
+and
+<I>id</I>
+
+arguments are ignored.
+This operation requires privilege
+(<B>CAP_SYS_ADMIN</B>).
+
+<DT id="10"><B>Q_GETQUOTA</B>
+
+<DD>
+Get disk quota limits and current usage for user or group
+<I>id</I>.
+
+The
+<I>addr</I>
+
+argument is a pointer to a
+<I>dqblk</I>
+
+structure defined in
+<I>&lt;<A HREF="file:///usr/include/sys/quota.h">sys/quota.h</A>&gt;</I>
+
+as follows:
+<DT id="11"><DD>
+
+
+/* uint64_t is an unsigned 64-bit integer;
+<BR>&nbsp;&nbsp;&nbsp;uint32_t&nbsp;is&nbsp;an&nbsp;unsigned&nbsp;32-bit&nbsp;integer&nbsp;*/
+<P>
+struct dqblk {      /* Definition since Linux 2.4.22 */
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;dqb_bhardlimit;&nbsp;&nbsp;/*&nbsp;Absolute&nbsp;limit&nbsp;on&nbsp;disk
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;quota&nbsp;blocks&nbsp;alloc&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;dqb_bsoftlimit;&nbsp;&nbsp;/*&nbsp;Preferred&nbsp;limit&nbsp;on
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;disk&nbsp;quota&nbsp;blocks&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;dqb_curspace;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Current&nbsp;occupied&nbsp;space
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(in&nbsp;bytes)&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;dqb_ihardlimit;&nbsp;&nbsp;/*&nbsp;Maximum&nbsp;number&nbsp;of
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;allocated&nbsp;inodes&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;dqb_isoftlimit;&nbsp;&nbsp;/*&nbsp;Preferred&nbsp;inode&nbsp;limit&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;dqb_curinodes;&nbsp;&nbsp;&nbsp;/*&nbsp;Current&nbsp;number&nbsp;of
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;allocated&nbsp;inodes&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;dqb_btime;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Time&nbsp;limit&nbsp;for&nbsp;excessive
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;disk&nbsp;use&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;dqb_itime;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Time&nbsp;limit&nbsp;for&nbsp;excessive
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;files&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;dqb_valid;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Bit&nbsp;mask&nbsp;of&nbsp;QIF_*
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;constants&nbsp;*/
+};
+<P>
+/* Flags in dqb_valid that indicate which fields in
+<BR>&nbsp;&nbsp;&nbsp;dqblk&nbsp;structure&nbsp;are&nbsp;valid.&nbsp;*/
+<P>
+#define QIF_BLIMITS   1
+#define QIF_SPACE     2
+#define QIF_ILIMITS   4
+#define QIF_INODES    8
+#define QIF_BTIME     16
+#define QIF_ITIME     32
+#define QIF_LIMITS    (QIF_BLIMITS | QIF_ILIMITS)
+#define QIF_USAGE     (QIF_SPACE | QIF_INODES)
+#define QIF_TIMES     (QIF_BTIME | QIF_ITIME)
+#define QIF_ALL       (QIF_LIMITS | QIF_USAGE | QIF_TIMES)
+
+
+<DT id="12"><DD>
+The
+<I>dqb_valid</I>
+
+field is a bit mask that is set to indicate the entries in the
+<I>dqblk</I>
+
+structure that are valid.
+Currently, the kernel fills in all entries of the
+<I>dqblk</I>
+
+structure and marks them as valid in the
+<I>dqb_valid</I>
+
+field.
+Unprivileged users may retrieve only their own quotas;
+a privileged user
+(<B>CAP_SYS_ADMIN</B>)
+
+can retrieve the quotas of any user.
+<DT id="13"><B>Q_GETNEXTQUOTA</B> (since Linux 4.6)
+
+<DD>
+
+This operation is the same as
+<B>Q_GETQUOTA</B>,
+
+but it returns quota information for the next ID greater than or equal to
+<I>id</I>
+
+that has a quota set.
+<DT id="14"><DD>
+The
+<I>addr</I>
+
+argument is a pointer to a
+<I>nextdqblk</I>
+
+structure whose fields are as for the
+<I>dqblk</I>,
+
+except for the addition of a
+<I>dqb_id</I>
+
+field that is used to return the ID for which
+quota information is being returned:
+<DT id="15"><DD>
+
+
+struct nextdqblk {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;dqb_bhardlimit;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;dqb_bsoftlimit;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;dqb_curspace;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;dqb_ihardlimit;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;dqb_isoftlimit;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;dqb_curinodes;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;dqb_btime;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;dqb_itime;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;dqb_valid;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;dqb_id;
+};
+
+
+<DT id="16"><B>Q_SETQUOTA</B>
+
+<DD>
+Set quota information for user or group
+<I>id</I>,
+
+using the information supplied in the
+<I>dqblk</I>
+
+structure pointed to by
+<I>addr</I>.
+
+The
+<I>dqb_valid</I>
+
+field of the
+<I>dqblk</I>
+
+structure indicates which entries in the structure have been set by the caller.
+This operation supersedes the
+<B>Q_SETQLIM</B>
+
+and
+<B>Q_SETUSE</B>
+
+operations in the previous quota interfaces.
+This operation requires privilege
+(<B>CAP_SYS_ADMIN</B>).
+
+<DT id="17"><B>Q_GETINFO</B> (since Linux 2.4.22)
+
+<DD>
+Get information (like grace times) about quotafile.
+The
+<I>addr</I>
+
+argument should be a pointer to a
+<I>dqinfo</I>
+
+structure.
+This structure is defined in
+<I>&lt;<A HREF="file:///usr/include/sys/quota.h">sys/quota.h</A>&gt;</I>
+
+as follows:
+<DT id="18"><DD>
+
+
+/* uint64_t is an unsigned 64-bit integer;
+<BR>&nbsp;&nbsp;&nbsp;uint32_t&nbsp;is&nbsp;an&nbsp;unsigned&nbsp;32-bit&nbsp;integer&nbsp;*/
+<P>
+struct dqinfo {         /* Defined since kernel 2.4.22 */
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;dqi_bgrace;&nbsp;&nbsp;/*&nbsp;Time&nbsp;before&nbsp;block&nbsp;soft&nbsp;limit
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;becomes&nbsp;hard&nbsp;limit&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;dqi_igrace;&nbsp;&nbsp;/*&nbsp;Time&nbsp;before&nbsp;inode&nbsp;soft&nbsp;limit
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;becomes&nbsp;hard&nbsp;limit&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;dqi_flags;&nbsp;&nbsp;&nbsp;/*&nbsp;Flags&nbsp;for&nbsp;quotafile
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(DQF_*)&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;dqi_valid;
+};
+<P>
+/* Bits for dqi_flags */
+<P>
+/* Quota format QFMT_VFS_OLD */
+<P>
+#define DQF_ROOT_SQUASH (1 &lt;&lt; 0) /* Root squash enabled */
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Before&nbsp;Linux&nbsp;v4.0,&nbsp;this&nbsp;had&nbsp;been&nbsp;defined
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;privately&nbsp;as&nbsp;V1_DQF_RSQUASH&nbsp;*/
+<P>
+/* Quota format QFMT_VFS_V0 / QFMT_VFS_V1 */
+<P>
+#define DQF_SYS_FILE    (1 &lt;&lt; 16)   /* Quota stored in
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;a&nbsp;system&nbsp;file&nbsp;*/
+<P>
+/* Flags in dqi_valid that indicate which fields in
+<BR>&nbsp;&nbsp;&nbsp;dqinfo&nbsp;structure&nbsp;are&nbsp;valid.&nbsp;*/
+<P>
+#define IIF_BGRACE  1
+#define IIF_IGRACE  2
+#define IIF_FLAGS   4
+#define IIF_ALL     (IIF_BGRACE | IIF_IGRACE | IIF_FLAGS)
+
+
+<DT id="19"><DD>
+The
+<I>dqi_valid</I>
+
+field in the
+<I>dqinfo</I>
+
+structure indicates the entries in the structure that are valid.
+Currently, the kernel fills in all entries of the
+<I>dqinfo</I>
+
+structure and marks them all as valid in the
+<I>dqi_valid</I>
+
+field.
+The
+<I>id</I>
+
+argument is ignored.
+<DT id="20"><B>Q_SETINFO</B> (since Linux 2.4.22)
+
+<DD>
+Set information about quotafile.
+The
+<I>addr</I>
+
+argument should be a pointer to a
+<I>dqinfo</I>
+
+structure.
+The
+<I>dqi_valid</I>
+
+field of the
+<I>dqinfo</I>
+
+structure indicates the entries in the structure
+that have been set by the caller.
+This operation supersedes the
+<B>Q_SETGRACE</B>
+
+and
+<B>Q_SETFLAGS</B>
+
+operations in the previous quota interfaces.
+The
+<I>id</I>
+
+argument is ignored.
+This operation requires privilege
+(<B>CAP_SYS_ADMIN</B>).
+
+<DT id="21"><B>Q_GETFMT</B> (since Linux 2.4.22)
+
+<DD>
+Get quota format used on the specified filesystem.
+The
+<I>addr</I>
+
+argument should be a pointer to a 4-byte buffer
+where the format number will be stored.
+<DT id="22"><B>Q_SYNC</B>
+
+<DD>
+Update the on-disk copy of quota usages for a filesystem.
+If
+<I>special</I>
+
+is NULL, then all filesystems with active quotas are sync'ed.
+The
+<I>addr</I>
+
+and
+<I>id</I>
+
+arguments are ignored.
+<DT id="23"><B>Q_GETSTATS</B> (supported up to Linux 2.4.21)
+
+<DD>
+Get statistics and other generic information about the quota subsystem.
+The
+<I>addr</I>
+
+argument should be a pointer to a
+<I>dqstats</I>
+
+structure in which data should be stored.
+This structure is defined in
+<I>&lt;<A HREF="file:///usr/include/sys/quota.h">sys/quota.h</A>&gt;</I>.
+
+The
+<I>special</I>
+
+and
+<I>id</I>
+
+arguments are ignored.
+<DT id="24"><DD>
+This operation is obsolete and was removed in Linux 2.4.22.
+Files in
+<I>/proc/sys/fs/quota/</I>
+
+carry the information instead.
+</DL>
+<P>
+
+For XFS filesystems making use of the XFS Quota Manager (XQM),
+the above operations are bypassed and the following operations are used:
+<DL COMPACT>
+<DT id="25"><B>Q_XQUOTAON</B>
+
+<DD>
+Turn on quotas for an XFS filesystem.
+XFS provides the ability to turn on/off quota limit enforcement
+with quota accounting.
+Therefore, XFS expects
+<I>addr</I>
+
+to be a pointer to an
+<I>unsigned int</I>
+
+that contains a bit-wise combination of the following flags (defined in
+<I>&lt;<A HREF="file:///usr/include/xfs/xqm.h">xfs/xqm.h</A>&gt;</I>):
+
+<DT id="26"><DD>
+
+
+XFS_QUOTA_UDQ_ACCT  /* User quota accounting */
+XFS_QUOTA_UDQ_ENFD  /* User quota limits enforcement */
+XFS_QUOTA_GDQ_ACCT  /* Group quota accounting */
+XFS_QUOTA_GDQ_ENFD  /* Group quota limits enforcement */
+XFS_QUOTA_PDQ_ACCT  /* Project quota accounting */
+XFS_QUOTA_PDQ_ENFD  /* Project quota limits enforcement */
+
+
+<DT id="27"><DD>
+This operation requires privilege
+(<B>CAP_SYS_ADMIN</B>).
+
+The
+<I>id</I>
+
+argument is ignored.
+<DT id="28"><B>Q_XQUOTAOFF</B>
+
+<DD>
+Turn off quotas for an XFS filesystem.
+As with
+<B>Q_QUOTAON</B>,
+
+XFS filesystems expect a pointer to an
+<I>unsigned int</I>
+
+that specifies whether quota accounting and/or limit enforcement need
+to be turned off (using the same flags as for
+<B>Q_XQUOTAON</B>
+
+operation).
+This operation requires privilege
+(<B>CAP_SYS_ADMIN</B>).
+
+The
+<I>id</I>
+
+argument is ignored.
+<DT id="29"><B>Q_XGETQUOTA</B>
+
+<DD>
+Get disk quota limits and current usage for user
+<I>id</I>.
+
+The
+<I>addr</I>
+
+argument is a pointer to an
+<I>fs_disk_quota</I>
+
+structure, which is defined in
+<I>&lt;<A HREF="file:///usr/include/xfs/xqm.h">xfs/xqm.h</A>&gt;</I>
+
+as follows:
+<DT id="30"><DD>
+
+
+/* All the blk units are in BBs (Basic Blocks) of
+<BR>&nbsp;&nbsp;&nbsp;512&nbsp;bytes.&nbsp;*/
+<P>
+#define FS_DQUOT_VERSION  1  /* fs_disk_quota.d_version */
+<P>
+#define XFS_USER_QUOTA    (1&lt;&lt;0)  /* User quota type */
+#define XFS_PROJ_QUOTA    (1&lt;&lt;1)  /* Project quota type */
+#define XFS_GROUP_QUOTA   (1&lt;&lt;2)  /* Group quota type */
+<P>
+struct fs_disk_quota {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int8_t&nbsp;&nbsp;&nbsp;d_version;&nbsp;&nbsp;&nbsp;/*&nbsp;Version&nbsp;of&nbsp;this&nbsp;structure&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int8_t&nbsp;&nbsp;&nbsp;d_flags;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;XFS_{USER,PROJ,GROUP}_QUOTA&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint16_t&nbsp;d_fieldmask;&nbsp;/*&nbsp;Field&nbsp;specifier&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;d_id;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;User,&nbsp;project,&nbsp;or&nbsp;group&nbsp;ID&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;d_blk_hardlimit;&nbsp;/*&nbsp;Absolute&nbsp;limit&nbsp;on
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;disk&nbsp;blocks&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;d_blk_softlimit;&nbsp;/*&nbsp;Preferred&nbsp;limit&nbsp;on
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;disk&nbsp;blocks&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;d_ino_hardlimit;&nbsp;/*&nbsp;Maximum&nbsp;#&nbsp;allocated
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;inodes&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;d_ino_softlimit;&nbsp;/*&nbsp;Preferred&nbsp;inode&nbsp;limit&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;d_bcount;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;#&nbsp;disk&nbsp;blocks&nbsp;owned&nbsp;by
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;the&nbsp;user&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;d_icount;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;#&nbsp;inodes&nbsp;owned&nbsp;by&nbsp;the&nbsp;user&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int32_t&nbsp;&nbsp;d_itimer;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Zero&nbsp;if&nbsp;within&nbsp;inode&nbsp;limits&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;If&nbsp;not,&nbsp;we&nbsp;refuse&nbsp;service&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int32_t&nbsp;&nbsp;d_btimer;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Similar&nbsp;to&nbsp;above;&nbsp;for
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;disk&nbsp;blocks&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint16_t&nbsp;d_iwarns;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;#&nbsp;warnings&nbsp;issued&nbsp;with
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;respect&nbsp;to&nbsp;#&nbsp;of&nbsp;inodes&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint16_t&nbsp;d_bwarns;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;#&nbsp;warnings&nbsp;issued&nbsp;with
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;respect&nbsp;to&nbsp;disk&nbsp;blocks&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int32_t&nbsp;&nbsp;d_padding2;&nbsp;&nbsp;/*&nbsp;Padding&nbsp;-&nbsp;for&nbsp;future&nbsp;use&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;d_rtb_hardlimit;&nbsp;/*&nbsp;Absolute&nbsp;limit&nbsp;on&nbsp;realtime
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(RT)&nbsp;disk&nbsp;blocks&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;d_rtb_softlimit;&nbsp;/*&nbsp;Preferred&nbsp;limit&nbsp;on&nbsp;RT
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;disk&nbsp;blocks&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;d_rtbcount;&nbsp;&nbsp;/*&nbsp;#&nbsp;realtime&nbsp;blocks&nbsp;owned&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int32_t&nbsp;&nbsp;d_rtbtimer;&nbsp;&nbsp;/*&nbsp;Similar&nbsp;to&nbsp;above;&nbsp;for&nbsp;RT
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;disk&nbsp;blocks&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint16_t&nbsp;d_rtbwarns;&nbsp;&nbsp;/*&nbsp;#&nbsp;warnings&nbsp;issued&nbsp;with
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;respect&nbsp;to&nbsp;RT&nbsp;disk&nbsp;blocks&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int16_t&nbsp;&nbsp;d_padding3;&nbsp;&nbsp;/*&nbsp;Padding&nbsp;-&nbsp;for&nbsp;future&nbsp;use&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;d_padding4[8];&nbsp;&nbsp;&nbsp;/*&nbsp;Yet&nbsp;more&nbsp;padding&nbsp;*/
+};
+
+
+<DT id="31"><DD>
+Unprivileged users may retrieve only their own quotas;
+a privileged user
+(<B>CAP_SYS_ADMIN</B>)
+
+may retrieve the quotas of any user.
+<DT id="32"><B>Q_XGETNEXTQUOTA</B> (since Linux 4.6)
+
+<DD>
+
+This operation is the same as
+<B>Q_XGETQUOTA</B>,
+
+but it returns (in the
+<I>fs_disk_quota</I>
+
+structure pointed by
+<I>addr</I>)
+
+quota information for the next ID greater than or equal to
+<I>id</I>
+
+that has a quota set.
+Note that since
+<I>fs_disk_quota</I>
+
+already has
+<I>q_id</I>
+
+field, no separate structure type is needed (in contrast with
+<B>Q_GETQUOTA</B>
+
+and
+<B>Q_GETNEXTQUOTA</B>
+
+operations)
+<DT id="33"><B>Q_XSETQLIM</B>
+
+<DD>
+Set disk quota limits for user
+<I>id</I>.
+
+The
+<I>addr</I>
+
+argument is a pointer to an
+<I>fs_disk_quota</I>
+
+structure.
+This operation requires privilege
+(<B>CAP_SYS_ADMIN</B>).
+
+<DT id="34"><B>Q_XGETQSTAT</B>
+
+<DD>
+Returns XFS filesystem-specific quota information in the
+<I>fs_quota_stat</I>
+
+structure pointed by
+<I>addr</I>.
+
+This is useful for finding out how much space is used to store quota
+information, and also to get the quota on/off status of a given local XFS
+filesystem.
+The
+<I>fs_quota_stat</I>
+
+structure itself is defined as follows:
+<DT id="35"><DD>
+
+
+#define FS_QSTAT_VERSION 1  /* fs_quota_stat.qs_version */
+<P>
+struct fs_qfilestat {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;qfs_ino;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Inode&nbsp;number&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;qfs_nblks;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Number&nbsp;of&nbsp;BBs
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;512-byte-blocks&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;qfs_nextents;&nbsp;&nbsp;/*&nbsp;Number&nbsp;of&nbsp;extents&nbsp;*/
+};
+<P>
+struct fs_quota_stat {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int8_t&nbsp;&nbsp;&nbsp;qs_version;&nbsp;/*&nbsp;Version&nbsp;number&nbsp;for
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;future&nbsp;changes&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint16_t&nbsp;qs_flags;&nbsp;/*&nbsp;XFS_QUOTA_{U,P,G}DQ_{ACCT,ENFD}&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int8_t&nbsp;&nbsp;&nbsp;qs_pad;&nbsp;&nbsp;&nbsp;/*&nbsp;Unused&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;fs_qfilestat&nbsp;qs_uquota;&nbsp;&nbsp;/*&nbsp;User&nbsp;quota&nbsp;storage
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;information&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;fs_qfilestat&nbsp;qs_gquota;&nbsp;&nbsp;/*&nbsp;Group&nbsp;quota&nbsp;storage
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;information&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;qs_incoredqs;&nbsp;&nbsp;&nbsp;/*&nbsp;Number&nbsp;of&nbsp;dquots&nbsp;in&nbsp;core&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int32_t&nbsp;&nbsp;qs_btimelimit;&nbsp;&nbsp;/*&nbsp;Limit&nbsp;for&nbsp;blocks&nbsp;timer&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int32_t&nbsp;&nbsp;qs_itimelimit;&nbsp;&nbsp;/*&nbsp;Limit&nbsp;for&nbsp;inodes&nbsp;timer&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int32_t&nbsp;&nbsp;qs_rtbtimelimit;/*&nbsp;Limit&nbsp;for&nbsp;RT
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;blocks&nbsp;timer&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint16_t&nbsp;qs_bwarnlimit;&nbsp;&nbsp;/*&nbsp;Limit&nbsp;for&nbsp;#&nbsp;of&nbsp;warnings&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint16_t&nbsp;qs_iwarnlimit;&nbsp;&nbsp;/*&nbsp;Limit&nbsp;for&nbsp;#&nbsp;of&nbsp;warnings&nbsp;*/
+};
+
+
+<DT id="36"><DD>
+The
+<I>id</I>
+
+argument is ignored.
+<DT id="37"><B>Q_XGETQSTATV</B>
+
+<DD>
+Returns XFS filesystem-specific quota information in the
+<I>fs_quota_statv</I>
+
+pointed to by
+<I>addr</I>.
+
+This version of the operation uses a structure with proper versioning support,
+along with appropriate layout (all fields are naturally aligned) and
+padding to avoiding special compat handling;
+it also provides the ability to get statistics regarding
+the project quota file.
+The
+<I>fs_quota_statv</I>
+
+structure itself is defined as follows:
+<DT id="38"><DD>
+
+
+#define FS_QSTATV_VERSION1 1 /* fs_quota_statv.qs_version */
+<P>
+struct fs_qfilestatv {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;qfs_ino;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Inode&nbsp;number&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;qfs_nblks;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Number&nbsp;of&nbsp;BBs
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;512-byte-blocks&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;qfs_nextents;&nbsp;&nbsp;/*&nbsp;Number&nbsp;of&nbsp;extents&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;qfs_pad;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Pad&nbsp;for&nbsp;8-byte&nbsp;alignment&nbsp;*/
+};
+<P>
+struct fs_quota_statv {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int8_t&nbsp;&nbsp;&nbsp;qs_version;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Version&nbsp;for&nbsp;future
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;changes&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint8_t&nbsp;&nbsp;qs_pad1;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Pad&nbsp;for&nbsp;16-bit&nbsp;alignment&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint16_t&nbsp;qs_flags;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;XFS_QUOTA_.*&nbsp;flags&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;qs_incoredqs;&nbsp;&nbsp;/*&nbsp;Number&nbsp;of&nbsp;dquots&nbsp;incore&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;fs_qfilestatv&nbsp;qs_uquota;&nbsp;&nbsp;/*&nbsp;User&nbsp;quota
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;information&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;fs_qfilestatv&nbsp;qs_gquota;&nbsp;&nbsp;/*&nbsp;Group&nbsp;quota
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;information&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;fs_qfilestatv&nbsp;qs_pquota;&nbsp;&nbsp;/*&nbsp;Project&nbsp;quota
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;information&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int32_t&nbsp;&nbsp;qs_btimelimit;&nbsp;&nbsp;&nbsp;/*&nbsp;Limit&nbsp;for&nbsp;blocks&nbsp;timer&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int32_t&nbsp;&nbsp;qs_itimelimit;&nbsp;&nbsp;&nbsp;/*&nbsp;Limit&nbsp;for&nbsp;inodes&nbsp;timer&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int32_t&nbsp;&nbsp;qs_rtbtimelimit;&nbsp;/*&nbsp;Limit&nbsp;for&nbsp;RT&nbsp;blocks
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;timer&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint16_t&nbsp;qs_bwarnlimit;&nbsp;&nbsp;&nbsp;/*&nbsp;Limit&nbsp;for&nbsp;#&nbsp;of&nbsp;warnings&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint16_t&nbsp;qs_iwarnlimit;&nbsp;&nbsp;&nbsp;/*&nbsp;Limit&nbsp;for&nbsp;#&nbsp;of&nbsp;warnings&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;qs_pad2[8];&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;For&nbsp;future&nbsp;proofing&nbsp;*/
+};
+
+
+<DT id="39"><DD>
+The
+<I>qs_version</I>
+
+field of the structure should be filled with the version of the structure
+supported by the callee (for now, only
+<I>FS_QSTAT_VERSION1</I>
+
+is supported).
+The kernel will fill the structure in accordance with
+version provided.
+The
+<I>id</I>
+
+argument is ignored.
+<DT id="40"><B>Q_XQUOTARM  (since Linux 3.16)</B>
+
+<DD>
+
+Free the disk space taken by disk quotas.
+The
+<I>addr</I>
+
+argument should be a pointer to an
+<I>unsigned int</I>
+
+value containing flags (the same as in
+<I>d_flags</I>
+
+field of
+<I>fs_disk_quota</I>
+
+structure)
+which identify what types of quota
+should be removed.
+(Note that the quota type passed in the
+<I>cmd</I>
+
+argument is ignored, but should remain valid in order to pass preliminary
+quotactl syscall handler checks.)
+<DT id="41"><DD>
+Quotas must have already been turned off.
+The
+<I>id</I>
+
+argument is ignored.
+<DT id="42"><B>Q_XQUOTASYNC</B> (since Linux 2.6.15; no-op since Linux 3.4)
+
+<DD>
+
+This operation was an XFS quota equivalent to
+<B>Q_SYNC</B>,
+
+but it is no-op since Linux 3.4,
+
+as
+<B><A HREF="/cgi-bin/man/man2html?1+sync">sync</A></B>(1)
+
+writes quota information to disk now
+(in addition to the other filesystem metadata that it writes out).
+The
+<I>special</I>, <I>id</I> and <I>addr</I>
+
+arguments are ignored.
+</DL>
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+<P>
+
+On success,
+<B>quotactl</B>()
+
+returns 0; on error -1
+is returned, and
+<I>errno</I>
+
+is set to indicate the error.
+<A NAME="lbAF">&nbsp;</A>
+<H2>ERRORS</H2>
+
+<DL COMPACT>
+<DT id="43"><B>EACCES</B>
+
+<DD>
+<I>cmd</I>
+
+is
+<B>Q_QUOTAON</B>,
+
+and the quota file pointed to by
+<I>addr</I>
+
+exists, but is not a regular file or
+is not on the filesystem pointed to by
+<I>special</I>.
+
+<DT id="44"><B>EBUSY</B>
+
+<DD>
+<I>cmd</I>
+
+is
+<B>Q_QUOTAON</B>,
+
+but another
+<B>Q_QUOTAON</B>
+
+had already been performed.
+<DT id="45"><B>EFAULT</B>
+
+<DD>
+<I>addr</I>
+
+or
+<I>special</I>
+
+is invalid.
+<DT id="46"><B>EINVAL</B>
+
+<DD>
+<I>cmd</I>
+
+or
+<I>type</I>
+
+is invalid.
+<DT id="47"><B>EINVAL</B>
+
+<DD>
+<I>cmd</I>
+
+is
+<B>Q_QUOTAON</B>,
+
+but the specified quota file is corrupted.
+<DT id="48"><B>EINVAL</B> (since Linux 5.5)
+
+<DD>
+
+<I>cmd</I>
+
+is
+<B>Q_XQUOTARM</B>,
+
+but
+<I>addr</I>
+
+does not point to valid quota types.
+<DT id="49"><B>ENOENT</B>
+
+<DD>
+The file specified by
+<I>special</I>
+
+or
+<I>addr</I>
+
+does not exist.
+<DT id="50"><B>ENOSYS</B>
+
+<DD>
+The kernel has not been compiled with the
+<B>CONFIG_QUOTA</B>
+
+option.
+<DT id="51"><B>ENOTBLK</B>
+
+<DD>
+<I>special</I>
+
+is not a block device.
+<DT id="52"><B>EPERM</B>
+
+<DD>
+The caller lacked the required privilege
+(<B>CAP_SYS_ADMIN</B>)
+
+for the specified operation.
+<DT id="53"><B>ERANGE</B>
+
+<DD>
+<I>cmd</I>
+
+is
+<B>Q_SETQUOTA</B>,
+
+but the specified limits are out of the range allowed by the quota format.
+<DT id="54"><B>ESRCH</B>
+
+<DD>
+No disk quota is found for the indicated user.
+Quotas have not been turned on for this filesystem.
+<DT id="55"><B>ESRCH</B>
+
+<DD>
+<I>cmd</I>
+
+is
+<B>Q_QUOTAON</B>,
+
+but the specified quota format was not found.
+<DT id="56"><B>ESRCH</B>
+
+<DD>
+<I>cmd</I>
+
+is
+<B>Q_GETNEXTQUOTA</B>
+
+or
+<B>Q_XGETNEXTQUOTA</B>,
+
+but there is no ID greater than or equal to
+<I>id</I>
+
+that has an active quota.
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H2>NOTES</H2>
+
+Instead of
+<I>&lt;<A HREF="file:///usr/include/xfs/xqm.h">xfs/xqm.h</A>&gt;</I>
+
+one can use
+<I>&lt;<A HREF="file:///usr/include/linux/dqblk_xfs.h">linux/dqblk_xfs.h</A>&gt;</I>,
+
+taking into account that there are several naming discrepancies:
+<DL COMPACT>
+<DT id="57">&bull;<DD>
+Quota enabling flags (of format
+<B>XFS_QUOTA_[UGP]DQ_{ACCT,ENFD}</B>)
+
+are defined without a leading &quot;X&quot;, as
+<B>FS_QUOTA_[UGP]DQ_{ACCT,ENFD}</B>.
+
+<DT id="58">&bull;<DD>
+The same is true for
+<B>XFS_{USER,GROUP,PROJ}_QUOTA</B>
+
+quota type flags, which are defined as
+<B>FS_{USER,GROUP,PROJ}_QUOTA</B>.
+
+<DT id="59">&bull;<DD>
+The
+<I>dqblk_xfs.h</I>
+
+header file defines its own
+<B>XQM_USRQUOTA</B>,
+
+<B>XQM_GRPQUOTA</B>,
+
+and
+<B>XQM_PRJQUOTA</B>
+
+constants for the available quota types, but their values are the same as for
+constants without the
+<B>XQM_</B>
+
+prefix.
+</DL>
+<A NAME="lbAH">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?1+quota">quota</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?2+getrlimit">getrlimit</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?8+quotacheck">quotacheck</A></B>(8),
+
+<B><A HREF="/cgi-bin/man/man2html?8+quotaon">quotaon</A></B>(8)
+
+<A NAME="lbAI">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="60"><A HREF="#lbAB">NAME</A><DD>
+<DT id="61"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="62"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="63"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DT id="64"><A HREF="#lbAF">ERRORS</A><DD>
+<DT id="65"><A HREF="#lbAG">NOTES</A><DD>
+<DT id="66"><A HREF="#lbAH">SEE ALSO</A><DD>
+<DT id="67"><A HREF="#lbAI">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:34 GMT, March 31, 2021
+</BODY>
+</HTML>

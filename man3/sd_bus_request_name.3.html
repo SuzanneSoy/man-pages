@@ -1,0 +1,237 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SD_BUS_REQUEST_NAME</TITLE>
+</HEAD><BODY>
+<H1>SD_BUS_REQUEST_NAME</H1>
+Section: sd_bus_request_name (3)<BR>Updated: <BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+sd_bus_request_name, sd_bus_request_name_async, sd_bus_release_name, sd_bus_release_name_async - Request or release a well-known service name on a bus
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+<B>
+</B><PRE>
+#include &lt;<A HREF="file:///usr/include/systemd/sd-bus.h">systemd/sd-bus.h</A>&gt;
+</PRE>
+
+
+<DL COMPACT>
+<DT id="1">
+<B>int sd_bus_request_name(sd_bus&nbsp;*</B><I>bus</I><B>, const&nbsp;char&nbsp;*</B><I>name</I><B>, uint64_t&nbsp;</B><I>flags</I><B>);</B>
+
+<DT id="2">
+<B>int sd_bus_request_name_async(sd_bus&nbsp;*</B><I>bus</I><B>, sd_bus_slot&nbsp;**</B><I>slot</I><B>, const&nbsp;char&nbsp;*</B><I>name</I><B>, uint64_t&nbsp;</B><I>flags</I><B>, sd_bus_message_handler_t&nbsp;</B><I>callback</I><B>, void&nbsp;*</B><I>userdata</I><B>);</B>
+
+<DT id="3">
+<B>int sd_bus_release_name(sd_bus&nbsp;*</B><I>bus</I><B>, const&nbsp;char&nbsp;*</B><I>name</I><B>);</B>
+
+<DT id="4">
+<B>int sd_bus_release_name_async(sd_bus&nbsp;*</B><I>bus</I><B>, sd_bus_slot&nbsp;**</B><I>slot</I><B>, const&nbsp;char&nbsp;*</B><I>name</I><B>, sd_bus_message_handler_t&nbsp;</B><I>callback</I><B>, void&nbsp;*</B><I>userdata</I><B>);</B>
+
+</DL>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+<B>sd_bus_request_name()</B>
+<DD>requests a well-known service name on a bus. It takes a bus connection, a valid bus name, and a flags parameter. The flags parameter is a combination of zero or more of the following flags:
+<P>
+
+<B>SD_BUS_NAME_ALLOW_REPLACEMENT</B>
+<DL COMPACT><DT id="5"><DD>
+After acquiring the name successfully, permit other peers to take over the name when they try to acquire it with the
+<B>SD_BUS_NAME_REPLACE_EXISTING</B>
+flag set. If
+<B>SD_BUS_NAME_ALLOW_REPLACEMENT</B>
+is not set on the original request, such a request by other peers will be denied.
+</DL>
+
+<P>
+
+<B>SD_BUS_NAME_REPLACE_EXISTING</B>
+<DL COMPACT><DT id="6"><DD>
+Take over the name if it was already acquired by another peer, and that other peer has permitted takeover by setting
+<B>SD_BUS_NAME_ALLOW_REPLACEMENT</B>
+while acquiring it.
+</DL>
+
+<P>
+
+<B>SD_BUS_NAME_QUEUE</B>
+<DL COMPACT><DT id="7"><DD>
+Queue the acquisition of the name when the name is already taken.
+</DL>
+
+<P>
+
+<B>sd_bus_request_name()</B>
+operates in a synchronous fashion: a message requesting the name is sent to the bus broker, and the call waits until the broker responds.
+<P>
+
+<B>sd_bus_request_name_async()</B>
+is an asynchronous version of
+<B>sd_bus_release_name()</B>. Instead of waiting for the request to complete, the request message is enqueued. The specified
+<I>callback</I>
+will be called when the broker's response is received. If the parameter is specified as
+<B>NULL</B>
+a default implementation is used instead which will terminate the connection when the name cannot be acquired. The function returns a slot object in its
+<I>slot</I>
+parameter --- if it is passed as non-<B>NULL</B>
+--- which may be used as a reference to the name request operation. Use
+<B><A HREF="/cgi-bin/man/man2html?3+sd_bus_slot_unref">sd_bus_slot_unref</A></B>(3)
+to destroy this reference. Note that destroying the reference will not unregister the name, but simply ensure the specified callback is no longer called.
+<P>
+
+<B>sd_bus_release_name()</B>
+releases an acquired well-known name. It takes a bus connection and a valid bus name as parameters. This function operates synchronously, sending a release request message to the bus broker and waiting for it to reply.
+<P>
+
+<B>sd_bus_release_name_async()</B>
+is an asynchronous version of
+<B>sd_bus_release_name()</B>. The specified
+<I>callback</I>
+function is called when the name has been released successfully. If specified as
+<B>NULL</B>
+a generic implementation is used that ignores the result of the operation. As above, the
+<I>slot</I>
+(if non-<B>NULL</B>) is set to an object that may be used to reference the operation.
+<P>
+
+These functions are supported only on bus connections, i.e. connections to a bus broker and not on direct connections.
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+<P>
+
+On success, these calls return 0 or a positive integer. On failure, these calls return a negative errno-style error code.
+<P>
+
+If
+<B>SD_BUS_NAME_QUEUE</B>
+is specified,
+<B>sd_bus_request_name()</B>
+will return 0 when the name is already taken by another peer and the client has been added to the queue for the name. In that case, the caller can subscribe to
+&quot;NameOwnerChanged&quot;
+signals to be notified when the name is successfully acquired.
+<B>sd_bus_request_name()</B>
+returns &gt; 0 when the name has immediately been acquired successfully.
+<A NAME="lbAF">&nbsp;</A>
+<H3>Errors</H3>
+
+<P>
+
+Returned errors may indicate the following problems:
+<P>
+
+<B>-EALREADY</B>
+<DL COMPACT><DT id="8"><DD>
+The caller already is the owner of the specified name.
+</DL>
+
+<P>
+
+<B>-EEXIST</B>
+<DL COMPACT><DT id="9"><DD>
+The name has already been acquired by a different peer, and SD_BUS_NAME_REPLACE_EXISTING was not specified or the other peer did not specify SD_BUS_NAME_ALLOW_REPLACEMENT while acquiring the name.
+</DL>
+
+<P>
+
+<B>-ESRCH</B>
+<DL COMPACT><DT id="10"><DD>
+It was attempted to release a name that is currently not registered on the bus.
+</DL>
+
+<P>
+
+<B>-EADDRINUSE</B>
+<DL COMPACT><DT id="11"><DD>
+It was attempted to release a name that is owned by a different peer on the bus.
+</DL>
+
+<P>
+
+<B>-EINVAL</B>
+<DL COMPACT><DT id="12"><DD>
+A specified parameter is invalid. This is also generated when the requested name is a special service name reserved by the D-Bus specification, or when the operation is requested on a connection that does not refer to a bus.
+</DL>
+
+<P>
+
+<B>-ENOTCONN</B>
+<DL COMPACT><DT id="13"><DD>
+The bus connection has been disconnected.
+</DL>
+
+<P>
+
+<B>-ECHILD</B>
+<DL COMPACT><DT id="14"><DD>
+The bus connection has been created in a different process than the current one.
+</DL>
+
+<A NAME="lbAG">&nbsp;</A>
+<H2>NOTES</H2>
+
+<P>
+
+These APIs are implemented as a shared library, which can be compiled and linked to with the
+<B>libsystemd</B>&nbsp;<B><A HREF="/cgi-bin/man/man2html?1+pkg-config">pkg-config</A></B>(1)
+file.
+<A NAME="lbAH">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?3+sd-bus">sd-bus</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_bus_new">sd_bus_new</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_bus_slot_unref">sd_bus_slot_unref</A></B>(3)
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="15"><A HREF="#lbAB">NAME</A><DD>
+<DT id="16"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="17"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="18"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DL>
+<DT id="19"><A HREF="#lbAF">Errors</A><DD>
+</DL>
+<DT id="20"><A HREF="#lbAG">NOTES</A><DD>
+<DT id="21"><A HREF="#lbAH">SEE ALSO</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:55 GMT, March 31, 2021
+</BODY>
+</HTML>

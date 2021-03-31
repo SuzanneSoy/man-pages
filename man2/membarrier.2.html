@@ -1,0 +1,535 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of MEMBARRIER</TITLE>
+</HEAD><BODY>
+<H1>MEMBARRIER</H1>
+Section: Linux Programmer's Manual (2)<BR>Updated: 2018-04-30<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+membarrier - issue memory barriers on a set of threads
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<B>#include &lt;<A HREF="file:///usr/include/linux/membarrier.h">linux/membarrier.h</A>&gt;</B>
+
+<P>
+
+<B>int membarrier(int </B><I>cmd</I><B>, int </B><I>flags</I><B>);</B>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+The
+<B>membarrier</B>()
+
+system call helps reducing the overhead of the memory barrier
+instructions required to order memory accesses on multi-core systems.
+However, this system call is heavier than a memory barrier, so using it
+effectively is
+<I>not</I>
+
+as simple as replacing memory barriers with this
+system call, but requires understanding of the details below.
+<P>
+
+Use of memory barriers needs to be done taking into account that a
+memory barrier always needs to be either matched with its memory barrier
+counterparts, or that the architecture's memory model doesn't require the
+matching barriers.
+<P>
+
+There are cases where one side of the matching barriers (which we will
+refer to as &quot;fast side&quot;) is executed much more often than the other
+(which we will refer to as &quot;slow side&quot;).
+This is a prime target for the use of
+<B>membarrier</B>().
+
+The key idea is to replace, for these matching
+barriers, the fast-side memory barriers by simple compiler barriers,
+for example:
+<P>
+
+
+
+asm volatile (&quot;&quot; : : : &quot;memory&quot;)
+
+
+<P>
+
+and replace the slow-side memory barriers by calls to
+<B>membarrier</B>().
+
+<P>
+
+This will add overhead to the slow side, and remove overhead from the
+fast side, thus resulting in an overall performance increase as long as
+the slow side is infrequent enough that the overhead of the
+<B>membarrier</B>()
+
+calls does not outweigh the performance gain on the fast side.
+<P>
+
+The
+<I>cmd</I>
+
+argument is one of the following:
+<DL COMPACT>
+<DT id="1"><B>MEMBARRIER_CMD_QUERY</B> (since Linux 4.3)
+
+<DD>
+Query the set of supported commands.
+The return value of the call is a bit mask of supported
+commands.
+<B>MEMBARRIER_CMD_QUERY</B>,
+
+which has the value 0,
+is not itself included in this bit mask.
+This command is always supported (on kernels where
+<B>membarrier</B>()
+
+is provided).
+<DT id="2"><B>MEMBARRIER_CMD_GLOBAL</B> (since Linux 4.16)
+
+<DD>
+Ensure that all threads from all processes on the system pass through a
+state where all memory accesses to user-space addresses match program
+order between entry to and return from the
+<B>membarrier</B>()
+
+system call.
+All threads on the system are targeted by this command.
+<DT id="3"><B>MEMBARRIER_CMD_GLOBAL_EXPEDITED</B> (since Linux 4.16)
+
+<DD>
+Execute a memory barrier on all running threads of all processes that
+previously registered with
+<B>MEMBARRIER_CMD_REGISTER_GLOBAL_EXPEDITED</B>.
+
+<DT id="4"><DD>
+Upon return from the system call, the calling thread has a guarantee that all
+running threads have passed through a state where all memory accesses to
+user-space addresses match program order between entry to and return
+from the system call (non-running threads are de facto in such a state).
+This guarantee is provided only for the threads of processes that
+previously registered with
+<B>MEMBARRIER_CMD_REGISTER_GLOBAL_EXPEDITED</B>.
+
+<DT id="5"><DD>
+Given that registration is about the intent to receive the barriers, it
+is valid to invoke
+<B>MEMBARRIER_CMD_GLOBAL_EXPEDITED</B>
+
+from a process that has not employed
+<B>MEMBARRIER_CMD_REGISTER_GLOBAL_EXPEDITED</B>.
+
+<DT id="6"><DD>
+The &quot;expedited&quot; commands complete faster than the non-expedited ones;
+they never block, but have the downside of causing extra overhead.
+<DT id="7"><B>MEMBARRIER_CMD_REGISTER_GLOBAL_EXPEDITED</B> (since Linux 4.16)
+
+<DD>
+Register the process's intent to receive
+<B>MEMBARRIER_CMD_GLOBAL_EXPEDITED</B>
+
+memory barriers.
+<DT id="8"><B>MEMBARRIER_CMD_PRIVATE_EXPEDITED</B> (since Linux 4.14)
+
+<DD>
+Execute a memory barrier on each running thread belonging to the same
+process as the calling thread.
+<DT id="9"><DD>
+Upon return from the system call, the calling
+thread has a guarantee that all its running thread siblings have passed
+through a state where all memory accesses to user-space addresses match
+program order between entry to and return from the system call
+(non-running threads are de facto in such a state).
+This guarantee is provided only for threads in
+the same process as the calling thread.
+<DT id="10"><DD>
+The &quot;expedited&quot; commands complete faster than the non-expedited ones;
+they never block, but have the downside of causing extra overhead.
+<DT id="11"><DD>
+A process must register its intent to use the private
+expedited command prior to using it.
+<DT id="12"><B>MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED</B> (since Linux 4.14)
+
+<DD>
+Register the process's intent to use
+<B>MEMBARRIER_CMD_PRIVATE_EXPEDITED</B>.
+
+<DT id="13"><B>MEMBARRIER_CMD_PRIVATE_EXPEDITED_SYNC_CORE</B> (since Linux 4.16)
+
+<DD>
+In addition to providing the memory ordering guarantees described in
+<B>MEMBARRIER_CMD_PRIVATE_EXPEDITED</B>,
+
+upon return from system call the calling thread has a guarantee that all its
+running thread siblings have executed a core serializing instruction.
+This guarantee is provided only for threads in
+the same process as the calling thread.
+<DT id="14"><DD>
+The &quot;expedited&quot; commands complete faster than the non-expedited ones,
+they never block, but have the downside of causing extra overhead.
+<DT id="15"><DD>
+A process must register its intent to use the private expedited sync
+core command prior to using it.
+<DT id="16"><B>MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED_SYNC_CORE</B> (since Linux 4.16)
+
+<DD>
+Register the process's intent to use
+<B>MEMBARRIER_CMD_PRIVATE_EXPEDITED_SYNC_CORE</B>.
+
+<DT id="17"><B>MEMBARRIER_CMD_SHARED</B> (since Linux 4.3)
+
+<DD>
+This is an alias for
+<B>MEMBARRIER_CMD_GLOBAL</B>
+
+that exists for header backward compatibility.
+</DL>
+<P>
+
+The
+<I>flags</I>
+
+argument is currently unused and must be specified as 0.
+<P>
+
+All memory accesses performed in program order from each targeted thread
+are guaranteed to be ordered with respect to
+<B>membarrier</B>().
+
+<P>
+
+If we use the semantic
+<I>barrier()</I>
+
+to represent a compiler barrier forcing memory
+accesses to be performed in program order across the barrier, and
+<I>smp_mb()</I>
+
+to represent explicit memory barriers forcing full memory
+ordering across the barrier, we have the following ordering table for
+each pairing of
+<I>barrier()</I>,
+
+<B>membarrier</B>()
+
+and
+<I>smp_mb()</I>.
+
+The pair ordering is detailed as (O: ordered, X: not ordered):
+<P>
+
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;barrier()&nbsp;&nbsp;smp_mb()&nbsp;&nbsp;membarrier()
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;barrier()&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;X&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;X&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;O
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;smp_mb()&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;X&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;O&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;O
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;membarrier()&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;O&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;O&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;O
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+On success, the
+<B>MEMBARRIER_CMD_QUERY</B>
+
+operation returns a bit mask of supported commands, and the
+<B>MEMBARRIER_CMD_GLOBAL</B>,
+
+<B>MEMBARRIER_CMD_GLOBAL_EXPEDITED</B>,
+
+<B>MEMBARRIER_CMD_REGISTER_GLOBAL_EXPEDITED</B>,
+
+<B>MEMBARRIER_CMD_PRIVATE_EXPEDITED</B>,
+
+<B>MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED</B>,
+
+<B>MEMBARRIER_CMD_PRIVATE_EXPEDITED_SYNC_CORE</B>,
+
+and
+<B>MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED_SYNC_CORE</B>
+
+operations return zero.
+On error, -1 is returned,
+and
+<I>errno</I>
+
+is set appropriately.
+<P>
+
+For a given command, with
+<I>flags</I>
+
+set to 0, this system call is
+guaranteed to always return the same value until reboot.
+Further calls with the same arguments will lead to the same result.
+Therefore, with
+<I>flags</I>
+
+set to 0, error handling is required only for the first call to
+<B>membarrier</B>().
+
+<A NAME="lbAF">&nbsp;</A>
+<H2>ERRORS</H2>
+
+<DL COMPACT>
+<DT id="18"><B>EINVAL</B>
+
+<DD>
+<I>cmd</I>
+
+is invalid, or
+<I>flags</I>
+
+is nonzero, or the
+<B>MEMBARRIER_CMD_GLOBAL</B>
+
+command is disabled because the
+<I>nohz_full</I>
+
+CPU parameter has been set, or the
+<B>MEMBARRIER_CMD_PRIVATE_EXPEDITED_SYNC_CORE</B>
+
+and
+<B>MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED_SYNC_CORE</B>
+
+commands are not implemented by the architecture.
+<DT id="19"><B>ENOSYS</B>
+
+<DD>
+The
+<B>membarrier</B>()
+
+system call is not implemented by this kernel.
+<DT id="20"><B>EPERM</B>
+
+<DD>
+The current process was not registered prior to using private expedited
+commands.
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H2>VERSIONS</H2>
+
+The
+<B>membarrier</B>()
+
+system call was added in Linux 4.3.
+
+<A NAME="lbAH">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+<B>membarrier</B>()
+
+is Linux-specific.
+
+
+
+
+<A NAME="lbAI">&nbsp;</A>
+<H2>NOTES</H2>
+
+A memory barrier instruction is part of the instruction set of
+architectures with weakly-ordered memory models.
+It orders memory
+accesses prior to the barrier and after the barrier with respect to
+matching barriers on other cores.
+For instance, a load fence can order
+loads prior to and following that fence with respect to stores ordered
+by store fences.
+<P>
+
+Program order is the order in which instructions are ordered in the
+program assembly code.
+<P>
+
+Examples where
+<B>membarrier</B>()
+
+can be useful include implementations
+of Read-Copy-Update libraries and garbage collectors.
+<A NAME="lbAJ">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+Assuming a multithreaded application where &quot;fast_path()&quot; is executed
+very frequently, and where &quot;slow_path()&quot; is executed infrequently, the
+following code (x86) can be transformed using
+<B>membarrier</B>():
+
+<P>
+
+
+
+#include &lt;<A HREF="file:///usr/include/stdlib.h">stdlib.h</A>&gt;
+<P>
+static volatile int a, b;
+<P>
+static void
+fast_path(int *read_b)
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;a&nbsp;=&nbsp;1;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;asm&nbsp;volatile&nbsp;(&quot;mfence&quot;&nbsp;:&nbsp;:&nbsp;:&nbsp;&quot;memory&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;*read_b&nbsp;=&nbsp;b;
+}
+<P>
+static void
+slow_path(int *read_a)
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;b&nbsp;=&nbsp;1;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;asm&nbsp;volatile&nbsp;(&quot;mfence&quot;&nbsp;:&nbsp;:&nbsp;:&nbsp;&quot;memory&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;*read_a&nbsp;=&nbsp;a;
+}
+<P>
+int
+main(int argc, char **argv)
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;read_a,&nbsp;read_b;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;Real&nbsp;applications&nbsp;would&nbsp;call&nbsp;fast_path()&nbsp;and&nbsp;slow_path()
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;from&nbsp;different&nbsp;threads.&nbsp;Call&nbsp;those&nbsp;from&nbsp;main()&nbsp;to&nbsp;keep
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;this&nbsp;example&nbsp;short.
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;slow_path(&amp;read_a);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fast_path(&amp;read_b);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;read_b&nbsp;==&nbsp;0&nbsp;implies&nbsp;read_a&nbsp;==&nbsp;1&nbsp;and
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;read_a&nbsp;==&nbsp;0&nbsp;implies&nbsp;read_b&nbsp;==&nbsp;1.
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(read_b&nbsp;==&nbsp;0&nbsp;&amp;&amp;&nbsp;read_a&nbsp;==&nbsp;0)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;abort();
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_SUCCESS);
+}
+
+
+<P>
+
+The code above transformed to use
+<B>membarrier</B>()
+
+becomes:
+<P>
+
+
+
+#define _GNU_SOURCE
+#include &lt;<A HREF="file:///usr/include/stdlib.h">stdlib.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/unistd.h">unistd.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/sys/syscall.h">sys/syscall.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/linux/membarrier.h">linux/membarrier.h</A>&gt;
+<P>
+static volatile int a, b;
+<P>
+static int
+membarrier(int cmd, int flags)
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;syscall(__NR_membarrier,&nbsp;cmd,&nbsp;flags);
+}
+<P>
+static int
+init_membarrier(void)
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;ret;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Check&nbsp;that&nbsp;membarrier()&nbsp;is&nbsp;supported.&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;ret&nbsp;=&nbsp;membarrier(MEMBARRIER_CMD_QUERY,&nbsp;0);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(ret&nbsp;&lt;&nbsp;0)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;perror(&quot;membarrier&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;-1;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(!(ret&nbsp;&amp;&nbsp;MEMBARRIER_CMD_GLOBAL))&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;membarrier&nbsp;does&nbsp;not&nbsp;support&nbsp;MEMBARRIER_CMD_GLOBAL\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;-1;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;0;
+}
+<P>
+static void
+fast_path(int *read_b)
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;a&nbsp;=&nbsp;1;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;asm&nbsp;volatile&nbsp;(&quot;&quot;&nbsp;:&nbsp;:&nbsp;:&nbsp;&quot;memory&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;*read_b&nbsp;=&nbsp;b;
+}
+<P>
+static void
+slow_path(int *read_a)
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;b&nbsp;=&nbsp;1;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;membarrier(MEMBARRIER_CMD_GLOBAL,&nbsp;0);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;*read_a&nbsp;=&nbsp;a;
+}
+<P>
+int
+main(int argc, char **argv)
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;read_a,&nbsp;read_b;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(init_membarrier())
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;Real&nbsp;applications&nbsp;would&nbsp;call&nbsp;fast_path()&nbsp;and&nbsp;slow_path()
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;from&nbsp;different&nbsp;threads.&nbsp;Call&nbsp;those&nbsp;from&nbsp;main()&nbsp;to&nbsp;keep
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;this&nbsp;example&nbsp;short.
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;slow_path(&amp;read_a);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fast_path(&amp;read_b);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;read_b&nbsp;==&nbsp;0&nbsp;implies&nbsp;read_a&nbsp;==&nbsp;1&nbsp;and
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;read_a&nbsp;==&nbsp;0&nbsp;implies&nbsp;read_b&nbsp;==&nbsp;1.
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(read_b&nbsp;==&nbsp;0&nbsp;&amp;&amp;&nbsp;read_a&nbsp;==&nbsp;0)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;abort();
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_SUCCESS);
+}
+
+
+<A NAME="lbAK">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="21"><A HREF="#lbAB">NAME</A><DD>
+<DT id="22"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="23"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="24"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DT id="25"><A HREF="#lbAF">ERRORS</A><DD>
+<DT id="26"><A HREF="#lbAG">VERSIONS</A><DD>
+<DT id="27"><A HREF="#lbAH">CONFORMING TO</A><DD>
+<DT id="28"><A HREF="#lbAI">NOTES</A><DD>
+<DT id="29"><A HREF="#lbAJ">EXAMPLE</A><DD>
+<DT id="30"><A HREF="#lbAK">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:33 GMT, March 31, 2021
+</BODY>
+</HTML>

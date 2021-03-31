@@ -1,0 +1,946 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of Try::Tiny</TITLE>
+</HEAD><BODY>
+<H1>Try::Tiny</H1>
+Section: User Contributed Perl Documentation (3pm)<BR>Updated: 2017-12-21<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+Try::Tiny - Minimal try/catch with proper preservation of $@
+<A NAME="lbAC">&nbsp;</A>
+<H2>VERSION</H2>
+
+
+
+version 0.30
+<A NAME="lbAD">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+
+
+You can use Try::Tiny's <TT>&quot;try&quot;</TT> and <TT>&quot;catch&quot;</TT> to expect and handle exceptional
+conditions, avoiding quirks in Perl and common mistakes:
+<P>
+
+
+
+<PRE>
+  # handle errors with a catch handler
+  try {
+    die &quot;foo&quot;;
+  } catch {
+    warn &quot;caught error: $_&quot;; # not $@
+  };
+
+</PRE>
+
+
+<P>
+
+You can also use it like a standalone <TT>&quot;eval&quot;</TT> to catch and ignore any error
+conditions.  Obviously, this is an extreme measure not to be undertaken
+lightly:
+<P>
+
+
+
+<PRE>
+  # just silence errors
+  try {
+    die &quot;foo&quot;;
+  };
+
+</PRE>
+
+
+<A NAME="lbAE">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+
+This module provides bare bones <TT>&quot;try&quot;</TT>/<TT>&quot;catch&quot;</TT>/<TT>&quot;finally&quot;</TT> statements that are designed to
+minimize common mistakes with eval blocks, and <FONT SIZE="-1">NOTHING</FONT> else.
+<P>
+
+This is unlike TryCatch which provides a nice syntax and avoids adding
+another call stack layer, and supports calling <TT>&quot;return&quot;</TT> from the <TT>&quot;try&quot;</TT> block to
+return from the parent subroutine. These extra features come at a cost of a few
+dependencies, namely Devel::Declare and Scope::Upper which are
+occasionally problematic, and the additional catch filtering uses Moose
+type constraints which may not be desirable either.
+<P>
+
+The main focus of this module is to provide simple and reliable error handling
+for those having a hard time installing TryCatch, but who still want to
+write correct <TT>&quot;eval&quot;</TT> blocks without 5 lines of boilerplate each time.
+<P>
+
+It's designed to work as correctly as possible in light of the various
+pathological edge cases (see ``<FONT SIZE="-1">BACKGROUND''</FONT>) and to be compatible with any style
+of error values (simple strings, references, objects, overloaded objects, etc).
+<P>
+
+If the <TT>&quot;try&quot;</TT> block dies, it returns the value of the last statement executed in
+the <TT>&quot;catch&quot;</TT> block, if there is one. Otherwise, it returns <TT>&quot;undef&quot;</TT> in scalar
+context or the empty list in list context. The following examples all
+assign <TT>&quot;bar&quot;</TT> to <TT>$x</TT>:
+<P>
+
+
+
+<PRE>
+  my $x = try { die &quot;foo&quot; } catch { &quot;bar&quot; };
+  my $x = try { die &quot;foo&quot; } || &quot;bar&quot;;
+  my $x = (try { die &quot;foo&quot; }) // &quot;bar&quot;;
+
+  my $x = eval { die &quot;foo&quot; } || &quot;bar&quot;;
+
+</PRE>
+
+
+<P>
+
+You can add <TT>&quot;finally&quot;</TT> blocks, yielding the following:
+<P>
+
+
+
+<PRE>
+  my $x;
+  try { die 'foo' } finally { $x = 'bar' };
+  try { die 'foo' } catch { warn &quot;Got a die: $_&quot; } finally { $x = 'bar' };
+
+</PRE>
+
+
+<P>
+
+<TT>&quot;finally&quot;</TT> blocks are always executed making them suitable for cleanup code
+which cannot be handled using local.  You can add as many <TT>&quot;finally&quot;</TT> blocks to a
+given <TT>&quot;try&quot;</TT> block as you like.
+<P>
+
+Note that adding a <TT>&quot;finally&quot;</TT> block without a preceding <TT>&quot;catch&quot;</TT> block
+suppresses any errors. This behaviour is consistent with using a standalone
+<TT>&quot;eval&quot;</TT>, but it is not consistent with <TT>&quot;try&quot;</TT>/<TT>&quot;finally&quot;</TT> patterns found in
+other programming languages, such as Java, Python, Javascript or C#. If you
+learnt the <TT>&quot;try&quot;</TT>/<TT>&quot;finally&quot;</TT> pattern from one of these languages, watch out for
+this.
+<A NAME="lbAF">&nbsp;</A>
+<H2>EXPORTS</H2>
+
+
+
+All functions are exported by default using Exporter.
+<P>
+
+If you need to rename the <TT>&quot;try&quot;</TT>, <TT>&quot;catch&quot;</TT> or <TT>&quot;finally&quot;</TT> keyword consider using
+Sub::Import to get Sub::Exporter's flexibility.
+<DL COMPACT>
+<DT id="1">try (&amp;;@)<DD>
+
+
+Takes one mandatory <TT>&quot;try&quot;</TT> subroutine, an optional <TT>&quot;catch&quot;</TT> subroutine and <TT>&quot;finally&quot;</TT>
+subroutine.
+
+
+<P>
+
+
+The mandatory subroutine is evaluated in the context of an <TT>&quot;eval&quot;</TT> block.
+
+
+<P>
+
+
+If no error occurred the value from the first block is returned, preserving
+list/scalar context.
+
+
+<P>
+
+
+If there was an error and the second subroutine was given it will be invoked
+with the error in <TT>$_</TT> (localized) and as that block's first and only
+argument.
+
+
+<P>
+
+
+<TT>$@</TT> does <B>not</B> contain the error. Inside the <TT>&quot;catch&quot;</TT> block it has the same
+value it had before the <TT>&quot;try&quot;</TT> block was executed.
+
+
+<P>
+
+
+Note that the error may be false, but if that happens the <TT>&quot;catch&quot;</TT> block will
+still be invoked.
+
+
+<P>
+
+
+Once all execution is finished then the <TT>&quot;finally&quot;</TT> block, if given, will execute.
+<DT id="2">catch (&amp;;@)<DD>
+
+
+Intended to be used in the second argument position of <TT>&quot;try&quot;</TT>.
+
+
+<P>
+
+
+Returns a reference to the subroutine it was given but blessed as
+<TT>&quot;Try::Tiny::Catch&quot;</TT> which allows try to decode correctly what to do
+with this code reference.
+
+
+<P>
+
+
+
+
+<PRE>
+  catch { ... }
+
+</PRE>
+
+
+
+
+<P>
+
+
+Inside the <TT>&quot;catch&quot;</TT> block the caught error is stored in <TT>$_</TT>, while previous
+value of <TT>$@</TT> is still available for use.  This value may or may not be
+meaningful depending on what happened before the <TT>&quot;try&quot;</TT>, but it might be a good
+idea to preserve it in an error stack.
+
+
+<P>
+
+
+For code that captures <TT>$@</TT> when throwing new errors (i.e.
+Class::Throwable), you'll need to do:
+
+
+<P>
+
+
+
+
+<PRE>
+  local $@ = $_;
+
+</PRE>
+
+
+<DT id="3">finally (&amp;;@)<DD>
+
+
+
+
+<PRE>
+  try     { ... }
+  catch   { ... }
+  finally { ... };
+
+</PRE>
+
+
+
+
+<P>
+
+
+Or
+
+
+<P>
+
+
+
+
+<PRE>
+  try     { ... }
+  finally { ... };
+
+</PRE>
+
+
+
+
+<P>
+
+
+Or even
+
+
+<P>
+
+
+
+
+<PRE>
+  try     { ... }
+  finally { ... }
+  catch   { ... };
+
+</PRE>
+
+
+
+
+<P>
+
+
+Intended to be the second or third element of <TT>&quot;try&quot;</TT>. <TT>&quot;finally&quot;</TT> blocks are always
+executed in the event of a successful <TT>&quot;try&quot;</TT> or if <TT>&quot;catch&quot;</TT> is run. This allows
+you to locate cleanup code which cannot be done via <TT>&quot;local()&quot;</TT> e.g. closing a file
+handle.
+
+
+<P>
+
+
+When invoked, the <TT>&quot;finally&quot;</TT> block is passed the error that was caught.  If no
+error was caught, it is passed nothing.  (Note that the <TT>&quot;finally&quot;</TT> block does not
+localize <TT>$_</TT> with the error, since unlike in a <TT>&quot;catch&quot;</TT> block, there is no way
+to know if <TT>&quot;$_ == undef&quot;</TT> implies that there were no errors.) In other words,
+the following code does just what you would expect:
+
+
+<P>
+
+
+
+
+<PRE>
+  try {
+    die_sometimes();
+  } catch {
+    # ...code run in case of error
+  } finally {
+    if (@_) {
+      print &quot;The try block died with: @_\n&quot;;
+    } else {
+      print &quot;The try block ran without error.\n&quot;;
+    }
+  };
+
+</PRE>
+
+
+
+
+<P>
+
+
+<B>You must always do your own error handling in the </B>&quot;finally&quot;<B> block</B>. <TT>&quot;Try::Tiny&quot;</TT> will
+not do anything about handling possible errors coming from code located in these
+blocks.
+
+
+<P>
+
+
+Furthermore <B>exceptions in </B>&quot;finally&quot;<B> blocks are not trappable and are unable
+to influence the execution of your program</B>. This is due to limitation of
+<TT>&quot;DESTROY&quot;</TT>-based scope guards, which <TT>&quot;finally&quot;</TT> is implemented on top of. This
+may change in a future version of Try::Tiny.
+
+
+<P>
+
+
+In the same way <TT>&quot;catch()&quot;</TT> blesses the code reference this subroutine does the same
+except it bless them as <TT>&quot;Try::Tiny::Finally&quot;</TT>.
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H2>BACKGROUND</H2>
+
+
+
+There are a number of issues with <TT>&quot;eval&quot;</TT>.
+<A NAME="lbAH">&nbsp;</A>
+<H3>Clobbering $@</H3>
+
+
+
+When you run an <TT>&quot;eval&quot;</TT> block and it succeeds, <TT>$@</TT> will be cleared, potentially
+clobbering an error that is currently being caught.
+<P>
+
+This causes action at a distance, clearing previous errors your caller may have
+not yet handled.
+<P>
+
+<TT>$@</TT> must be properly localized before invoking <TT>&quot;eval&quot;</TT> in order to avoid this
+issue.
+<P>
+
+More specifically,
+before Perl version 5.14.0
+<TT>$@</TT> was clobbered at the beginning of the <TT>&quot;eval&quot;</TT>, which
+also made it impossible to capture the previous error before you die (for
+instance when making exception objects with error stacks).
+<P>
+
+For this reason <TT>&quot;try&quot;</TT> will actually set <TT>$@</TT> to its previous value (the one
+available before entering the <TT>&quot;try&quot;</TT> block) in the beginning of the <TT>&quot;eval&quot;</TT>
+block.
+<A NAME="lbAI">&nbsp;</A>
+<H3>Localizing $@ silently masks errors</H3>
+
+
+
+Inside an <TT>&quot;eval&quot;</TT> block, <TT>&quot;die&quot;</TT> behaves sort of like:
+<P>
+
+
+
+<PRE>
+  sub die {
+    $@ = $_[0];
+    return_undef_from_eval();
+  }
+
+</PRE>
+
+
+<P>
+
+This means that if you were polite and localized <TT>$@</TT> you can't die in that
+scope, or your error will be discarded (printing ``Something's wrong'' instead).
+<P>
+
+The workaround is very ugly:
+<P>
+
+
+
+<PRE>
+  my $error = do {
+    local $@;
+    eval { ... };
+    $@;
+  };
+
+  ...
+  die $error;
+
+</PRE>
+
+
+<A NAME="lbAJ">&nbsp;</A>
+<H3>$@ might not be a true value</H3>
+
+
+
+This code is wrong:
+<P>
+
+
+
+<PRE>
+  if ( $@ ) {
+    ...
+  }
+
+</PRE>
+
+
+<P>
+
+because due to the previous caveats it may have been unset.
+<P>
+
+<TT>$@</TT> could also be an overloaded error object that evaluates to false, but
+that's asking for trouble anyway.
+<P>
+
+The classic failure mode (fixed in Perl 5.14.0) is:
+<P>
+
+
+
+<PRE>
+  sub Object::DESTROY {
+    eval { ... }
+  }
+
+  eval {
+    my $obj = Object-&gt;new;
+
+    die &quot;foo&quot;;
+  };
+
+  if ( $@ ) {
+
+  }
+
+</PRE>
+
+
+<P>
+
+In this case since <TT>&quot;Object::DESTROY&quot;</TT> is not localizing <TT>$@</TT> but still uses
+<TT>&quot;eval&quot;</TT>, it will set <TT>$@</TT> to <TT>&quot;&quot;</TT>.
+<P>
+
+The destructor is called when the stack is unwound, after <TT>&quot;die&quot;</TT> sets <TT>$@</TT> to
+<TT>&quot;foo at Foo.pm line 42\n&quot;</TT>, so by the time <TT>&quot;if ( $@ )&quot;</TT> is evaluated it has
+been cleared by <TT>&quot;eval&quot;</TT> in the destructor.
+<P>
+
+The workaround for this is even uglier than the previous ones. Even though we
+can't save the value of <TT>$@</TT> from code that doesn't localize, we can at least
+be sure the <TT>&quot;eval&quot;</TT> was aborted due to an error:
+<P>
+
+
+
+<PRE>
+  my $failed = not eval {
+    ...
+
+    return 1;
+  };
+
+</PRE>
+
+
+<P>
+
+This is because an <TT>&quot;eval&quot;</TT> that caught a <TT>&quot;die&quot;</TT> will always return a false
+value.
+<A NAME="lbAK">&nbsp;</A>
+<H2>ALTERNATE SYNTAX</H2>
+
+
+
+Using Perl 5.10 you can use ``Switch statements'' in perlsyn (but please don't,
+because that syntax has since been deprecated because there was too much
+unexpected magical behaviour).
+<P>
+
+The <TT>&quot;catch&quot;</TT> block is invoked in a topicalizer context (like a <TT>&quot;given&quot;</TT> block),
+but note that you can't return a useful value from <TT>&quot;catch&quot;</TT> using the <TT>&quot;when&quot;</TT>
+blocks without an explicit <TT>&quot;return&quot;</TT>.
+<P>
+
+This is somewhat similar to Perl 6's <TT>&quot;CATCH&quot;</TT> blocks. You can use it to
+concisely match errors:
+<P>
+
+
+
+<PRE>
+  try {
+    require Foo;
+  } catch {
+    when (/^Can't locate .*?\.pm in \@INC/) { } # ignore
+    default { die $_ }
+  };
+
+</PRE>
+
+
+<A NAME="lbAL">&nbsp;</A>
+<H2>CAVEATS</H2>
+
+
+
+<DL COMPACT>
+<DT id="4">&bull;<DD>
+<TT>@_</TT> is not available within the <TT>&quot;try&quot;</TT> block, so you need to copy your
+argument list. In case you want to work with argument values directly via <TT>@_</TT>
+aliasing (i.e. allow <TT>&quot;$_[1] = &quot;foo&quot;&quot;</TT>), you need to pass <TT>@_</TT> by reference:
+
+
+<P>
+
+
+
+
+<PRE>
+  sub foo {
+    my ( $self, @args ) = @_;
+    try { $self-&gt;bar(@args) }
+  }
+
+</PRE>
+
+
+
+
+<P>
+
+
+or
+
+
+<P>
+
+
+
+
+<PRE>
+  sub bar_in_place {
+    my $self = shift;
+    my $args = \@_;
+    try { $_ = $self-&gt;bar($_) for @$args }
+  }
+
+</PRE>
+
+
+<DT id="5">&bull;<DD>
+<TT>&quot;return&quot;</TT> returns from the <TT>&quot;try&quot;</TT> block, not from the parent sub (note that
+this is also how <TT>&quot;eval&quot;</TT> works, but not how TryCatch works):
+
+
+<P>
+
+
+
+
+<PRE>
+  sub parent_sub {
+    try {
+      die;
+    }
+    catch {
+      return;
+    };
+
+    say &quot;this text WILL be displayed, even though an exception is thrown&quot;;
+  }
+
+</PRE>
+
+
+
+
+<P>
+
+
+Instead, you should capture the return value:
+
+
+<P>
+
+
+
+
+<PRE>
+  sub parent_sub {
+    my $success = try {
+      die;
+      1;
+    };
+    return unless $success;
+
+    say &quot;This text WILL NEVER appear!&quot;;
+  }
+  # OR
+  sub parent_sub_with_catch {
+    my $success = try {
+      die;
+      1;
+    }
+    catch {
+      # do something with $_
+      return undef; #see note
+    };
+    return unless $success;
+
+    say &quot;This text WILL NEVER appear!&quot;;
+  }
+
+</PRE>
+
+
+
+
+<P>
+
+
+Note that if you have a <TT>&quot;catch&quot;</TT> block, it must return <TT>&quot;undef&quot;</TT> for this to work,
+since if a <TT>&quot;catch&quot;</TT> block exists, its return value is returned in place of <TT>&quot;undef&quot;</TT>
+when an exception is thrown.
+<DT id="6">&bull;<DD>
+<TT>&quot;try&quot;</TT> introduces another caller stack frame. Sub::Uplevel is not used. Carp
+will not report this when using full stack traces, though, because
+<TT>%Carp::Internal</TT> is used. This lack of magic is considered a feature.
+<DT id="7">&bull;<DD>
+The value of <TT>$_</TT> in the <TT>&quot;catch&quot;</TT> block is not guaranteed to be the value of
+the exception thrown (<TT>$@</TT>) in the <TT>&quot;try&quot;</TT> block.  There is no safe way to
+ensure this, since <TT>&quot;eval&quot;</TT> may be used unhygienically in destructors.  The only
+guarantee is that the <TT>&quot;catch&quot;</TT> will be called if an exception is thrown.
+<DT id="8">&bull;<DD>
+The return value of the <TT>&quot;catch&quot;</TT> block is not ignored, so if testing the result
+of the expression for truth on success, be sure to return a false value from
+the <TT>&quot;catch&quot;</TT> block:
+
+
+<P>
+
+
+
+
+<PRE>
+  my $obj = try {
+    MightFail-&gt;new;
+  } catch {
+    ...
+
+    return; # avoid returning a true value;
+  };
+
+  return unless $obj;
+
+</PRE>
+
+
+<DT id="9">&bull;<DD>
+<TT>$SIG{__DIE__}</TT> is still in effect.
+
+
+<P>
+
+
+Though it can be argued that <TT>$SIG{__DIE__}</TT> should be disabled inside of
+<TT>&quot;eval&quot;</TT> blocks, since it isn't people have grown to rely on it. Therefore in
+the interests of compatibility, <TT>&quot;try&quot;</TT> does not disable <TT>$SIG{__DIE__}</TT> for
+the scope of the error throwing code.
+<DT id="10">&bull;<DD>
+Lexical <TT>$_</TT> may override the one set by <TT>&quot;catch&quot;</TT>.
+
+
+<P>
+
+
+For example Perl 5.10's <TT>&quot;given&quot;</TT> form uses a lexical <TT>$_</TT>, creating some
+confusing behavior:
+
+
+<P>
+
+
+
+
+<PRE>
+  given ($foo) {
+    when (...) {
+      try {
+        ...
+      } catch {
+        warn $_; # will print $foo, not the error
+        warn $_[0]; # instead, get the error like this
+      }
+    }
+  }
+
+</PRE>
+
+
+
+
+<P>
+
+
+Note that this behavior was changed once again in
+Perl5 version 18 &lt;<A HREF="https://metacpan.org/module/perldelta#given-now-aliases-the-global-_">https://metacpan.org/module/perldelta#given-now-aliases-the-global-_</A>&gt;.
+However, since the entirety of lexical <TT>$_</TT> is now considered experimental
+<BR>&nbsp;&lt;<A HREF="https://metacpan.org/module/perldelta#Lexical-_-is-now-experimental">https://metacpan.org/module/perldelta#Lexical-_-is-now-experimental</A>&gt;,&nbsp;it
+is unclear whether the new version 18 behavior is final.
+</DL>
+<A NAME="lbAM">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+
+<DL COMPACT>
+<DT id="11">TryCatch<DD>
+
+
+Much more feature complete, more convenient semantics, but at the cost of
+implementation complexity.
+<DT id="12">autodie<DD>
+
+
+Automatic error throwing for builtin functions and more. Also designed to
+work well with <TT>&quot;given&quot;</TT>/<TT>&quot;when&quot;</TT>.
+<DT id="13">Throwable<DD>
+
+
+A lightweight role for rolling your own exception classes.
+<DT id="14">Error<DD>
+
+
+Exception object implementation with a <TT>&quot;try&quot;</TT> statement. Does not localize
+<TT>$@</TT>.
+<DT id="15">Exception::Class::TryCatch<DD>
+
+
+Provides a <TT>&quot;catch&quot;</TT> statement, but properly calling <TT>&quot;eval&quot;</TT> is your
+responsibility.
+
+
+<P>
+
+
+The <TT>&quot;try&quot;</TT> keyword pushes <TT>$@</TT> onto an error stack, avoiding some of the
+issues with <TT>$@</TT>, but you still need to localize to prevent clobbering.
+</DL>
+<A NAME="lbAN">&nbsp;</A>
+<H2>LIGHTNING TALK</H2>
+
+
+
+I gave a lightning talk about this module, you can see the slides (Firefox
+only):
+<P>
+
+&lt;<A HREF="http://web.archive.org/web/20100628040134/http://nothingmuch.woobling.org/talks/takahashi.xul">http://web.archive.org/web/20100628040134/http://nothingmuch.woobling.org/talks/takahashi.xul</A>&gt;
+<P>
+
+Or read the source:
+<P>
+
+&lt;<A HREF="http://web.archive.org/web/20100305133605/http://nothingmuch.woobling.org/talks/yapc_asia_2009/try_tiny.yml">http://web.archive.org/web/20100305133605/http://nothingmuch.woobling.org/talks/yapc_asia_2009/try_tiny.yml</A>&gt;
+<A NAME="lbAO">&nbsp;</A>
+<H2>SUPPORT</H2>
+
+
+
+Bugs may be submitted through the <FONT SIZE="-1">RT</FONT> bug tracker &lt;<A HREF="https://rt.cpan.org/Public/Dist/Display.html?Name=Try-Tiny">https://rt.cpan.org/Public/Dist/Display.html?Name=Try-Tiny</A>&gt;
+(or <A HREF="mailto:bug-Try-Tiny@rt.cpan.org">bug-Try-Tiny@rt.cpan.org</A> &lt;mailto:<A HREF="mailto:bug-Try-Tiny@rt.cpan.org">bug-Try-Tiny@rt.cpan.org</A>&gt;).
+<A NAME="lbAP">&nbsp;</A>
+<H2>AUTHORS</H2>
+
+
+
+<DL COMPACT>
+<DT id="16">&bull;<DD>
+יובל קוג'מן (Yuval Kogman) &lt;<A HREF="mailto:nothingmuch@woobling.org">nothingmuch@woobling.org</A>&gt;
+<DT id="17">&bull;<DD>
+Jesse Luehrs &lt;<A HREF="mailto:doy@tozt.net">doy@tozt.net</A>&gt;
+</DL>
+<A NAME="lbAQ">&nbsp;</A>
+<H2>CONTRIBUTORS</H2>
+
+
+
+<DL COMPACT>
+<DT id="18">&bull;<DD>
+Karen Etheridge &lt;<A HREF="mailto:ether@cpan.org">ether@cpan.org</A>&gt;
+<DT id="19">&bull;<DD>
+Peter Rabbitson &lt;<A HREF="mailto:ribasushi@cpan.org">ribasushi@cpan.org</A>&gt;
+<DT id="20">&bull;<DD>
+Ricardo Signes &lt;<A HREF="mailto:rjbs@cpan.org">rjbs@cpan.org</A>&gt;
+<DT id="21">&bull;<DD>
+Mark Fowler &lt;<A HREF="mailto:mark@twoshortplanks.com">mark@twoshortplanks.com</A>&gt;
+<DT id="22">&bull;<DD>
+Graham Knop &lt;<A HREF="mailto:haarg@haarg.org">haarg@haarg.org</A>&gt;
+<DT id="23">&bull;<DD>
+Lukas Mai &lt;<A HREF="mailto:l.mai@web.de">l.mai@web.de</A>&gt;
+<DT id="24">&bull;<DD>
+Aristotle Pagaltzis &lt;<A HREF="mailto:pagaltzis@gmx.de">pagaltzis@gmx.de</A>&gt;
+<DT id="25">&bull;<DD>
+Dagfinn Ilmari Mannsåker &lt;<A HREF="mailto:ilmari@ilmari.org">ilmari@ilmari.org</A>&gt;
+<DT id="26">&bull;<DD>
+Paul Howarth &lt;<A HREF="mailto:paul@city-fan.org">paul@city-fan.org</A>&gt;
+<DT id="27">&bull;<DD>
+Rudolf Leermakers &lt;<A HREF="mailto:rudolf@hatsuseno.org">rudolf@hatsuseno.org</A>&gt;
+<DT id="28">&bull;<DD>
+anaxagoras &lt;<A HREF="mailto:walkeraj@gmail.com">walkeraj@gmail.com</A>&gt;
+<DT id="29">&bull;<DD>
+awalker &lt;<A HREF="mailto:awalker@sourcefire.com">awalker@sourcefire.com</A>&gt;
+<DT id="30">&bull;<DD>
+chromatic &lt;<A HREF="mailto:chromatic@wgz.org">chromatic@wgz.org</A>&gt;
+<DT id="31">&bull;<DD>
+Alex &lt;<A HREF="mailto:alex@koban">alex@koban</A>.(none)&gt;
+<DT id="32">&bull;<DD>
+cm-perl &lt;<A HREF="mailto:cm-perl@users.noreply.github.com">cm-perl@users.noreply.github.com</A>&gt;
+<DT id="33">&bull;<DD>
+Andrew Yates &lt;<A HREF="mailto:ayates@haddock.local">ayates@haddock.local</A>&gt;
+<DT id="34">&bull;<DD>
+David Lowe &lt;<A HREF="mailto:davidl@lokku.com">davidl@lokku.com</A>&gt;
+<DT id="35">&bull;<DD>
+Glenn Fowler &lt;<A HREF="mailto:cebjyre@cpan.org">cebjyre@cpan.org</A>&gt;
+<DT id="36">&bull;<DD>
+Hans Dieter Pearcey &lt;<A HREF="mailto:hdp@weftsoar.net">hdp@weftsoar.net</A>&gt;
+<DT id="37">&bull;<DD>
+Jens Berthold &lt;<A HREF="mailto:jens@jebecs.de">jens@jebecs.de</A>&gt;
+<DT id="38">&bull;<DD>
+Jonathan Yu &lt;<A HREF="mailto:JAWNSY@cpan.org">JAWNSY@cpan.org</A>&gt;
+<DT id="39">&bull;<DD>
+Marc Mims &lt;<A HREF="mailto:marc@questright.com">marc@questright.com</A>&gt;
+<DT id="40">&bull;<DD>
+Mark Stosberg &lt;<A HREF="mailto:mark@stosberg.com">mark@stosberg.com</A>&gt;
+<DT id="41">&bull;<DD>
+Pali &lt;<A HREF="mailto:pali@cpan.org">pali@cpan.org</A>&gt;
+</DL>
+<A NAME="lbAR">&nbsp;</A>
+<H2>COPYRIGHT AND LICENCE</H2>
+
+
+
+This software is Copyright (c) 2009 by יובל קוג'מן (Yuval Kogman).
+<P>
+
+This is free software, licensed under:
+<P>
+
+
+
+<PRE>
+  The MIT (X11) License
+
+</PRE>
+
+
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="42"><A HREF="#lbAB">NAME</A><DD>
+<DT id="43"><A HREF="#lbAC">VERSION</A><DD>
+<DT id="44"><A HREF="#lbAD">SYNOPSIS</A><DD>
+<DT id="45"><A HREF="#lbAE">DESCRIPTION</A><DD>
+<DT id="46"><A HREF="#lbAF">EXPORTS</A><DD>
+<DT id="47"><A HREF="#lbAG">BACKGROUND</A><DD>
+<DL>
+<DT id="48"><A HREF="#lbAH">Clobbering $@</A><DD>
+<DT id="49"><A HREF="#lbAI">Localizing $@ silently masks errors</A><DD>
+<DT id="50"><A HREF="#lbAJ">$@ might not be a true value</A><DD>
+</DL>
+<DT id="51"><A HREF="#lbAK">ALTERNATE SYNTAX</A><DD>
+<DT id="52"><A HREF="#lbAL">CAVEATS</A><DD>
+<DT id="53"><A HREF="#lbAM">SEE ALSO</A><DD>
+<DT id="54"><A HREF="#lbAN">LIGHTNING TALK</A><DD>
+<DT id="55"><A HREF="#lbAO">SUPPORT</A><DD>
+<DT id="56"><A HREF="#lbAP">AUTHORS</A><DD>
+<DT id="57"><A HREF="#lbAQ">CONTRIBUTORS</A><DD>
+<DT id="58"><A HREF="#lbAR">COPYRIGHT AND LICENCE</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:58 GMT, March 31, 2021
+</BODY>
+</HTML>

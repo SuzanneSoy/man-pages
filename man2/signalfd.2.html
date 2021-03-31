@@ -1,0 +1,777 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SIGNALFD</TITLE>
+</HEAD><BODY>
+<H1>SIGNALFD</H1>
+Section: Linux Programmer's Manual (2)<BR>Updated: 2019-10-10<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+signalfd - create a file descriptor for accepting signals
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<B>#include &lt;<A HREF="file:///usr/include/sys/signalfd.h">sys/signalfd.h</A>&gt;</B>
+
+<P>
+
+<B>int signalfd(int </B><I>fd</I><B>, const sigset_t *</B><I>mask</I><B>, int </B><I>flags</I><B>);</B>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<B>signalfd</B>()
+
+creates a file descriptor that can be used to accept signals
+targeted at the caller.
+This provides an alternative to the use of a signal handler or
+<B><A HREF="/cgi-bin/man/man2html?2+sigwaitinfo">sigwaitinfo</A></B>(2),
+
+and has the advantage that the file descriptor may be monitored by
+<B><A HREF="/cgi-bin/man/man2html?2+select">select</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+poll">poll</A></B>(2),
+
+and
+<B><A HREF="/cgi-bin/man/man2html?7+epoll">epoll</A></B>(7).
+
+<P>
+
+The
+<I>mask</I>
+
+argument specifies the set of signals that the caller
+wishes to accept via the file descriptor.
+This argument is a signal set whose contents can be initialized
+using the macros described in
+<B><A HREF="/cgi-bin/man/man2html?3+sigsetops">sigsetops</A></B>(3).
+
+Normally, the set of signals to be received via the
+file descriptor should be blocked using
+<B><A HREF="/cgi-bin/man/man2html?2+sigprocmask">sigprocmask</A></B>(2),
+
+to prevent the signals being handled according to their default
+dispositions.
+It is not possible to receive
+<B>SIGKILL</B>
+
+or
+<B>SIGSTOP</B>
+
+signals via a signalfd file descriptor;
+these signals are silently ignored if specified in
+<I>mask</I>.
+
+<P>
+
+If the
+<I>fd</I>
+
+argument is -1,
+then the call creates a new file descriptor and associates the
+signal set specified in
+<I>mask</I>
+
+with that file descriptor.
+If
+<I>fd</I>
+
+is not -1,
+then it must specify a valid existing signalfd file descriptor, and
+<I>mask</I>
+
+is used to replace the signal set associated with that file descriptor.
+<P>
+
+Starting with Linux 2.6.27, the following values may be bitwise ORed in
+<I>flags</I>
+
+to change the behavior of
+<B>signalfd</B>():
+
+<DL COMPACT>
+<DT id="1"><B>SFD_NONBLOCK</B>
+
+<DD>
+Set the
+<B>O_NONBLOCK</B>
+
+file status flag on the open file description (see
+<B><A HREF="/cgi-bin/man/man2html?2+open">open</A></B>(2))
+
+referred to by the new file descriptor.
+Using this flag saves extra calls to
+<B><A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A></B>(2)
+
+to achieve the same result.
+<DT id="2"><B>SFD_CLOEXEC</B>
+
+<DD>
+Set the close-on-exec
+(<B>FD_CLOEXEC</B>)
+
+flag on the new file descriptor.
+See the description of the
+<B>O_CLOEXEC</B>
+
+flag in
+<B><A HREF="/cgi-bin/man/man2html?2+open">open</A></B>(2)
+
+for reasons why this may be useful.
+</DL>
+<P>
+
+In Linux up to version 2.6.26, the
+<I>flags</I>
+
+argument is unused, and must be specified as zero.
+<P>
+
+<B>signalfd</B>()
+
+returns a file descriptor that supports the following operations:
+<DL COMPACT>
+<DT id="3"><B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)
+
+<DD>
+If one or more of the signals specified in
+<I>mask</I>
+
+is pending for the process, then the buffer supplied to
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)
+
+is used to return one or more
+<I>signalfd_siginfo</I>
+
+structures (see below) that describe the signals.
+The
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)
+
+returns information for as many signals as are pending and will
+fit in the supplied buffer.
+The buffer must be at least
+<I>sizeof(struct signalfd_siginfo)</I>
+
+bytes.
+The return value of the
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)
+
+is the total number of bytes read.
+<DT id="4"><DD>
+As a consequence of the
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2),
+
+the signals are consumed,
+so that they are no longer pending for the process
+(i.e., will not be caught by signal handlers,
+and cannot be accepted using
+<B><A HREF="/cgi-bin/man/man2html?2+sigwaitinfo">sigwaitinfo</A></B>(2)).
+
+<DT id="5"><DD>
+If none of the signals in
+<I>mask</I>
+
+is pending for the process, then the
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)
+
+either blocks until one of the signals in
+<I>mask</I>
+
+is generated for the process,
+or fails with the error
+<B>EAGAIN</B>
+
+if the file descriptor has been made nonblocking.
+<DT id="6"><B><A HREF="/cgi-bin/man/man2html?2+poll">poll</A></B>(2), <B><A HREF="/cgi-bin/man/man2html?2+select">select</A></B>(2) (and similar)
+
+<DD>
+The file descriptor is readable
+(the
+<B><A HREF="/cgi-bin/man/man2html?2+select">select</A></B>(2)
+
+<I>readfds</I>
+
+argument; the
+<B><A HREF="/cgi-bin/man/man2html?2+poll">poll</A></B>(2)
+
+<B>POLLIN</B>
+
+flag)
+if one or more of the signals in
+<I>mask</I>
+
+is pending for the process.
+<DT id="7"><DD>
+The signalfd file descriptor also supports the other file-descriptor
+multiplexing APIs:
+<B><A HREF="/cgi-bin/man/man2html?2+pselect">pselect</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+ppoll">ppoll</A></B>(2),
+
+and
+<B><A HREF="/cgi-bin/man/man2html?7+epoll">epoll</A></B>(7).
+
+<DT id="8"><B><A HREF="/cgi-bin/man/man2html?2+close">close</A></B>(2)
+
+<DD>
+When the file descriptor is no longer required it should be closed.
+When all file descriptors associated with the same signalfd object
+have been closed, the resources for object are freed by the kernel.
+</DL>
+<A NAME="lbAE">&nbsp;</A>
+<H3>The signalfd_siginfo structure</H3>
+
+The format of the
+<I>signalfd_siginfo</I>
+
+structure(s) returned by
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)s
+
+from a signalfd file descriptor is as follows:
+<P>
+
+
+
+struct signalfd_siginfo {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;ssi_signo;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Signal&nbsp;number&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int32_t&nbsp;&nbsp;ssi_errno;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Error&nbsp;number&nbsp;(unused)&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int32_t&nbsp;&nbsp;ssi_code;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Signal&nbsp;code&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;ssi_pid;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;PID&nbsp;of&nbsp;sender&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;ssi_uid;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Real&nbsp;UID&nbsp;of&nbsp;sender&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int32_t&nbsp;&nbsp;ssi_fd;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;File&nbsp;descriptor&nbsp;(SIGIO)&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;ssi_tid;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Kernel&nbsp;timer&nbsp;ID&nbsp;(POSIX&nbsp;timers)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;ssi_band;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Band&nbsp;event&nbsp;(SIGIO)&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;ssi_overrun;&nbsp;&nbsp;/*&nbsp;POSIX&nbsp;timer&nbsp;overrun&nbsp;count&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;ssi_trapno;&nbsp;&nbsp;&nbsp;/*&nbsp;Trap&nbsp;number&nbsp;that&nbsp;caused&nbsp;signal&nbsp;*/
+
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int32_t&nbsp;&nbsp;ssi_status;&nbsp;&nbsp;&nbsp;/*&nbsp;Exit&nbsp;status&nbsp;or&nbsp;signal&nbsp;(SIGCHLD)&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int32_t&nbsp;&nbsp;ssi_int;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Integer&nbsp;sent&nbsp;by&nbsp;<A HREF="/cgi-bin/man/man2html?3+sigqueue">sigqueue</A>(3)&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;ssi_ptr;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Pointer&nbsp;sent&nbsp;by&nbsp;<A HREF="/cgi-bin/man/man2html?3+sigqueue">sigqueue</A>(3)&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;ssi_utime;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;User&nbsp;CPU&nbsp;time&nbsp;consumed&nbsp;(SIGCHLD)&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;ssi_stime;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;System&nbsp;CPU&nbsp;time&nbsp;consumed
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(SIGCHLD)&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint64_t&nbsp;ssi_addr;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Address&nbsp;that&nbsp;generated&nbsp;signal
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(for&nbsp;hardware-generated&nbsp;signals)&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint16_t&nbsp;ssi_addr_lsb;&nbsp;/*&nbsp;Least&nbsp;significant&nbsp;bit&nbsp;of&nbsp;address
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(SIGBUS;&nbsp;since&nbsp;Linux&nbsp;2.6.37)
+
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint8_t&nbsp;&nbsp;pad[<I>X</I>];&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Pad&nbsp;size&nbsp;to&nbsp;128&nbsp;bytes&nbsp;(allow&nbsp;for
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;additional&nbsp;fields&nbsp;in&nbsp;the&nbsp;future)&nbsp;*/
+};
+
+
+<P>
+
+Each of the fields in this structure
+is analogous to the similarly named field in the
+<I>siginfo_t</I>
+
+structure.
+The
+<I>siginfo_t</I>
+
+structure is described in
+<B><A HREF="/cgi-bin/man/man2html?2+sigaction">sigaction</A></B>(2).
+
+Not all fields in the returned
+<I>signalfd_siginfo</I>
+
+structure will be valid for a specific signal;
+the set of valid fields can be determined from the value returned in the
+<I>ssi_code</I>
+
+field.
+This field is the analog of the
+<I>siginfo_t</I>
+
+<I>si_code</I>
+
+field; see
+<B><A HREF="/cgi-bin/man/man2html?2+sigaction">sigaction</A></B>(2)
+
+for details.
+<A NAME="lbAF">&nbsp;</A>
+<H3><A HREF="/cgi-bin/man/man2html?2+fork">fork</A>(2) semantics</H3>
+
+After a
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2),
+
+the child inherits a copy of the signalfd file descriptor.
+A
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)
+
+from the file descriptor in the child will return information
+about signals queued to the child.
+<A NAME="lbAG">&nbsp;</A>
+<H3>Semantics of file descriptor passing</H3>
+
+As with other file descriptors,
+signalfd file descriptors can be passed to another process
+via a UNIX domain socket (see
+<B><A HREF="/cgi-bin/man/man2html?7+unix">unix</A></B>(7)).
+
+In the receiving process, a
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)
+
+from the received file descriptor will return information
+about signals queued to that process.
+<A NAME="lbAH">&nbsp;</A>
+<H3><A HREF="/cgi-bin/man/man2html?2+execve">execve</A>(2) semantics</H3>
+
+Just like any other file descriptor,
+a signalfd file descriptor remains open across an
+<B><A HREF="/cgi-bin/man/man2html?2+execve">execve</A></B>(2),
+
+unless it has been marked for close-on-exec (see
+<B><A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A></B>(2)).
+
+Any signals that were available for reading before the
+<B><A HREF="/cgi-bin/man/man2html?2+execve">execve</A></B>(2)
+
+remain available to the newly loaded program.
+(This is analogous to traditional signal semantics,
+where a blocked signal that is pending remains pending across an
+<B><A HREF="/cgi-bin/man/man2html?2+execve">execve</A></B>(2).)
+
+<A NAME="lbAI">&nbsp;</A>
+<H3>Thread semantics</H3>
+
+The semantics of signalfd file descriptors in a multithreaded program
+mirror the standard semantics for signals.
+In other words,
+when a thread reads from a signalfd file descriptor,
+it will read the signals that are directed to the thread
+itself and the signals that are directed to the process
+(i.e., the entire thread group).
+(A thread will not be able to read signals that are directed
+to other threads in the process.)
+
+<A NAME="lbAJ">&nbsp;</A>
+<H3><A HREF="/cgi-bin/man/man2html?7+epoll">epoll</A>(7) semantics</H3>
+
+If a process adds (via
+<B><A HREF="/cgi-bin/man/man2html?2+epoll_ctl">epoll_ctl</A></B>(2))
+
+a signalfd file descriptor to an
+<B><A HREF="/cgi-bin/man/man2html?7+epoll">epoll</A></B>(7)
+
+instance, then
+<B><A HREF="/cgi-bin/man/man2html?2+epoll_wait">epoll_wait</A></B>(2)
+
+returns events only for signals sent to that process.
+In particular, if the process then uses
+<B>fork</B>()
+
+to create a child process, then the child will be able to
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)
+
+signals that are sent to it using the signalfd file descriptor, but
+<B><A HREF="/cgi-bin/man/man2html?2+epoll_wait">epoll_wait</A></B>(2)
+
+will
+<B>not</B>
+
+indicate that the signalfd file descriptor is ready.
+In this scenario, a possible workaround is that after the
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2),
+
+the child process can close the signalfd file descriptor that it inherited
+from the parent process and then create another signalfd file descriptor
+and add it to the epoll instance.
+Alternatively, the parent and the child could delay creating their
+(separate) signalfd file descriptors and adding them to the
+epoll instance until after the call to
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2).
+
+<A NAME="lbAK">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+On success,
+<B>signalfd</B>()
+
+returns a signalfd file descriptor;
+this is either a new file descriptor (if
+<I>fd</I>
+
+was -1), or
+<I>fd</I>
+
+if
+<I>fd</I>
+
+was a valid signalfd file descriptor.
+On error, -1 is returned and
+<I>errno</I>
+
+is set to indicate the error.
+<A NAME="lbAL">&nbsp;</A>
+<H2>ERRORS</H2>
+
+<DL COMPACT>
+<DT id="9"><B>EBADF</B>
+
+<DD>
+The
+<I>fd</I>
+
+file descriptor is not a valid file descriptor.
+<DT id="10"><B>EINVAL</B>
+
+<DD>
+<I>fd</I>
+
+is not a valid signalfd file descriptor.
+
+
+
+
+<DT id="11"><B>EINVAL</B>
+
+<DD>
+<I>flags</I>
+
+is invalid;
+or, in Linux 2.6.26 or earlier,
+<I>flags</I>
+
+is nonzero.
+<DT id="12"><B>EMFILE</B>
+
+<DD>
+The per-process limit on the number of open file descriptors has been reached.
+<DT id="13"><B>ENFILE</B>
+
+<DD>
+The system-wide limit on the total number of open files has been
+reached.
+<DT id="14"><B>ENODEV</B>
+
+<DD>
+Could not mount (internal) anonymous inode device.
+<DT id="15"><B>ENOMEM</B>
+
+<DD>
+There was insufficient memory to create a new signalfd file descriptor.
+</DL>
+<A NAME="lbAM">&nbsp;</A>
+<H2>VERSIONS</H2>
+
+<B>signalfd</B>()
+
+is available on Linux since kernel 2.6.22.
+Working support is provided in glibc since version 2.8.
+
+The
+<B>signalfd4</B>()
+
+system call (see NOTES) is available on Linux since kernel 2.6.27.
+<A NAME="lbAN">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+<B>signalfd</B>()
+
+and
+<B>signalfd4</B>()
+
+are Linux-specific.
+<A NAME="lbAO">&nbsp;</A>
+<H2>NOTES</H2>
+
+A process can create multiple signalfd file descriptors.
+This makes it possible to accept different signals
+on different file descriptors.
+(This may be useful if monitoring the file descriptors using
+<B><A HREF="/cgi-bin/man/man2html?2+select">select</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+poll">poll</A></B>(2),
+
+or
+<B><A HREF="/cgi-bin/man/man2html?7+epoll">epoll</A></B>(7):
+
+the arrival of different signals will make different file descriptors ready.)
+If a signal appears in the
+<I>mask</I>
+
+of more than one of the file descriptors, then occurrences
+of that signal can be read (once) from any one of the file descriptors.
+<P>
+
+Attempts to include
+<B>SIGKILL</B>
+
+and
+<B>SIGSTOP</B>
+
+in
+<I>mask</I>
+
+are silently ignored.
+<P>
+
+The signal mask employed by a signalfd file descriptor can be viewed
+via the entry for the corresponding file descriptor in the process's
+<I>/proc/[pid]/fdinfo</I>
+
+directory.
+See
+<B><A HREF="/cgi-bin/man/man2html?5+proc">proc</A></B>(5)
+
+for further details.
+
+<A NAME="lbAP">&nbsp;</A>
+<H3>Limitations</H3>
+
+The signalfd mechanism can't be used to receive signals that
+are synchronously generated, such as the
+<B>SIGSEGV</B>
+
+signal that results from accessing an invalid memory address
+or the
+<B>SIGFPE</B>
+
+signal that results from an arithmetic error.
+Such signals can be caught only via signal handler.
+<P>
+
+As described above,
+in normal usage one blocks the signals that will be accepted via
+<B>signalfd</B>().
+
+If spawning a child process to execute a helper program
+(that does not need the signalfd file descriptor),
+then, after the call to
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2),
+
+you will normally want to unblock those signals before calling
+<B><A HREF="/cgi-bin/man/man2html?2+execve">execve</A></B>(2),
+
+so that the helper program can see any signals that it expects to see.
+Be aware, however,
+that this won't be possible in the case of a helper program spawned
+behind the scenes by any library function that the program may call.
+In such cases, one must fall back to using a traditional signal
+handler that writes to a file descriptor monitored by
+<B><A HREF="/cgi-bin/man/man2html?2+select">select</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+poll">poll</A></B>(2),
+
+or
+<B><A HREF="/cgi-bin/man/man2html?7+epoll">epoll</A></B>(7).
+
+
+<A NAME="lbAQ">&nbsp;</A>
+<H3>C library/kernel differences</H3>
+
+The underlying Linux system call requires an additional argument,
+<I>size_t sizemask</I>,
+
+which specifies the size of the
+<I>mask</I>
+
+argument.
+The glibc
+<B>signalfd</B>()
+
+wrapper function does not include this argument,
+since it provides the required value for the underlying system call.
+<P>
+
+There are two underlying Linux system calls:
+<B>signalfd</B>()
+
+and the more recent
+<B>signalfd4</B>().
+
+The former system call does not implement a
+<I>flags</I>
+
+argument.
+The latter system call implements the
+<I>flags</I>
+
+values described above.
+Starting with glibc 2.9, the
+<B>signalfd</B>()
+
+wrapper function will use
+<B>signalfd4</B>()
+
+where it is available.
+<A NAME="lbAR">&nbsp;</A>
+<H2>BUGS</H2>
+
+In kernels before 2.6.25, the
+<I>ssi_ptr</I>
+
+and
+<I>ssi_int</I>
+
+fields are not filled in with the data accompanying a signal sent by
+<B><A HREF="/cgi-bin/man/man2html?3+sigqueue">sigqueue</A></B>(3).
+
+
+<A NAME="lbAS">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+The program below accepts the signals
+<B>SIGINT</B>
+
+and
+<B>SIGQUIT</B>
+
+via a signalfd file descriptor.
+The program terminates after accepting a
+<B>SIGQUIT</B>
+
+signal.
+The following shell session demonstrates the use of the program:
+<P>
+
+
+
+$<B> ./signalfd_demo</B>
+
+<B>^C</B>                   # Control-C generates SIGINT
+
+Got SIGINT
+<B>^C</B>
+
+Got SIGINT
+<B>^\</B>                    # Control-\ generates SIGQUIT
+Got SIGQUIT
+$
+
+
+<A NAME="lbAT">&nbsp;</A>
+<H3>Program source</H3>
+
+
+
+#include &lt;<A HREF="file:///usr/include/sys/signalfd.h">sys/signalfd.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/signal.h">signal.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/unistd.h">unistd.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdlib.h">stdlib.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+<P>
+#define handle_error(msg) \
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;do&nbsp;{&nbsp;perror(msg);&nbsp;exit(EXIT_FAILURE);&nbsp;}&nbsp;while&nbsp;(0)
+<P>
+int
+main(int argc, char *argv[])
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;sigset_t&nbsp;mask;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;sfd;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;signalfd_siginfo&nbsp;fdsi;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;ssize_t&nbsp;s;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;sigemptyset(&amp;mask);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;sigaddset(&amp;mask,&nbsp;SIGINT);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;sigaddset(&amp;mask,&nbsp;SIGQUIT);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Block&nbsp;signals&nbsp;so&nbsp;that&nbsp;they&nbsp;aren't&nbsp;handled
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;according&nbsp;to&nbsp;their&nbsp;default&nbsp;dispositions&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(sigprocmask(SIG_BLOCK,&nbsp;&amp;mask,&nbsp;NULL)&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;handle_error(&quot;sigprocmask&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;sfd&nbsp;=&nbsp;signalfd(-1,&nbsp;&amp;mask,&nbsp;0);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(sfd&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;handle_error(&quot;signalfd&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;(;;)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;s&nbsp;=&nbsp;read(sfd,&nbsp;&amp;fdsi,&nbsp;sizeof(struct&nbsp;signalfd_siginfo));
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(s&nbsp;!=&nbsp;sizeof(struct&nbsp;signalfd_siginfo))
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;handle_error(&quot;read&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(fdsi.ssi_signo&nbsp;==&nbsp;SIGINT)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;Got&nbsp;SIGINT\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;else&nbsp;if&nbsp;(fdsi.ssi_signo&nbsp;==&nbsp;SIGQUIT)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;Got&nbsp;SIGQUIT\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_SUCCESS);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;else&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;Read&nbsp;unexpected&nbsp;signal\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+}
+
+<A NAME="lbAU">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?2+eventfd">eventfd</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+poll">poll</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+select">select</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+sigaction">sigaction</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+sigprocmask">sigprocmask</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+sigwaitinfo">sigwaitinfo</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+timerfd_create">timerfd_create</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?3+sigsetops">sigsetops</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+sigwait">sigwait</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?7+epoll">epoll</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+signal">signal</A></B>(7)
+
+<A NAME="lbAV">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="16"><A HREF="#lbAB">NAME</A><DD>
+<DT id="17"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="18"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DL>
+<DT id="19"><A HREF="#lbAE">The signalfd_siginfo structure</A><DD>
+<DT id="20"><A HREF="#lbAF">fork(2) semantics</A><DD>
+<DT id="21"><A HREF="#lbAG">Semantics of file descriptor passing</A><DD>
+<DT id="22"><A HREF="#lbAH">execve(2) semantics</A><DD>
+<DT id="23"><A HREF="#lbAI">Thread semantics</A><DD>
+<DT id="24"><A HREF="#lbAJ">epoll(7) semantics</A><DD>
+</DL>
+<DT id="25"><A HREF="#lbAK">RETURN VALUE</A><DD>
+<DT id="26"><A HREF="#lbAL">ERRORS</A><DD>
+<DT id="27"><A HREF="#lbAM">VERSIONS</A><DD>
+<DT id="28"><A HREF="#lbAN">CONFORMING TO</A><DD>
+<DT id="29"><A HREF="#lbAO">NOTES</A><DD>
+<DL>
+<DT id="30"><A HREF="#lbAP">Limitations</A><DD>
+<DT id="31"><A HREF="#lbAQ">C library/kernel differences</A><DD>
+</DL>
+<DT id="32"><A HREF="#lbAR">BUGS</A><DD>
+<DT id="33"><A HREF="#lbAS">EXAMPLE</A><DD>
+<DL>
+<DT id="34"><A HREF="#lbAT">Program source</A><DD>
+</DL>
+<DT id="35"><A HREF="#lbAU">SEE ALSO</A><DD>
+<DT id="36"><A HREF="#lbAV">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:34 GMT, March 31, 2021
+</BODY>
+</HTML>

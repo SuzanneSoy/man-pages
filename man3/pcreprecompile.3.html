@@ -1,0 +1,196 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of PCREPRECOMPILE</TITLE>
+</HEAD><BODY>
+<H1>PCREPRECOMPILE</H1>
+Section: C Library Functions (3)<BR>Updated: 12 November 2013<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+PCRE - Perl-compatible regular expressions
+<A NAME="lbAC">&nbsp;</A>
+<H2>SAVING AND RE-USING PRECOMPILED PCRE PATTERNS</H2>
+
+
+<P>
+If you are running an application that uses a large number of regular
+expression patterns, it may be useful to store them in a precompiled form
+instead of having to compile them every time the application is run.
+If you are not using any private character tables (see the
+
+<B>pcre_maketables()</B>
+
+documentation), this is relatively straightforward. If you are using private
+tables, it is a little bit more complicated. However, if you are using the
+just-in-time optimization feature, it is not possible to save and reload the
+JIT data.
+<P>
+
+If you save compiled patterns to a file, you can copy them to a different host
+and run them there. If the two hosts have different endianness (byte order),
+you should run the <B>pcre[16|32]_pattern_to_host_byte_order()</B> function on the
+new host before trying to match the pattern. The matching functions return
+PCRE_ERROR_BADENDIANNESS if they detect a pattern with the wrong endianness.
+<P>
+
+Compiling regular expressions with one version of PCRE for use with a different
+version is not guaranteed to work and may cause crashes, and saving and
+restoring a compiled pattern loses any JIT optimization data.
+<A NAME="lbAD">&nbsp;</A>
+<H2>SAVING A COMPILED PATTERN</H2>
+
+
+<P>
+The value returned by <B>pcre[16|32]_compile()</B> points to a single block of
+memory that holds the compiled pattern and associated data. You can find the
+length of this block in bytes by calling <B>pcre[16|32]_fullinfo()</B> with an
+argument of PCRE_INFO_SIZE. You can then save the data in any appropriate
+manner. Here is sample code for the 8-bit library that compiles a pattern and
+writes it to a file. It assumes that the variable <I>fd</I> refers to a file
+that is open for output:
+<P>
+<BR>&nbsp;&nbsp;int&nbsp;erroroffset,&nbsp;rc,&nbsp;size;
+<BR>&nbsp;&nbsp;char&nbsp;*error;
+<BR>&nbsp;&nbsp;pcre&nbsp;*re;
+<P>
+<BR>&nbsp;&nbsp;re&nbsp;=&nbsp;pcre_compile(&quot;my&nbsp;pattern&quot;,&nbsp;0,&nbsp;&amp;error,&nbsp;&amp;erroroffset,&nbsp;NULL);
+<BR>&nbsp;&nbsp;if&nbsp;(re&nbsp;==&nbsp;NULL)&nbsp;{&nbsp;...&nbsp;handle&nbsp;errors&nbsp;...&nbsp;}
+<BR>&nbsp;&nbsp;rc&nbsp;=&nbsp;pcre_fullinfo(re,&nbsp;NULL,&nbsp;PCRE_INFO_SIZE,&nbsp;&amp;size);
+<BR>&nbsp;&nbsp;if&nbsp;(rc&nbsp;&lt;&nbsp;0)&nbsp;{&nbsp;...&nbsp;handle&nbsp;errors&nbsp;...&nbsp;}
+<BR>&nbsp;&nbsp;rc&nbsp;=&nbsp;fwrite(re,&nbsp;1,&nbsp;size,&nbsp;fd);
+<BR>&nbsp;&nbsp;if&nbsp;(rc&nbsp;!=&nbsp;size)&nbsp;{&nbsp;...&nbsp;handle&nbsp;errors&nbsp;...&nbsp;}
+<P>
+In this example, the bytes that comprise the compiled pattern are copied
+exactly. Note that this is binary data that may contain any of the 256 possible
+byte values. On systems that make a distinction between binary and non-binary
+data, be sure that the file is opened for binary output.
+<P>
+
+If you want to write more than one pattern to a file, you will have to devise a
+way of separating them. For binary data, preceding each pattern with its length
+is probably the most straightforward approach. Another possibility is to write
+out the data in hexadecimal instead of binary, one pattern to a line.
+<P>
+
+Saving compiled patterns in a file is only one possible way of storing them for
+later use. They could equally well be saved in a database, or in the memory of
+some daemon process that passes them via sockets to the processes that want
+them.
+<P>
+
+If the pattern has been studied, it is also possible to save the normal study
+data in a similar way to the compiled pattern itself. However, if the
+PCRE_STUDY_JIT_COMPILE was used, the just-in-time data that is created cannot
+be saved because it is too dependent on the current environment. When studying
+generates additional information, <B>pcre[16|32]_study()</B> returns a pointer to a
+<B>pcre[16|32]_extra</B> data block. Its format is defined in the
+
+
+section on matching a pattern
+
+in the
+
+<B>pcreapi</B>
+
+documentation. The <I>study_data</I> field points to the binary study data, and
+this is what you must save (not the <B>pcre[16|32]_extra</B> block itself). The
+length of the study data can be obtained by calling <B>pcre[16|32]_fullinfo()</B>
+with an argument of PCRE_INFO_STUDYSIZE. Remember to check that
+<B>pcre[16|32]_study()</B> did return a non-NULL value before trying to save the
+study data.
+<A NAME="lbAE">&nbsp;</A>
+<H2>RE-USING A PRECOMPILED PATTERN</H2>
+
+
+<P>
+Re-using a precompiled pattern is straightforward. Having reloaded it into main
+memory, called <B>pcre[16|32]_pattern_to_host_byte_order()</B> if necessary, you
+pass its pointer to <B>pcre[16|32]_exec()</B> or <B>pcre[16|32]_dfa_exec()</B> in
+the usual way.
+<P>
+
+However, if you passed a pointer to custom character tables when the pattern
+was compiled (the <I>tableptr</I> argument of <B>pcre[16|32]_compile()</B>), you
+must now pass a similar pointer to <B>pcre[16|32]_exec()</B> or
+<B>pcre[16|32]_dfa_exec()</B>, because the value saved with the compiled pattern
+will obviously be nonsense. A field in a <B>pcre[16|32]_extra()</B> block is used
+to pass this data, as described in the
+
+
+section on matching a pattern
+
+in the
+
+<B>pcreapi</B>
+
+documentation.
+<P>
+
+<B>Warning:</B> The tables that <B>pcre_exec()</B> and <B>pcre_dfa_exec()</B> use
+must be the same as those that were used when the pattern was compiled. If this
+is not the case, the behaviour is undefined.
+<P>
+
+If you did not provide custom character tables when the pattern was compiled,
+the pointer in the compiled pattern is NULL, which causes the matching
+functions to use PCRE's internal tables. Thus, you do not need to take any
+special action at run time in this case.
+<P>
+
+If you saved study data with the compiled pattern, you need to create your own
+<B>pcre[16|32]_extra</B> data block and set the <I>study_data</I> field to point
+to the reloaded study data. You must also set the PCRE_EXTRA_STUDY_DATA bit in
+the <I>flags</I> field to indicate that study data is present. Then pass the
+<B>pcre[16|32]_extra</B> block to the matching function in the usual way. If the
+pattern was studied for just-in-time optimization, that data cannot be saved,
+and so is lost by a save/restore cycle.
+<A NAME="lbAF">&nbsp;</A>
+<H2>COMPATIBILITY WITH DIFFERENT PCRE RELEASES</H2>
+
+
+<P>
+In general, it is safest to recompile all saved patterns when you update to a
+new PCRE release, though not all updates actually require this.
+<A NAME="lbAG">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+
+<P>
+<PRE>
+Philip Hazel
+University Computing Service
+Cambridge CB2 3QH, England.
+</PRE>
+
+<A NAME="lbAH">&nbsp;</A>
+<H2>REVISION</H2>
+
+
+<P>
+<PRE>
+Last updated: 12 November 2013
+Copyright (c) 1997-2013 University of Cambridge.
+</PRE>
+
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="1"><A HREF="#lbAB">NAME</A><DD>
+<DT id="2"><A HREF="#lbAC">SAVING AND RE-USING PRECOMPILED PCRE PATTERNS</A><DD>
+<DT id="3"><A HREF="#lbAD">SAVING A COMPILED PATTERN</A><DD>
+<DT id="4"><A HREF="#lbAE">RE-USING A PRECOMPILED PATTERN</A><DD>
+<DT id="5"><A HREF="#lbAF">COMPATIBILITY WITH DIFFERENT PCRE RELEASES</A><DD>
+<DT id="6"><A HREF="#lbAG">AUTHOR</A><DD>
+<DT id="7"><A HREF="#lbAH">REVISION</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:52 GMT, March 31, 2021
+</BODY>
+</HTML>

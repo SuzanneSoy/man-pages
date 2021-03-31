@@ -1,0 +1,1004 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of USERFAULTFD</TITLE>
+</HEAD><BODY>
+<H1>USERFAULTFD</H1>
+Section: Linux Programmer's Manual (2)<BR>Updated: 2020-02-09<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+userfaultfd - create a file descriptor for handling page faults in user space
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<PRE>
+<B>#include &lt;<A HREF="file:///usr/include/sys/types.h">sys/types.h</A>&gt;</B>
+<B>#include &lt;<A HREF="file:///usr/include/linux/userfaultfd.h">linux/userfaultfd.h</A>&gt;</B>
+
+<B>int userfaultfd(int </B><I>flags</I><B>);</B>
+</PRE>
+
+<P>
+
+<I>Note</I>:
+
+There is no glibc wrapper for this system call; see NOTES.
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<B>userfaultfd</B>()
+
+creates a new userfaultfd object that can be used for delegation of page-fault
+handling to a user-space application,
+and returns a file descriptor that refers to the new object.
+The new userfaultfd object is configured using
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2).
+
+<P>
+
+Once the userfaultfd object is configured, the application can use
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)
+
+to receive userfaultfd notifications.
+The reads from userfaultfd may be blocking or non-blocking,
+depending on the value of
+<I>flags</I>
+
+used for the creation of the userfaultfd or subsequent calls to
+<B><A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A></B>(2).
+
+<P>
+
+The following values may be bitwise ORed in
+<I>flags</I>
+
+to change the behavior of
+<B>userfaultfd</B>():
+
+<DL COMPACT>
+<DT id="1"><B>O_CLOEXEC</B>
+
+<DD>
+Enable the close-on-exec flag for the new userfaultfd file descriptor.
+See the description of the
+<B>O_CLOEXEC</B>
+
+flag in
+<B><A HREF="/cgi-bin/man/man2html?2+open">open</A></B>(2).
+
+<DT id="2"><B>O_NONBLOCK</B>
+
+<DD>
+Enables non-blocking operation for the userfaultfd object.
+See the description of the
+<B>O_NONBLOCK</B>
+
+flag in
+<B><A HREF="/cgi-bin/man/man2html?2+open">open</A></B>(2).
+
+</DL>
+<P>
+
+When the last file descriptor referring to a userfaultfd object is closed,
+all memory ranges that were registered with the object are unregistered
+and unread events are flushed.
+
+<A NAME="lbAE">&nbsp;</A>
+<H3>Usage</H3>
+
+The userfaultfd mechanism is designed to allow a thread in a multithreaded
+program to perform user-space paging for the other threads in the process.
+When a page fault occurs for one of the regions registered
+to the userfaultfd object,
+the faulting thread is put to sleep and
+an event is generated that can be read via the userfaultfd file descriptor.
+The fault-handling thread reads events from this file descriptor and services
+them using the operations described in
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl_userfaultfd">ioctl_userfaultfd</A></B>(2).
+
+When servicing the page fault events,
+the fault-handling thread can trigger a wake-up for the sleeping thread.
+<P>
+
+It is possible for the faulting threads and the fault-handling threads
+to run in the context of different processes.
+In this case, these threads may belong to different programs,
+and the program that executes the faulting threads
+will not necessarily cooperate with the program that handles the page faults.
+In such non-cooperative mode,
+the process that monitors userfaultfd and handles page faults
+needs to be aware of the changes in the virtual memory layout
+of the faulting process to avoid memory corruption.
+<P>
+
+Starting from Linux 4.11,
+userfaultfd can also notify the fault-handling threads about changes
+in the virtual memory layout of the faulting process.
+In addition, if the faulting process invokes
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2),
+
+the userfaultfd objects associated with the parent may be duplicated
+into the child process and the userfaultfd monitor will be notified
+(via the
+<B>UFFD_EVENT_FORK</B>
+
+described below)
+about the file descriptor associated with the userfault objects
+created for the child process,
+which allows the userfaultfd monitor to perform user-space paging
+for the child process.
+Unlike page faults which have to be synchronous and require an
+explicit or implicit wakeup,
+all other events are delivered asynchronously and
+the non-cooperative process resumes execution as
+soon as the userfaultfd manager executes
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2).
+
+The userfaultfd manager should carefully synchronize calls to
+<B>UFFDIO_COPY</B>
+
+with the processing of events.
+<P>
+
+The current asynchronous model of the event delivery is optimal for
+single threaded non-cooperative userfaultfd manager implementations.
+
+
+
+
+
+<P>
+
+
+
+
+
+
+<A NAME="lbAF">&nbsp;</A>
+<H3>Userfaultfd operation</H3>
+
+After the userfaultfd object is created with
+<B>userfaultfd</B>(),
+
+the application must enable it using the
+<B>UFFDIO_API</B>
+
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+operation.
+This operation allows a handshake between the kernel and user space
+to determine the API version and supported features.
+This operation must be performed before any of the other
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+operations described below (or those operations fail with the
+<B>EINVAL</B>
+
+error).
+<P>
+
+After a successful
+<B>UFFDIO_API</B>
+
+operation,
+the application then registers memory address ranges using the
+<B>UFFDIO_REGISTER</B>
+
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+operation.
+After successful completion of a
+<B>UFFDIO_REGISTER</B>
+
+operation,
+a page fault occurring in the requested memory range, and satisfying
+the mode defined at the registration time, will be forwarded by the kernel to
+the user-space application.
+The application can then use the
+<B>UFFDIO_COPY</B>
+
+or
+<B>UFFDIO_ZEROPAGE</B>
+
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+operations to resolve the page fault.
+<P>
+
+Starting from Linux 4.14, if the application sets the
+<B>UFFD_FEATURE_SIGBUS</B>
+
+feature bit using the
+<B>UFFDIO_API</B>
+
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2),
+
+no page-fault notification will be forwarded to user space.
+Instead a
+<B>SIGBUS</B>
+
+signal is delivered to the faulting process.
+With this feature,
+userfaultfd can be used for robustness purposes to simply catch
+any access to areas within the registered address range that do not
+have pages allocated, without having to listen to userfaultfd events.
+No userfaultfd monitor will be required for dealing with such memory
+accesses.
+For example, this feature can be useful for applications that
+want to prevent the kernel from automatically allocating pages and filling
+holes in sparse files when the hole is accessed through a memory mapping.
+<P>
+
+The
+<B>UFFD_FEATURE_SIGBUS</B>
+
+feature is implicitly inherited through
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2)
+
+if used in combination with
+<B>UFFD_FEATURE_FORK</B>.
+
+<P>
+
+Details of the various
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+operations can be found in
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl_userfaultfd">ioctl_userfaultfd</A></B>(2).
+
+<P>
+
+Since Linux 4.11, events other than page-fault may enabled during
+<B>UFFDIO_API</B>
+
+operation.
+<P>
+
+Up to Linux 4.11,
+userfaultfd can be used only with anonymous private memory mappings.
+Since Linux 4.11,
+userfaultfd can be also used with hugetlbfs and shared memory mappings.
+<P>
+
+
+<A NAME="lbAG">&nbsp;</A>
+<H3>Reading from the userfaultfd structure</H3>
+
+Each
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)
+
+from the userfaultfd file descriptor returns one or more
+<I>uffd_msg</I>
+
+structures, each of which describes a page-fault event
+or an event required for the non-cooperative userfaultfd usage:
+<P>
+
+
+
+struct uffd_msg {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u8&nbsp;&nbsp;event;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Type&nbsp;of&nbsp;event&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;...
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;union&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;flags;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Flags&nbsp;describing&nbsp;fault&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;address;&nbsp;&nbsp;/*&nbsp;Faulting&nbsp;address&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;pagefault;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;{&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Since&nbsp;Linux&nbsp;4.11&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;__u32&nbsp;ufd;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Userfault&nbsp;file&nbsp;descriptor
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;of&nbsp;the&nbsp;child&nbsp;process&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;fork;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;{&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Since&nbsp;Linux&nbsp;4.11&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;from;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Old&nbsp;address&nbsp;of&nbsp;remapped&nbsp;area&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;to;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;New&nbsp;address&nbsp;of&nbsp;remapped&nbsp;area&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;len;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Original&nbsp;mapping&nbsp;length&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;remap;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;{&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Since&nbsp;Linux&nbsp;4.11&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;start;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Start&nbsp;address&nbsp;of&nbsp;removed&nbsp;area&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;end;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;End&nbsp;address&nbsp;of&nbsp;removed&nbsp;area&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;remove;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;...
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;arg;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Padding&nbsp;fields&nbsp;omitted&nbsp;*/
+} __packed;
+
+
+<P>
+
+If multiple events are available and the supplied buffer is large enough,
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)
+
+returns as many events as will fit in the supplied buffer.
+If the buffer supplied to
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)
+
+is smaller than the size of the
+<I>uffd_msg</I>
+
+structure, the
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)
+
+fails with the error
+<B>EINVAL</B>.
+
+<P>
+
+The fields set in the
+<I>uffd_msg</I>
+
+structure are as follows:
+<DL COMPACT>
+<DT id="3"><I>event</I>
+
+<DD>
+The type of event.
+Depending of the event type,
+different fields of the
+<I>arg</I>
+
+union represent details required for the event processing.
+The non-page-fault events are generated only when appropriate feature
+is enabled during API handshake with
+<B>UFFDIO_API</B>
+
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2).
+
+<DT id="4"><DD>
+The following values can appear in the
+<I>event</I>
+
+field:
+<DL COMPACT><DT id="5"><DD>
+<DL COMPACT>
+<DT id="6"><B>UFFD_EVENT_PAGEFAULT</B> (since Linux 4.3)
+
+<DD>
+A page-fault event.
+The page-fault details are available in the
+<I>pagefault</I>
+
+field.
+<DT id="7"><B>UFFD_EVENT_FORK</B> (since Linux 4.11)
+
+<DD>
+Generated when the faulting process invokes
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2)
+
+(or
+<B><A HREF="/cgi-bin/man/man2html?2+clone">clone</A></B>(2)
+
+without the
+<B>CLONE_VM</B>
+
+flag).
+The event details are available in the
+<I>fork</I>
+
+field.
+
+<DT id="8"><B>UFFD_EVENT_REMAP</B> (since Linux 4.11)
+
+<DD>
+Generated when the faulting process invokes
+<B><A HREF="/cgi-bin/man/man2html?2+mremap">mremap</A></B>(2).
+
+The event details are available in the
+<I>remap</I>
+
+field.
+<DT id="9"><B>UFFD_EVENT_REMOVE</B> (since Linux 4.11)
+
+<DD>
+Generated when the faulting process invokes
+<B><A HREF="/cgi-bin/man/man2html?2+madvise">madvise</A></B>(2)
+
+with
+<B>MADV_DONTNEED</B>
+
+or
+<B>MADV_REMOVE</B>
+
+advice.
+The event details are available in the
+<I>remove</I>
+
+field.
+<DT id="10"><B>UFFD_EVENT_UNMAP</B> (since Linux 4.11)
+
+<DD>
+Generated when the faulting process unmaps a memory range,
+either explicitly using
+<B><A HREF="/cgi-bin/man/man2html?2+munmap">munmap</A></B>(2)
+
+or implicitly during
+<B><A HREF="/cgi-bin/man/man2html?2+mmap">mmap</A></B>(2)
+
+or
+<B><A HREF="/cgi-bin/man/man2html?2+mremap">mremap</A></B>(2).
+
+The event details are available in the
+<I>remove</I>
+
+field.
+</DL>
+</DL>
+
+<DT id="11"><I>pagefault.address</I>
+
+<DD>
+The address that triggered the page fault.
+<DT id="12"><I>pagefault.flags</I>
+
+<DD>
+A bit mask of flags that describe the event.
+For
+<B>UFFD_EVENT_PAGEFAULT</B>,
+
+the following flag may appear:
+<DL COMPACT><DT id="13"><DD>
+<DL COMPACT>
+<DT id="14"><B>UFFD_PAGEFAULT_FLAG_WRITE</B>
+
+<DD>
+If the address is in a range that was registered with the
+<B>UFFDIO_REGISTER_MODE_MISSING</B>
+
+flag (see
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl_userfaultfd">ioctl_userfaultfd</A></B>(2))
+
+and this flag is set, this a write fault;
+otherwise it is a read fault.
+
+
+</DL>
+</DL>
+
+<DT id="15"><I>fork.ufd</I>
+
+<DD>
+The file descriptor associated with the userfault object
+created for the child created by
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2).
+
+<DT id="16"><I>remap.from</I>
+
+<DD>
+The original address of the memory range that was remapped using
+<B><A HREF="/cgi-bin/man/man2html?2+mremap">mremap</A></B>(2).
+
+<DT id="17"><I>remap.to</I>
+
+<DD>
+The new address of the memory range that was remapped using
+<B><A HREF="/cgi-bin/man/man2html?2+mremap">mremap</A></B>(2).
+
+<DT id="18"><I>remap.len</I>
+
+<DD>
+The original length of the memory range that was remapped using
+<B><A HREF="/cgi-bin/man/man2html?2+mremap">mremap</A></B>(2).
+
+<DT id="19"><I>remove.start</I>
+
+<DD>
+The start address of the memory range that was freed using
+<B><A HREF="/cgi-bin/man/man2html?2+madvise">madvise</A></B>(2)
+
+or unmapped
+<DT id="20"><I>remove.end</I>
+
+<DD>
+The end address of the memory range that was freed using
+<B><A HREF="/cgi-bin/man/man2html?2+madvise">madvise</A></B>(2)
+
+or unmapped
+</DL>
+<P>
+
+A
+<B><A HREF="/cgi-bin/man/man2html?2+read">read</A></B>(2)
+
+on a userfaultfd file descriptor can fail with the following errors:
+<DL COMPACT>
+<DT id="21"><B>EINVAL</B>
+
+<DD>
+The userfaultfd object has not yet been enabled using the
+<B>UFFDIO_API</B>
+
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+operation
+</DL>
+<P>
+
+If the
+<B>O_NONBLOCK</B>
+
+flag is enabled in the associated open file description,
+the userfaultfd file descriptor can be monitored with
+<B><A HREF="/cgi-bin/man/man2html?2+poll">poll</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+select">select</A></B>(2),
+
+and
+<B><A HREF="/cgi-bin/man/man2html?7+epoll">epoll</A></B>(7).
+
+When events are available, the file descriptor indicates as readable.
+If the
+<B>O_NONBLOCK</B>
+
+flag is not enabled, then
+<B><A HREF="/cgi-bin/man/man2html?2+poll">poll</A></B>(2)
+
+(always) indicates the file as having a
+<B>POLLERR</B>
+
+condition, and
+<B><A HREF="/cgi-bin/man/man2html?2+select">select</A></B>(2)
+
+indicates the file descriptor as both readable and writable.
+
+
+
+<A NAME="lbAH">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+On success,
+<B>userfaultfd</B>()
+
+returns a new file descriptor that refers to the userfaultfd object.
+On error, -1 is returned, and
+<I>errno</I>
+
+is set appropriately.
+<A NAME="lbAI">&nbsp;</A>
+<H2>ERRORS</H2>
+
+<DL COMPACT>
+<DT id="22"><B>EINVAL</B>
+
+<DD>
+An unsupported value was specified in
+<I>flags</I>.
+
+<DT id="23"><B>EMFILE</B>
+
+<DD>
+The per-process limit on the number of open file descriptors has been
+reached
+<DT id="24"><B>ENFILE</B>
+
+<DD>
+The system-wide limit on the total number of open files has been
+reached.
+<DT id="25"><B>ENOMEM</B>
+
+<DD>
+Insufficient kernel memory was available.
+<DT id="26"><B>EPERM</B> (since Linux 5.2)
+
+<DD>
+
+The caller is not privileged (does not have the
+<B>CAP_SYS_PTRACE</B>
+
+capability in the initial user namespace), and
+<I>/proc/sys/vm/unprivileged_userfaultfd</I>
+
+has the value 0.
+</DL>
+<A NAME="lbAJ">&nbsp;</A>
+<H2>VERSIONS</H2>
+
+The
+<B>userfaultfd</B>()
+
+system call first appeared in Linux 4.3.
+<P>
+
+The support for hugetlbfs and shared memory areas and
+non-page-fault events was added in Linux 4.11
+<A NAME="lbAK">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+<B>userfaultfd</B>()
+
+is Linux-specific and should not be used in programs intended to be
+portable.
+<A NAME="lbAL">&nbsp;</A>
+<H2>NOTES</H2>
+
+Glibc does not provide a wrapper for this system call; call it using
+<B><A HREF="/cgi-bin/man/man2html?2+syscall">syscall</A></B>(2).
+
+<P>
+
+The userfaultfd mechanism can be used as an alternative to
+traditional user-space paging techniques based on the use of the
+<B>SIGSEGV</B>
+
+signal and
+<B><A HREF="/cgi-bin/man/man2html?2+mmap">mmap</A></B>(2).
+
+It can also be used to implement lazy restore
+for checkpoint/restore mechanisms,
+as well as post-copy migration to allow (nearly) uninterrupted execution
+when transferring virtual machines and Linux containers
+from one host to another.
+<A NAME="lbAM">&nbsp;</A>
+<H2>BUGS</H2>
+
+If the
+<B>UFFD_FEATURE_EVENT_FORK</B>
+
+is enabled and a system call from the
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2)
+
+family is interrupted by a signal or failed, a stale userfaultfd descriptor
+might be created.
+In this case, a spurious
+<B>UFFD_EVENT_FORK</B>
+
+will be delivered to the userfaultfd monitor.
+<A NAME="lbAN">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+The program below demonstrates the use of the userfaultfd mechanism.
+The program creates two threads, one of which acts as the
+page-fault handler for the process, for the pages in a demand-page zero
+region created using
+<B><A HREF="/cgi-bin/man/man2html?2+mmap">mmap</A></B>(2).
+
+<P>
+
+The program takes one command-line argument,
+which is the number of pages that will be created in a mapping
+whose page faults will be handled via userfaultfd.
+After creating a userfaultfd object,
+the program then creates an anonymous private mapping of the specified size
+and registers the address range of that mapping using the
+<B>UFFDIO_REGISTER</B>
+
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+operation.
+The program then creates a second thread that will perform the
+task of handling page faults.
+<P>
+
+The main thread then walks through the pages of the mapping fetching
+bytes from successive pages.
+Because the pages have not yet been accessed,
+the first access of a byte in each page will trigger a page-fault event
+on the userfaultfd file descriptor.
+<P>
+
+Each of the page-fault events is handled by the second thread,
+which sits in a loop processing input from the userfaultfd file descriptor.
+In each loop iteration, the second thread first calls
+<B><A HREF="/cgi-bin/man/man2html?2+poll">poll</A></B>(2)
+
+to check the state of the file descriptor,
+and then reads an event from the file descriptor.
+All such events should be
+<B>UFFD_EVENT_PAGEFAULT</B>
+
+events,
+which the thread handles by copying a page of data into
+the faulting region using the
+<B>UFFDIO_COPY</B>
+
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+operation.
+<P>
+
+The following is an example of what we see when running the program:
+<P>
+
+
+
+$ <B>./userfaultfd_demo 3</B>
+Address returned by mmap() = 0x7fd30106c000
+<P>
+fault_handler_thread():
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;poll()&nbsp;returns:&nbsp;nready&nbsp;=&nbsp;1;&nbsp;POLLIN&nbsp;=&nbsp;1;&nbsp;POLLERR&nbsp;=&nbsp;0
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;UFFD_EVENT_PAGEFAULT&nbsp;event:&nbsp;flags&nbsp;=&nbsp;0;&nbsp;address&nbsp;=&nbsp;7fd30106c00f
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(uffdio_copy.copy&nbsp;returned&nbsp;4096)
+Read address 0x7fd30106c00f in main(): A
+Read address 0x7fd30106c40f in main(): A
+Read address 0x7fd30106c80f in main(): A
+Read address 0x7fd30106cc0f in main(): A
+<P>
+fault_handler_thread():
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;poll()&nbsp;returns:&nbsp;nready&nbsp;=&nbsp;1;&nbsp;POLLIN&nbsp;=&nbsp;1;&nbsp;POLLERR&nbsp;=&nbsp;0
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;UFFD_EVENT_PAGEFAULT&nbsp;event:&nbsp;flags&nbsp;=&nbsp;0;&nbsp;address&nbsp;=&nbsp;7fd30106d00f
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(uffdio_copy.copy&nbsp;returned&nbsp;4096)
+Read address 0x7fd30106d00f in main(): B
+Read address 0x7fd30106d40f in main(): B
+Read address 0x7fd30106d80f in main(): B
+Read address 0x7fd30106dc0f in main(): B
+<P>
+fault_handler_thread():
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;poll()&nbsp;returns:&nbsp;nready&nbsp;=&nbsp;1;&nbsp;POLLIN&nbsp;=&nbsp;1;&nbsp;POLLERR&nbsp;=&nbsp;0
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;UFFD_EVENT_PAGEFAULT&nbsp;event:&nbsp;flags&nbsp;=&nbsp;0;&nbsp;address&nbsp;=&nbsp;7fd30106e00f
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(uffdio_copy.copy&nbsp;returned&nbsp;4096)
+Read address 0x7fd30106e00f in main(): C
+Read address 0x7fd30106e40f in main(): C
+Read address 0x7fd30106e80f in main(): C
+Read address 0x7fd30106ec0f in main(): C
+
+
+<A NAME="lbAO">&nbsp;</A>
+<H3>Program source</H3>
+
+
+
+/* userfaultfd_demo.c
+<P>
+<BR>&nbsp;&nbsp;&nbsp;Licensed&nbsp;under&nbsp;the&nbsp;GNU&nbsp;General&nbsp;Public&nbsp;License&nbsp;version&nbsp;2&nbsp;or&nbsp;later.
+*/
+#define _GNU_SOURCE
+#include &lt;<A HREF="file:///usr/include/sys/types.h">sys/types.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/linux/userfaultfd.h">linux/userfaultfd.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/pthread.h">pthread.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/errno.h">errno.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/unistd.h">unistd.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdlib.h">stdlib.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/fcntl.h">fcntl.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/signal.h">signal.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/poll.h">poll.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/string.h">string.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/sys/mman.h">sys/mman.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/sys/syscall.h">sys/syscall.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/sys/ioctl.h">sys/ioctl.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/poll.h">poll.h</A>&gt;
+<P>
+#define errExit(msg)    do { perror(msg); exit(EXIT_FAILURE); \
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;while&nbsp;(0)
+<P>
+static int page_size;
+<P>
+static void *
+fault_handler_thread(void *arg)
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;static&nbsp;struct&nbsp;uffd_msg&nbsp;msg;&nbsp;&nbsp;&nbsp;/*&nbsp;Data&nbsp;read&nbsp;from&nbsp;userfaultfd&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;static&nbsp;int&nbsp;fault_cnt&nbsp;=&nbsp;0;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Number&nbsp;of&nbsp;faults&nbsp;so&nbsp;far&nbsp;handled&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;long&nbsp;uffd;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;userfaultfd&nbsp;file&nbsp;descriptor&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;static&nbsp;char&nbsp;*page&nbsp;=&nbsp;NULL;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;uffdio_copy&nbsp;uffdio_copy;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;ssize_t&nbsp;nread;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uffd&nbsp;=&nbsp;(long)&nbsp;arg;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Create&nbsp;a&nbsp;page&nbsp;that&nbsp;will&nbsp;be&nbsp;copied&nbsp;into&nbsp;the&nbsp;faulting&nbsp;region&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(page&nbsp;==&nbsp;NULL)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;page&nbsp;=&nbsp;mmap(NULL,&nbsp;page_size,&nbsp;PROT_READ&nbsp;|&nbsp;PROT_WRITE,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MAP_PRIVATE&nbsp;|&nbsp;MAP_ANONYMOUS,&nbsp;-1,&nbsp;0);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(page&nbsp;==&nbsp;MAP_FAILED)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errExit(&quot;mmap&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Loop,&nbsp;handling&nbsp;incoming&nbsp;events&nbsp;on&nbsp;the&nbsp;userfaultfd
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;file&nbsp;descriptor&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;(;;)&nbsp;{
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;See&nbsp;what&nbsp;poll()&nbsp;tells&nbsp;us&nbsp;about&nbsp;the&nbsp;userfaultfd&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;pollfd&nbsp;pollfd;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;nready;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pollfd.fd&nbsp;=&nbsp;uffd;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pollfd.events&nbsp;=&nbsp;POLLIN;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;nready&nbsp;=&nbsp;poll(&amp;pollfd,&nbsp;1,&nbsp;-1);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(nready&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errExit(&quot;poll&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;\nfault_handler_thread():\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;&nbsp;&nbsp;&nbsp;&nbsp;poll()&nbsp;returns:&nbsp;nready&nbsp;=&nbsp;%d;&nbsp;&quot;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;POLLIN&nbsp;=&nbsp;%d;&nbsp;POLLERR&nbsp;=&nbsp;%d\n&quot;,&nbsp;nready,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(pollfd.revents&nbsp;&amp;&nbsp;POLLIN)&nbsp;!=&nbsp;0,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(pollfd.revents&nbsp;&amp;&nbsp;POLLERR)&nbsp;!=&nbsp;0);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Read&nbsp;an&nbsp;event&nbsp;from&nbsp;the&nbsp;userfaultfd&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;nread&nbsp;=&nbsp;read(uffd,&nbsp;&amp;msg,&nbsp;sizeof(msg));
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(nread&nbsp;==&nbsp;0)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;EOF&nbsp;on&nbsp;userfaultfd!\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(nread&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errExit(&quot;read&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;We&nbsp;expect&nbsp;only&nbsp;one&nbsp;kind&nbsp;of&nbsp;event;&nbsp;verify&nbsp;that&nbsp;assumption&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(msg.event&nbsp;!=&nbsp;UFFD_EVENT_PAGEFAULT)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;Unexpected&nbsp;event&nbsp;on&nbsp;userfaultfd\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Display&nbsp;info&nbsp;about&nbsp;the&nbsp;page-fault&nbsp;event&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;&nbsp;&nbsp;&nbsp;&nbsp;UFFD_EVENT_PAGEFAULT&nbsp;event:&nbsp;&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;flags&nbsp;=&nbsp;%llx;&nbsp;&quot;,&nbsp;msg.arg.pagefault.flags);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;address&nbsp;=&nbsp;%llx\n&quot;,&nbsp;msg.arg.pagefault.address);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Copy&nbsp;the&nbsp;page&nbsp;pointed&nbsp;to&nbsp;by&nbsp;'page'&nbsp;into&nbsp;the&nbsp;faulting
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;region.&nbsp;Vary&nbsp;the&nbsp;contents&nbsp;that&nbsp;are&nbsp;copied&nbsp;in,&nbsp;so&nbsp;that&nbsp;it
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is&nbsp;more&nbsp;obvious&nbsp;that&nbsp;each&nbsp;fault&nbsp;is&nbsp;handled&nbsp;separately.&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;memset(page,&nbsp;'A'&nbsp;+&nbsp;fault_cnt&nbsp;%&nbsp;20,&nbsp;page_size);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fault_cnt++;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;uffdio_copy.src&nbsp;=&nbsp;(unsigned&nbsp;long)&nbsp;page;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;We&nbsp;need&nbsp;to&nbsp;handle&nbsp;page&nbsp;faults&nbsp;in&nbsp;units&nbsp;of&nbsp;pages(!).
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;So,&nbsp;round&nbsp;faulting&nbsp;address&nbsp;down&nbsp;to&nbsp;page&nbsp;boundary&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;uffdio_copy.dst&nbsp;=&nbsp;(unsigned&nbsp;long)&nbsp;msg.arg.pagefault.address&nbsp;&amp;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;~(page_size&nbsp;-&nbsp;1);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;uffdio_copy.len&nbsp;=&nbsp;page_size;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;uffdio_copy.mode&nbsp;=&nbsp;0;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;uffdio_copy.copy&nbsp;=&nbsp;0;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(ioctl(uffd,&nbsp;UFFDIO_COPY,&nbsp;&amp;uffdio_copy)&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errExit(&quot;ioctl-UFFDIO_COPY&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(uffdio_copy.copy&nbsp;returned&nbsp;%lld)\n&quot;,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;uffdio_copy.copy);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+}
+<P>
+int
+main(int argc, char *argv[])
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;long&nbsp;uffd;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;userfaultfd&nbsp;file&nbsp;descriptor&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;*addr;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Start&nbsp;of&nbsp;region&nbsp;handled&nbsp;by&nbsp;userfaultfd&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;unsigned&nbsp;long&nbsp;len;&nbsp;&nbsp;/*&nbsp;Length&nbsp;of&nbsp;region&nbsp;handled&nbsp;by&nbsp;userfaultfd&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;pthread_t&nbsp;thr;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;ID&nbsp;of&nbsp;thread&nbsp;that&nbsp;handles&nbsp;page&nbsp;faults&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;uffdio_api&nbsp;uffdio_api;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;uffdio_register&nbsp;uffdio_register;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;s;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(argc&nbsp;!=&nbsp;2)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;Usage:&nbsp;%s&nbsp;num-pages\n&quot;,&nbsp;argv[0]);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;page_size&nbsp;=&nbsp;sysconf(_SC_PAGE_SIZE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;len&nbsp;=&nbsp;strtoul(argv[1],&nbsp;NULL,&nbsp;0)&nbsp;*&nbsp;page_size;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Create&nbsp;and&nbsp;enable&nbsp;userfaultfd&nbsp;object&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uffd&nbsp;=&nbsp;syscall(__NR_userfaultfd,&nbsp;O_CLOEXEC&nbsp;|&nbsp;O_NONBLOCK);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(uffd&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errExit(&quot;userfaultfd&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uffdio_api.api&nbsp;=&nbsp;UFFD_API;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uffdio_api.features&nbsp;=&nbsp;0;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(ioctl(uffd,&nbsp;UFFDIO_API,&nbsp;&amp;uffdio_api)&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errExit(&quot;ioctl-UFFDIO_API&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Create&nbsp;a&nbsp;private&nbsp;anonymous&nbsp;mapping.&nbsp;The&nbsp;memory&nbsp;will&nbsp;be
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;demand-zero&nbsp;paged--that&nbsp;is,&nbsp;not&nbsp;yet&nbsp;allocated.&nbsp;When&nbsp;we
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;actually&nbsp;touch&nbsp;the&nbsp;memory,&nbsp;it&nbsp;will&nbsp;be&nbsp;allocated&nbsp;via
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;the&nbsp;userfaultfd.&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;addr&nbsp;=&nbsp;mmap(NULL,&nbsp;len,&nbsp;PROT_READ&nbsp;|&nbsp;PROT_WRITE,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MAP_PRIVATE&nbsp;|&nbsp;MAP_ANONYMOUS,&nbsp;-1,&nbsp;0);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(addr&nbsp;==&nbsp;MAP_FAILED)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errExit(&quot;mmap&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;Address&nbsp;returned&nbsp;by&nbsp;mmap()&nbsp;=&nbsp;%p\n&quot;,&nbsp;addr);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Register&nbsp;the&nbsp;memory&nbsp;range&nbsp;of&nbsp;the&nbsp;mapping&nbsp;we&nbsp;just&nbsp;created&nbsp;for
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;handling&nbsp;by&nbsp;the&nbsp;userfaultfd&nbsp;object.&nbsp;In&nbsp;mode,&nbsp;we&nbsp;request&nbsp;to&nbsp;track
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;missing&nbsp;pages&nbsp;(i.e.,&nbsp;pages&nbsp;that&nbsp;have&nbsp;not&nbsp;yet&nbsp;been&nbsp;faulted&nbsp;in).&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uffdio_register.range.start&nbsp;=&nbsp;(unsigned&nbsp;long)&nbsp;addr;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uffdio_register.range.len&nbsp;=&nbsp;len;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uffdio_register.mode&nbsp;=&nbsp;UFFDIO_REGISTER_MODE_MISSING;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(ioctl(uffd,&nbsp;UFFDIO_REGISTER,&nbsp;&amp;uffdio_register)&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errExit(&quot;ioctl-UFFDIO_REGISTER&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Create&nbsp;a&nbsp;thread&nbsp;that&nbsp;will&nbsp;process&nbsp;the&nbsp;userfaultfd&nbsp;events&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;s&nbsp;=&nbsp;pthread_create(&amp;thr,&nbsp;NULL,&nbsp;fault_handler_thread,&nbsp;(void&nbsp;*)&nbsp;uffd);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(s&nbsp;!=&nbsp;0)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errno&nbsp;=&nbsp;s;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errExit(&quot;pthread_create&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Main&nbsp;thread&nbsp;now&nbsp;touches&nbsp;memory&nbsp;in&nbsp;the&nbsp;mapping,&nbsp;touching
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;locations&nbsp;1024&nbsp;bytes&nbsp;apart.&nbsp;This&nbsp;will&nbsp;trigger&nbsp;userfaultfd
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;events&nbsp;for&nbsp;all&nbsp;pages&nbsp;in&nbsp;the&nbsp;region.&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;l;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;l&nbsp;=&nbsp;0xf;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Ensure&nbsp;that&nbsp;faulting&nbsp;address&nbsp;is&nbsp;not&nbsp;on&nbsp;a&nbsp;page
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;boundary,&nbsp;in&nbsp;order&nbsp;to&nbsp;test&nbsp;that&nbsp;we&nbsp;correctly
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;handle&nbsp;that&nbsp;case&nbsp;in&nbsp;fault_handling_thread()&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;while&nbsp;(l&nbsp;&lt;&nbsp;len)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;c&nbsp;=&nbsp;addr[l];
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;Read&nbsp;address&nbsp;%p&nbsp;in&nbsp;main():&nbsp;&quot;,&nbsp;addr&nbsp;+&nbsp;l);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;%c\n&quot;,&nbsp;c);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;l&nbsp;+=&nbsp;1024;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;usleep(100000);&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Slow&nbsp;things&nbsp;down&nbsp;a&nbsp;little&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_SUCCESS);
+}
+
+<A NAME="lbAP">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl_userfaultfd">ioctl_userfaultfd</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+madvise">madvise</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+mmap">mmap</A></B>(2)
+
+<P>
+
+<I>Documentation/admin-guide/mm/userfaultfd.rst</I>
+
+in the Linux kernel source tree
+<P>
+
+<A NAME="lbAQ">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="27"><A HREF="#lbAB">NAME</A><DD>
+<DT id="28"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="29"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DL>
+<DT id="30"><A HREF="#lbAE">Usage</A><DD>
+<DT id="31"><A HREF="#lbAF">Userfaultfd operation</A><DD>
+<DT id="32"><A HREF="#lbAG">Reading from the userfaultfd structure</A><DD>
+</DL>
+<DT id="33"><A HREF="#lbAH">RETURN VALUE</A><DD>
+<DT id="34"><A HREF="#lbAI">ERRORS</A><DD>
+<DT id="35"><A HREF="#lbAJ">VERSIONS</A><DD>
+<DT id="36"><A HREF="#lbAK">CONFORMING TO</A><DD>
+<DT id="37"><A HREF="#lbAL">NOTES</A><DD>
+<DT id="38"><A HREF="#lbAM">BUGS</A><DD>
+<DT id="39"><A HREF="#lbAN">EXAMPLE</A><DD>
+<DL>
+<DT id="40"><A HREF="#lbAO">Program source</A><DD>
+</DL>
+<DT id="41"><A HREF="#lbAP">SEE ALSO</A><DD>
+<DT id="42"><A HREF="#lbAQ">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:35 GMT, March 31, 2021
+</BODY>
+</HTML>

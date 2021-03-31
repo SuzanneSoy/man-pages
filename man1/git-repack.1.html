@@ -1,0 +1,291 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of GIT-REPACK</TITLE>
+</HEAD><BODY>
+<H1>GIT-REPACK</H1>
+Section: Git Manual (1)<BR>Updated: 03/04/2021<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+git-repack - Pack unpacked objects in a repository
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+<PRE>
+<I>git repack</I> [-a] [-A] [-d] [-f] [-F] [-l] [-n] [-q] [-b] [--window=&lt;n&gt;] [--depth=&lt;n&gt;] [--threads=&lt;n&gt;] [--keep-pack=&lt;pack-name&gt;]
+</PRE>
+
+<P>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+This command is used to combine all objects that do not currently reside in a &quot;pack&quot;, into a pack. It can also be used to re-organize existing packs into a single, more efficient pack.
+<P>
+A pack is a collection of objects, individually compressed, with delta compression applied, stored in a single file, with an associated index file.
+<P>
+Packs are used to reduce the load on mirror systems, backup engines, disk storage, etc.
+<A NAME="lbAE">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<P>
+
+-a
+<DL COMPACT><DT id="1"><DD>
+Instead of incrementally packing the unpacked objects, pack everything referenced into a single pack. Especially useful when packing a repository that is used for private development. Use with
+<B>-d</B>. This will clean up the objects that
+<B>git prune</B>
+leaves behind, but
+<B>git fsck --full --dangling</B>
+shows as dangling.
+<P>
+Note that users fetching over dumb protocols will have to fetch the whole new pack in order to get any contained object, no matter how many other objects in that pack they already have locally.
+<P>
+Promisor packfiles are repacked separately: if there are packfiles that have an associated &quot;.promisor&quot; file, these packfiles will be repacked into another separate pack, and an empty &quot;.promisor&quot; file corresponding to the new separate pack will be written.
+</DL>
+
+<P>
+
+-A
+<DL COMPACT><DT id="2"><DD>
+Same as
+<B>-a</B>, unless
+<B>-d</B>
+is used. Then any unreachable objects in a previous pack become loose, unpacked objects, instead of being left in the old pack. Unreachable objects are never intentionally added to a pack, even when repacking. This option prevents unreachable objects from being immediately deleted by way of being left in the old pack and then removed. Instead, the loose unreachable objects will be pruned according to normal expiry rules with the next
+<I>git gc</I>
+invocation. See
+<B><A HREF="/cgi-bin/man/man2html?1+git-gc">git-gc</A></B>(1).
+</DL>
+
+<P>
+
+-d
+<DL COMPACT><DT id="3"><DD>
+After packing, if the newly created packs make some existing packs redundant, remove the redundant packs. Also run
+<I>git prune-packed</I>
+to remove redundant loose object files.
+</DL>
+
+<P>
+
+-l
+<DL COMPACT><DT id="4"><DD>
+Pass the
+<B>--local</B>
+option to
+<I>git pack-objects</I>. See
+<B><A HREF="/cgi-bin/man/man2html?1+git-pack-objects">git-pack-objects</A></B>(1).
+</DL>
+
+<P>
+
+-f
+<DL COMPACT><DT id="5"><DD>
+Pass the
+<B>--no-reuse-delta</B>
+option to
+<B>git-pack-objects</B>, see
+<B><A HREF="/cgi-bin/man/man2html?1+git-pack-objects">git-pack-objects</A></B>(1).
+</DL>
+
+<P>
+
+-F
+<DL COMPACT><DT id="6"><DD>
+Pass the
+<B>--no-reuse-object</B>
+option to
+<B>git-pack-objects</B>, see
+<B><A HREF="/cgi-bin/man/man2html?1+git-pack-objects">git-pack-objects</A></B>(1).
+</DL>
+
+<P>
+
+-q
+<DL COMPACT><DT id="7"><DD>
+Pass the
+<B>-q</B>
+option to
+<I>git pack-objects</I>. See
+<B><A HREF="/cgi-bin/man/man2html?1+git-pack-objects">git-pack-objects</A></B>(1).
+</DL>
+
+<P>
+
+-n
+<DL COMPACT><DT id="8"><DD>
+Do not update the server information with
+<I>git update-server-info</I>. This option skips updating local catalog files needed to publish this repository (or a direct copy of it) over HTTP or FTP. See
+<B><A HREF="/cgi-bin/man/man2html?1+git-update-server-info">git-update-server-info</A></B>(1).
+</DL>
+
+<P>
+
+--window=&lt;n&gt;, --depth=&lt;n&gt;
+<DL COMPACT><DT id="9"><DD>
+These two options affect how the objects contained in the pack are stored using delta compression. The objects are first internally sorted by type, size and optionally names and compared against the other objects within
+<B>--window</B>
+to see if using delta compression saves space.
+<B>--depth</B>
+limits the maximum delta depth; making it too deep affects the performance on the unpacker side, because delta data needs to be applied that many times to get to the necessary object.
+<P>
+The default value for --window is 10 and --depth is 50. The maximum depth is 4095.
+</DL>
+
+<P>
+
+--threads=&lt;n&gt;
+<DL COMPACT><DT id="10"><DD>
+This option is passed through to
+<B>git pack-objects</B>.
+</DL>
+
+<P>
+
+--window-memory=&lt;n&gt;
+<DL COMPACT><DT id="11"><DD>
+This option provides an additional limit on top of
+<B>--window</B>; the window size will dynamically scale down so as to not take up more than
+<I>&lt;n&gt;</I>
+bytes in memory. This is useful in repositories with a mix of large and small objects to not run out of memory with a large window, but still be able to take advantage of the large window for the smaller objects. The size can be suffixed with &quot;k&quot;, &quot;m&quot;, or &quot;g&quot;.
+<B>--window-memory=0</B>
+makes memory usage unlimited. The default is taken from the
+<B>pack.windowMemory</B>
+configuration variable. Note that the actual memory usage will be the limit multiplied by the number of threads used by
+<B><A HREF="/cgi-bin/man/man2html?1+git-pack-objects">git-pack-objects</A></B>(1).
+</DL>
+
+<P>
+
+--max-pack-size=&lt;n&gt;
+<DL COMPACT><DT id="12"><DD>
+Maximum size of each output pack file. The size can be suffixed with &quot;k&quot;, &quot;m&quot;, or &quot;g&quot;. The minimum size allowed is limited to 1 MiB. If specified, multiple packfiles may be created, which also prevents the creation of a bitmap index. The default is unlimited, unless the config variable
+<B>pack.packSizeLimit</B>
+is set.
+</DL>
+
+<P>
+
+-b, --write-bitmap-index
+<DL COMPACT><DT id="13"><DD>
+Write a reachability bitmap index as part of the repack. This only makes sense when used with
+<B>-a</B>
+or
+<B>-A</B>, as the bitmaps must be able to refer to all reachable objects. This option overrides the setting of
+<B>repack.writeBitmaps</B>. This option has no effect if multiple packfiles are created.
+</DL>
+
+<P>
+
+--pack-kept-objects
+<DL COMPACT><DT id="14"><DD>
+Include objects in
+<B>.keep</B>
+files when repacking. Note that we still do not delete
+<B>.keep</B>
+packs after
+<B>pack-objects</B>
+finishes. This means that we may duplicate objects, but this makes the option safe to use when there are concurrent pushes or fetches. This option is generally only useful if you are writing bitmaps with
+<B>-b</B>
+or
+<B>repack.writeBitmaps</B>, as it ensures that the bitmapped packfile has the necessary objects.
+</DL>
+
+<P>
+
+--keep-pack=&lt;pack-name&gt;
+<DL COMPACT><DT id="15"><DD>
+Exclude the given pack from repacking. This is the equivalent of having
+<B>.keep</B>
+file on the pack.
+<B>&lt;pack-name&gt;</B>
+is the pack file name without leading directory (e.g.
+<B>pack-123.pack</B>). The option could be specified multiple times to keep multiple packs.
+</DL>
+
+<P>
+
+--unpack-unreachable=&lt;when&gt;
+<DL COMPACT><DT id="16"><DD>
+When loosening unreachable objects, do not bother loosening any objects older than
+<B>&lt;when&gt;</B>. This can be used to optimize out the write of any objects that would be immediately pruned by a follow-up
+<B>git prune</B>.
+</DL>
+
+<P>
+
+-k, --keep-unreachable
+<DL COMPACT><DT id="17"><DD>
+When used with
+<B>-ad</B>, any unreachable objects from existing packs will be appended to the end of the packfile instead of being removed. In addition, any unreachable loose objects will be packed (and their loose counterparts removed).
+</DL>
+
+<P>
+
+-i, --delta-islands
+<DL COMPACT><DT id="18"><DD>
+Pass the
+<B>--delta-islands</B>
+option to
+<B>git-pack-objects</B>, see
+<B><A HREF="/cgi-bin/man/man2html?1+git-pack-objects">git-pack-objects</A></B>(1).
+</DL>
+
+<A NAME="lbAF">&nbsp;</A>
+<H2>CONFIGURATION</H2>
+
+<P>
+By default, the command passes <B>--delta-base-offset</B> option to <I>git pack-objects</I>; this typically results in slightly smaller packs, but the generated packs are incompatible with versions of Git older than version 1.4.4. If you need to share your repository with such ancient Git versions, either directly or via the dumb http protocol, then you need to set the configuration variable <B>repack.UseDeltaBaseOffset</B> to &quot;false&quot; and repack. Access from old Git versions over the native protocol is unaffected by this option as the conversion is performed on the fly as needed in that case.
+<A NAME="lbAG">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+<B><A HREF="/cgi-bin/man/man2html?1+git-pack-objects">git-pack-objects</A></B>(1) <B><A HREF="/cgi-bin/man/man2html?1+git-prune-packed">git-prune-packed</A></B>(1)
+<A NAME="lbAH">&nbsp;</A>
+<H2>GIT</H2>
+
+<P>
+Part of the <B><A HREF="/cgi-bin/man/man2html?1+git">git</A></B>(1) suite
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="19"><A HREF="#lbAB">NAME</A><DD>
+<DT id="20"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="21"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="22"><A HREF="#lbAE">OPTIONS</A><DD>
+<DT id="23"><A HREF="#lbAF">CONFIGURATION</A><DD>
+<DT id="24"><A HREF="#lbAG">SEE ALSO</A><DD>
+<DT id="25"><A HREF="#lbAH">GIT</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:14 GMT, March 31, 2021
+</BODY>
+</HTML>

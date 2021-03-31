@@ -1,0 +1,309 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of TIMES</TITLE>
+</HEAD><BODY>
+<H1>TIMES</H1>
+Section: Linux Programmer's Manual (2)<BR>Updated: 2017-09-15<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+times - get process times
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<B>#include &lt;<A HREF="file:///usr/include/sys/times.h">sys/times.h</A>&gt;</B>
+
+<P>
+
+<B>clock_t times(struct tms *</B><I>buf</I><B>);</B>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<B>times</B>()
+
+stores the current process times in the
+<I>struct tms</I>
+
+that
+<I>buf</I>
+
+points to.
+The
+<I>struct tms</I>
+
+is as defined in
+<I>&lt;<A HREF="file:///usr/include/sys/times.h">sys/times.h</A>&gt;</I>:
+
+<P>
+
+
+
+struct tms {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;clock_t&nbsp;tms_utime;&nbsp;&nbsp;/*&nbsp;user&nbsp;time&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;clock_t&nbsp;tms_stime;&nbsp;&nbsp;/*&nbsp;system&nbsp;time&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;clock_t&nbsp;tms_cutime;&nbsp;/*&nbsp;user&nbsp;time&nbsp;of&nbsp;children&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;clock_t&nbsp;tms_cstime;&nbsp;/*&nbsp;system&nbsp;time&nbsp;of&nbsp;children&nbsp;*/
+};
+
+
+<P>
+
+The
+<I>tms_utime</I>
+
+field contains the CPU time spent executing instructions
+of the calling process.
+The
+<I>tms_stime</I>
+
+field contains the CPU time spent executing inside the kernel
+while performing tasks on behalf of the calling process.
+<P>
+
+The
+<I>tms_cutime</I>
+
+field contains the sum of the
+<I>tms_utime</I>
+
+and
+<I>tms_cutime</I>
+
+values for all waited-for terminated children.
+The
+<I>tms_cstime</I>
+
+field contains the sum of the
+<I>tms_stime</I>
+
+and
+<I>tms_cstime</I>
+
+values for all waited-for terminated children.
+<P>
+
+Times for terminated children (and their descendants)
+are added in at the moment
+<B><A HREF="/cgi-bin/man/man2html?2+wait">wait</A></B>(2)
+
+or
+<B><A HREF="/cgi-bin/man/man2html?2+waitpid">waitpid</A></B>(2)
+
+returns their process ID.
+In particular, times of grandchildren
+that the children did not wait for are never seen.
+<P>
+
+All times reported are in clock ticks.
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+<B>times</B>()
+
+returns the number of clock ticks that have elapsed since
+an arbitrary point in the past.
+The return value may overflow the possible range of type
+<I>clock_t</I>.
+
+On error, <I>(clock_t)&nbsp;-1</I> is returned, and
+<I>errno</I>
+
+is set appropriately.
+<A NAME="lbAF">&nbsp;</A>
+<H2>ERRORS</H2>
+
+<DL COMPACT>
+<DT id="1"><B>EFAULT</B>
+
+<DD>
+<I>tms</I>
+
+points outside the process's address space.
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+POSIX.1-2001, POSIX.1-2008, SVr4, 4.3BSD.
+<A NAME="lbAH">&nbsp;</A>
+<H2>NOTES</H2>
+
+The number of clock ticks per second can be obtained using:
+<P>
+
+
+
+sysconf(_SC_CLK_TCK);
+
+
+<P>
+
+In POSIX.1-1996 the symbol <B>CLK_TCK</B> (defined in
+<I>&lt;<A HREF="file:///usr/include/time.h">time.h</A>&gt;</I>)
+
+is mentioned as obsolescent.
+It is obsolete now.
+<P>
+
+In Linux kernel versions before 2.6.9,
+if the disposition of
+<B>SIGCHLD</B>
+
+is set to
+<B>SIG_IGN</B>,
+
+then the times of terminated children
+are automatically included in the
+<I>tms_cstime</I>
+
+and
+<I>tms_cutime</I>
+
+fields, although POSIX.1-2001 says that this should happen
+only if the calling process
+<B><A HREF="/cgi-bin/man/man2html?2+wait">wait</A></B>(2)s
+
+on its children.
+This nonconformance is rectified in Linux 2.6.9 and later.
+
+
+
+<P>
+
+On Linux, the
+<I>buf</I>
+
+argument can be specified as NULL, with the result that
+<B>times</B>()
+
+just returns a function result.
+However, POSIX does not specify this behavior, and most
+other UNIX implementations require a non-NULL value for
+<I>buf</I>.
+
+<P>
+
+Note that
+<B><A HREF="/cgi-bin/man/man2html?3+clock">clock</A></B>(3)
+
+also returns a value of type
+<I>clock_t</I>,
+
+but this value is measured in units of
+<B>CLOCKS_PER_SEC</B>,
+
+not the clock ticks used by
+<B>times</B>().
+
+<P>
+
+On Linux, the &quot;arbitrary point in the past&quot; from which the return value of
+<B>times</B>()
+
+is measured has varied across kernel versions.
+On Linux 2.4 and earlier, this point is the moment the system was booted.
+Since Linux 2.6, this point is <I>(2^32/HZ) - 300</I>
+seconds before system boot time.
+This variability across kernel versions (and across UNIX implementations),
+combined with the fact that the returned value may overflow the range of
+<I>clock_t</I>,
+
+means that a portable application would be wise to avoid using this value.
+To measure changes in elapsed time, use
+<B><A HREF="/cgi-bin/man/man2html?2+clock_gettime">clock_gettime</A></B>(2)
+
+instead.
+
+
+
+<A NAME="lbAI">&nbsp;</A>
+<H3>Historical</H3>
+
+SVr1-3 returns
+<I>long</I>
+
+and the struct members are of type
+<I>time_t</I>
+
+although they store clock ticks, not seconds since the Epoch.
+V7 used
+<I>long</I>
+
+for the struct members, because it had no type
+<I>time_t</I>
+
+yet.
+<A NAME="lbAJ">&nbsp;</A>
+<H2>BUGS</H2>
+
+A limitation of the Linux system call conventions on some architectures
+(notably i386) means that on Linux 2.6 there is a small time window
+(41 seconds) soon after boot when
+<B>times</B>()
+
+can return -1, falsely indicating that an error occurred.
+The same problem can occur when the return value wraps past
+the maximum value that can be stored in
+<B>clock_t</B>.
+
+
+
+
+
+
+
+<A NAME="lbAK">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?1+time">time</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?2+getrusage">getrusage</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+wait">wait</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?3+clock">clock</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+sysconf">sysconf</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?7+time">time</A></B>(7)
+
+<A NAME="lbAL">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="2"><A HREF="#lbAB">NAME</A><DD>
+<DT id="3"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="4"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="5"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DT id="6"><A HREF="#lbAF">ERRORS</A><DD>
+<DT id="7"><A HREF="#lbAG">CONFORMING TO</A><DD>
+<DT id="8"><A HREF="#lbAH">NOTES</A><DD>
+<DL>
+<DT id="9"><A HREF="#lbAI">Historical</A><DD>
+</DL>
+<DT id="10"><A HREF="#lbAJ">BUGS</A><DD>
+<DT id="11"><A HREF="#lbAK">SEE ALSO</A><DD>
+<DT id="12"><A HREF="#lbAL">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:35 GMT, March 31, 2021
+</BODY>
+</HTML>

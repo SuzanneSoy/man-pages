@@ -1,0 +1,348 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of PPTP</TITLE>
+</HEAD><BODY>
+<H1>PPTP</H1>
+Section: Maintenance Commands (8)<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+pptp - PPTP driver
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<B>pptp</B>
+
+<I>&lt;pptp-server-IP&gt; &lt;pptp-options&gt; [ppp-options] ...</I>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+<B>pptp</B>
+
+establishes the client side of a Virtual Private Network (VPN) using
+the Point-to-Point Tunneling Protocol (PPTP).  Use this program to
+connect to an employer's PPTP based VPN, or to certain cable and ADSL
+service providers.
+<P>
+
+By default, <B>pptp</B> establishes the PPTP call to the PPTP server,
+and then starts an instance of <B>pppd</B> to manage the data transfer.
+However, <B>pptp</B> can also be run as a connection manager within
+<B>pppd</B>.
+<A NAME="lbAE">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<P>
+
+The first non-option argument on the <B>pptp</B> command line must be the host
+name or IP address of the PPTP server.
+<P>
+
+All long options (starting with &quot;--&quot;)
+are interpreted as pptp options, and a fatal error occurs if an 
+unrecognised option is used.
+<P>
+
+All command-line arguments which do not start
+with &quot;-&quot; are interpreted as ppp options, and passed as is to <B>pppd</B> unless
+<B>--nolaunchpppd</B> is given.
+<DL COMPACT>
+<DT id="1"><B>--phone &lt;number&gt;</B>
+
+<DD>
+Pass &lt;number&gt; to remote host as phone number
+<DT id="2"><B>--nolaunchpppd</B>
+
+<DD>
+Do not launch
+<B>pppd</B>
+
+but use stdin as the network connection.  Use this flag when including
+<B>pptp</B>
+
+as a
+<B>pppd</B>
+
+connection process using the
+<B>pty</B>
+
+option.  See EXAMPLES.
+<DT id="3"><B>--quirks &lt;quirk&gt;</B>
+
+<DD>
+Work around a buggy PPTP implementation, adopts special case handling for
+particular PPTP servers and ADSL modems.
+Currently recognised values are BEZEQ_ISRAEL only
+<DT id="4"><B>--debug</B>
+
+<DD>
+Run in foreground (for debugging with gdb)
+<DT id="5"><B>--sync</B>
+
+<DD>
+Enable Synchronous HDLC (pppd must use it too)
+<DT id="6"><B>--timeout &lt;secs&gt;</B>
+
+<DD>
+Time to wait for reordered packets (0.01 to 10 secs)
+<DT id="7"><B>--nobuffer</B>
+
+<DD>
+Completely disables buffering and reordering of packets.
+Any --timeout specified will be ignored.
+<DT id="8"><B>--idle-wait &lt;secs&gt;</B>
+
+<DD>
+Time to wait before sending a control connection echo request.
+The RFC2637 default is 60 seconds.
+<DT id="9"><B>--max-echo-wait &lt;secs&gt;</B>
+
+<DD>
+Time to wait for an echo reply before closing the control connection.
+The RFC2637 default is 60 seconds.
+<DT id="10"><B>--logstring &lt;name&gt;</B>
+
+<DD>
+Use &lt;name&gt; instead of 'anon' in syslog messages
+<DT id="11"><B>--localbind &lt;addr&gt;</B>
+
+<DD>
+Bind to specified IP address instead of wildcard
+<DT id="12"><B>--rtmark &lt;n&gt;</B>
+
+<DD>
+Use specified policy routing mark for all packets.
+This causes both the TCP control connection's packets as well as the
+GRE packets to bear the given policy routing / netfilter mark. This
+can be used with
+<I>ip rule</I>
+
+(from iproute2) to use a separate routing table for the pptp client.
+<P>
+(requires root privileges or the CAP_NET_ADMIN capability.)
+<DT id="13"><B>--nohostroute</B>
+
+<DD>
+Do not configure a host route pointing towards the PPTP server.
+(cf. ROUTING below)
+<P>
+<DT id="14"><B>--loglevel &lt;level&gt;</B>
+
+<DD>
+Sets the debugging level (0=low, 1=default, 2=high)
+<P>
+<DT id="15"><B>--test-type &lt;n&gt;</B>
+
+<DD>
+Enable packet reordering tests that damage the integrity of the packet
+stream to the server.  Use this only when testing servers.  Zero is
+the default, and means that packets are sent in the correct order.  A
+value of one (1) causes a single swap between two packets, such that
+the sequence numbers might be 1 2 3 4 6 5 7 8 9.  A value of two (2)
+causes ten packets to be buffered, then sent out of order but
+ascending, such that the sequence numbers might be 1 2 3 4 16 6 7 8 9
+10 11 12 13 14 15 17 18 19 20.  A value of three (3) causes ten
+packets to be buffered, then sent in the reverse order, like this; 1 2
+3 4 16 15 14 13 12 11 10 9 8 7 6 5 17 18 19 20.
+<P>
+<DT id="16"><B>--test-rate &lt;n&gt;</B>
+
+<DD>
+Sets the number of packets to pass before causing a reordering test.
+Default is 100.  Has no effect if test-type is zero.  The result of
+test types 2 and 3 are undefined if this value is less than ten.
+<P>
+<P>
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>ROUTING</H2>
+
+When PPTP is used in conjunction with a default route on top of the
+tunnel (or just any route encompassing the PPTP server),
+the mechanics of routing would cause the PPTP packets themselves
+to be routed over the tunnel. This would result in an encapsulation
+loop, destroying connectivity.
+<P>
+<B>pptp</B>
+
+by default works around this by looking up the route towards the
+PPTP server at startup and configures a host route with that data.
+This essentially &quot;freezes&quot; routing for PPTP packets at the startup
+configuration. This behaviour can be disabled with
+<B>--nohostroute</B>
+
+if undesired (like when using
+<B>--rtmark</B>
+
+to implement policy routing).
+<P>
+<B>NB:</B>
+
+the route added by
+<B>pptp</B>
+
+is currently not deleted at exit!
+<P>
+<A NAME="lbAG">&nbsp;</A>
+<H2>QUIRKS</H2>
+
+<P>
+<DL COMPACT>
+<DT id="17"><B>BEZEQ_ISRAEL</B>
+
+<DD>
+modifies packets to interoperate with Orckit ADSL modems on the BEZEQ
+network in Israel.
+<P>
+</DL>
+<A NAME="lbAH">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+<P>
+<B>Connection to a Microsoft Windows VPN Server</B>
+
+<P>
+
+pppd noauth nobsdcomp nodeflate require-mppe-128 name domain\\\\username remotename PPTP pty &quot;pptp 10.0.0.5 --nolaunchpppd&quot;
+<P>
+
+Note that the <B>chap-secrets</B> file used by <B>pppd</B> must include an entry for domain\\username
+<P>
+<A NAME="lbAI">&nbsp;</A>
+<H2>STATISTICS</H2>
+
+The pptp process collects statistics when sending and receiving
+GRE packets. They are intended to be useful for debugging poor PPTP
+performance and for general monitoring of link quality. The statistics
+are cumulative since the pptp process was started.
+<P>
+
+The statistics can be viewed by sending a SIGUSR1 signal to the
+&quot;GRE-to-PPP Gateway&quot; process, which will cause it to dump them
+to the system logs (at the LOG_NOTICE level). A better way to present
+the statistics to applications is being sought (e.g. SNMP?).
+<P>
+
+The following statistics are collected at the time of writing (April 2003):
+<DL COMPACT>
+<DT id="18"><B>rx accepted</B>
+
+<DD>
+the number of GRE packets successfully passed to PPP
+<DT id="19"><B>rx lost</B>
+
+<DD>
+the number of packets never received, and presumed lost in the network
+<DT id="20"><B>rx under win</B>
+
+<DD>
+the number of packets which were duplicates or had old sequence numbers
+(this might be caused by a packet-reordering network if your reordering
+timeout is set too low)
+<DT id="21"><B>rx over win</B>
+
+<DD>
+the number of packets which were too far ahead in the sequence to be
+reordered (might be caused by loss of more than 300 packets in a row)
+<DT id="22"><B>rx buffered</B>
+
+<DD>
+the number of packets which were slightly ahead of sequence, and were
+either buffered for reordering, or if buffering is disabled, accepted
+immediately (resulting in the intermediate packets being discarded).
+<DT id="23"><B>rx OS errors</B>
+
+<DD>
+the number of times where the operating system reported an error when
+we tried to read a packet
+<DT id="24"><B>rx truncated</B>
+
+<DD>
+the number of times we received a packet which was shorter than the
+length implied by the GRE header
+<DT id="25"><B>rx invalid</B>
+
+<DD>
+the number of times we received a packet which had invalid or unsupported
+flags set in the header, wrong version, or wrong protocol.
+<DT id="26"><B>rx acks</B>
+
+<DD>
+the number of pure acknowledgements received (without data). Too many
+of these will waste bandwidth, and might be solved by tuning the remote host.
+<DT id="27"><B>tx sent</B>
+
+<DD>
+the number of GRE packets sent with data
+<DT id="28"><B>tx failed</B>
+
+<DD>
+the number of packets we tried to send, but the OS reported an error
+<DT id="29"><B>tx short</B>
+
+<DD>
+the number of times the OS would not let us write a complete packet
+<DT id="30"><B>tx acks</B>
+
+<DD>
+the number of times we sent a pure ack, without data
+<DT id="31"><B>tx oversize</B>
+
+<DD>
+the number of times we couldn't send a packet because it was over
+PACKET_MAX bytes long
+<DT id="32"><B>round trip</B>
+
+<DD>
+the estimated round-trip time in milliseconds
+<P>
+</DL>
+<A NAME="lbAJ">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<I><A HREF="/cgi-bin/man/man2html?8+pppd">pppd</A></I>(8)
+
+<P>
+
+Documentation in
+<I>/usr/share/doc/pptp-linux</I>
+
+<A NAME="lbAK">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+This manual page was written by James Cameron
+&lt;<A HREF="mailto:james.cameron@hp.com">james.cameron@hp.com</A>&gt; from text contributed by Thomas Quinot
+&lt;<A HREF="mailto:thomas@debian.org">thomas@debian.org</A>&gt;, for the Debian GNU/Linux system.
+The description of the available statistics was written by Chris Wilson
+&lt;<A HREF="mailto:chris@netservers.co.uk">chris@netservers.co.uk</A>&gt;. Updates for the Debian distribution by
+Ola Lundqvist &lt;<A HREF="mailto:opal@debian.org">opal@debian.org</A>&gt;.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="33"><A HREF="#lbAB">NAME</A><DD>
+<DT id="34"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="35"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="36"><A HREF="#lbAE">OPTIONS</A><DD>
+<DT id="37"><A HREF="#lbAF">ROUTING</A><DD>
+<DT id="38"><A HREF="#lbAG">QUIRKS</A><DD>
+<DT id="39"><A HREF="#lbAH">EXAMPLES</A><DD>
+<DT id="40"><A HREF="#lbAI">STATISTICS</A><DD>
+<DT id="41"><A HREF="#lbAJ">SEE ALSO</A><DD>
+<DT id="42"><A HREF="#lbAK">AUTHOR</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:15 GMT, March 31, 2021
+</BODY>
+</HTML>

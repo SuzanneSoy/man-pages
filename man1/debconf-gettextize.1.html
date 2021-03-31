@@ -1,0 +1,179 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of DEBCONF-GETTEXTIZE</TITLE>
+</HEAD><BODY>
+<H1>DEBCONF-GETTEXTIZE</H1>
+Section: po-debconf (1)<BR>Updated: 2018-11-20<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+debconf-gettextize - extract translations of debconf templates into PO files
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+
+
+<B>debconf-gettextize</B>
+[<B>-v</B>] [<B>-h</B>]
+[<B>--podir=</B><FONT SIZE="-1">DIR</FONT><B></B>]
+[<B>--choices</B>]
+[<B>--merge</B>]
+<I>master</I> [<I>master</I> ...]
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+
+The <I>/var/lib/dpkg/info/*.templates</I> files read by debconf contain English
+text and translations in the same file.  But in source packages, translations
+are managed in separate files to help translators.  In the initial
+implementation, a master <I>templates</I> file contained only English text, and
+<I>templates.xx</I> files contained both original and translated strings for the
+language <I>xx</I>.  The <B>debconf-mergetemplate</B> program was merging master and
+translated templates files.
+<P>
+
+The new implementation with <TT>&quot;po-debconf&quot;</TT> is based on <TT>&quot;gettext&quot;</TT>.  Maintainers
+mark translatable fields by prepending them with an underscore, English strings
+are automatically extracted into a <FONT SIZE="-1">POT</FONT> file, translators work on normal <FONT SIZE="-1">PO</FONT>
+files, and <B>po2debconf</B> generates a merged templates file with the same
+structure.
+<P>
+
+The <B>debconf-gettextize</B> program was initially designed to help migrating to
+the new implementation.
+<DL COMPACT>
+<DT id="1">&bull;<DD>
+It reads a list of master files and their associated
+translations, and generates <I>po/*.po</I> files for each language containing
+translated strings.
+<DT id="2">&bull;<DD>
+Each input file receives an <TT>&quot;.old&quot;</TT> suffix, and a new master file
+overwrites the old one; it is identical to the previous master
+file except that
+an underscore is prepended to translatable fields.
+Developers can then choose which fields translators have to work on and
+which ones are skipped because their values are not locale-dependent.
+<DT id="3">&bull;<DD>
+A <I>po/POTFILES.in</I> file is also created, it contains the list of <I>templates</I>
+files <B>debconf-updatepo</B> has to process.
+</DL>
+<P>
+
+Typically the <B>debconf-gettextize</B> program must be run only once when
+transforming from the first implementation to the <TT>&quot;po-debconf&quot;</TT> format, but
+it can also be used afterwards to transform a <TT>&quot;_Choices&quot;</TT> field into <TT>&quot;__Choices&quot;</TT>
+(or vice-versa) without losing translations, when using the <TT>&quot;--merge&quot;</TT> flag
+(alongside with <TT>&quot;--choices&quot;</TT> or not).
+The desired template containing the <TT>&quot;_Choices&quot;</TT> or <TT>&quot;__Choices&quot;</TT> fields to modify
+has to be copied into a temporary template file, which is passed 
+to <B>debconf-gettextize</B> as an argument.
+Then the following steps are performed:
+<DL COMPACT>
+<DT id="4">1.<DD>
+<B>po2debconf</B> is run on this template file to generate a translated templates file.
+<DT id="5">2.<DD>
+This translated templates file is processed as described above and <FONT SIZE="-1">PO</FONT> files are
+generated.
+<DT id="6">3.<DD>
+Newly created <FONT SIZE="-1">PO</FONT> files are merged with existing ones.
+</DL>
+<P>
+
+When <FONT SIZE="-1">PO</FONT> files are merged, <TT>&quot;_Choices&quot;</TT> fields have to be replaced by <TT>&quot;__Choices&quot;</TT>
+(or vice-versa) in the original templates file before running <B>debconf-updatepo</B>,
+otherwise new translations will be fuzzy.
+<A NAME="lbAE">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+
+
+<DL COMPACT>
+<DT id="7"><B>-h</B>, <B>--help</B><DD>
+
+
+Display a usage summary for the program and exit.
+<DT id="8"><B>-v</B>, <B>--verbose</B><DD>
+
+
+Process in verbose mode.
+<DT id="9"><B>--podir=</B><FONT SIZE="-1">DIR</FONT><B></B><DD>
+
+
+Set directory for <FONT SIZE="-1">PO</FONT> files.  Default is to search for <FONT SIZE="-1">PO</FONT> files in the <I>po</I>
+subdirectory below the location of the first master file.
+<DT id="10"><B>--choices</B><DD>
+
+
+By default, <B>debconf-gettextize</B> replaces <TT>&quot;Choices&quot;</TT> fields by
+<TT>&quot;_Choices&quot;</TT>.  With this flag, <TT>&quot;__Choices&quot;</TT> fields are written
+instead.
+<DT id="11"><B>--merge</B><DD>
+
+
+When this flag is set, the strings are merged with existing <FONT SIZE="-1">PO</FONT> files.
+The templates files and <I>po/POTFILES.in</I> are not modified.
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>CAVEATS</H2>
+
+
+
+The <TT>&quot;Default&quot;</TT> field is special when template type is <TT>&quot;Select&quot;</TT> or
+<TT>&quot;Multiselect&quot;</TT>, because a value has to be chosen amongst the <B>English</B>
+list of choices, even for localized values.  Normally this field
+must not be changed, but in rare circumstances localized values
+are meaningful (e.g. to choose the default language of an application).
+In order to let translators know that this localized <TT>&quot;Default&quot;</TT> field is
+special, you must by convention call it <TT>&quot;_DefaultChoice&quot;</TT> instead of
+<TT>&quot;_Default&quot;</TT>.
+<A NAME="lbAG">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+
+<B><A HREF="/cgi-bin/man/man2html?1+debconf-updatepo">debconf-updatepo</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?1+po2debconf">po2debconf</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?7+debconf-devel">debconf-devel</A></B>(7),
+<B><A HREF="/cgi-bin/man/man2html?7+po-debconf">po-debconf</A></B>(7).
+<A NAME="lbAH">&nbsp;</A>
+<H2>AUTHORS</H2>
+
+
+
+
+
+<PRE>
+  Denis Barbier &lt;<A HREF="mailto:barbier@linuxfr.org">barbier@linuxfr.org</A>&gt;
+  Martin Quinson &lt;<A HREF="mailto:martin.quinson@ens-lyon.fr">martin.quinson@ens-lyon.fr</A>&gt;
+
+</PRE>
+
+
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="12"><A HREF="#lbAB">NAME</A><DD>
+<DT id="13"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="14"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="15"><A HREF="#lbAE">OPTIONS</A><DD>
+<DT id="16"><A HREF="#lbAF">CAVEATS</A><DD>
+<DT id="17"><A HREF="#lbAG">SEE ALSO</A><DD>
+<DT id="18"><A HREF="#lbAH">AUTHORS</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:09 GMT, March 31, 2021
+</BODY>
+</HTML>

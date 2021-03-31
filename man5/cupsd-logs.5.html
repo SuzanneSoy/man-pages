@@ -1,0 +1,275 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of cupsd-logs</TITLE>
+</HEAD><BODY>
+<H1>cupsd-logs</H1>
+Section: Apple Inc. (5)<BR>Updated: CUPS<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+cupsd-logs - cupsd log files (access_log, error_log, and page_log)
+<A NAME="lbAC">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?8+cupsd">cupsd</A></B>(8)
+
+normally maintains three log files: <I>access_log</I> to track requests that are submitted to the scheduler, <I>error_log</I> to track progress and errors, and <I>page_log</I> to track pages that are printed.
+Configuration directives in
+<B><A HREF="/cgi-bin/man/man2html?5+cupsd.conf">cupsd.conf</A></B>(5)
+
+and
+<B><A HREF="/cgi-bin/man/man2html?5+cups-files.conf">cups-files.conf</A></B>(5)
+
+control what information is logged and where it is stored.
+<A NAME="lbAD">&nbsp;</A>
+<H3>ACCESS LOG FILE FORMAT</H3>
+
+The <I>access_log</I> file lists each HTTP resource that is accessed by a web browser or client.
+Each line is in an extended version of the so-called &quot;Common Log Format&quot; used by many web servers and web reporting tools:
+<PRE>
+
+    <I>host group user date-time </I>&quot;<I>method resource version</I>&quot; <I>status bytes
+      ipp-operation ipp-status</I>
+
+</PRE>
+
+For example:
+<PRE>
+
+    10.0.1.2 - - [01/Dec/2005:21:50:28 +0000] &quot;POST / HTTP/1.1&quot; 200 317
+      CUPS-Get-Printers successful-ok-ignored-or-substituted-attributes
+    localhost - - [01/Dec/2005:21:50:32 +0000] &quot;GET /admin HTTP/1.1&quot;
+      200 0 - -
+    localhost - - [01/Dec/2005:21:50:32 +0000] &quot;POST / HTTP/1.1&quot;
+      200 157 CUPS-Get-Printers
+      successful-ok-ignored-or-substituted-attributes
+    localhost - - [01/Dec/2005:21:50:32 +0000] &quot;POST / HTTP/1.1&quot;
+      200 1411 CUPS-Get-Devices -
+    localhost - - [01/Dec/2005:21:50:32 +0000] &quot;GET /admin HTTP/1.1&quot;
+      200 6667 - -
+
+</PRE>
+
+The <I>host</I> field will normally only be an IP address unless you have enabled the HostNameLookups directive in the <I>cupsd.conf</I> file or if the IP address corresponds to your local machine.
+<P>
+
+The <I>group</I> field always contains &quot;-&quot;.
+<P>
+
+The <I>user</I> field is the authenticated username of the requesting user.
+If no username and password is supplied for the request then this field contains &quot;-&quot;.
+<P>
+
+The <I>date-time</I> field is the date and time of the request in local time and is in the format &quot;[DD/MON/YYYY:HH:MM:SS +ZZZZ]&quot;.
+<P>
+
+The <I>method</I> field is the HTTP method used: &quot;GET&quot;, &quot;HEAD&quot;, &quot;OPTIONS&quot;, &quot;POST&quot;, or &quot;PUT&quot;.
+&quot;GET&quot; requests are used to get files from the server, both for the web interface and to get configuration and log files.
+&quot;HEAD&quot; requests are used to get information about a resource prior to a &quot;GET&quot;.
+&quot;OPTIONS&quot; requests are used to upgrade connections to TLS encryption.
+&quot;POST&quot; requests are used for web interface forms and IPP requests.
+&quot;PUT&quot; requests are used to upload configuration files.
+<P>
+
+The <I>resource</I> field is the filename of the requested resource.
+<P>
+
+The <I>version</I> field is the HTTP specification version used by the client.
+For CUPS clients this will always be &quot;HTTP/1.1&quot;.
+<P>
+
+The <I>status</I> field contains the HTTP result status of the request, as follows:
+<DL COMPACT><DT id="1"><DD>
+<DL COMPACT>
+<DT id="2">200<DD>
+Successful operation.
+<DT id="3">201<DD>
+File created/modified successfully.
+<DT id="4">304<DD>
+The requested file has not changed.
+<DT id="5">400<DD>
+Bad HTTP request; typically this means that you have a malicious program trying to access your server.
+<DT id="6">401<DD>
+Unauthorized, authentication (username + password) is required.
+<DT id="7">403<DD>
+Access is forbidden; typically this means that a client tried to access a file or resource they do not have permission to access.
+<DT id="8">404<DD>
+The file or resource does not exist.
+<DT id="9">405<DD>
+URL access method is not allowed; typically this means you have a web browser using your server as a proxy.
+<DT id="10">413<DD>
+Request too large; typically this means that a client tried to print a file larger than the MaxRequestSize allows.
+<DT id="11">426<DD>
+Upgrading to TLS-encrypted connection.
+<DT id="12">500<DD>
+Server error; typically this happens when the server is unable to open/create a file - consult the error_log file for details.
+<DT id="13">501<DD>
+The client requested encryption but encryption support is not enabled/compiled in.
+<DT id="14">505<DD>
+HTTP version number not supported; typically this means that you have a malicious program trying to access your server.
+</DL>
+</DL>
+
+<P>
+
+The <I>bytes</I> field contains the number of bytes in the request.
+For POST requests the bytes field contains the number of bytes of non-IPP data that is received from the client.
+<P>
+
+The <I>ipp-operation</I> field contains either &quot;-&quot; for non-IPP requests or the IPP operation name for POST requests containing an IPP request.
+<P>
+
+The <I>ipp-status</I> field contains either &quot;-&quot; for non-IPP requests or the IPP status code name for POST requests containing an IPP response.
+<A NAME="lbAE">&nbsp;</A>
+<H3>ERROR LOG FILE FORMAT</H3>
+
+The <I>error_log</I> file lists messages from the scheduler - errors, warnings, etc. The LogLevel directive in the
+<B><A HREF="/cgi-bin/man/man2html?5+cupsd.conf">cupsd.conf</A></B>(5)
+
+file controls which messages are logged:
+<PRE>
+
+    level date-time message
+
+</PRE>
+
+For example:
+<PRE>
+
+    I [20/May/1999:19:18:28 +0000] [Job 1] Queued on 'DeskJet' by 'mike'.
+    D [20/May/1999:19:18:28 +0000] [Job 1] argv[0]=&quot;DeskJet&quot;
+    D [20/May/1999:19:18:28 +0000] [Job 1] argv[1]=&quot;1&quot;
+    D [20/May/1999:19:18:28 +0000] [Job 1] argv[2]=&quot;mike&quot;
+    D [20/May/1999:19:18:28 +0000] [Job 1] argv[3]=&quot;myjob&quot;
+    D [20/May/1999:19:18:28 +0000] [Job 1] argv[4]=&quot;1&quot;
+    D [20/May/1999:19:18:28 +0000] [Job 1] argv[5]=&quot;media=
+      na_letter_8.5x11in sides=one-sided&quot;
+    D [20/May/1999:19:18:28 +0000] [Job 1] argv[6]=&quot;/var/spool/cups/
+      d000001-001&quot;
+    I [20/May/1999:19:21:02 +0000] [Job 2] Queued on 'DeskJet' by 'mike'.
+    I [20/May/1999:19:22:24 +0000] [Job 2] Canceled by 'mike'.
+
+</PRE>
+
+The <I>level</I> field contains the type of message:
+<DL COMPACT>
+<DT id="15">A<DD>
+Alert message (LogLevel alert)
+<DT id="16">C<DD>
+Critical error message (LogLevel crit)
+<DT id="17">D<DD>
+Debugging message (LogLevel debug)
+<DT id="18">d<DD>
+Detailed debugging message (LogLevel debug2)
+<DT id="19">E<DD>
+Normal error message (LogLevel error)
+<DT id="20">I<DD>
+Informational message (LogLevel info)
+<DT id="21">N<DD>
+Notice message (LogLevel notice)
+<DT id="22">W<DD>
+Warning message (LogLevel warn)
+<DT id="23">X<DD>
+Emergency error message (LogLevel emerg)
+</DL>
+<P>
+
+The <I>date-time</I> field contains the date and time of when the page started printing. The format of this field is identical to the data-time field in the <I>access_log</I> file.
+<P>
+
+The <I>message</I> field contains a free-form textual message.
+Messages from job filters are prefixed with &quot;[Job NNN]&quot; where &quot;NNN&quot; is the job ID.
+<A NAME="lbAF">&nbsp;</A>
+<H3>PAGE LOG FILE FORMAT</H3>
+
+The <I>page_log</I> file lists the total number of pages (sheets) that are printed.
+By default, each line contains the following information:
+<PRE>
+
+    <I>printer user job-id date-time </I><B>total </B><I>num-sheets job-billing
+      job-originating-host-name job-name media sides</I>
+
+</PRE>
+
+For example the entry for a two page job called &quot;myjob&quot; might look like:
+<PRE>
+
+    DeskJet root 1 [20/May/1999:19:21:06 +0000] total 2 acme-123
+      localhost myjob na_letter_8.5x11in one-sided
+
+</PRE>
+
+The PageLogFormat directive in the
+<B><A HREF="/cgi-bin/man/man2html?5+cupsd.conf">cupsd.conf</A></B>(5)
+
+file can be used to change this information.
+<P>
+
+The <I>printer</I> field contains the name of the printer that printed the page.
+If you send a job to a printer class, this field will contain the name of the printer that was assigned the job.
+<P>
+
+The <I>user</I> field contains the name of the user (the IPP requesting-user-name attribute) that submitted this file for printing.
+<P>
+
+The <I>job-id</I> field contains the job number of the page being printed.
+<P>
+
+The <I>date-time</I> field contains the date and time of when the page started printing.
+The format of this field is identical to the data-time field in the <I>access_log</I> file.
+<P>
+
+The <I>num-sheets</I> field provides the total number of pages (sheets) that have been printed on for the job.
+<P>
+
+The <I>job-billing</I> field contains a copy of the job-billing or job-account-id attributes provided with the IPP Create-Job or Print-Job requests or &quot;-&quot; if neither was provided.
+<P>
+
+The <I>job-originating-host-name</I> field contains the hostname or IP address of the client that printed the job.
+<P>
+
+The <I>job-name</I> field contains a copy of the job-name attribute provided with the IPP Create-Job or Print-Job requests or &quot;-&quot; if none was provided.
+<P>
+
+The <I>media</I> field contains a copy of the media or media-col/media-size attribute provided with the IPP Create-Job or Print-Job requests or &quot;-&quot; if none was provided.
+<P>
+
+The <I>sides</I> field contains a copy of the sides attribute provided with the IPP Create-Job or Print-Job requests or &quot;-&quot; if none was provided.
+<A NAME="lbAG">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?8+cupsd">cupsd</A></B>(8),
+
+<B><A HREF="/cgi-bin/man/man2html?5+cupsd.conf">cupsd.conf</A></B>(5),
+
+<B><A HREF="/cgi-bin/man/man2html?5+cups-files.conf">cups-files.conf</A></B>(5),
+
+CUPS Online Help (<A HREF="http://localhost:631/help)">http://localhost:631/help)</A>
+<A NAME="lbAH">&nbsp;</A>
+<H2>COPYRIGHT</H2>
+
+Copyright &#169; 2007-2019 by Apple Inc.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="24"><A HREF="#lbAB">NAME</A><DD>
+<DT id="25"><A HREF="#lbAC">DESCRIPTION</A><DD>
+<DL>
+<DT id="26"><A HREF="#lbAD">ACCESS LOG FILE FORMAT</A><DD>
+<DT id="27"><A HREF="#lbAE">ERROR LOG FILE FORMAT</A><DD>
+<DT id="28"><A HREF="#lbAF">PAGE LOG FILE FORMAT</A><DD>
+</DL>
+<DT id="29"><A HREF="#lbAG">SEE ALSO</A><DD>
+<DT id="30"><A HREF="#lbAH">COPYRIGHT</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:02 GMT, March 31, 2021
+</BODY>
+</HTML>

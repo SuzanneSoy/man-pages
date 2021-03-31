@@ -1,0 +1,327 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of Encode::Locale</TITLE>
+</HEAD><BODY>
+<H1>Encode::Locale</H1>
+Section: User Contributed Perl Documentation (3pm)<BR>Updated: 2015-06-09<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+Encode::Locale - Determine the locale encoding
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+
+
+
+
+<PRE>
+  use Encode::Locale;
+  use Encode;
+
+  $string = decode(locale =&gt; $bytes);
+  $bytes = encode(locale =&gt; $string);
+
+  if (-t) {
+      binmode(STDIN, &quot;:encoding(console_in)&quot;);
+      binmode(STDOUT, &quot;:encoding(console_out)&quot;);
+      binmode(STDERR, &quot;:encoding(console_out)&quot;);
+  }
+
+  # Processing file names passed in as arguments
+  my $uni_filename = decode(locale =&gt; $ARGV[0]);
+  open(my $fh, &quot;&lt;&quot;, encode(locale_fs =&gt; $uni_filename))
+     || die &quot;Can't open '$uni_filename': $!&quot;;
+  binmode($fh, &quot;:encoding(locale)&quot;);
+  ...
+
+</PRE>
+
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+
+In many applications it's wise to let Perl use Unicode for the strings it
+processes.  Most of the interfaces Perl has to the outside world are still byte
+based.  Programs therefore need to decode byte strings that enter the program
+from the outside and encode them again on the way out.
+<P>
+
+The <FONT SIZE="-1">POSIX</FONT> locale system is used to specify both the language conventions
+requested by the user and the preferred character set to consume and
+output.  The <TT>&quot;Encode::Locale&quot;</TT> module looks up the charset and encoding (called
+a <FONT SIZE="-1">CODESET</FONT> in the locale jargon) and arranges for the Encode module to know
+this encoding under the name ``locale''.  It means bytes obtained from the
+environment can be converted to Unicode strings by calling <TT>&quot;Encode::encode(locale =&gt; $bytes)&quot;</TT> and converted back again with <TT>&quot;Encode::decode(locale =&gt; $string)&quot;</TT>.
+<P>
+
+Where file systems interfaces pass file names in and out of the program we also
+need care.  The trend is for operating systems to use a fixed file encoding
+that don't actually depend on the locale; and this module determines the most
+appropriate encoding for file names. The Encode module will know this
+encoding under the name ``locale_fs''.  For traditional Unix systems this will
+be an alias to the same encoding as ``locale''.
+<P>
+
+For programs running in a terminal window (called a ``Console'' on some systems)
+the ``locale'' encoding is usually a good choice for what to expect as input and
+output.  Some systems allows us to query the encoding set for the terminal and
+<TT>&quot;Encode::Locale&quot;</TT> will do that if available and make these encodings known
+under the <TT>&quot;Encode&quot;</TT> aliases ``console_in'' and ``console_out''.  For systems where
+we can't determine the terminal encoding these will be aliased as the same
+encoding as ``locale''.  The advice is to use ``console_in'' for input known to
+come from the terminal and ``console_out'' for output to the terminal.
+<P>
+
+In addition to arranging for various Encode aliases the following functions and
+variables are provided:
+<DL COMPACT>
+<DT id="1">decode_argv( )<DD>
+
+
+
+<DT id="2">decode_argv( Encode::FB_CROAK )<DD>
+
+
+
+This will decode the command line arguments to perl (the <TT>@ARGV</TT> array) in-place.
+
+
+<P>
+
+
+The function will by default replace characters that can't be decoded by
+``\x{<FONT SIZE="-1">FFFD</FONT>}'', the Unicode replacement character.
+
+
+<P>
+
+
+Any argument provided is passed as <FONT SIZE="-1">CHECK</FONT> to underlying <I>Encode::decode()</I> call.
+Pass the value <TT>&quot;Encode::FB_CROAK&quot;</TT> to have the decoding croak if not all the
+command line arguments can be decoded.  See ``Handling Malformed Data'' in Encode
+for details on other options for <FONT SIZE="-1">CHECK.</FONT>
+<DT id="3">env( $uni_key )<DD>
+
+
+
+
+
+<DT id="4">env( $uni_key =&gt; $uni_value )<DD>
+
+
+
+
+
+Interface to get/set environment variables.  Returns the current value as a
+Unicode string. The <TT>$uni_key</TT> and <TT>$uni_value</TT> arguments are expected to be
+Unicode strings as well.  Passing <TT>&quot;undef&quot;</TT> as <TT>$uni_value</TT> deletes the
+environment variable named <TT>$uni_key</TT>.
+
+
+<P>
+
+
+The returned value will have the characters that can't be decoded replaced by
+``\x{<FONT SIZE="-1">FFFD</FONT>}'', the Unicode replacement character.
+
+
+<P>
+
+
+There is no interface to request alternative <FONT SIZE="-1">CHECK</FONT> behavior as for
+<I>decode_argv()</I>.  If you need that you need to call encode/decode yourself.
+For example:
+
+
+<P>
+
+
+
+
+<PRE>
+    my $key = Encode::encode(locale =&gt; $uni_key, Encode::FB_CROAK);
+    my $uni_value = Encode::decode(locale =&gt; $ENV{$key}, Encode::FB_CROAK);
+
+</PRE>
+
+
+<DT id="5">reinit( )<DD>
+
+
+
+<DT id="6">reinit( $encoding )<DD>
+
+
+
+
+
+Reinitialize the encodings from the locale.  You want to call this function if
+you changed anything in the environment that might influence the locale.
+
+
+<P>
+
+
+This function will croak if the determined encoding isn't recognized by
+the Encode module.
+
+
+<P>
+
+
+With argument force <TT>$ENCODING_</TT>... variables to set to the given value.
+<DT id="7">$ENCODING_LOCALE<DD>
+
+
+
+
+The encoding name determined to be suitable for the current locale.
+Encode know this encoding as ``locale''.
+<DT id="8">$ENCODING_LOCALE_FS<DD>
+
+
+
+
+The encoding name determined to be suitable for file system interfaces
+involving file names.
+Encode know this encoding as ``locale_fs''.
+<DT id="9">$ENCODING_CONSOLE_IN<DD>
+
+
+
+
+
+<DT id="10">$ENCODING_CONSOLE_OUT<DD>
+
+
+
+
+
+The encodings to be used for reading and writing output to the a console.
+Encode know these encodings as ``console_in'' and ``console_out''.
+</DL>
+<A NAME="lbAE">&nbsp;</A>
+<H2>NOTES</H2>
+
+
+
+This table summarizes the mapping of the encodings set up
+by the <TT>&quot;Encode::Locale&quot;</TT> module:
+<P>
+
+
+
+<PRE>
+  Encode      |         |              |
+  Alias       | Windows | Mac OS X     | POSIX
+  ------------+---------+--------------+------------
+  locale      | ANSI    | nl_langinfo  | nl_langinfo
+  locale_fs   | ANSI    | UTF-8        | nl_langinfo
+  console_in  | OEM     | nl_langinfo  | nl_langinfo
+  console_out | OEM     | nl_langinfo  | nl_langinfo
+
+</PRE>
+
+
+<A NAME="lbAF">&nbsp;</A>
+<H3>Windows</H3>
+
+
+
+Windows has basically 2 sets of APIs.  A wide <FONT SIZE="-1">API </FONT>(based on passing <FONT SIZE="-1">UTF-16</FONT>
+strings) and a byte based <FONT SIZE="-1">API</FONT> based a character set called <FONT SIZE="-1">ANSI. </FONT> The
+regular Perl interfaces to the <FONT SIZE="-1">OS</FONT> currently only uses the <FONT SIZE="-1">ANSI</FONT> APIs.
+Unfortunately <FONT SIZE="-1">ANSI</FONT> is not a single character set.
+<P>
+
+The encoding that corresponds to <FONT SIZE="-1">ANSI</FONT> varies between different editions of
+Windows.  For many western editions of Windows <FONT SIZE="-1">ANSI</FONT> corresponds to <FONT SIZE="-1">CP-1252</FONT>
+which is a character set similar to <FONT SIZE="-1">ISO-8859-1. </FONT> Conceptually the <FONT SIZE="-1">ANSI</FONT>
+character set is a similar concept to the <FONT SIZE="-1">POSIX</FONT> locale <FONT SIZE="-1">CODESET</FONT> so this module
+figures out what the <FONT SIZE="-1">ANSI</FONT> code page is and make this available as
+<TT>$ENCODING_LOCALE</TT> and the ``locale'' Encoding alias.
+<P>
+
+Windows systems also operate with another byte based character set.
+It's called the <FONT SIZE="-1">OEM</FONT> code page.  This is the encoding that the Console
+takes as input and output.  It's common for the <FONT SIZE="-1">OEM</FONT> code page to
+differ from the <FONT SIZE="-1">ANSI</FONT> code page.
+<A NAME="lbAG">&nbsp;</A>
+<H3>Mac <FONT SIZE="-1">OS X</FONT></H3>
+
+
+
+On Mac <FONT SIZE="-1">OS X</FONT> the file system encoding is always <FONT SIZE="-1">UTF-8</FONT> while the locale
+can otherwise be set up as normal for <FONT SIZE="-1">POSIX</FONT> systems.
+<P>
+
+File names on Mac <FONT SIZE="-1">OS X</FONT> will at the OS-level be converted to
+NFD-form.  A file created by passing a NFC-filename will come
+in NFD-form from <I>readdir()</I>.  See Unicode::Normalize for details
+of <FONT SIZE="-1">NFD/NFC.</FONT>
+<P>
+
+Actually, Apple does not follow the Unicode <FONT SIZE="-1">NFD</FONT> standard since not all
+character ranges are decomposed.  The claim is that this avoids problems with
+round trip conversions from old Mac text encodings.  See Encode::UTF8Mac for
+details.
+<A NAME="lbAH">&nbsp;</A>
+<H3><FONT SIZE="-1">POSIX </FONT>(Linux and other Unixes)</H3>
+
+
+
+File systems might vary in what encoding is to be used for
+filenames.  Since this module has no way to actually figure out
+what the is correct it goes with the best guess which is to
+assume filenames are encoding according to the current locale.
+Users are advised to always specify <FONT SIZE="-1">UTF-8</FONT> as the locale charset.
+<A NAME="lbAI">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+
+I18N::Langinfo, Encode, Term::Encoding
+<A NAME="lbAJ">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+
+
+Copyright 2010 Gisle Aas &lt;<A HREF="mailto:gisle@aas.no">gisle@aas.no</A>&gt;.
+<P>
+
+This library is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="11"><A HREF="#lbAB">NAME</A><DD>
+<DT id="12"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="13"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="14"><A HREF="#lbAE">NOTES</A><DD>
+<DL>
+<DT id="15"><A HREF="#lbAF">Windows</A><DD>
+<DT id="16"><A HREF="#lbAG">Mac <FONT SIZE="-1">OS X</FONT></A><DD>
+<DT id="17"><A HREF="#lbAH"><FONT SIZE="-1">POSIX </FONT>(Linux and other Unixes)</A><DD>
+</DL>
+<DT id="18"><A HREF="#lbAI">SEE ALSO</A><DD>
+<DT id="19"><A HREF="#lbAJ">AUTHOR</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:39 GMT, March 31, 2021
+</BODY>
+</HTML>

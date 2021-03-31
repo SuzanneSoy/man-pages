@@ -1,0 +1,386 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of dpkg-shlibdeps</TITLE>
+</HEAD><BODY>
+<H1>dpkg-shlibdeps</H1>
+Section: suite dpkg (1)<BR>Updated: 2020-03-23<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NOM</H2>
+
+dpkg-shlibdeps - G&eacute;n&eacute;rateur de variables de substitution de d&eacute;pendances pour
+biblioth&egrave;ques partag&eacute;es
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<B>dpkg-shlibdeps</B> [<I>option</I>...] [<B>-e</B>]<I>ex&eacute;cutable</I> [<I>option</I>...]
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<B>dpkg-shlibdeps</B> calcule, pour les ex&eacute;cutables indiqu&eacute;s dans ses
+param&egrave;tres, les d&eacute;pendances envers les biblioth&egrave;ques partag&eacute;es. Ces
+d&eacute;pendances sont ajout&eacute;es au fichier de variables de substitution
+<B>debian/substvars</B> sous la forme <B>shlibs:</B><I>champ-d&eacute;pendance</I> o&ugrave;
+<I>champ-d&eacute;pendance</I> est le nom du champ de d&eacute;pendance. Toute autre variable
+apr&egrave;s <I>shlibs:</I> est supprim&eacute;e du fichier.
+<P>
+
+<B>dpkg-shlibdeps</B> a deux sources possibles pour cr&eacute;er les informations
+concernant les d&eacute;pendances, soit les fichiers <I>symbols</I>, soit les fichiers
+<I>shlibs</I>. Pour chaque fichier binaire qu'il analyse, <B>dpkg-shlibdeps</B>
+recherche la liste des biblioth&egrave;ques partag&eacute;es qui lui sont li&eacute;es. Puis,
+pour chacune d'elles il analyse soit le fichier <I>symbols</I>, soit le fichier
+<I>shlibs</I> (si le premier n'existe pas ou si debian/shlibs.local contient les
+d&eacute;pendances appropri&eacute;es). Ces deux fichiers sont cens&eacute;s &ecirc;tre fournis par le
+paquet de la biblioth&egrave;que et disponibles dans
+/var/lib/dpkg/info/<I>paquet</I>.<I>symbols</I> ou
+/var/lib/dpkg/info/<I>paquet</I>.<I>shlibs</I>. Le nom du paquet est trouv&eacute; en deux
+&eacute;tapes&nbsp;: en cherchant le fichier de la biblioth&egrave;que sur le syst&egrave;me, dans le
+r&eacute;pertoire que <B>ld.so</B> utiliserait, puis en utilisant <B>dpkg -S
+</B><I>fichier-biblioth&egrave;que</I> pour trouver le paquet qui fournit cette
+biblioth&egrave;que.
+<A NAME="lbAE">&nbsp;</A>
+<H3>Fichiers symboles</H3>
+
+Les fichiers symboles contiennent des informations de d&eacute;pendances plus fines
+en fournissant les d&eacute;pendances minimales pour chaque symbole de la
+biblioth&egrave;que export&eacute;e. Le script essaie de trouver un fichier de symboles
+associ&eacute; &agrave; un paquet de biblioth&egrave;que dans les emplacements suivants (le
+premier trouv&eacute; est utilis&eacute;)&nbsp;:
+<DL COMPACT>
+<DT id="1">debian/*/DEBIAN/symbols<DD>
+Les informations de biblioth&egrave;que partag&eacute;e g&eacute;n&eacute;r&eacute;e par l'actuel processus de
+construction qui invoque aussi <B>dpkg-shlibdeps</B>. Elles sont g&eacute;n&eacute;r&eacute;es par
+<B><A HREF="/cgi-bin/man/man2html?1+dpkg-gensymbols">dpkg-gensymbols</A></B>(1) et ne sont utilis&eacute;es que si la biblioth&egrave;que se trouve
+dans l'arbre de construction d'un paquet. Le fichier des symboles qui
+construit l'arbre s'appuie sur les fichiers de symboles d'autres paquets
+binaires.
+<DT id="2">/etc/dpkg/symbols/<I>paquet</I>.symbols.<I>architecture</I><DD>
+<DT id="3">/etc/dpkg/symbols/<I>paquet</I>.symbols<DD>
+Les informations de d&eacute;pendance de biblioth&egrave;que partag&eacute;e principales par
+syst&egrave;me. <I>arch</I> est l'architecture du syst&egrave;me actuel (obtenu par
+<B>dpkg-architecture -qDEB_HOST_ARCH</B>).
+<DT id="4">Affichage de "<B>dpkg-query --control-path</B> <I>paquet</I> symbols"<DD>
+Les informations de d&eacute;pendance de biblioth&egrave;que partag&eacute;e fournies par le
+paquet. Sauf indication contraire par le biais de <B>--admindir</B>, ces
+fichiers sont par d&eacute;faut dans /var/lib/dpkg.
+</DL>
+<P>
+
+Lors de l'analyse des symboles utilis&eacute;s par tous les binaires,
+<B>dpkg-shlibdeps</B> retient la (plus grande) version minimale n&eacute;cessaire pour
+chaque biblioth&egrave;que. &Agrave; la fin du processus, il est capable d'&eacute;crire la
+d&eacute;pendance minimale pour toutes les biblioth&egrave;ques utilis&eacute;es (&agrave; condition que
+l'information des fichiers <I>symbols</I> soit exacte).
+<P>
+
+Comme garde-fou, un fichier de symboles peut fournir un champ
+<B>Build-Depends-Package</B> de m&eacute;ta-information et <B>dpkg-shlibdeps</B> en
+extraira la version minimale requise par le paquet correspondant depuis ce
+champ <B>Build-Depends</B> et utilisera cette version si elle est sup&eacute;rieure &agrave;
+la version minimale calcul&eacute;e par l'examen des symboles.
+<A NAME="lbAF">&nbsp;</A>
+<H3>Fichiers Shlibs</H3>
+
+Les fichiers Shlibs associent directement une biblioth&egrave;que &agrave; une d&eacute;pendance
+(sans regarder les symboles). C'est donc souvent plus puissant que les
+besoins r&eacute;els mais cela reste tr&egrave;s s&ucirc;r et facile &agrave; manipuler.
+<P>
+
+Les d&eacute;pendances d'une biblioth&egrave;que sont recherch&eacute;es &agrave; plusieurs endroits. Le
+premier fichier d'informations trouv&eacute; qui concerne la biblioth&egrave;que est
+utilis&eacute;&nbsp;:
+<DL COMPACT>
+<DT id="5">debian/shlibs.local<DD>
+Fichier particulier &agrave; un paquet rempla&ccedil;ant les informations qui concernent
+les d&eacute;pendances envers des biblioth&egrave;ques partag&eacute;es.
+<DT id="6">/etc/dpkg/shlibs.override<DD>
+Fichier syst&egrave;me rempla&ccedil;ant les informations qui concernent les d&eacute;pendances
+envers des biblioth&egrave;ques partag&eacute;es.
+<DT id="7">debian/*/DEBIAN/shlibs<DD>
+Information sur la biblioth&egrave;que partag&eacute;e g&eacute;n&eacute;r&eacute;e par le processus actuel de
+construction qui invoque aussi <B>dpkg-shlibdeps</B>. Il n'est utilis&eacute; que si la
+biblioth&egrave;que se trouve dans l'arbre de construction du paquet. Le fichier
+shlibs qui construit l'arbre a priorit&eacute; sur les fichiers shlibs des autres
+paquets binaires.
+<DT id="8">Affichage de &laquo;&nbsp;<B>dpkg-query --control-path</B> <I>paquet</I> shlibs&nbsp;&raquo;<DD>
+Les informations de d&eacute;pendance de biblioth&egrave;que partag&eacute;e fournies par le
+paquet. Sauf indication contraire par le biais de <B>--admindir</B>, ces
+fichiers sont par d&eacute;faut dans /var/lib/dpkg.
+<DT id="9">/etc/dpkg/shlibs.default<DD>
+Fichier syst&egrave;me par d&eacute;faut concernant les informations de d&eacute;pendance envers
+des biblioth&egrave;ques partag&eacute;es.
+</DL>
+<P>
+
+Les d&eacute;pendances trouv&eacute;es sont ensuite directement utilis&eacute;es (sauf si elles
+sont filtr&eacute;es parce qu'elles ont &eacute;t&eacute; identifi&eacute;es comme &eacute;tant en double, ou
+d'un niveau plus faible qu'une autre d&eacute;pendance).
+<A NAME="lbAG">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<B>dpkg-shlibdeps</B> interpr&egrave;te des arguments sans option comme des commandes
+ex&eacute;cutables, comme si on avait simplement donn&eacute; <B>-e</B><I>ex&eacute;cutable</I>.
+<DL COMPACT>
+<DT id="10"><B>-e</B><I>ex&eacute;cutable</I><DD>
+Cette option inclut les bonnes d&eacute;pendances envers les biblioth&egrave;ques
+partag&eacute;es que demande <I>ex&eacute;cutable</I>. Cette option peut &ecirc;tre utilis&eacute;e
+plusieurs fois.
+<DT id="11"><B>-l</B><I>r&eacute;pertoire</I><DD>
+Ajoute <I>r&eacute;pertoire</I> au d&eacute;but de la liste des r&eacute;pertoires o&ugrave; chercher des
+biblioth&egrave;ques partag&eacute;es priv&eacute;es (depuis dpkg&nbsp;1.17.0). Cette option peut &ecirc;tre
+utilis&eacute;e plusieurs fois.
+<P>
+Note&nbsp;: Utilisez cette option plut&ocirc;t que le r&eacute;glage de <B>LD_LIBRARY_PATH</B>,
+parce que cette variable d'environnement est utilis&eacute;e pour contr&ocirc;ler
+l'&eacute;diteur de liens d'ex&eacute;cution et se servir d'elle pour d&eacute;finir les chemins
+des biblioth&egrave;ques partag&eacute;es au moment de la construction peut &ecirc;tre
+probl&eacute;matique, par exemple, lors d'une compilation crois&eacute;e.
+<DT id="12"><B>-d</B><I>champ-d&eacute;pendance</I><DD>
+Cette option ajoute les d&eacute;pendances destin&eacute;es au champ &laquo;&nbsp;d&eacute;pendance&nbsp;&raquo; du
+fichier de contr&ocirc;le <I>champ-d&eacute;pendance.</I> (Les d&eacute;pendances pour ce champ sont
+dans la variable <B>shlibs:</B><I>champ-d&eacute;pendance</I>.)
+<P>
+L'option <B>-d</B><I>champ-d&eacute;pendance</I> concerne tous les ex&eacute;cutables qui suivent
+l'option, jusqu'&agrave; la prochaine option <B>-d</B><I>champ-d&eacute;pendance</I>. Par d&eacute;faut,
+<I>champ-d&eacute;pendance</I> vaut <B>Depends</B>.
+<P>
+Quand, dans plusieurs champs reconnus ayant trait aux d&eacute;pendances comme les
+champs <B>Pre-Depends</B>, <B>Depends</B>, <B>Recommends</B>, <B>Enhances</B> ou <B>Suggests</B>
+appara&icirc;t la m&ecirc;me entr&eacute;e (ou bien un ensemble d'alternatives),
+<B>dpkg-shlibdeps</B> supprime automatiquement les d&eacute;pendances dans tous les
+champs sauf celui qui repr&eacute;sente les d&eacute;pendances les plus importantes.
+<DT id="13"><B>-p</B><I>pr&eacute;fixe-pour-le-nom-des-variables</I><DD>
+Fait commencer les variables de substitution par
+<I>pr&eacute;fixe-pour-le-nom-des-variables</I><B>:</B> au lieu de <B>shlibs:</B>. De m&ecirc;me,
+toute variable de substitution commen&ccedil;ant par
+<I>pr&eacute;fixe-pour-le-nom-des-variables</I><B>:</B> (au lieu de <B>shlibs:</B>) est enlev&eacute;e
+du fichier de substitution des variables.
+<DT id="14"><B>-O</B>[<I>nom-de-fichier</I>]<DD>
+Affiche les d&eacute;finitions des variables de substitution sur la sortie standard
+(ou <I>nom-de-fichier</I> si sp&eacute;cifi&eacute;, depuis dpkg&nbsp;1.17.2), plut&ocirc;t que de les
+ajouter dans le fichier de substitution des variables qui est par d&eacute;faut
+<B>debian/substvars</B>.
+<DT id="15"><B>-t</B><I>type</I><DD>
+Pr&eacute;f&eacute;rer les informations sur les d&eacute;pendances des biblioth&egrave;ques partag&eacute;es
+qui sont &eacute;tiquet&eacute;es pour un type de paquet donn&eacute;. Si aucune information de
+type n'est donn&eacute;e, il n'utilisera pas d'information. Par d&eacute;faut, le type de
+paquet est <B>deb</B>. On peut cr&eacute;er une &eacute;tiquette pour ces informations en les
+pr&eacute;fixant par le nom du type, un deux-points et une espace.
+<DT id="16"><B>-L</B><I>fichier-local-shlibs</I><DD>
+Lire les informations de remplacement concernant les d&eacute;pendances envers les
+biblioth&egrave;ques partag&eacute;es dans <I>fichier-local-shlibs</I> au lieu de
+<B>debian/shlibs.local</B>.
+<DT id="17"><B>-T</B><I>fichier-substvars</I><DD>
+&Eacute;crire les variables de substitution dans <I>fichier-substvars</I>&nbsp;; le fichier
+par d&eacute;faut est <B>debian/substvars</B>.
+<DT id="18"><B>-v</B><DD>
+Active le mode bavard (depuis dpkg&nbsp;1.14.8). De nombreux messages sont
+affich&eacute;s pour expliquer ce que <B>dpkg-shlibdeps</B> fait.
+<DT id="19"><B>-x</B><I>package</I><DD>
+Exclut le paquet des d&eacute;pendances g&eacute;n&eacute;r&eacute;es (depuis dpkg&nbsp;1.14.8). Cela &eacute;vite
+les auto-d&eacute;pendances pour les paquets fournissant des ex&eacute;cutables ELF
+(ex&eacute;cutables ou modules compl&eacute;mentaires de biblioth&egrave;que) qui utilisent une
+biblioth&egrave;que incluse dans ce m&ecirc;me paquet. Cette option peut &ecirc;tre utilis&eacute;e
+plusieurs fois pour exclure plusieurs paquets.
+<DT id="20"><B>-S</B><I>r&eacute;pertoire-construction-paquet</I><DD>
+Recherche dans <I>r&eacute;pertoire-construction-paquet</I> en premier et essaie de
+trouver une biblioth&egrave;que (depuis dpkg&nbsp;1.14.15). C'est utile lorsque le
+paquet source construit plusieurs saveurs de la m&ecirc;me biblioth&egrave;que et que
+vous voulez vous assurer que vous obtiendrez la d&eacute;pendance d'un paquet
+binaire donn&eacute;. Cette option peut &ecirc;tre utilis&eacute;e plusieurs fois&nbsp;: les
+r&eacute;pertoires seront examin&eacute;s dans le m&ecirc;me ordre avant les r&eacute;pertoires
+d'autres paquets binaires.
+<DT id="21"><B>-I</B><I>r&eacute;pertoire-construction-paquet</I><DD>
+Ignore <I>r&eacute;pertoire-construction-paquet</I> lors de la recherche des fichiers
+shlibs, de symboles et des biblioth&egrave;ques partag&eacute;es (depuis
+dpkg&nbsp;1.18.5). Cette option peut &ecirc;tre utilis&eacute;e plusieurs fois.
+<DT id="22"><B>--ignore-missing-info</B><DD>
+Pas d'&eacute;chec si l'information de d&eacute;pendance ne peut pas &ecirc;tre trouv&eacute;e pour une
+biblioth&egrave;que partag&eacute;e (depuis dpkg&nbsp;1.14.8). L'utilisation de cette option
+est d&eacute;conseill&eacute;e, toutes les biblioth&egrave;ques devraient fournir leurs
+informations de d&eacute;pendance (que ce soit avec les fichiers shlibs, ou avec
+les fichiers symboles), m&ecirc;me si elles ne sont pas encore utilis&eacute;es par
+d'autres paquets.
+<DT id="23"><B>--warnings=</B><I>valeur</I><DD>
+<I>valeur</I> est un champ de &laquo;&nbsp;bit&nbsp;&raquo; d&eacute;finissant l'ensemble des avertissements
+qui peuvent &ecirc;tre &eacute;mis par <B>dpkg-shlibdeps</B> (depuis dpkg&nbsp;1.14.17). Le bit
+<B>0</B> (valeur&nbsp;=&nbsp;1) active l'avertissement &laquo;&nbsp;symbole <I>sym</I> utilis&eacute; par le
+<I>binaire</I> trouv&eacute; dans aucune des biblioth&egrave;ques&nbsp;&raquo;. Le bit <B>1</B> (valeur&nbsp;=&nbsp;2)
+active l'avertissement &laquo;&nbsp;le paquet pourrait &eacute;viter une d&eacute;pendance
+inutile&nbsp;&raquo;. Le bit <B>2</B> (valeur&nbsp;=&nbsp;4) active l'avertissement &laquo;&nbsp;Le <I>binaire</I>
+ne devrait pas &ecirc;tre li&eacute; &agrave; <I>biblioth&egrave;que</I>&nbsp;&raquo;. La <I>valeur</I> par d&eacute;faut est
+<B>3</B>&nbsp;: les deux premi&egrave;res mises en garde sont actives par d&eacute;faut, la
+derni&egrave;re ne l'est pas. Positionnez la <I>valeur</I> &agrave;&nbsp;7 si vous souhaitez que
+tous les avertissements soient actifs.
+<DT id="24"><B>--admindir</B>=<I>r&eacute;pertoire</I><DD>
+Changer l'endroit o&ugrave; se trouve la base de donn&eacute;es de <B>dpkg</B> (depuis
+dpkg&nbsp;1.14.0). Par d&eacute;faut, c'est <I>/var/lib/dpkg</I>.
+<DT id="25"><B>-?</B>, <B>--help</B><DD>
+Affiche un message d'aide puis quitte.
+<DT id="26"><B>--version</B><DD>
+Affiche le num&eacute;ro de version puis quitte.
+</DL>
+<A NAME="lbAH">&nbsp;</A>
+<H2>ENVIRONNEMENT</H2>
+
+<DL COMPACT>
+<DT id="27"><B>DPKG_COLORS</B><DD>
+D&eacute;finit le mode de couleur (depuis dpkg&nbsp;1.18.5). Les valeurs actuellement
+accept&eacute;es sont <B>auto</B> (par d&eacute;faut), <B>always</B> et <B>never</B>.
+<DT id="28"><B>DPKG_NLS</B><DD>
+Si cette variable est d&eacute;finie, elle sera utilis&eacute;e pour d&eacute;cider l'activation
+de la prise en charge des langues (NLS -&nbsp;Native Language Support), connu
+aussi comme la gestion de l'internationalisation (ou i18n) (depuis
+dpkg&nbsp;1.19.0). Les valeurs permises sont&nbsp;: <B>0</B> et <B>1</B> (par d&eacute;faut).
+</DL>
+<A NAME="lbAI">&nbsp;</A>
+<H2>DIAGNOSTICS</H2>
+
+<A NAME="lbAJ">&nbsp;</A>
+<H3>Avertissements</H3>
+
+Depuis que <B>dpkg-shlibdeps</B> analyse l'ensemble des symboles utilis&eacute;s par
+chaque binaire g&eacute;n&eacute;r&eacute; par le paquet, il est en mesure d'&eacute;mettre des
+avertissements dans plusieurs cas. Ils vous informent des choses qui peuvent
+&ecirc;tre am&eacute;lior&eacute;es dans le paquet. Dans la plupart des cas, ces am&eacute;liorations
+concernent directement les sources amont. Dans l'ordre d'importance
+d&eacute;croissant, voici les diff&eacute;rents avertissements que vous pouvez
+rencontrer&nbsp;:
+<DL COMPACT>
+<DT id="29"><B>symbole</B><I> sym</I><B> utilis&eacute; par </B><I>binaire</I><B> trouv&eacute; dans aucune des biblioth&egrave;ques.</B><DD>
+Le symbole indiqu&eacute; n'a pas &eacute;t&eacute; trouv&eacute; dans les biblioth&egrave;ques li&eacute;es au
+binaire. Le <I>binaire</I> est probablement plut&ocirc;t une biblioth&egrave;que et il doit
+&ecirc;tre li&eacute; avec une biblioth&egrave;que suppl&eacute;mentaire durant le processus de
+construction (l'option <B>-l</B><I>biblioth&egrave;que</I> de l'&eacute;diteur de liens).
+<DT id="30"><I>binary</I><B> contient une r&eacute;f&eacute;rence non r&eacute;solue au symbole </B><I>sym</I>&nbsp;<B>: il s'agit probablement d'un greffon (plugin)</B><DD>
+Le symbole indiqu&eacute; n'a pas &eacute;t&eacute; trouv&eacute; dans les biblioth&egrave;ques li&eacute;es avec le
+fichier binaire. Le <I>binaire</I> est tr&egrave;s probablement un greffon (plugin) et
+le symbole est probablement fourni par le programme qui charge ce
+greffon. En th&eacute;orie, un greffon n'a pas de &laquo;&nbsp;SONAME&nbsp;&raquo; mais ce binaire en
+poss&egrave;de un et n'a pas pu &ecirc;tre identifi&eacute; en tant que tel. Cependant, le fait
+que le binaire soit stock&eacute; dans un r&eacute;pertoire non public est une indication
+forte qu'il ne s'agit pas d'une biblioth&egrave;que partag&eacute;e normale. Si le binaire
+est vraiment un greffon, vous pouvez ignorer cet avertissement. Il existe
+cependant une possibilit&eacute; qu'il s'agisse d'un vrai binaire et que les
+programmes avec lequel il est li&eacute; utilisent un RPATH afin que le chargeur
+dynamique le trouve. Dans ce cas, la biblioth&egrave;que est incorrecte et doit
+&ecirc;tre corrig&eacute;e.
+<DT id="31"><B>paquet pourrait &eacute;viter une d&eacute;pendance inutile si</B> <I>le binaire</I> <B>n'&eacute;tait pas li&eacute; avec</B> <I>biblioth&egrave;que</I> <B>(il ne fait usage d'aucun de ses symboles)</B><DD>
+Aucun des <I>binaires</I> li&eacute;s &agrave; la <I>biblioth&egrave;que</I> utilise les symboles qu'elle
+fournit. En corrigeant tous les binaires, vous &eacute;viteriez la d&eacute;pendance
+associ&eacute;e &agrave; cette biblioth&egrave;que (&agrave; moins que la m&ecirc;me d&eacute;pendance soit &eacute;galement
+li&eacute;e &agrave; une autre biblioth&egrave;que qui est elle r&eacute;ellement utilis&eacute;e).
+<DT id="32"><B>paquet pourrait &eacute;viter une d&eacute;pendance inutile si</B> <I>les binaires</I> <B>n'&eacute;taient pas li&eacute;s avec</B> <I>biblioth&egrave;que</I> <B>(ils ne font usage d'aucun de ses symboles)</B><DD>
+Identique &agrave; l'avertissement pr&eacute;c&eacute;dent, pour des binaires multiples.
+<DT id="33"><I>le binaire</I> <B>ne devrait pas &ecirc;tre li&eacute; avec la</B> <I>biblioth&egrave;que</I> <B>(il ne fait usage d'aucun de ses symboles)</B><DD>
+Le <I>binaire</I> est li&eacute; &agrave; une biblioth&egrave;que dont il n'a pas besoin. Ce n'est
+pas un probl&egrave;me mais de petites am&eacute;liorations de performance dans le temps
+de chargement de celui-ci peuvent &ecirc;tre obtenues en ne le liant pas &agrave; cette
+biblioth&egrave;que. Cet avertissement v&eacute;rifie la m&ecirc;me information que la
+pr&eacute;c&eacute;dente mais elle le fait pour tous les binaires au lieu de ne faire le
+contr&ocirc;le qu'au niveau global sur tous les binaires analys&eacute;s.
+</DL>
+<A NAME="lbAK">&nbsp;</A>
+<H3>Erreurs</H3>
+
+<B>dpkg-shlibdeps</B> &eacute;chouera s'il ne peut pas trouver de biblioth&egrave;que publique
+utilis&eacute;e par un binaire ou si cette biblioth&egrave;que n'a pas d'informations sur
+les d&eacute;pendances associ&eacute;es (soit le fichier shlibs, soit le fichier des
+symboles). Une biblioth&egrave;que publique a un SONAME et un num&eacute;ro de version
+(libsomething.so.<I>X</I>). Une biblioth&egrave;que priv&eacute;e (comme un module
+additionnel) ne devrait pas avoir de SONAME et n'a pas besoin d'avoir de
+version.
+<DL COMPACT>
+<DT id="34"><B>impossible de trouver la biblioth&egrave;que</B> <I>library-soname</I> <B>demand&eacute;e par le</B> <I>binaire</I> <B>(son RPATH est &laquo;&nbsp;</B><I>rpath</I><B>&nbsp;&raquo;)</B><DD>
+Le <I>binaire</I> utilise une biblioth&egrave;que appel&eacute;e <I>library-soname</I> mais
+<B>dpkg-shlibdeps</B> n'a pas &eacute;t&eacute; en mesure de trouver cette
+biblioth&egrave;que. <B>dpkg-shlibdeps</B> cr&eacute;e une liste de r&eacute;pertoires &agrave; v&eacute;rifier de
+la mani&egrave;re suivante&nbsp;: les r&eacute;pertoires &eacute;num&eacute;r&eacute;s dans le RPATH du binaire, les
+r&eacute;pertoires ajout&eacute;s par l'option <B>-l</B>, les r&eacute;pertoires list&eacute;s dans la
+variable d'environnement <B>LD_LIBRARY_PATH</B>, les r&eacute;pertoires crois&eacute;s
+multi-architerctures (par exemple, /lib/arm64-linux-gnu,
+/usr/lib/arm64-linux-gnu), les r&eacute;pertoires publics standard (/lib,
+/usr/lib), les r&eacute;pertoires list&eacute;s dans /etc/ld.so.conf et les r&eacute;pertoires
+obsol&egrave;tes multilib (/lib32, /usr/lib32, /lib64, /usr/lib64). Ensuite, il
+v&eacute;rifie les r&eacute;pertoires qui sont dans l'arbre de construction du paquet
+binaire en cours d'analyse, dans l'arbre de construction du paquet indiqu&eacute;
+avec l'option de ligne de commande <B>-S</B>, dans les autres arbres de paquets
+qui contiennent un fichier DEBIAN/shlibs ou DEBIAN/symbols et enfin dans le
+r&eacute;pertoire racine. Si la biblioth&egrave;que n'est pas trouv&eacute;e dans l'un de ces
+r&eacute;pertoires, alors ce message d'erreur est obtenu.
+<P>
+Si la biblioth&egrave;que non trouv&eacute;e est cependant disponible dans le r&eacute;pertoire
+priv&eacute; de ce m&ecirc;me paquet, alors il vous faut ajouter ce r&eacute;pertoire avec
+<B>-l</B>. S'il est dans un autre paquet binaire en cours de construction, alors
+assurez-vous que le fichier shlibs/symbols de ce paquet a d&eacute;j&agrave; cr&eacute;&eacute; et que
+<B>-l</B> contient le r&eacute;pertoire appropri&eacute; si c'est aussi un r&eacute;pertoire priv&eacute;.
+<DT id="35"><B>aucune information de d&eacute;pendance trouv&eacute;e pour</B> <I>la biblioth&egrave;que</I> <B>(utilis&eacute;e par le</B> <I>binaire</I><B>).</B><DD>
+La biblioth&egrave;que n&eacute;cessaire au <I>binaire</I> a &eacute;t&eacute; trouv&eacute;e par <B>dpkg-shlibdeps</B>
+dans <I>fichier-biblioth&egrave;que</I> mais <B>dpkg-shlibdeps</B> n'a pas &eacute;t&eacute; en mesure de
+trouver d'informations de d&eacute;pendance pour cette biblioth&egrave;que. Pour trouver
+la d&eacute;pendance, il a essay&eacute; de lier la biblioth&egrave;que &agrave; un paquet Debian avec
+l'aide de <B>dpkg -S </B><I>fichier-biblioth&egrave;que</I>. Puis, il a v&eacute;rifi&eacute; les shlibs
+correspondants et les fichiers symboles de /var/lib/dpkg/info/ et enfin les
+diff&eacute;rents arbres des paquets construits (debian/*/DEBIAN/).
+<P>
+Cet &eacute;chec peut &ecirc;tre caus&eacute; par un shlibs ou un fichier de symboles qui serait
+mauvais ou manquant dans le paquet. Une autre cause serait que la
+biblioth&egrave;que soit construite au sein du m&ecirc;me paquet source et que les
+fichiers shlibs n'aient pas encore &eacute;t&eacute; cr&eacute;&eacute;s (dans ce cas debian/rules doit
+&ecirc;tre modifi&eacute; pour cr&eacute;er le shlibs avant l'appel de <B>dpkg-shlibdeps</B>). Un
+mauvais RPATH peut aussi conduire &agrave; ce que la biblioth&egrave;que soit trouv&eacute;e sous
+un nom non canonique (comme&nbsp;: /usr/lib/openoffice.org/../lib/libssl.so.0.9.8
+au lieu de /usr/lib/libssl.so.0.9.8) qui n'est associ&eacute; &agrave; aucun paquet,
+<B>dpkg-shlibdeps</B> essaie de contourner cela en se repliant vers un nom
+canonique (en utilisant <B><A HREF="/cgi-bin/man/man2html?3+realpath">realpath</A></B>(3)), mais cela ne fonctionne pas
+toujours. Il est toujours pr&eacute;f&eacute;rable de bien nettoyer le RPATH du binaire
+afin d'&eacute;viter ces probl&egrave;mes.
+<P>
+L'appel de <B>dpkg-shlibdeps</B> en mode bavard (<B>-v</B>) fournira beaucoup plus
+d'informations sur l'endroit o&ugrave; il a essay&eacute; de trouver l'information sur les
+d&eacute;pendances. Cela peut &ecirc;tre utile si vous ne comprenez pas pourquoi vous
+obtenez cette erreur.
+</DL>
+<A NAME="lbAL">&nbsp;</A>
+<H2>VOIR AUSSI</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?5+deb-shlibs">deb-shlibs</A></B>(5), <B><A HREF="/cgi-bin/man/man2html?5+deb-symbols">deb-symbols</A></B>(5), <B><A HREF="/cgi-bin/man/man2html?1+dpkg-gensymbols">dpkg-gensymbols</A></B>(1).
+<A NAME="lbAM">&nbsp;</A>
+<H2>TRADUCTION</H2>
+
+Ariel VARDI &lt;<A HREF="mailto:ariel.vardi@freesbee.fr">ariel.vardi@freesbee.fr</A>&gt;, 2002.
+Philippe Batailler, 2006.
+Nicolas Fran&ccedil;ois, 2006.
+Veuillez signaler toute erreur &agrave; &lt;<A HREF="mailto:debian-l10n-french@lists.debian.org">debian-l10n-french@lists.debian.org</A>&gt;.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="36"><A HREF="#lbAB">NOM</A><DD>
+<DT id="37"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="38"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DL>
+<DT id="39"><A HREF="#lbAE">Fichiers symboles</A><DD>
+<DT id="40"><A HREF="#lbAF">Fichiers Shlibs</A><DD>
+</DL>
+<DT id="41"><A HREF="#lbAG">OPTIONS</A><DD>
+<DT id="42"><A HREF="#lbAH">ENVIRONNEMENT</A><DD>
+<DT id="43"><A HREF="#lbAI">DIAGNOSTICS</A><DD>
+<DL>
+<DT id="44"><A HREF="#lbAJ">Avertissements</A><DD>
+<DT id="45"><A HREF="#lbAK">Erreurs</A><DD>
+</DL>
+<DT id="46"><A HREF="#lbAL">VOIR AUSSI</A><DD>
+<DT id="47"><A HREF="#lbAM">TRADUCTION</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:01 GMT, March 31, 2021
+</BODY>
+</HTML>

@@ -1,0 +1,486 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of Weak</TITLE>
+</HEAD><BODY>
+<H1>Weak</H1>
+Section: OCaml library (3o)<BR>Updated: 2020-01-30<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+Weak - Arrays of weak pointers and hash sets of weak pointers.
+<A NAME="lbAC">&nbsp;</A>
+<H2>Module</H2>
+
+Module   Weak
+<A NAME="lbAD">&nbsp;</A>
+<H2>Documentation</H2>
+
+<P>
+Module
+<B>Weak</B>
+
+<BR>&nbsp;:&nbsp;
+<B>sig  end</B>
+
+<P>
+<P>
+Arrays of weak pointers and hash sets of weak pointers.
+<P>
+<P>
+<P>
+<P>
+<P>
+<P>
+<P>
+
+<A NAME="lbAE">&nbsp;</A>
+<H3>Low-level functions</H3>
+
+<P>
+<P>
+
+<I>type </I>
+
+<B>'a</B>
+
+<I>t </I>
+
+<P>
+<P>
+The type of arrays of weak pointers (weak arrays).  A weak
+pointer is a value that the garbage collector may erase whenever
+the value is not used any more (through normal pointers) by the
+program.  Note that finalisation functions are run before the
+weak pointers are erased, because the finalisation functions
+can make values alive again (before 4.03 the finalisation
+functions were run after).
+<P>
+A weak pointer is said to be full if it points to a value,
+empty if the value was erased by the GC.
+<P>
+Notes:
+<P>
+-Integers are not allocated and cannot be stored in weak arrays.
+<P>
+-Weak arrays cannot be marshaled using 
+<B>output_value</B>
+
+nor the functions of the 
+<B>Marshal</B>
+
+module.
+<P>
+<P>
+<P>
+<P>
+<I>val create </I>
+
+: 
+<B>int -&gt; 'a t</B>
+
+<P>
+<P>
+<B>Weak.create n</B>
+
+returns a new weak array of length 
+<B>n</B>
+
+.
+All the pointers are initially empty.  Raise 
+<B>Invalid_argument</B>
+
+if 
+<B>n</B>
+
+is not comprised between zero and
+<B>Obj.Ephemeron.max_ephe_length</B>
+
+(limits included).
+<P>
+<P>
+<P>
+<I>val length </I>
+
+: 
+<B>'a t -&gt; int</B>
+
+<P>
+<P>
+<B>Weak.length ar</B>
+
+returns the length (number of elements) of
+<B>ar</B>
+
+.
+<P>
+<P>
+<P>
+<I>val set </I>
+
+: 
+<B>'a t -&gt; int -&gt; 'a option -&gt; unit</B>
+
+<P>
+<P>
+<B>Weak.set ar n (Some el)</B>
+
+sets the 
+<B>n</B>
+
+th cell of 
+<B>ar</B>
+
+to be a
+(full) pointer to 
+<B>el</B>
+
+; 
+<B>Weak.set ar n None</B>
+
+sets the 
+<B>n</B>
+
+th
+cell of 
+<B>ar</B>
+
+to empty.
+Raise 
+<B>Invalid_argument Weak.set</B>
+
+if 
+<B>n</B>
+
+is not in the range
+0 to 
+<B>Weak.length</B>
+
+<B>a - 1</B>
+
+.
+<P>
+<P>
+<P>
+<I>val get </I>
+
+: 
+<B>'a t -&gt; int -&gt; 'a option</B>
+
+<P>
+<P>
+<B>Weak.get ar n</B>
+
+returns None if the 
+<B>n</B>
+
+th cell of 
+<B>ar</B>
+
+is
+empty, 
+<B>Some x</B>
+
+(where 
+<B>x</B>
+
+is the value) if it is full.
+Raise 
+<B>Invalid_argument Weak.get</B>
+
+if 
+<B>n</B>
+
+is not in the range
+0 to 
+<B>Weak.length</B>
+
+<B>a - 1</B>
+
+.
+<P>
+<P>
+<P>
+<I>val get_copy </I>
+
+: 
+<B>'a t -&gt; int -&gt; 'a option</B>
+
+<P>
+<P>
+<B>Weak.get_copy ar n</B>
+
+returns None if the 
+<B>n</B>
+
+th cell of 
+<B>ar</B>
+
+is
+empty, 
+<B>Some x</B>
+
+(where 
+<B>x</B>
+
+is a (shallow) copy of the value) if
+it is full.
+In addition to pitfalls with mutable values, the interesting
+difference with 
+<B>get</B>
+
+is that 
+<B>get_copy</B>
+
+does not prevent
+the incremental GC from erasing the value in its current cycle
+(
+<B>get</B>
+
+may delay the erasure to the next GC cycle).
+Raise 
+<B>Invalid_argument Weak.get</B>
+
+if 
+<B>n</B>
+
+is not in the range
+0 to 
+<B>Weak.length</B>
+
+<B>a - 1</B>
+
+.
+<P>
+If the element is a custom block it is not copied.
+<P>
+<P>
+<P>
+<I>val check </I>
+
+: 
+<B>'a t -&gt; int -&gt; bool</B>
+
+<P>
+<P>
+<B>Weak.check ar n</B>
+
+returns 
+<B>true</B>
+
+if the 
+<B>n</B>
+
+th cell of 
+<B>ar</B>
+
+is
+full, 
+<B>false</B>
+
+if it is empty.  Note that even if 
+<B>Weak.check ar n</B>
+
+returns 
+<B>true</B>
+
+, a subsequent 
+<B>Weak.get</B>
+
+<B>ar n</B>
+
+can return 
+<B>None</B>
+
+.
+<P>
+<P>
+<P>
+<I>val fill </I>
+
+: 
+<B>'a t -&gt; int -&gt; int -&gt; 'a option -&gt; unit</B>
+
+<P>
+<P>
+<B>Weak.fill ar ofs len el</B>
+
+sets to 
+<B>el</B>
+
+all pointers of 
+<B>ar</B>
+
+from
+<B>ofs</B>
+
+to 
+<B>ofs + len - 1</B>
+
+.  Raise 
+<B>Invalid_argument Weak.fill</B>
+
+if 
+<B>ofs</B>
+
+and 
+<B>len</B>
+
+do not designate a valid subarray of 
+<B>a</B>
+
+.
+<P>
+<P>
+<P>
+<I>val blit </I>
+
+: 
+<B>'a t -&gt; int -&gt; 'a t -&gt; int -&gt; int -&gt; unit</B>
+
+<P>
+<P>
+<B>Weak.blit ar1 off1 ar2 off2 len</B>
+
+copies 
+<B>len</B>
+
+weak pointers
+from 
+<B>ar1</B>
+
+(starting at 
+<B>off1</B>
+
+) to 
+<B>ar2</B>
+
+(starting at 
+<B>off2</B>
+
+).
+It works correctly even if 
+<B>ar1</B>
+
+and 
+<B>ar2</B>
+
+are the same.
+Raise 
+<B>Invalid_argument Weak.blit</B>
+
+if 
+<B>off1</B>
+
+and 
+<B>len</B>
+
+do
+not designate a valid subarray of 
+<B>ar1</B>
+
+, or if 
+<B>off2</B>
+
+and 
+<B>len</B>
+
+do not designate a valid subarray of 
+<B>ar2</B>
+
+.
+<P>
+<P>
+<P>
+<P>
+
+<A NAME="lbAF">&nbsp;</A>
+<H3>Weak hash sets</H3>
+
+<P>
+<P>
+
+<P>
+<P>
+
+A weak hash set is a hashed set of values.  Each value may
+magically disappear from the set when it is not used by the
+rest of the program any more.  This is normally used to share
+data structures without inducing memory leaks.
+Weak hash sets are defined on values from a 
+<B>Hashtbl.HashedType</B>
+
+module; the 
+<B>equal</B>
+
+relation and 
+<B>hash</B>
+
+function are taken from that
+module.  We will say that 
+<B>v</B>
+
+is an instance of 
+<B>x</B>
+
+if 
+<B>equal x v</B>
+
+is 
+<B>true</B>
+
+.
+<P>
+The 
+<B>equal</B>
+
+relation must be able to work on a shallow copy of
+the values and give the same result as with the values themselves.
+<P>
+
+<I>module type S = </I>
+
+<B>sig  end</B>
+
+<P>
+<P>
+The output signature of the functor 
+<B>Weak.Make</B>
+
+.
+<P>
+<P>
+<I>module Make : </I>
+
+<B>functor (H : Hashtbl.HashedType) -&gt; sig  end</B>
+
+<P>
+<P>
+Functor building an implementation of the weak hash set structure.
+<B>H.equal</B>
+
+can't be the physical equality, since only shallow
+copies of the elements in the set are given to it.
+<P>
+<P>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="1"><A HREF="#lbAB">NAME</A><DD>
+<DT id="2"><A HREF="#lbAC">Module</A><DD>
+<DT id="3"><A HREF="#lbAD">Documentation</A><DD>
+<DL>
+<DT id="4"><A HREF="#lbAE">Low-level functions</A><DD>
+<DT id="5"><A HREF="#lbAF">Weak hash sets</A><DD>
+</DL>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:00 GMT, March 31, 2021
+</BODY>
+</HTML>

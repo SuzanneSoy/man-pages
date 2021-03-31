@@ -1,0 +1,196 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of NPTL</TITLE>
+</HEAD><BODY>
+<H1>NPTL</H1>
+Section: Linux Programmer's Manual (7)<BR>Updated: 2015-08-08<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+nptl - Native POSIX Threads Library
+<A NAME="lbAC">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+NPTL (Native POSIX Threads Library)
+is the GNU C library POSIX threads implementation that is used on modern
+Linux systems.
+
+<A NAME="lbAD">&nbsp;</A>
+<H3>NPTL and signals</H3>
+
+NPTL makes internal use of the first two real-time signals
+(signal numbers 32 and 33).
+One of these signals is used to support thread cancellation and POSIX timers
+(see
+<B><A HREF="/cgi-bin/man/man2html?2+timer_create">timer_create</A></B>(2));
+
+the other is used as part of a mechanism that ensures all threads in
+a process always have the same UIDs and GIDs, as required by POSIX.
+These signals cannot be used in applications.
+<P>
+
+To prevent accidental use of these signals in applications,
+which might interfere with the operation of the NPTL implementation,
+various glibc library functions and system call wrapper functions
+attempt to hide these signals from applications,
+as follows:
+<DL COMPACT>
+<DT id="1">*<DD>
+<B>SIGRTMIN</B>
+
+is defined with the value 34 (rather than 32).
+<DT id="2">*<DD>
+The
+<B><A HREF="/cgi-bin/man/man2html?2+sigwaitinfo">sigwaitinfo</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+sigtimedwait">sigtimedwait</A></B>(2),
+
+and
+<B><A HREF="/cgi-bin/man/man2html?3+sigwait">sigwait</A></B>(3)
+
+interfaces silently ignore requests to wait for these two signals
+if they are specified in the signal set argument of these calls.
+<DT id="3">*<DD>
+The
+<B><A HREF="/cgi-bin/man/man2html?2+sigprocmask">sigprocmask</A></B>(2)
+
+and
+<B><A HREF="/cgi-bin/man/man2html?3+pthread_sigmask">pthread_sigmask</A></B>(3)
+
+interfaces silently ignore attempts to block these two signals.
+<DT id="4">*<DD>
+The
+<B><A HREF="/cgi-bin/man/man2html?2+sigaction">sigaction</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?3+pthread_kill">pthread_kill</A></B>(3),
+
+and
+<B><A HREF="/cgi-bin/man/man2html?3+pthread_sigqueue">pthread_sigqueue</A></B>(3)
+
+interfaces fail with the error
+<B>EINVAL</B>
+
+(indicating an invalid signal number) if these signals are specified.
+<DT id="5">*<DD>
+<B><A HREF="/cgi-bin/man/man2html?3+sigfillset">sigfillset</A></B>(3)
+
+does not include these two signals when it creates a full signal set.
+
+</DL>
+<A NAME="lbAE">&nbsp;</A>
+<H3>NPTL and process credential changes</H3>
+
+At the Linux kernel level,
+credentials (user and group IDs) are a per-thread attribute.
+However, POSIX requires that all of the POSIX threads in a process
+have the same credentials.
+To accommodate this requirement,
+the NPTL implementation wraps all of the system calls that
+change process credentials with functions that,
+in addition to invoking the underlying system call,
+arrange for all other threads in the process to also change their credentials.
+<P>
+
+The implementation of each of these system calls involves the use of
+a real-time signal that is sent (using
+<B><A HREF="/cgi-bin/man/man2html?2+tgkill">tgkill</A></B>(2))
+
+to each of the other threads that must change its credentials.
+Before sending these signals, the thread that is changing credentials
+saves the new credential(s) and records the system call being employed
+in a global buffer.
+A signal handler in the receiving thread(s) fetches this information and
+then uses the same system call to change its credentials.
+<P>
+
+Wrapper functions employing this technique are provided for
+<B><A HREF="/cgi-bin/man/man2html?2+setgid">setgid</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+setuid">setuid</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+setegid">setegid</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+seteuid">seteuid</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+setregid">setregid</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+setreuid">setreuid</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+setresgid">setresgid</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+setresuid">setresuid</A></B>(2),
+
+and
+<B><A HREF="/cgi-bin/man/man2html?2+setgroups">setgroups</A></B>(2).
+
+
+
+
+<A NAME="lbAF">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+For details of the conformance of NPTL to the POSIX standard, see
+<B><A HREF="/cgi-bin/man/man2html?7+pthreads">pthreads</A></B>(7).
+
+<A NAME="lbAG">&nbsp;</A>
+<H2>NOTES</H2>
+
+POSIX says
+
+that any thread in any process with access to the memory
+containing a process-shared
+(<B>PTHREAD_PROCESS_SHARED</B>)
+
+mutex can operate on that mutex.
+However, on 64-bit x86 systems, the mutex definition for x86-64
+is incompatible with the mutex definition for i386,
+
+meaning that 32-bit and 64-bit binaries can't share mutexes on x86-64 systems.
+<A NAME="lbAH">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?7+credentials">credentials</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+pthreads">pthreads</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+signal">signal</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+standards">standards</A></B>(7)
+
+<A NAME="lbAI">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="6"><A HREF="#lbAB">NAME</A><DD>
+<DT id="7"><A HREF="#lbAC">DESCRIPTION</A><DD>
+<DL>
+<DT id="8"><A HREF="#lbAD">NPTL and signals</A><DD>
+<DT id="9"><A HREF="#lbAE">NPTL and process credential changes</A><DD>
+</DL>
+<DT id="10"><A HREF="#lbAF">CONFORMING TO</A><DD>
+<DT id="11"><A HREF="#lbAG">NOTES</A><DD>
+<DT id="12"><A HREF="#lbAH">SEE ALSO</A><DD>
+<DT id="13"><A HREF="#lbAI">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:09 GMT, March 31, 2021
+</BODY>
+</HTML>

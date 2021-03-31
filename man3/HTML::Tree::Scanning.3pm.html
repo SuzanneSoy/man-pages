@@ -1,0 +1,1128 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of HTML::Tree::Scanning</TITLE>
+</HEAD><BODY>
+<H1>HTML::Tree::Scanning</H1>
+Section: User Contributed Perl Documentation (3pm)<BR>Updated: 2019-01-13<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+HTML::Tree::Scanning -- article: &quot;Scanning HTML&quot;
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+
+
+
+
+<PRE>
+  # This an article, not a module.
+
+</PRE>
+
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+
+The following article by Sean M. Burke first appeared in <I>The Perl
+Journal</I> #19 and is copyright 2000 The Perl Journal. It appears
+courtesy of Jon Orwant and The Perl Journal.  This document may be
+distributed under the same terms as Perl itself.
+<P>
+
+(Note that this is discussed in chapters 6 through 10 of the
+book <I>Perl and </I><FONT SIZE="-1"><I>LWP</I></FONT><I></I> &lt;<A HREF="http://lwp.interglacial.com/">http://lwp.interglacial.com/</A>&gt; which
+was written after the following documentation, and which is
+available free online.)
+<A NAME="lbAE">&nbsp;</A>
+<H2>Scanning HTML</H2>
+
+
+
+-- Sean M. Burke
+<P>
+
+In <I>The Perl Journal</I> issue 17, Ken MacFarlane's article ``Parsing
+<FONT SIZE="-1">HTML</FONT> with HTML::Parser'' describes how the HTML::Parser module scans
+<FONT SIZE="-1">HTML</FONT> source as a stream of start-tags, end-tags, text, comments, etc.
+In <FONT SIZE="-1">TPJ</FONT> #18, my ``Trees'' article kicked around the idea of tree-shaped
+data structures.  Now I'll try to tie it together, in a discussion of
+<FONT SIZE="-1">HTML</FONT> trees.
+<P>
+
+The <FONT SIZE="-1">CPAN</FONT> module HTML::TreeBuilder takes the
+tags that HTML::Parser picks out, and builds a parse tree --- a
+tree-shaped network of objects...
+
+
+<P>
+
+
+<DL COMPACT><DT id="1"><DD>
+Footnote:
+And if you need a quick explanation of objects, see my <FONT SIZE="-1">TPJ17</FONT> article ``A
+User's View of Object-Oriented Modules''; or go whole hog and get Damian
+Conway's excellent book <I>Object-Oriented Perl</I>, from Manning
+Publications.
+</DL>
+
+<P>
+
+...representing the structured content of the <FONT SIZE="-1">HTML</FONT> document.  And once
+the document is parsed as a tree, you'll find the common tasks
+of extracting data from that <FONT SIZE="-1">HTML</FONT> document/tree to be quite
+straightforward.
+<A NAME="lbAF">&nbsp;</A>
+<H3>HTML::Parser, HTML::TreeBuilder, and HTML::Element</H3>
+
+
+
+You use HTML::TreeBuilder to make a parse tree out of an <FONT SIZE="-1">HTML</FONT> source
+file, by simply saying:
+<P>
+
+
+
+<PRE>
+  use HTML::TreeBuilder;
+  my $tree = HTML::TreeBuilder-&gt;new();
+  $tree-&gt;parse_file('foo.html');
+
+</PRE>
+
+
+<P>
+
+and then <TT>$tree</TT> contains a parse tree built from the <FONT SIZE="-1">HTML</FONT> source from
+the file ``foo.html''.  The way this parse tree is represented is with a
+network of objects --- <TT>$tree</TT> is the root, an element with tag-name
+``html'', and its children typically include a ``head'' and ``body'' element,
+and so on.  Elements in the tree are objects of the class
+HTML::Element.
+<P>
+
+So, if you take this source:
+<P>
+
+
+
+<PRE>
+  &lt;html&gt;&lt;head&gt;&lt;title&gt;Doc 1&lt;/title&gt;&lt;/head&gt;
+  &lt;body&gt;
+  Stuff &lt;hr&gt; 2000-08-17
+  &lt;/body&gt;&lt;/html&gt;
+
+</PRE>
+
+
+<P>
+
+and feed it to HTML::TreeBuilder, it'll return a tree of objects that
+looks like this:
+<P>
+
+
+
+<PRE>
+               html
+             /      \
+         head        body
+        /          /   |  \
+     title    &quot;Stuff&quot;  hr  &quot;2000-08-17&quot;
+       |
+    &quot;Doc 1&quot;
+
+</PRE>
+
+
+<P>
+
+This is a pretty simple document, but if it were any more complex,
+it'd be a bit hard to draw in that style, since it's sprawl left and
+right.  The same tree can be represented a bit more easily sideways,
+with indenting:
+<P>
+
+
+
+<PRE>
+  . html
+     . head
+        . title
+           . &quot;Doc 1&quot;
+     . body
+        . &quot;Stuff&quot;
+        . hr
+        . &quot;2000-08-17&quot;
+
+</PRE>
+
+
+<P>
+
+Either way expresses the same structure.  In that structure, the root
+node is an object of the class HTML::Element
+
+
+<P>
+
+
+<DL COMPACT><DT id="2"><DD>
+Footnote:
+Well actually, the root is of the class HTML::TreeBuilder, but that's
+just a subclass of HTML::Element, plus the few extra methods like
+<TT>&quot;parse_file&quot;</TT> that elaborate the tree
+</DL>
+
+<P>
+
+, with the tag name ``html'', and with two children: an HTML::Element
+object whose tag names are ``head'' and ``body''.  And each of those
+elements have children, and so on down.  Not all elements (as we'll
+call the objects of class HTML::Element) have children --- the ``hr''
+element doesn't.  And note all nodes in the tree are elements --- the
+text nodes (``Doc 1'', ``Stuff'', and ``2000-08-17'') are just strings.
+<P>
+
+Objects of the class HTML::Element each have three noteworthy attributes:
+<DL COMPACT>
+<DT id="3">&quot;_tag&quot; --- (best accessed as &quot;$e-&gt;tag&quot;) this element's tag-name, lowercased (e.g., &quot;em&quot; for an &quot;em&quot; element).<DD>
+
+
+
+
+<DL COMPACT><DT id="4"><DD>
+<DL COMPACT><DT id="5"><DD>
+Footnote: Yes, this is misnamed.  In proper <FONT SIZE="-1">SGML</FONT> terminology, this is
+instead called a ``<FONT SIZE="-1">GI'',</FONT> short for ``generic identifier''; and the term
+``tag'' is used for a token of <FONT SIZE="-1">SGML</FONT> source that represents either
+the start of an element (a start-tag like ``&lt;em lang='fr'&gt;'') or the end
+of an element (an end-tag like ``&lt;/em&gt;''.  However, since more people
+claim to have been abducted by aliens than to have ever seen the
+<FONT SIZE="-1">SGML</FONT> standard, and since both encounters typically involve a feeling of
+``missing time'', it's not surprising that the terminology of the <FONT SIZE="-1">SGML</FONT>
+standard is not closely followed.
+</DL>
+
+</DL>
+
+<DL COMPACT><DT id="6"><DD>
+</DL>
+
+<DT id="7">&quot;_parent&quot; --- (best accessed as &quot;$e-&gt;parent&quot;) the element that is $obj's parent, or undef if this element is the root of its tree.<DD>
+
+
+
+
+
+<DT id="8">&quot;_content&quot; --- (best accessed as &quot;$e-&gt;content_list&quot;) the list of nodes (i.e., elements or text segments) that are $e's children.<DD>
+
+
+
+
+
+</DL>
+<P>
+
+Moreover, if an element object has any attributes in the <FONT SIZE="-1">SGML</FONT> sense of
+the word, then those are readable as <TT>&quot;$e-&gt;attr('name')&quot;</TT> --- for
+example, with the object built from having parsed &quot;&lt;a
+<B>id='foo'</B>&gt;bar&lt;/a&gt;&quot;, <TT>&quot;$e-&gt;attr('id')&quot;</TT> will return
+the string ``foo''.  Moreover, <TT>&quot;$e-&gt;tag&quot;</TT> on that object returns the
+string ``a'', <TT>&quot;$e-&gt;content_list&quot;</TT> returns a list consisting of just
+the single scalar ``bar'', and <TT>&quot;$e-&gt;parent&quot;</TT> returns the object
+that's this node's parent --- which may be, for example, a ``p'' element.
+<P>
+
+And that's all that there is to it --- you throw <FONT SIZE="-1">HTML</FONT>
+source at TreeBuilder, and it returns a tree built of HTML::Element
+objects and some text strings.
+<P>
+
+However, what do you <I>do</I> with a tree of objects?  People code
+information into <FONT SIZE="-1">HTML</FONT> trees not for the fun of arranging elements, but
+to represent the structure of specific text and images --- some text is
+in this ``li'' element, some other text is in that heading, some
+images are in that other table cell that has those attributes, and so on.
+<P>
+
+Now, it may happen that you're rendering that whole <FONT SIZE="-1">HTML</FONT> tree into some
+layout format.  Or you could be trying to make some systematic change to
+the <FONT SIZE="-1">HTML</FONT> tree before dumping it out as <FONT SIZE="-1">HTML</FONT> source again.  But, in my
+experience, by far the most common programming task that Perl
+programmers face with <FONT SIZE="-1">HTML</FONT> is in trying to extract some piece
+of information from a larger document.  Since that's so common (and
+also since it involves concepts that are basic to more complex tasks),
+that is what the rest of this article will be about.
+<A NAME="lbAG">&nbsp;</A>
+<H3>Scanning <FONT SIZE="-1">HTML</FONT> trees</H3>
+
+
+
+Suppose you have a thousand <FONT SIZE="-1">HTML</FONT> documents, each of them a press
+release.  They all start out:
+<P>
+
+
+
+<PRE>
+  [...lots of leading images and junk...]
+  &lt;h1&gt;ConGlomCo to Open New Corporate Office in Ougadougou&lt;/h1&gt;
+  BAKERSFIELD, CA, 2000-04-24 -- ConGlomCo's vice president in charge
+  of world conquest, Rock Feldspar, announced today the opening of a
+  new office in Ougadougou, the capital city of Burkino Faso, gateway
+  to the bustling &quot;Silicon Sahara&quot; of Africa...
+  [...etc...]
+
+</PRE>
+
+
+<P>
+
+...and what you've got to do is, for each document, copy whatever text
+is in the ``h1'' element, so that you can, for example, make a table of
+contents of it.  Now, there are three ways to do this:
+<DL COMPACT>
+<DT id="9">&bull;<DD>
+You can just use a regexp to scan the file for a text pattern.
+
+
+<P>
+
+
+For many very simple tasks, this will do fine.  Many <FONT SIZE="-1">HTML</FONT> documents are,
+in practice, very consistently formatted as far as placement of
+linebreaks and whitespace, so you could just get away with scanning the
+file like so:
+
+
+<P>
+
+
+
+
+<PRE>
+  sub get_heading {
+    my $filename = $_[0];
+    local *HTML;
+    open(HTML, $filename)
+      or die &quot;Couldn't open $filename);
+    my $heading;
+   Line:
+    while(&lt;HTML&gt;) {
+      if( m{&lt;h1&gt;(.*?)&lt;/h1&gt;}i ) {  # match it!
+        $heading = $1;
+        last Line;
+      }
+    }
+    close(HTML);
+    warn &quot;No heading in $filename?&quot;
+     unless defined $heading;
+    return $heading;
+  }
+
+</PRE>
+
+
+
+
+<P>
+
+
+This is quick and fast, but awfully fragile --- if there's a newline in
+the middle of a heading's text, it won't match the above regexp, and
+you'll get an error.  The regexp will also fail if the ``h1'' element's
+start-tag has any attributes.  If you have to adapt your code to fit
+more kinds of start-tags, you'll end up basically reinventing part of
+HTML::Parser, at which point you should probably just stop, and use
+HTML::Parser itself:
+<DT id="10">&bull;<DD>
+You can use HTML::Parser to scan the file for an ``h1'' start-tag
+token, then capture all the text tokens until the ``h1'' close-tag.  This
+approach is extensively covered in the Ken MacFarlane's <FONT SIZE="-1">TPJ17</FONT> article
+``Parsing <FONT SIZE="-1">HTML</FONT> with HTML::Parser''.  (A variant of this approach is to use
+HTML::TokeParser, which presents a different and rather handier
+interface to the tokens that HTML::Parser picks out.)
+
+
+<P>
+
+
+Using HTML::Parser is less fragile than our first approach, since it's
+not sensitive to the exact internal formatting of the start-tag (much
+less whether it's split across two lines).  However, when you need more
+information about the context of the ``h1'' element, or if you're having
+to deal with any of the tricky bits of <FONT SIZE="-1">HTML,</FONT> such as parsing of tables,
+you'll find out the flat list of tokens that HTML::Parser returns
+isn't immediately useful.  To get something useful out of those tokens,
+you'll need to write code that knows some things about what elements
+take no content (as with ``hr'' elements), and that a ``&lt;/p&gt;'' end-tags
+are omissible, so a ``&lt;p&gt;'' will end any currently
+open paragraph --- and you're well on your way to pointlessly
+reinventing much of the code in HTML::TreeBuilder
+<DL COMPACT><DT id="11"><DD>
+
+
+<P>
+
+
+<DL COMPACT><DT id="12"><DD>
+Footnote:
+And, as the person who last rewrote that module, I can attest that it
+wasn't terribly easy to get right!  Never underestimate the perversity
+of people coding <FONT SIZE="-1">HTML.</FONT>
+</DL>
+
+</DL>
+
+<DL COMPACT><DT id="13"><DD>
+
+
+<P>
+
+
+, at which point you should probably just stop, and use
+HTML::TreeBuilder itself:
+</DL>
+
+<DT id="14">&bull;<DD>
+You can use HTML::Treebuilder, and scan the tree of element
+objects that you get back.
+</DL>
+<P>
+
+The last approach, using HTML::TreeBuilder, is the diametric opposite of
+first approach:  The first approach involves just elementary Perl and one
+regexp, whereas the TreeBuilder approach involves being at home with
+the concept of tree-shaped data structures and modules with
+object-oriented interfaces, as well as with the particular interfaces
+that HTML::TreeBuilder and HTML::Element provide.
+<P>
+
+However, what the TreeBuilder approach has going for it is that it's
+the most robust, because it involves dealing with <FONT SIZE="-1">HTML</FONT> in its ``native''
+format --- it deals with the tree structure that <FONT SIZE="-1">HTML</FONT> code represents,
+without any consideration of how the source is coded and with what
+tags omitted.
+<P>
+
+So, to extract the text from the ``h1'' elements of an <FONT SIZE="-1">HTML</FONT> document:
+<P>
+
+
+
+<PRE>
+  sub get_heading {
+    my $tree = HTML::TreeBuilder-&gt;new;
+    $tree-&gt;parse_file($_[0]);   # !
+    my $heading;
+    my $h1 = $tree-&gt;look_down('_tag', 'h1');  # !
+    if($h1) {
+      $heading = $h1-&gt;as_text;   # !
+    } else {
+      warn &quot;No heading in $_[0]?&quot;;
+    }
+    $tree-&gt;delete; # clear memory!
+    return $heading;
+  }
+
+</PRE>
+
+
+<P>
+
+This uses some unfamiliar methods that need explaining.  The
+<TT>&quot;parse_file&quot;</TT> method that we've seen before, builds a tree based on
+source from the file given.  The <TT>&quot;delete&quot;</TT> method is for marking a
+tree's contents as available for garbage collection, when you're done
+with the tree.  The <TT>&quot;as_text&quot;</TT> method returns a string that contains
+all the text bits that are children (or otherwise descendants) of the
+given node --- to get the text content of the <TT>$h1</TT> object, we could
+just say:
+<P>
+
+
+
+<PRE>
+  $heading = join '', $h1-&gt;content_list;
+
+</PRE>
+
+
+<P>
+
+but that will work only if we're sure that the ``h1'' element's children
+will be only text bits --- if the document contained:
+<P>
+
+
+
+<PRE>
+  &lt;h1&gt;Local Man Sees &lt;cite&gt;Blade&lt;/cite&gt; Again&lt;/h1&gt;
+
+</PRE>
+
+
+<P>
+
+then the sub-tree would be:
+<P>
+
+
+
+<PRE>
+  . h1
+    . &quot;Local Man Sees &quot;
+    . cite
+      . &quot;Blade&quot;
+    . &quot; Again'
+
+</PRE>
+
+
+<P>
+
+so <TT>&quot;join '', $h1-&gt;content_list&quot;</TT> will be something like:
+<P>
+
+
+
+<PRE>
+  Local Man Sees HTML::Element=HASH(0x15424040) Again
+
+</PRE>
+
+
+<P>
+
+whereas <TT>&quot;$h1-&gt;as_text&quot;</TT> would yield:
+<P>
+
+
+
+<PRE>
+  Local Man Sees Blade Again
+
+</PRE>
+
+
+<P>
+
+and depending on what you're doing with the heading text, you might
+want the <TT>&quot;as_HTML&quot;</TT> method instead.  It returns the (sub)tree
+represented as <FONT SIZE="-1">HTML</FONT> source.  <TT>&quot;$h1-&gt;as_HTML&quot;</TT> would yield:
+<P>
+
+
+
+<PRE>
+  &lt;h1&gt;Local Man Sees &lt;cite&gt;Blade&lt;/cite&gt; Again&lt;/h1&gt;
+
+</PRE>
+
+
+<P>
+
+However, if you wanted the contents of <TT>$h1</TT> as <FONT SIZE="-1">HTML,</FONT> but not the
+<TT>$h1</TT> itself, you could say:
+<P>
+
+
+
+<PRE>
+  join '',
+    map(
+      ref($_) ? $_-&gt;as_HTML : $_,
+      $h1-&gt;content_list
+    )
+
+</PRE>
+
+
+<P>
+
+This <TT>&quot;map&quot;</TT> iterates over the nodes in <TT>$h1</TT>'s list of children; and
+for each node that's just a text bit (as ``Local Man Sees '' is), it just
+passes through that string value, and for each node that's an actual
+object (causing <TT>&quot;ref&quot;</TT> to be true), <TT>&quot;as_HTML&quot;</TT> will used instead of the
+string value of the object itself (which would be something quite
+useless, as most object values are).  So that <TT>&quot;as_HTML&quot;</TT> for the ``cite''
+element will be the string ``&lt;cite&gt;Blade&lt;/cite&gt;''.  And then,
+finally, <TT>&quot;join&quot;</TT> just puts into one string all the strings that the
+<TT>&quot;map&quot;</TT> returns.
+<P>
+
+Last but not least, the most important method in our <TT>&quot;get_heading&quot;</TT> sub
+is the <TT>&quot;look_down&quot;</TT> method.  This method looks down at the subtree
+starting at the given object (<TT>$h1</TT>), looking for elements that meet
+criteria you provide.
+<P>
+
+The criteria are specified in the method's argument list.  Each
+criterion can consist of two scalars, a key and a value, which express
+that you want elements that have that attribute (like ``_tag'', or
+``src'') with the given value (``h1''); or the criterion can be a
+reference to a subroutine that, when called on the given element,
+returns true if that is a node you're looking for.  If you specify
+several criteria, then that's taken to mean that you want all the
+elements that each satisfy <I>all</I> the criteria.  (In other words,
+there's an ``implicit <FONT SIZE="-1">AND''.</FONT>)
+<P>
+
+And finally, there's a bit of an optimization --- if you call the
+<TT>&quot;look_down&quot;</TT> method in a scalar context, you get just the <I>first</I> node
+(or undef if none) --- and, in fact, once <TT>&quot;look_down&quot;</TT> finds that first
+matching element, it doesn't bother looking any further.
+<P>
+
+So the example:
+<P>
+
+
+
+<PRE>
+  $h1 = $tree-&gt;look_down('_tag', 'h1');
+
+</PRE>
+
+
+<P>
+
+returns the first element at-or-under <TT>$tree</TT> whose <TT>&quot;_tag&quot;</TT>
+attribute has the value <TT>&quot;h1&quot;</TT>.
+<A NAME="lbAH">&nbsp;</A>
+<H3>Complex Criteria in Tree Scanning</H3>
+
+
+
+Now, the above <TT>&quot;look_down&quot;</TT> code looks like a lot of bother, with
+barely more benefit than just grepping the file!  But consider if your
+criteria were more complicated --- suppose you found that some of the
+press releases that you were scanning had several ``h1'' elements,
+possibly before or after the one you actually want.  For example:
+<P>
+
+
+
+<PRE>
+  &lt;h1&gt;&lt;center&gt;Visit Our Corporate Partner
+   &lt;br&gt;&lt;a href=&quot;/dyna/clickthru&quot;
+     &gt;&lt;img src=&quot;/dyna/vend_ad&quot;&gt;&lt;/a&gt;
+  &lt;/center&gt;&lt;/h1&gt;
+  &lt;h1&gt;&lt;center&gt;ConGlomCo President Schreck to Visit Regional HQ
+   &lt;br&gt;&lt;a href=&quot;/photos/Schreck_visit_large.jpg&quot;
+     &gt;&lt;img src=&quot;/photos/Schreck_visit.jpg&quot;&gt;&lt;/a&gt;
+  &lt;/center&gt;&lt;/h1&gt;
+
+</PRE>
+
+
+<P>
+
+Here, you want to ignore the first ``h1'' element because it contains an
+ad, and you want the text from the second ``h1''.  The problem is in
+formalizing the way you know that it's an ad.  Since ad banners are
+always entreating you to ``visit'' the sponsoring site, you could exclude
+``h1'' elements that contain the word ``visit'' under them:
+<P>
+
+
+
+<PRE>
+  my $real_h1 = $tree-&gt;look_down(
+    '_tag', 'h1',
+    sub {
+      $_[0]-&gt;as_text !~ m/\bvisit/i
+    }
+  );
+
+</PRE>
+
+
+<P>
+
+The first criterion looks for ``h1'' elements, and the second criterion
+limits those to only the ones whose text content doesn't match
+<TT>&quot;m/\bvisit/&quot;</TT>.  But unfortunately, that won't work for our example,
+since the second ``h1'' mentions &quot;ConGlomCo President Schreck to
+<I>Visit</I> Regional <FONT SIZE="-1">HQ&quot;.</FONT>
+<P>
+
+Instead you could try looking for the first ``h1'' element that
+doesn't contain an image:
+<P>
+
+
+
+<PRE>
+  my $real_h1 = $tree-&gt;look_down(
+    '_tag', 'h1',
+    sub {
+      not $_[0]-&gt;look_down('_tag', 'img')
+    }
+  );
+
+</PRE>
+
+
+<P>
+
+This criterion sub might seem a bit odd, since it calls <TT>&quot;look_down&quot;</TT>
+as part of a larger <TT>&quot;look_down&quot;</TT> operation, but that's fine.  Note that
+when considered as a boolean value, a <TT>&quot;look_down&quot;</TT> in a scalar context
+value returns false (specifically, undef) if there's no matching element
+at or under the given element; and it returns the first matching
+element (which, being a reference and object, is always a true value),
+if any matches.  So, here,
+<P>
+
+
+
+<PRE>
+  sub {
+    not $_[0]-&gt;look_down('_tag', 'img')
+  }
+
+</PRE>
+
+
+<P>
+
+means ``return true only if this element has no 'img' element as
+descendants (and isn't an 'img' element itself).''
+<P>
+
+This correctly filters out the first ``h1'' that contains the ad, but it
+also incorrectly filters out the second ``h1'' that contains a
+non-advertisement photo besides the headline text you want.
+<P>
+
+There clearly are detectable differences between the first and second
+``h1'' elements --- the only second one contains the string ``Schreck'', and
+we could just test for that:
+<P>
+
+
+
+<PRE>
+  my $real_h1 = $tree-&gt;look_down(
+    '_tag', 'h1',
+    sub {
+      $_[0]-&gt;as_text =~ m{Schreck}
+    }
+  );
+
+</PRE>
+
+
+<P>
+
+And that works fine for this one example, but unless all thousand of
+your press releases have ``Schreck'' in the headline, that's just not a
+general solution.  However, if all the ads-in-``h1''s that you want to
+exclude involve a link whose <FONT SIZE="-1">URL</FONT> involves ``/dyna/'', then you can use
+that:
+<P>
+
+
+
+<PRE>
+  my $real_h1 = $tree-&gt;look_down(
+    '_tag', 'h1',
+    sub {
+      my $link = $_[0]-&gt;look_down('_tag','a');
+      return 1 unless $link;
+        # no link means it's fine
+      return 0 if $link-&gt;attr('href') =~ m{/dyna/};
+        # a link to there is bad
+      return 1; # otherwise okay
+    }
+  );
+
+</PRE>
+
+
+<P>
+
+Or you can look at it another way and say that you want the first ``h1''
+element that either contains no images, or else whose image has a ``src''
+attribute whose value contains ``/photos/'':
+<P>
+
+
+
+<PRE>
+  my $real_h1 = $tree-&gt;look_down(
+    '_tag', 'h1',
+    sub {
+      my $img = $_[0]-&gt;look_down('_tag','img');
+      return 1 unless $img;
+        # no image means it's fine
+      return 1 if $img-&gt;attr('src') =~ m{/photos/};
+        # good if a photo
+      return 0; # otherwise bad
+    }
+  );
+
+</PRE>
+
+
+<P>
+
+Recall that this use of <TT>&quot;look_down&quot;</TT> in a scalar context means to return
+the first element at or under <TT>$tree</TT> that matches all the criteria.
+But if you notice that you can formulate criteria that'll match several
+possible ``h1'' elements, some of which may be bogus but the <I>last</I> one
+of which is always the one you want, then you can use <TT>&quot;look_down&quot;</TT> in a
+list context, and just use the last element of that list:
+<P>
+
+
+
+<PRE>
+  my @h1s = $tree-&gt;look_down(
+    '_tag', 'h1',
+    ...maybe more criteria...
+  );
+  die &quot;What, no h1s here?&quot; unless @h1s;
+  my $real_h1 = $h1s[-1]; # last or only
+
+</PRE>
+
+
+<A NAME="lbAI">&nbsp;</A>
+<H3>A Case Study: Scanning Yahoo News's <FONT SIZE="-1">HTML</FONT></H3>
+
+
+
+The above (somewhat contrived) case involves extracting data from a
+bunch of pre-existing <FONT SIZE="-1">HTML</FONT> files.  In that sort of situation, if your
+code works for all the files, then you know that the code <I>works</I> ---
+since the data it's meant to handle won't go changing or growing; and,
+typically, once you've used the program, you'll never need to use it
+again.
+<P>
+
+The other kind of situation faced in many data extraction tasks is
+where the program is used recurringly to handle new data --- such as
+from ever-changing Web pages.  As a real-world example of this,
+consider a program that you could use (suppose it's crontabbed) to
+extract headline-links from subsections of Yahoo News
+(<TT>&quot;<A HREF="http://dailynews.yahoo.com/">http://dailynews.yahoo.com/</A>&quot;</TT>).
+<P>
+
+Yahoo News has several subsections:
+<DL COMPACT>
+<DT id="15"><A HREF="http://dailynews.yahoo.com/h/tc/">http://dailynews.yahoo.com/h/tc/</A> for technology news<DD>
+
+
+
+<DT id="16"><A HREF="http://dailynews.yahoo.com/h/sc/">http://dailynews.yahoo.com/h/sc/</A> for science news<DD>
+
+
+<DT id="17"><A HREF="http://dailynews.yahoo.com/h/hl/">http://dailynews.yahoo.com/h/hl/</A> for health news<DD>
+
+
+<DT id="18"><A HREF="http://dailynews.yahoo.com/h/wl/">http://dailynews.yahoo.com/h/wl/</A> for world news<DD>
+
+
+<DT id="19"><A HREF="http://dailynews.yahoo.com/h/en/">http://dailynews.yahoo.com/h/en/</A> for entertainment news<DD>
+
+
+
+</DL>
+<P>
+
+and others.  All of them are built on the same basic <FONT SIZE="-1">HTML</FONT> template ---
+and a scarily complicated template it is, especially when you look at
+it with an eye toward making up rules that will select where the real
+headline-links are, while screening out all the links to other parts of
+Yahoo, other news services, etc.  You will need to puzzle
+over the <FONT SIZE="-1">HTML</FONT> source, and scrutinize the output of
+<TT>&quot;$tree-&gt;dump&quot;</TT> on the parse tree of that <FONT SIZE="-1">HTML.</FONT>
+<P>
+
+Sometimes the only way to pin down what you're after is by position in
+the tree. For example, headlines of interest may be in the third
+column of the second row of the second table element in a page:
+<P>
+
+
+
+<PRE>
+  my $table = ( $tree-&gt;look_down('_tag','table') )[1];
+  my $row2  = ( $table-&gt;look_down('_tag', 'tr' ) )[1];
+  my $col3  = ( $row2-&gt;look-down('_tag', 'td')   )[2];
+  ...then do things with $col3...
+
+</PRE>
+
+
+<P>
+
+Or they may be all the links in a ``p'' element that has at least three
+``br'' elements as children:
+<P>
+
+
+
+<PRE>
+  my $p = $tree-&gt;look_down(
+    '_tag', 'p',
+    sub {
+      2 &lt; grep { ref($_) and $_-&gt;tag eq 'br' }
+               $_[0]-&gt;content_list
+    }
+  );
+  @links = $p-&gt;look_down('_tag', 'a');
+
+</PRE>
+
+
+<P>
+
+But almost always, you can get away with looking for properties of the
+of the thing itself, rather than just looking for contexts.  Now, if
+you're lucky, the document you're looking through has clear semantic
+tagging, such is as useful in <FONT SIZE="-1">CSS</FONT> --- note the
+class=``headlinelink'' bit here:
+<P>
+
+
+
+<PRE>
+  &lt;a href=&quot;...long_news_url...&quot; class=&quot;headlinelink&quot;&gt;Elvis
+  seen in tortilla&lt;/a&gt;
+
+</PRE>
+
+
+<P>
+
+If you find anything like that, you could leap right in and select
+links with:
+<P>
+
+
+
+<PRE>
+  @links = $tree-&gt;look_down('class','headlinelink');
+
+</PRE>
+
+
+<P>
+
+Regrettably, your chances of seeing any sort of semantic markup
+principles really being followed with actual <FONT SIZE="-1">HTML</FONT> are pretty thin.
+
+
+<P>
+
+
+<DL COMPACT><DT id="20"><DD>
+Footnote:
+In fact, your chances of finding a page that is simply free of <FONT SIZE="-1">HTML</FONT>
+errors are even thinner.  And surprisingly, sites like Amazon or Yahoo
+are typically worse as far as quality of code than personal sites
+whose entire production cycle involves simply being saved and uploaded
+from Netscape Composer.
+</DL>
+
+<P>
+
+The code may be sort of ``accidentally semantic'', however --- for example,
+in a set of pages I was scanning recently, I found that looking for
+``td'' elements with a ``width'' attribute value of ``375'' got me exactly
+what I wanted.  No-one designing that page ever conceived of
+``width=375'' as <I>meaning</I> ``this is a headline'', but if you impute it
+to mean that, it works.
+<P>
+
+An approach like this happens to work for the Yahoo News code, because
+the headline-links are distinguished by the fact that they (and they
+alone) contain a ``b'' element:
+<P>
+
+
+
+<PRE>
+  &lt;a href=&quot;...long_news_url...&quot;&gt;&lt;b&gt;Elvis seen in tortilla&lt;/b&gt;&lt;/a&gt;
+
+</PRE>
+
+
+<P>
+
+or, diagrammed as a part of the parse tree:
+<P>
+
+
+
+<PRE>
+  . a  [href=&quot;...long_news_url...&quot;]
+    . b
+      . &quot;Elvis seen in tortilla&quot;
+
+</PRE>
+
+
+<P>
+
+A rule that matches these can be formalized as ``look for any 'a'
+element that has only one daughter node, which must be a 'b' element''.
+And this is what it looks like when cooked up as a <TT>&quot;look_down&quot;</TT>
+expression and prefaced with a bit of code that retrieves the text of
+the given Yahoo News page and feeds it to TreeBuilder:
+<P>
+
+
+
+<PRE>
+  use strict;
+  use HTML::TreeBuilder 2.97;
+  use LWP::UserAgent;
+  sub get_headlines {
+    my $url = $_[0] || die &quot;What URL?&quot;;
+    
+    my $response = LWP::UserAgent-&gt;new-&gt;request(
+      HTTP::Request-&gt;new( GET =&gt; $url )
+    );
+    unless($response-&gt;is_success) {
+      warn &quot;Couldn't get $url: &quot;, $response-&gt;status_line, &quot;\n&quot;;
+      return;
+    }
+    
+    my $tree = HTML::TreeBuilder-&gt;new();
+    $tree-&gt;parse($response-&gt;content);
+    $tree-&gt;eof;
+    
+    my @out;
+    foreach my $link (
+      $tree-&gt;look_down(   # !
+        '_tag', 'a',
+        sub {
+          return unless $_[0]-&gt;attr('href');
+          my @c = $_[0]-&gt;content_list;
+          @c == 1 and ref $c[0] and $c[0]-&gt;tag eq 'b';
+        }
+      )
+    ) {
+      push @out, [ $link-&gt;attr('href'), $link-&gt;as_text ];
+    }
+    
+    warn &quot;Odd, fewer than 6 stories in $url!&quot; if @out &lt; 6;
+    $tree-&gt;delete;
+    return @out;
+  }
+
+</PRE>
+
+
+<P>
+
+...and add a bit of code to actually call that routine and display the
+results...
+<P>
+
+
+
+<PRE>
+  foreach my $section (qw[tc sc hl wl en]) {
+    my @links = get_headlines(
+      &quot;<A HREF="http://dailynews.yahoo.com/h/$section/">http://dailynews.yahoo.com/h/$section/</A>&quot;
+    );
+    print
+      $section, &quot;: &quot;, scalar(@links), &quot; stories\n&quot;,
+      map((&quot;  &quot;, $_-&gt;[0], &quot; : &quot;, $_-&gt;[1], &quot;\n&quot;), @links),
+      &quot;\n&quot;;
+  }
+
+</PRE>
+
+
+<P>
+
+And we've got our own headline-extractor service!  This in and of
+itself isn't no amazingly useful (since if you want to see the
+headlines, you <I>can</I> just look at the Yahoo News pages), but it could
+easily be the basis for quite useful features like filtering the
+headlines for matching certain keywords of interest to you.
+<P>
+
+Now, one of these days, Yahoo News will decide to change its <FONT SIZE="-1">HTML</FONT>
+template.  When this happens, this will appear to the above program as
+there being no links that meet the given criteria; or, less likely,
+dozens of erroneous links will meet the criteria.  In either case, the
+criteria will have to be changed for the new template; they may just
+need adjustment, or you may need to scrap them and start over.
+<A NAME="lbAJ">&nbsp;</A>
+<H3><I>Regardez, duvet!</I></H3>
+
+
+
+It's often quite a challenge to write criteria to match the desired
+parts of an <FONT SIZE="-1">HTML</FONT> parse tree.  Very often you <I>can</I> pull it off with a
+simple <TT>&quot;$tree-&gt;look_down('_tag', 'h1')&quot;</TT>, but sometimes you do
+have to keep adding and refining criteria, until you might end up with
+complex filters like what I've shown in this article.  The
+benefit to learning how to deal with <FONT SIZE="-1">HTML</FONT> parse trees is that one main
+search tool, the <TT>&quot;look_down&quot;</TT> method, can do most of the work, making
+simple things easy, while still making hard things possible.
+<P>
+
+<B>[end body of article]</B>
+<A NAME="lbAK">&nbsp;</A>
+<H3>[Author Credit]</H3>
+
+
+
+Sean M. Burke (<TT>&quot;<A HREF="mailto:sburke@cpan.org">sburke@cpan.org</A>&quot;</TT>) is the current maintainer of
+<TT>&quot;HTML::TreeBuilder&quot;</TT> and <TT>&quot;HTML::Element&quot;</TT>, both originally by
+Gisle Aas.
+<P>
+
+Sean adds: ``I'd like to thank the folks who listened to me ramble
+incessantly about HTML::TreeBuilder and HTML::Element at this year's Yet
+Another Perl Conference and O'Reilly Open Source Software Convention.''
+<A NAME="lbAL">&nbsp;</A>
+<H2>BACK</H2>
+
+
+
+Return to the HTML::Tree docs.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="21"><A HREF="#lbAB">NAME</A><DD>
+<DT id="22"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="23"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="24"><A HREF="#lbAE">Scanning HTML</A><DD>
+<DL>
+<DT id="25"><A HREF="#lbAF">HTML::Parser, HTML::TreeBuilder, and HTML::Element</A><DD>
+<DT id="26"><A HREF="#lbAG">Scanning <FONT SIZE="-1">HTML</FONT> trees</A><DD>
+<DT id="27"><A HREF="#lbAH">Complex Criteria in Tree Scanning</A><DD>
+<DT id="28"><A HREF="#lbAI">A Case Study: Scanning Yahoo News's <FONT SIZE="-1">HTML</FONT></A><DD>
+<DT id="29"><A HREF="#lbAJ"><I>Regardez, duvet!</I></A><DD>
+<DT id="30"><A HREF="#lbAK">[Author Credit]</A><DD>
+</DL>
+<DT id="31"><A HREF="#lbAL">BACK</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:45 GMT, March 31, 2021
+</BODY>
+</HTML>

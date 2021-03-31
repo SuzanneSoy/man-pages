@@ -1,0 +1,552 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of IOCTL_GETFSMAP</TITLE>
+</HEAD><BODY>
+<H1>IOCTL_GETFSMAP</H1>
+Section: Linux Programmer's Manual (2)<BR>Updated: 2017-09-15<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+ioctl_getfsmap - retrieve the physical layout of the filesystem
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<BR>
+
+<B>#include &lt;<A HREF="file:///usr/include/sys/ioctl.h">sys/ioctl.h</A>&gt;</B>
+
+<BR>
+
+<B>#include &lt;<A HREF="file:///usr/include/linux/fs.h">linux/fs.h</A>&gt;</B>
+
+<BR>
+
+<B>#include &lt;<A HREF="file:///usr/include/linux/fsmap.h">linux/fsmap.h</A>&gt;</B>
+
+<P>
+
+<B>int ioctl(int </B><I>fd</I><B>, FS_IOC_GETFSMAP, struct fsmap_head * </B><I>arg</I><B>);</B>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+This
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+operation retrieves physical extent mappings for a filesystem.
+This information can be used to discover which files are mapped to a physical
+block, examine free space, or find known bad blocks, among other things.
+<P>
+
+The sole argument to this operation should be a pointer to a single
+<I>struct fsmap_head</I>:
+
+<P>
+
+
+
+struct fsmap {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u32&nbsp;fmr_device;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Device&nbsp;ID&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u32&nbsp;fmr_flags;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Mapping&nbsp;flags&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;fmr_physical;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Device&nbsp;offset&nbsp;of&nbsp;segment&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;fmr_owner;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Owner&nbsp;ID&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;fmr_offset;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;File&nbsp;offset&nbsp;of&nbsp;segment&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;fmr_length;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Length&nbsp;of&nbsp;segment&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;fmr_reserved[3];&nbsp;/*&nbsp;Must&nbsp;be&nbsp;zero&nbsp;*/
+};
+<P>
+struct fsmap_head {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u32&nbsp;fmh_iflags;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Control&nbsp;flags&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u32&nbsp;fmh_oflags;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Output&nbsp;flags&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u32&nbsp;fmh_count;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;#&nbsp;of&nbsp;entries&nbsp;in&nbsp;array&nbsp;incl.&nbsp;input&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u32&nbsp;fmh_entries;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;#&nbsp;of&nbsp;entries&nbsp;filled&nbsp;in&nbsp;(output)&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__u64&nbsp;fmh_reserved[6];&nbsp;&nbsp;/*&nbsp;Must&nbsp;be&nbsp;zero&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;fsmap&nbsp;fmh_keys[2];&nbsp;&nbsp;/*&nbsp;Low&nbsp;and&nbsp;high&nbsp;keys&nbsp;for
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;the&nbsp;mapping&nbsp;search&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;fsmap&nbsp;fmh_recs[];&nbsp;&nbsp;&nbsp;/*&nbsp;Returned&nbsp;records&nbsp;*/
+};
+
+
+<P>
+
+The two
+<I>fmh_keys</I>
+
+array elements specify the lowest and highest reverse-mapping
+key for which the application would like physical mapping
+information.
+A reverse mapping key consists of the tuple (device, block, owner, offset).
+The owner and offset fields are part of the key because some filesystems
+support sharing physical blocks between multiple files and
+therefore may return multiple mappings for a given physical block.
+<P>
+
+Filesystem mappings are copied into the
+<I>fmh_recs</I>
+
+array, which immediately follows the header data.
+
+<A NAME="lbAE">&nbsp;</A>
+<H3>Fields of struct fsmap_head</H3>
+
+<P>
+
+The
+<I>fmh_iflags</I>
+
+field is a bit mask passed to the kernel to alter the output.
+No flags are currently defined, so the caller must set this value to zero.
+<P>
+
+The
+<I>fmh_oflags</I>
+
+field is a bit mask of flags set by the kernel concerning the returned mappings.
+If
+<B>FMH_OF_DEV_T</B>
+
+is set, then the
+<I>fmr_device</I>
+
+field represents a
+<I>dev_t</I>
+
+structure containing the major and minor numbers of the block device.
+<P>
+
+The
+<I>fmh_count</I>
+
+field contains the number of elements in the array being passed to the
+kernel.
+If this value is 0,
+<I>fmh_entries</I>
+
+will be set to the number of records that would have been returned had
+the array been large enough;
+no mapping information will be returned.
+<P>
+
+The
+<I>fmh_entries</I>
+
+field contains the number of elements in the
+<I>fmh_recs</I>
+
+array that contain useful information.
+<P>
+
+The
+<I>fmh_reserved</I>
+
+fields must be set to zero.
+
+<A NAME="lbAF">&nbsp;</A>
+<H3>Keys</H3>
+
+<P>
+
+The two key records in
+<I>fsmap_head.fmh_keys</I>
+
+specify the lowest and highest extent records in the keyspace that the caller
+wants returned.
+A filesystem that can share blocks between files likely requires the tuple
+(<I>device</I>, <I>physical</I>, <I>owner</I>, <I>offset</I>, <I>flags</I>)
+
+to uniquely index any filesystem mapping record.
+Classic non-sharing filesystems might be able to identify any record with only
+(<I>device</I>, <I>physical</I>, <I>flags</I>).
+
+For example, if the low key is set to (8:0, 36864, 0, 0, 0), the filesystem will
+only return records for extents starting at or above 36&nbsp;KiB on disk.
+If the high key is set to (8:0, 1048576, 0, 0, 0), only records below 1&nbsp;MiB will
+be returned.
+The format of
+<I>fmr_device</I>
+
+in the keys must match the format of the same field in the output records,
+as defined below.
+By convention, the field
+<I>fsmap_head.fmh_keys[0]</I>
+
+must contain the low key and
+<I>fsmap_head.fmh_keys[1]</I>
+
+must contain the high key for the request.
+<P>
+
+For convenience, if
+<I>fmr_length</I>
+
+is set in the low key, it will be added to
+<I>fmr_block</I> or <I>fmr_offset</I>
+
+as appropriate.
+The caller can take advantage of this subtlety to set up subsequent calls
+by copying
+<I>fsmap_head.fmh_recs[fsmap_head.fmh_entries - 1]</I>
+
+into the low key.
+The function
+<I>fsmap_advance</I>
+
+(defined in
+<I>linux/fsmap.h</I>)
+
+provides this functionality.
+
+<A NAME="lbAG">&nbsp;</A>
+<H3>Fields of struct fsmap</H3>
+
+<P>
+
+The
+<I>fmr_device</I>
+
+field uniquely identifies the underlying storage device.
+If the
+<B>FMH_OF_DEV_T</B>
+
+flag is set in the header's
+<I>fmh_oflags</I>
+
+field, this field contains a
+<I>dev_t</I>
+
+from which major and minor numbers can be extracted.
+If the flag is not set, this field contains a value that must be unique
+for each unique storage device.
+<P>
+
+The
+<I>fmr_physical</I>
+
+field contains the disk address of the extent in bytes.
+<P>
+
+The
+<I>fmr_owner</I>
+
+field contains the owner of the extent.
+This is an inode number unless
+<B>FMR_OF_SPECIAL_OWNER</B>
+
+is set in the
+<I>fmr_flags</I>
+
+field, in which case the value is determined by the filesystem.
+See the section below about owner values for more details.
+<P>
+
+The
+<I>fmr_offset</I>
+
+field contains the logical address in the mapping record in bytes.
+This field has no meaning if the
+<B>FMR_OF_SPECIAL_OWNER</B> or <B>FMR_OF_EXTENT_MAP</B>
+
+flags are set in
+<I>fmr_flags</I>.
+
+<P>
+
+The
+<I>fmr_length</I>
+
+field contains the length of the extent in bytes.
+<P>
+
+The
+<I>fmr_flags</I>
+
+field is a bit mask of extent state flags.
+The bits are:
+<DL COMPACT><DT id="1"><DD>
+<DL COMPACT>
+<DT id="2"><B>FMR_OF_PREALLOC</B>
+
+<DD>
+The extent is allocated but not yet written.
+<DT id="3"><B>FMR_OF_ATTR_FORK</B>
+
+<DD>
+This extent contains extended attribute data.
+<DT id="4"><B>FMR_OF_EXTENT_MAP</B>
+
+<DD>
+This extent contains extent map information for the owner.
+<DT id="5"><B>FMR_OF_SHARED</B>
+
+<DD>
+Parts of this extent may be shared.
+<DT id="6"><B>FMR_OF_SPECIAL_OWNER</B>
+
+<DD>
+The
+<I>fmr_owner</I>
+
+field contains a special value instead of an inode number.
+<DT id="7"><B>FMR_OF_LAST</B>
+
+<DD>
+This is the last record in the data set.
+</DL>
+</DL>
+
+<P>
+
+The
+<I>fmr_reserved</I>
+
+field will be set to zero.
+
+<A NAME="lbAH">&nbsp;</A>
+<H3>Owner values</H3>
+
+Generally, the value of the
+<I>fmr_owner</I>
+
+field for non-metadata extents should be an inode number.
+However, filesystems are under no obligation to report inode numbers;
+they may instead report
+<B>FMR_OWN_UNKNOWN</B>
+
+if the inode number cannot easily be retrieved, if the caller lacks
+sufficient privilege, if the filesystem does not support stable
+inode numbers, or for any other reason.
+If a filesystem wishes to condition the reporting of inode numbers based
+on process capabilities, it is strongly urged that the
+<B>CAP_SYS_ADMIN</B>
+
+capability be used for this purpose.
+<DL COMPACT>
+<DT id="8">The following special owner values are generic to all filesystems:<DD>
+<DL COMPACT><DT id="9"><DD>
+<DL COMPACT>
+<DT id="10"><B>FMR_OWN_FREE</B>
+
+<DD>
+Free space.
+<DT id="11"><B>FMR_OWN_UNKNOWN</B>
+
+<DD>
+This extent is in use but its owner is not known or not easily retrieved.
+<DT id="12"><B>FMR_OWN_METADATA</B>
+
+<DD>
+This extent is filesystem metadata.
+</DL>
+</DL>
+
+</DL>
+<P>
+
+XFS can return the following special owner values:
+<DL COMPACT><DT id="13"><DD>
+<DL COMPACT>
+<DT id="14"><B>XFS_FMR_OWN_FREE</B>
+
+<DD>
+Free space.
+<DT id="15"><B>XFS_FMR_OWN_UNKNOWN</B>
+
+<DD>
+This extent is in use but its owner is not known or not easily retrieved.
+<DT id="16"><B>XFS_FMR_OWN_FS</B>
+
+<DD>
+Static filesystem metadata which exists at a fixed address.
+These are the AG superblock, the AGF, the AGFL, and the AGI headers.
+<DT id="17"><B>XFS_FMR_OWN_LOG</B>
+
+<DD>
+The filesystem journal.
+<DT id="18"><B>XFS_FMR_OWN_AG</B>
+
+<DD>
+Allocation group metadata, such as the free space btrees and the
+reverse mapping btrees.
+<DT id="19"><B>XFS_FMR_OWN_INOBT</B>
+
+<DD>
+The inode and free inode btrees.
+<DT id="20"><B>XFS_FMR_OWN_INODES</B>
+
+<DD>
+Inode records.
+<DT id="21"><B>XFS_FMR_OWN_REFC</B>
+
+<DD>
+Reference count information.
+<DT id="22"><B>XFS_FMR_OWN_COW</B>
+
+<DD>
+This extent is being used to stage a copy-on-write.
+<DT id="23"><B>XFS_FMR_OWN_DEFECTIVE:</B>
+
+<DD>
+This extent has been marked defective either by the filesystem or the
+underlying device.
+</DL>
+</DL>
+
+<P>
+
+ext4 can return the following special owner values:
+<DL COMPACT><DT id="24"><DD>
+<DL COMPACT>
+<DT id="25"><B>EXT4_FMR_OWN_FREE</B>
+
+<DD>
+Free space.
+<DT id="26"><B>EXT4_FMR_OWN_UNKNOWN</B>
+
+<DD>
+This extent is in use but its owner is not known or not easily retrieved.
+<DT id="27"><B>EXT4_FMR_OWN_FS</B>
+
+<DD>
+Static filesystem metadata which exists at a fixed address.
+This is the superblock and the group descriptors.
+<DT id="28"><B>EXT4_FMR_OWN_LOG</B>
+
+<DD>
+The filesystem journal.
+<DT id="29"><B>EXT4_FMR_OWN_INODES</B>
+
+<DD>
+Inode records.
+<DT id="30"><B>EXT4_FMR_OWN_BLKBM</B>
+
+<DD>
+Block bit map.
+<DT id="31"><B>EXT4_FMR_OWN_INOBM</B>
+
+<DD>
+Inode bit map.
+</DL>
+</DL>
+
+<A NAME="lbAI">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+On error, -1 is returned, and
+<I>errno</I>
+
+is set to indicate the error.
+<P>
+
+<A NAME="lbAJ">&nbsp;</A>
+<H2>ERRORS</H2>
+
+The error placed in
+<I>errno</I>
+
+can be one of, but is not limited to, the following:
+<DL COMPACT>
+<DT id="32"><B>EBADF</B>
+
+<DD>
+<I>fd</I>
+
+is not open for reading.
+<DT id="33"><B>EBADMSG</B>
+
+<DD>
+The filesystem has detected a checksum error in the metadata.
+<DT id="34"><B>EFAULT</B>
+
+<DD>
+The pointer passed in was not mapped to a valid memory address.
+<DT id="35"><B>EINVAL</B>
+
+<DD>
+The array is not long enough, the keys do not point to a valid part of
+the filesystem, the low key points to a higher point in the filesystem's
+physical storage address space than the high key, or a nonzero value
+was passed in one of the fields that must be zero.
+<DT id="36"><B>ENOMEM</B>
+
+<DD>
+Insufficient memory to process the request.
+<DT id="37"><B>EOPNOTSUPP</B>
+
+<DD>
+The filesystem does not support this command.
+<DT id="38"><B>EUCLEAN</B>
+
+<DD>
+The filesystem metadata is corrupt and needs repair.
+</DL>
+<A NAME="lbAK">&nbsp;</A>
+<H2>VERSIONS</H2>
+
+The
+<B>FS_IOC_GETFSMAP</B>
+
+operation first appeared in Linux 4.12.
+<A NAME="lbAL">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+This API is Linux-specific.
+Not all filesystems support it.
+<A NAME="lbAM">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+See
+<I>io/fsmap.c</I>
+
+in the
+<I>xfsprogs</I>
+
+distribution for a sample program.
+<A NAME="lbAN">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+<A NAME="lbAO">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="39"><A HREF="#lbAB">NAME</A><DD>
+<DT id="40"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="41"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DL>
+<DT id="42"><A HREF="#lbAE">Fields of struct fsmap_head</A><DD>
+<DT id="43"><A HREF="#lbAF">Keys</A><DD>
+<DT id="44"><A HREF="#lbAG">Fields of struct fsmap</A><DD>
+<DT id="45"><A HREF="#lbAH">Owner values</A><DD>
+</DL>
+<DT id="46"><A HREF="#lbAI">RETURN VALUE</A><DD>
+<DT id="47"><A HREF="#lbAJ">ERRORS</A><DD>
+<DT id="48"><A HREF="#lbAK">VERSIONS</A><DD>
+<DT id="49"><A HREF="#lbAL">CONFORMING TO</A><DD>
+<DT id="50"><A HREF="#lbAM">EXAMPLE</A><DD>
+<DT id="51"><A HREF="#lbAN">SEE ALSO</A><DD>
+<DT id="52"><A HREF="#lbAO">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:33 GMT, March 31, 2021
+</BODY>
+</HTML>

@@ -1,0 +1,216 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of Net::DBus::Test::MockObject</TITLE>
+</HEAD><BODY>
+<H1>Net::DBus::Test::MockObject</H1>
+Section: User Contributed Perl Documentation (3pm)<BR>Updated: 2019-12-26<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+Net::DBus::Test::MockObject - Fake an object from the bus for unit testing
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+
+
+
+
+<PRE>
+  use Net::DBus;
+  use Net::DBus::Test::MockObject;
+
+  my $bus = Net::DBus-&gt;test
+
+  # Lets fake presence of HAL...
+
+  # First we need to define the service
+  my $service = $bus-&gt;export_service(&quot;org.freedesktop.Hal&quot;);
+
+  # Then create a mock object
+  my $object = Net::DBus::Test::MockObject-&gt;new($service,
+                                                &quot;/org/freedesktop/Hal/Manager&quot;);
+
+  # Fake the 'GetAllDevices' method
+  $object-&gt;seed_action(&quot;org.freedesktop.Hal.Manager&quot;,
+                       &quot;GetAllDevices&quot;,
+                       reply =&gt; {
+                         return =&gt; [ &quot;/org/freedesktop/Hal/devices/computer_i8042_Aux_Port&quot;,
+                                     &quot;/org/freedesktop/Hal/devices/computer_i8042_Aux_Port_logicaldev_input&quot;,
+                                     &quot;/org/freedesktop/Hal/devices/computer_i8042_Kbd_Port&quot;,
+                                     &quot;/org/freedesktop/Hal/devices/computer_i8042_Kbd_Port_logicaldev_input&quot;
+                         ],
+                       });
+
+
+  # Now can test any class which calls out to 'GetAllDevices' in HAL
+  ....test stuff....
+
+</PRE>
+
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+
+This provides an alternate for Net::DBus::Object to enable bus
+objects to be quickly mocked up, thus facilitating creation of unit
+tests for services which may need to call out to objects provided
+by 3rd party services on the bus. It is typically used as a companion
+to the Net::DBus::MockBus object, to enable complex services to
+be tested without actually starting a real bus.
+<P>
+
+!!!!! <FONT SIZE="-1">WARNING</FONT> !!!
+<P>
+
+This object &amp; its APIs should be considered very experimental at
+this point in time, and no guarantees about future <FONT SIZE="-1">API</FONT> compatibility
+are provided what-so-ever. Comments &amp; suggestions on how to evolve
+this framework are, however, welcome &amp; encouraged.
+<A NAME="lbAE">&nbsp;</A>
+<H2>METHODS</H2>
+
+
+
+<DL COMPACT>
+<DT id="1">my $object = Net::DBus::Test::MockObject-&gt;new($service, $path, $interface);<DD>
+
+
+
+
+Create a new mock object, attaching to the service defined by the <TT>$service</TT>
+parameter. This would be an instance of the Net::DBus::Service object. The
+<TT>$path</TT> parameter defines the object path at which to attach this mock object,
+and <TT>$interface</TT> defines the interface it will support.
+<DT id="2">my $service = $object-&gt;get_service<DD>
+
+
+
+
+Retrieves the Net::DBus::Service object within which this
+object is exported.
+<DT id="3">my $path = $object-&gt;get_object_path<DD>
+
+
+
+
+Retrieves the path under which this object is exported
+<DT id="4">my $msg = $object-&gt;get_last_message<DD>
+
+
+
+
+Retrieves the last message processed by this object. The returned
+object is an instance of Net::DBus::Binding::Message
+<DT id="5">my $sig = $object-&gt;get_last_message_signature<DD>
+
+
+
+
+Retrieves the type signature of the last processed message.
+<DT id="6">my $value = $object-&gt;get_last_message_param<DD>
+
+
+
+
+Returns the first value supplied as an argument to the last
+processed message.
+<DT id="7">my @values = $object-&gt;get_last_message_param_list<DD>
+
+
+
+
+Returns a list of all the values supplied as arguments to
+the last processed message.
+<DT id="8">$object-&gt;seed_action($interface, $method, %action);<DD>
+
+
+
+
+Registers an action to be performed when a message corresponding
+to the method <TT>$method</TT> within the interface <TT>$interface</TT> is
+received. The <TT>%action</TT> parameter can have a number of possible
+keys set:
+<DL COMPACT><DT id="9"><DD>
+<DL COMPACT>
+<DT id="10">signals<DD>
+
+
+Causes a signal to be emitted when the method is invoked. The
+value associated with this key should be an instance of the
+Net::DBus::Binding::Message::Signal class.
+<DT id="11">error<DD>
+
+
+Causes an error to be generated when the method is invoked. The
+value associated with this key should be a hash reference, with
+two elements. The first, <TT>&quot;name&quot;</TT>, giving the error name, and the
+second, <TT>&quot;description&quot;</TT>, providing the descriptive text.
+<DT id="12">reply<DD>
+
+
+Causes a normal method return to be generated. The value associated
+with this key should be an array reference, whose elements are the
+values to be returned by the method.
+</DL>
+</DL>
+
+<DL COMPACT><DT id="13"><DD>
+</DL>
+
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>BUGS</H2>
+
+
+
+It doesn't completely replicate the <FONT SIZE="-1">API</FONT> of Net::DBus::Binding::Object,
+merely enough to make the high level bindings work in a test scenario.
+<A NAME="lbAG">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+
+
+Daniel P. Berrange
+<A NAME="lbAH">&nbsp;</A>
+<H2>COPYRIGHT</H2>
+
+
+
+Copyright (C) 2004-2009 Daniel P. Berrange
+<A NAME="lbAI">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+
+Net::DBus, Net::DBus::Object, Net::DBus::Test::MockConnection,
+&lt;<A HREF="http://www.mockobjects.com/Faq.html">http://www.mockobjects.com/Faq.html</A>&gt;
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="14"><A HREF="#lbAB">NAME</A><DD>
+<DT id="15"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="16"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="17"><A HREF="#lbAE">METHODS</A><DD>
+<DT id="18"><A HREF="#lbAF">BUGS</A><DD>
+<DT id="19"><A HREF="#lbAG">AUTHOR</A><DD>
+<DT id="20"><A HREF="#lbAH">COPYRIGHT</A><DD>
+<DT id="21"><A HREF="#lbAI">SEE ALSO</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:49 GMT, March 31, 2021
+</BODY>
+</HTML>

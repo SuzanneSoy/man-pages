@@ -1,0 +1,1793 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of USER_NAMESPACES</TITLE>
+</HEAD><BODY>
+<H1>USER_NAMESPACES</H1>
+Section: Linux Programmer's Manual (7)<BR>Updated: 2019-08-02<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+user_namespaces - overview of Linux user namespaces
+<A NAME="lbAC">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+For an overview of namespaces, see
+<B><A HREF="/cgi-bin/man/man2html?7+namespaces">namespaces</A></B>(7).
+
+<P>
+
+User namespaces isolate security-related identifiers and attributes,
+in particular,
+user IDs and group IDs (see
+<B><A HREF="/cgi-bin/man/man2html?7+credentials">credentials</A></B>(7)),
+
+the root directory,
+keys (see
+<B><A HREF="/cgi-bin/man/man2html?7+keyrings">keyrings</A></B>(7)),
+
+
+
+and capabilities (see
+<B><A HREF="/cgi-bin/man/man2html?7+capabilities">capabilities</A></B>(7)).
+
+A process's user and group IDs can be different
+inside and outside a user namespace.
+In particular,
+a process can have a normal unprivileged user ID outside a user namespace
+while at the same time having a user ID of 0 inside the namespace;
+in other words,
+the process has full privileges for operations inside the user namespace,
+but is unprivileged for operations outside the namespace.
+
+
+
+<A NAME="lbAD">&nbsp;</A>
+<H3>Nested namespaces, namespace membership</H3>
+
+User namespaces can be nested;
+that is, each user namespace---except the initial (&quot;root&quot;)
+namespace---has a parent user namespace,
+and can have zero or more child user namespaces.
+The parent user namespace is the user namespace
+of the process that creates the user namespace via a call to
+<B><A HREF="/cgi-bin/man/man2html?2+unshare">unshare</A></B>(2)
+
+or
+<B><A HREF="/cgi-bin/man/man2html?2+clone">clone</A></B>(2)
+
+with the
+<B>CLONE_NEWUSER</B>
+
+flag.
+<P>
+
+The kernel imposes (since version 3.11) a limit of 32 nested levels of
+
+user namespaces.
+
+Calls to
+<B><A HREF="/cgi-bin/man/man2html?2+unshare">unshare</A></B>(2)
+
+or
+<B><A HREF="/cgi-bin/man/man2html?2+clone">clone</A></B>(2)
+
+that would cause this limit to be exceeded fail with the error
+<B>EUSERS</B>.
+
+<P>
+
+Each process is a member of exactly one user namespace.
+A process created via
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2)
+
+or
+<B><A HREF="/cgi-bin/man/man2html?2+clone">clone</A></B>(2)
+
+without the
+<B>CLONE_NEWUSER</B>
+
+flag is a member of the same user namespace as its parent.
+A single-threaded process can join another user namespace with
+<B><A HREF="/cgi-bin/man/man2html?2+setns">setns</A></B>(2)
+
+if it has the
+<B>CAP_SYS_ADMIN</B>
+
+in that namespace;
+upon doing so, it gains a full set of capabilities in that namespace.
+<P>
+
+A call to
+<B><A HREF="/cgi-bin/man/man2html?2+clone">clone</A></B>(2)
+
+or
+<B><A HREF="/cgi-bin/man/man2html?2+unshare">unshare</A></B>(2)
+
+with the
+<B>CLONE_NEWUSER</B>
+
+flag makes the new child process (for
+<B><A HREF="/cgi-bin/man/man2html?2+clone">clone</A></B>(2))
+
+or the caller (for
+<B><A HREF="/cgi-bin/man/man2html?2+unshare">unshare</A></B>(2))
+
+a member of the new user namespace created by the call.
+<P>
+
+The
+<B>NS_GET_PARENT</B>
+
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+operation can be used to discover the parental relationship
+between user namespaces; see
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl_ns">ioctl_ns</A></B>(2).
+
+
+
+
+<A NAME="lbAE">&nbsp;</A>
+<H3>Capabilities</H3>
+
+The child process created by
+<B><A HREF="/cgi-bin/man/man2html?2+clone">clone</A></B>(2)
+
+with the
+<B>CLONE_NEWUSER</B>
+
+flag starts out with a complete set
+of capabilities in the new user namespace.
+Likewise, a process that creates a new user namespace using
+<B><A HREF="/cgi-bin/man/man2html?2+unshare">unshare</A></B>(2)
+
+or joins an existing user namespace using
+<B><A HREF="/cgi-bin/man/man2html?2+setns">setns</A></B>(2)
+
+gains a full set of capabilities in that namespace.
+On the other hand,
+that process has no capabilities in the parent (in the case of
+<B><A HREF="/cgi-bin/man/man2html?2+clone">clone</A></B>(2))
+
+or previous (in the case of
+<B><A HREF="/cgi-bin/man/man2html?2+unshare">unshare</A></B>(2)
+
+and
+<B><A HREF="/cgi-bin/man/man2html?2+setns">setns</A></B>(2))
+
+user namespace,
+even if the new namespace is created or joined by the root user
+(i.e., a process with user ID 0 in the root namespace).
+<P>
+
+Note that a call to
+<B><A HREF="/cgi-bin/man/man2html?2+execve">execve</A></B>(2)
+
+will cause a process's capabilities to be recalculated in the usual way (see
+<B><A HREF="/cgi-bin/man/man2html?7+capabilities">capabilities</A></B>(7)).
+
+Consequently,
+unless the process has a user ID of 0 within the namespace,
+or the executable file has a nonempty inheritable capabilities mask,
+the process will lose all capabilities.
+See the discussion of user and group ID mappings, below.
+<P>
+
+A call to
+<B><A HREF="/cgi-bin/man/man2html?2+clone">clone</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+unshare">unshare</A></B>(2),
+
+or
+<B><A HREF="/cgi-bin/man/man2html?2+setns">setns</A></B>(2)
+
+using the
+<B>CLONE_NEWUSER</B>
+
+flag sets the &quot;securebits&quot; flags
+(see
+<B><A HREF="/cgi-bin/man/man2html?7+capabilities">capabilities</A></B>(7))
+
+to their default values (all flags disabled) in the child (for
+<B><A HREF="/cgi-bin/man/man2html?2+clone">clone</A></B>(2))
+
+or caller (for
+<B><A HREF="/cgi-bin/man/man2html?2+unshare">unshare</A></B>(2),
+
+or
+<B><A HREF="/cgi-bin/man/man2html?2+setns">setns</A></B>(2)).
+
+Note that because the caller no longer has capabilities
+in its original user namespace after a call to
+<B><A HREF="/cgi-bin/man/man2html?2+setns">setns</A></B>(2),
+
+it is not possible for a process to reset its &quot;securebits&quot; flags while
+retaining its user namespace membership by using a pair of
+<B><A HREF="/cgi-bin/man/man2html?2+setns">setns</A></B>(2)
+
+calls to move to another user namespace and then return to
+its original user namespace.
+<P>
+
+The rules for determining whether or not a process has a capability
+in a particular user namespace are as follows:
+<DL COMPACT>
+<DT id="1">1.<DD>
+A process has a capability inside a user namespace
+if it is a member of that namespace and
+it has the capability in its effective capability set.
+A process can gain capabilities in its effective capability
+set in various ways.
+For example, it may execute a set-user-ID program or an
+executable with associated file capabilities.
+In addition,
+a process may gain capabilities via the effect of
+<B><A HREF="/cgi-bin/man/man2html?2+clone">clone</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+unshare">unshare</A></B>(2),
+
+or
+<B><A HREF="/cgi-bin/man/man2html?2+setns">setns</A></B>(2),
+
+as already described.
+
+<DT id="2">2.<DD>
+If a process has a capability in a user namespace,
+then it has that capability in all child (and further removed descendant)
+namespaces as well.
+<DT id="3">3.<DD>
+
+
+When a user namespace is created, the kernel records the effective
+user ID of the creating process as being the &quot;owner&quot; of the namespace.
+
+
+A process that resides
+in the parent of the user namespace
+
+
+and whose effective user ID matches the owner of the namespace
+has all capabilities in the namespace.
+
+
+By virtue of the previous rule,
+this means that the process has all capabilities in all
+further removed descendant user namespaces as well.
+The
+<B>NS_GET_OWNER_UID</B>
+
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+operation can be used to discover the user ID of the owner of the namespace;
+see
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl_ns">ioctl_ns</A></B>(2).
+
+
+
+
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H3>Effect of capabilities within a user namespace</H3>
+
+Having a capability inside a user namespace
+permits a process to perform operations (that require privilege)
+only on resources governed by that namespace.
+In other words, having a capability in a user namespace permits a process
+to perform privileged operations on resources that are governed by (nonuser)
+namespaces owned by (associated with) the user namespace
+(see the next subsection).
+<P>
+
+On the other hand, there are many privileged operations that affect
+resources that are not associated with any namespace type,
+for example, changing the system time (governed by
+<B>CAP_SYS_TIME</B>),
+
+loading a kernel module (governed by
+<B>CAP_SYS_MODULE</B>),
+
+and creating a device (governed by
+<B>CAP_MKNOD</B>).
+
+Only a process with privileges in the
+<I>initial</I>
+
+user namespace can perform such operations.
+<P>
+
+Holding
+<B>CAP_SYS_ADMIN</B>
+
+within the user namespace that owns a process's mount namespace
+allows that process to create bind mounts
+and mount the following types of filesystems:
+
+<P>
+
+<DL COMPACT><DT id="4"><DD>
+
+<DL COMPACT>
+<DT id="5">*<DD>
+<I>/proc</I>
+
+(since Linux 3.8)
+<DT id="6">*<DD>
+<I>/sys</I>
+
+(since Linux 3.8)
+<DT id="7">*<DD>
+<I>devpts</I>
+
+(since Linux 3.9)
+<DT id="8">*<DD>
+<B><A HREF="/cgi-bin/man/man2html?5+tmpfs">tmpfs</A></B>(5)
+
+(since Linux 3.9)
+<DT id="9">*<DD>
+<I>ramfs</I>
+
+(since Linux 3.9)
+<DT id="10">*<DD>
+<I>mqueue</I>
+
+(since Linux 3.9)
+<DT id="11">*<DD>
+<I>bpf</I>
+
+
+(since Linux 4.4)
+
+</DL>
+</DL>
+
+<P>
+
+Holding
+<B>CAP_SYS_ADMIN</B>
+
+within the user namespace that owns a process's cgroup namespace
+allows (since Linux 4.6)
+that process to the mount the cgroup version 2 filesystem and
+cgroup version 1 named hierarchies
+(i.e., cgroup filesystems mounted with the
+<I>&quot;none,name=&quot;</I>
+
+option).
+<P>
+
+Holding
+<B>CAP_SYS_ADMIN</B>
+
+within the user namespace that owns a process's PID namespace
+allows (since Linux 3.8)
+that process to mount
+<I>/proc</I>
+
+filesystems.
+<P>
+
+Note however, that mounting block-based filesystems can be done
+only by a process that holds
+<B>CAP_SYS_ADMIN</B>
+
+in the initial user namespace.
+
+
+
+<A NAME="lbAG">&nbsp;</A>
+<H3>Interaction of user namespaces and other types of namespaces</H3>
+
+Starting in Linux 3.8, unprivileged processes can create user namespaces,
+and the other types of namespaces can be created with just the
+<B>CAP_SYS_ADMIN</B>
+
+capability in the caller's user namespace.
+<P>
+
+When a nonuser namespace is created,
+it is owned by the user namespace in which the creating process
+was a member at the time of the creation of the namespace.
+Privileged operations on resources governed by the nonuser namespace
+require that the process has the necessary capabilities
+in the user namespace that owns the nonuser namespace.
+<P>
+
+If
+<B>CLONE_NEWUSER</B>
+
+is specified along with other
+<B>CLONE_NEW*</B>
+
+flags in a single
+<B><A HREF="/cgi-bin/man/man2html?2+clone">clone</A></B>(2)
+
+or
+<B><A HREF="/cgi-bin/man/man2html?2+unshare">unshare</A></B>(2)
+
+call, the user namespace is guaranteed to be created first,
+giving the child
+(<B><A HREF="/cgi-bin/man/man2html?2+clone">clone</A></B>(2))
+
+or caller
+(<B><A HREF="/cgi-bin/man/man2html?2+unshare">unshare</A></B>(2))
+
+privileges over the remaining namespaces created by the call.
+Thus, it is possible for an unprivileged caller to specify this combination
+of flags.
+<P>
+
+When a new namespace (other than a user namespace) is created via
+<B><A HREF="/cgi-bin/man/man2html?2+clone">clone</A></B>(2)
+
+or
+<B><A HREF="/cgi-bin/man/man2html?2+unshare">unshare</A></B>(2),
+
+the kernel records the user namespace of the creating process as the owner of
+the new namespace.
+(This association can't be changed.)
+When a process in the new namespace subsequently performs
+privileged operations that operate on global
+resources isolated by the namespace,
+the permission checks are performed according to the process's capabilities
+in the user namespace that the kernel associated with the new namespace.
+For example, suppose that a process attempts to change the hostname
+(<B><A HREF="/cgi-bin/man/man2html?2+sethostname">sethostname</A></B>(2)),
+
+a resource governed by the UTS namespace.
+In this case,
+the kernel will determine which user namespace owns
+the process's UTS namespace, and check whether the process has the
+required capability
+(<B>CAP_SYS_ADMIN</B>)
+
+in that user namespace.
+<P>
+
+The
+<B>NS_GET_USERNS</B>
+
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+operation can be used to discover the user namespace
+that owns a nonuser namespace; see
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl_ns">ioctl_ns</A></B>(2).
+
+
+
+
+<A NAME="lbAH">&nbsp;</A>
+<H3>User and group ID mappings: uid_map and gid_map</H3>
+
+When a user namespace is created,
+it starts out without a mapping of user IDs (group IDs)
+to the parent user namespace.
+The
+<I>/proc/[pid]/uid_map</I>
+
+and
+<I>/proc/[pid]/gid_map</I>
+
+files (available since Linux 3.5)
+
+expose the mappings for user and group IDs
+inside the user namespace for the process
+<I>pid</I>.
+
+These files can be read to view the mappings in a user namespace and
+written to (once) to define the mappings.
+<P>
+
+The description in the following paragraphs explains the details for
+<I>uid_map</I>;
+
+<I>gid_map</I>
+
+is exactly the same,
+but each instance of &quot;user ID&quot; is replaced by &quot;group ID&quot;.
+<P>
+
+The
+<I>uid_map</I>
+
+file exposes the mapping of user IDs from the user namespace
+of the process
+<I>pid</I>
+
+to the user namespace of the process that opened
+<I>uid_map</I>
+
+(but see a qualification to this point below).
+In other words, processes that are in different user namespaces
+will potentially see different values when reading from a particular
+<I>uid_map</I>
+
+file, depending on the user ID mappings for the user namespaces
+of the reading processes.
+<P>
+
+Each line in the
+<I>uid_map</I>
+
+file specifies a 1-to-1 mapping of a range of contiguous
+user IDs between two user namespaces.
+(When a user namespace is first created, this file is empty.)
+The specification in each line takes the form of
+three numbers delimited by white space.
+The first two numbers specify the starting user ID in
+each of the two user namespaces.
+The third number specifies the length of the mapped range.
+In detail, the fields are interpreted as follows:
+<DL COMPACT>
+<DT id="12">(1)<DD>
+The start of the range of user IDs in
+the user namespace of the process
+<I>pid</I>.
+
+<DT id="13">(2)<DD>
+The start of the range of user
+IDs to which the user IDs specified by field one map.
+How field two is interpreted depends on whether the process that opened
+<I>uid_map</I>
+
+and the process
+<I>pid</I>
+
+are in the same user namespace, as follows:
+<DL COMPACT><DT id="14"><DD>
+<DL COMPACT>
+<DT id="15">a)<DD>
+If the two processes are in different user namespaces:
+field two is the start of a range of
+user IDs in the user namespace of the process that opened
+<I>uid_map</I>.
+
+<DT id="16">b)<DD>
+If the two processes are in the same user namespace:
+field two is the start of the range of
+user IDs in the parent user namespace of the process
+<I>pid</I>.
+
+This case enables the opener of
+<I>uid_map</I>
+
+(the common case here is opening
+<I>/proc/self/uid_map</I>)
+
+to see the mapping of user IDs into the user namespace of the process
+that created this user namespace.
+</DL>
+</DL>
+
+<DT id="17">(3)<DD>
+The length of the range of user IDs that is mapped between the two
+user namespaces.
+</DL>
+<P>
+
+System calls that return user IDs (group IDs)---for example,
+<B><A HREF="/cgi-bin/man/man2html?2+getuid">getuid</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+getgid">getgid</A></B>(2),
+
+and the credential fields in the structure returned by
+<B><A HREF="/cgi-bin/man/man2html?2+stat">stat</A></B>(2)---return
+
+the user ID (group ID) mapped into the caller's user namespace.
+<P>
+
+When a process accesses a file, its user and group IDs
+are mapped into the initial user namespace for the purpose of permission
+checking and assigning IDs when creating a file.
+When a process retrieves file user and group IDs via
+<B><A HREF="/cgi-bin/man/man2html?2+stat">stat</A></B>(2),
+
+the IDs are mapped in the opposite direction,
+to produce values relative to the process user and group ID mappings.
+<P>
+
+The initial user namespace has no parent namespace,
+but, for consistency, the kernel provides dummy user and group
+ID mapping files for this namespace.
+Looking at the
+<I>uid_map</I>
+
+file
+(<I>gid_map</I>
+
+is the same) from a shell in the initial namespace shows:
+<P>
+
+
+
+$ <B>cat /proc/$$/uid_map</B>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;4294967295
+
+
+<P>
+
+This mapping tells us
+that the range starting at user ID 0 in this namespace
+maps to a range starting at 0 in the (nonexistent) parent namespace,
+and the length of the range is the largest 32-bit unsigned integer.
+This leaves 4294967295 (the 32-bit signed -1 value) unmapped.
+This is deliberate:
+<I>(uid_t)&nbsp;-1</I>
+
+is used in several interfaces (e.g.,
+<B><A HREF="/cgi-bin/man/man2html?2+setreuid">setreuid</A></B>(2))
+
+as a way to specify &quot;no user ID&quot;.
+Leaving
+<I>(uid_t)&nbsp;-1</I>
+
+unmapped and unusable guarantees that there will be no
+confusion when using these interfaces.
+
+
+
+<A NAME="lbAI">&nbsp;</A>
+<H3>Defining user and group ID mappings: writing to uid_map and gid_map</H3>
+
+<P>
+
+After the creation of a new user namespace, the
+<I>uid_map</I>
+
+file of
+<I>one</I>
+
+of the processes in the namespace may be written to
+<I>once</I>
+
+to define the mapping of user IDs in the new user namespace.
+An attempt to write more than once to a
+<I>uid_map</I>
+
+file in a user namespace fails with the error
+<B>EPERM</B>.
+
+Similar rules apply for
+<I>gid_map</I>
+
+files.
+<P>
+
+The lines written to
+<I>uid_map</I>
+
+(<I>gid_map</I>)
+
+must conform to the following rules:
+<DL COMPACT>
+<DT id="18">*<DD>
+The three fields must be valid numbers,
+and the last field must be greater than 0.
+<DT id="19">*<DD>
+Lines are terminated by newline characters.
+<DT id="20">*<DD>
+There is a limit on the number of lines in the file.
+In Linux 4.14 and earlier, this limit was (arbitrarily)
+
+set at 5 lines.
+Since Linux 4.15,
+
+the limit is 340 lines.
+In addition, the number of bytes written to
+the file must be less than the system page size,
+and the write must be performed at the start of the file (i.e.,
+<B><A HREF="/cgi-bin/man/man2html?2+lseek">lseek</A></B>(2)
+
+and
+<B><A HREF="/cgi-bin/man/man2html?2+pwrite">pwrite</A></B>(2)
+
+can't be used to write to nonzero offsets in the file).
+<DT id="21">*<DD>
+The range of user IDs (group IDs)
+specified in each line cannot overlap with the ranges
+in any other lines.
+In the initial implementation (Linux 3.8), this requirement was
+satisfied by a simplistic implementation that imposed the further
+requirement that
+the values in both field 1 and field 2 of successive lines must be
+in ascending numerical order,
+which prevented some otherwise valid maps from being created.
+Linux 3.9 and later
+
+fix this limitation, allowing any valid set of nonoverlapping maps.
+<DT id="22">*<DD>
+At least one line must be written to the file.
+</DL>
+<P>
+
+Writes that violate the above rules fail with the error
+<B>EINVAL</B>.
+
+<P>
+
+In order for a process to write to the
+<I>/proc/[pid]/uid_map</I>
+
+(<I>/proc/[pid]/gid_map</I>)
+
+file, all of the following requirements must be met:
+<DL COMPACT>
+<DT id="23">1.<DD>
+The writing process must have the
+<B>CAP_SETUID</B>
+
+(<B>CAP_SETGID</B>)
+
+capability in the user namespace of the process
+<I>pid</I>.
+
+<DT id="24">2.<DD>
+The writing process must either be in the user namespace of the process
+<I>pid</I>
+
+or be in the parent user namespace of the process
+<I>pid</I>.
+
+<DT id="25">3.<DD>
+The mapped user IDs (group IDs) must in turn have a mapping
+in the parent user namespace.
+<DT id="26">4.<DD>
+One of the following two cases applies:
+<DL COMPACT><DT id="27"><DD>
+<DL COMPACT>
+<DT id="28">*<DD>
+<I>Either</I>
+
+the writing process has the
+<B>CAP_SETUID</B>
+
+(<B>CAP_SETGID</B>)
+
+capability in the
+<I>parent</I>
+
+user namespace.
+<DL COMPACT><DT id="29"><DD>
+<DL COMPACT>
+<DT id="30">+<DD>
+No further restrictions apply:
+the process can make mappings to arbitrary user IDs (group IDs)
+in the parent user namespace.
+</DL>
+</DL>
+
+<DT id="31">*<DD>
+<I>Or</I>
+
+otherwise all of the following restrictions apply:
+<DL COMPACT><DT id="32"><DD>
+<DL COMPACT>
+<DT id="33">+<DD>
+The data written to
+<I>uid_map</I>
+
+(<I>gid_map</I>)
+
+must consist of a single line that maps
+the writing process's effective user ID
+(group ID) in the parent user namespace to a user ID (group ID)
+in the user namespace.
+<DT id="34">+<DD>
+The writing process must have the same effective user ID as the process
+that created the user namespace.
+<DT id="35">+<DD>
+In the case of
+<I>gid_map</I>,
+
+use of the
+<B><A HREF="/cgi-bin/man/man2html?2+setgroups">setgroups</A></B>(2)
+
+system call must first be denied by writing
+&quot;<I>deny</I>&quot;
+
+to the
+<I>/proc/[pid]/setgroups</I>
+
+file (see below) before writing to
+<I>gid_map</I>.
+
+</DL>
+</DL>
+
+</DL>
+</DL>
+
+</DL>
+<P>
+
+Writes that violate the above rules fail with the error
+<B>EPERM</B>.
+
+
+
+
+<A NAME="lbAJ">&nbsp;</A>
+<H3>Interaction with system calls that change process UIDs or GIDs</H3>
+
+In a user namespace where the
+<I>uid_map</I>
+
+file has not been written, the system calls that change user IDs will fail.
+Similarly, if the
+<I>gid_map</I>
+
+file has not been written, the system calls that change group IDs will fail.
+After the
+<I>uid_map</I>
+
+and
+<I>gid_map</I>
+
+files have been written, only the mapped values may be used in
+system calls that change user and group IDs.
+<P>
+
+For user IDs, the relevant system calls include
+<B><A HREF="/cgi-bin/man/man2html?2+setuid">setuid</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+setfsuid">setfsuid</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+setreuid">setreuid</A></B>(2),
+
+and
+<B><A HREF="/cgi-bin/man/man2html?2+setresuid">setresuid</A></B>(2).
+
+For group IDs, the relevant system calls include
+<B><A HREF="/cgi-bin/man/man2html?2+setgid">setgid</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+setfsgid">setfsgid</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+setregid">setregid</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+setresgid">setresgid</A></B>(2),
+
+and
+<B><A HREF="/cgi-bin/man/man2html?2+setgroups">setgroups</A></B>(2).
+
+<P>
+
+Writing
+&quot;<I>deny</I>&quot;
+
+to the
+<I>/proc/[pid]/setgroups</I>
+
+file before writing to
+<I>/proc/[pid]/gid_map</I>
+
+
+
+
+
+will permanently disable
+<B><A HREF="/cgi-bin/man/man2html?2+setgroups">setgroups</A></B>(2)
+
+in a user namespace and allow writing to
+<I>/proc/[pid]/gid_map</I>
+
+without having the
+<B>CAP_SETGID</B>
+
+capability in the parent user namespace.
+
+
+
+<A NAME="lbAK">&nbsp;</A>
+<H3>The /proc/[pid]/setgroups file</H3>
+
+
+
+
+
+
+
+The
+<I>/proc/[pid]/setgroups</I>
+
+file displays the string
+&quot;<I>allow</I>&quot;
+
+if processes in the user namespace that contains the process
+<I>pid</I>
+
+are permitted to employ the
+<B><A HREF="/cgi-bin/man/man2html?2+setgroups">setgroups</A></B>(2)
+
+system call; it displays
+&quot;<I>deny</I>&quot;
+
+if
+<B><A HREF="/cgi-bin/man/man2html?2+setgroups">setgroups</A></B>(2)
+
+is not permitted in that user namespace.
+Note that regardless of the value in the
+<I>/proc/[pid]/setgroups</I>
+
+file (and regardless of the process's capabilities), calls to
+<B><A HREF="/cgi-bin/man/man2html?2+setgroups">setgroups</A></B>(2)
+
+are also not permitted if
+<I>/proc/[pid]/gid_map</I>
+
+has not yet been set.
+<P>
+
+A privileged process (one with the
+<B>CAP_SYS_ADMIN</B>
+
+capability in the namespace) may write either of the strings
+&quot;<I>allow</I>&quot;
+
+or
+&quot;<I>deny</I>&quot;
+
+to this file
+<I>before</I>
+
+writing a group ID mapping
+for this user namespace to the file
+<I>/proc/[pid]/gid_map</I>.
+
+Writing the string
+&quot;<I>deny</I>&quot;
+
+prevents any process in the user namespace from employing
+<B><A HREF="/cgi-bin/man/man2html?2+setgroups">setgroups</A></B>(2).
+
+<P>
+
+The essence of the restrictions described in the preceding
+paragraph is that it is permitted to write to
+<I>/proc/[pid]/setgroups</I>
+
+only so long as calling
+<B><A HREF="/cgi-bin/man/man2html?2+setgroups">setgroups</A></B>(2)
+
+is disallowed because
+<I>/proc/[pid]/gid_map</I>
+
+has not been set.
+This ensures that a process cannot transition from a state where
+<B><A HREF="/cgi-bin/man/man2html?2+setgroups">setgroups</A></B>(2)
+
+is allowed to a state where
+<B><A HREF="/cgi-bin/man/man2html?2+setgroups">setgroups</A></B>(2)
+
+is denied;
+a process can transition only from
+<B><A HREF="/cgi-bin/man/man2html?2+setgroups">setgroups</A></B>(2)
+
+being disallowed to
+<B><A HREF="/cgi-bin/man/man2html?2+setgroups">setgroups</A></B>(2)
+
+being allowed.
+<P>
+
+The default value of this file in the initial user namespace is
+&quot;<I>allow</I>&quot;.
+
+<P>
+
+Once
+<I>/proc/[pid]/gid_map</I>
+
+has been written to
+(which has the effect of enabling
+<B><A HREF="/cgi-bin/man/man2html?2+setgroups">setgroups</A></B>(2)
+
+in the user namespace),
+it is no longer possible to disallow
+<B><A HREF="/cgi-bin/man/man2html?2+setgroups">setgroups</A></B>(2)
+
+by writing
+&quot;<I>deny</I>&quot;
+
+to
+<I>/proc/[pid]/setgroups</I>
+
+(the write fails with the error
+<B>EPERM</B>).
+
+<P>
+
+A child user namespace inherits the
+<I>/proc/[pid]/setgroups</I>
+
+setting from its parent.
+<P>
+
+If the
+<I>setgroups</I>
+
+file has the value
+&quot;<I>deny</I>&quot;,
+
+then the
+<B><A HREF="/cgi-bin/man/man2html?2+setgroups">setgroups</A></B>(2)
+
+system call can't subsequently be reenabled (by writing
+&quot;<I>allow</I>&quot;
+
+to the file) in this user namespace.
+(Attempts to do so fail with the error
+<B>EPERM</B>.)
+
+This restriction also propagates down to all child user namespaces of
+this user namespace.
+<P>
+
+The
+<I>/proc/[pid]/setgroups</I>
+
+file was added in Linux 3.19,
+but was backported to many earlier stable kernel series,
+because it addresses a security issue.
+The issue concerned files with permissions such as &quot;rwx---rwx&quot;.
+Such files give fewer permissions to &quot;group&quot; than they do to &quot;other&quot;.
+This means that dropping groups using
+<B><A HREF="/cgi-bin/man/man2html?2+setgroups">setgroups</A></B>(2)
+
+might allow a process file access that it did not formerly have.
+Before the existence of user namespaces this was not a concern,
+since only a privileged process (one with the
+<B>CAP_SETGID</B>
+
+capability) could call
+<B><A HREF="/cgi-bin/man/man2html?2+setgroups">setgroups</A></B>(2).
+
+However, with the introduction of user namespaces,
+it became possible for an unprivileged process to create
+a new namespace in which the user had all privileges.
+This then allowed formerly unprivileged
+users to drop groups and thus gain file access
+that they did not previously have.
+The
+<I>/proc/[pid]/setgroups</I>
+
+file was added to address this security issue,
+by denying any pathway for an unprivileged process to drop groups with
+<B><A HREF="/cgi-bin/man/man2html?2+setgroups">setgroups</A></B>(2).
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAL">&nbsp;</A>
+<H3>Unmapped user and group IDs</H3>
+
+<P>
+
+There are various places where an unmapped user ID (group ID)
+may be exposed to user space.
+For example, the first process in a new user namespace may call
+<B><A HREF="/cgi-bin/man/man2html?2+getuid">getuid</A></B>(2)
+
+before a user ID mapping has been defined for the namespace.
+In most such cases, an unmapped user ID is converted
+
+to the overflow user ID (group ID);
+the default value for the overflow user ID (group ID) is 65534.
+See the descriptions of
+<I>/proc/sys/kernel/overflowuid</I>
+
+and
+<I>/proc/sys/kernel/overflowgid</I>
+
+in
+<B><A HREF="/cgi-bin/man/man2html?5+proc">proc</A></B>(5).
+
+<P>
+
+The cases where unmapped IDs are mapped in this fashion include
+system calls that return user IDs
+(<B><A HREF="/cgi-bin/man/man2html?2+getuid">getuid</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+getgid">getgid</A></B>(2),
+
+and similar),
+credentials passed over a UNIX domain socket,
+
+credentials returned by
+<B><A HREF="/cgi-bin/man/man2html?2+stat">stat</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+waitid">waitid</A></B>(2),
+
+and the System V IPC &quot;ctl&quot;
+<B>IPC_STAT</B>
+
+operations,
+credentials exposed by
+<I>/proc/[pid]/status</I>
+
+and the files in
+<I>/proc/sysvipc/*</I>,
+
+credentials returned via the
+<I>si_uid</I>
+
+field in the
+<I>siginfo_t</I>
+
+received with a signal (see
+<B><A HREF="/cgi-bin/man/man2html?2+sigaction">sigaction</A></B>(2)),
+
+credentials written to the process accounting file (see
+<B><A HREF="/cgi-bin/man/man2html?5+acct">acct</A></B>(5)),
+
+and credentials returned with POSIX message queue notifications (see
+<B><A HREF="/cgi-bin/man/man2html?3+mq_notify">mq_notify</A></B>(3)).
+
+<P>
+
+There is one notable case where unmapped user and group IDs are
+<I>not</I>
+
+
+
+converted to the corresponding overflow ID value.
+When viewing a
+<I>uid_map</I>
+
+or
+<I>gid_map</I>
+
+file in which there is no mapping for the second field,
+that field is displayed as 4294967295 (-1 as an unsigned integer).
+
+
+
+<A NAME="lbAM">&nbsp;</A>
+<H3>Accessing files</H3>
+
+<P>
+
+In order to determine permissions when an unprivileged process accesses a file,
+the process credentials (UID, GID) and the file credentials
+are in effect mapped back to what they would be in
+the initial user namespace and then compared to determine
+the permissions that the process has on the file.
+The same is also of other objects that employ the credentials plus
+permissions mask accessibility model, such as System V IPC objects
+
+
+
+<A NAME="lbAN">&nbsp;</A>
+<H3>Operation of file-related capabilities</H3>
+
+<P>
+
+Certain capabilities allow a process to bypass various
+kernel-enforced restrictions when performing operations on
+files owned by other users or groups.
+These capabilities are:
+<B>CAP_CHOWN</B>,
+
+<B>CAP_DAC_OVERRIDE</B>,
+
+<B>CAP_DAC_READ_SEARCH</B>,
+
+<B>CAP_FOWNER</B>,
+
+and
+<B>CAP_FSETID</B>.
+
+<P>
+
+Within a user namespace,
+these capabilities allow a process to bypass the rules
+if the process has the relevant capability over the file,
+meaning that:
+<DL COMPACT>
+<DT id="36">*<DD>
+the process has the relevant effective capability in its user namespace; and
+<DT id="37">*<DD>
+the file's user ID and group ID both have valid mappings
+in the user namespace.
+</DL>
+<P>
+
+The
+<B>CAP_FOWNER</B>
+
+capability is treated somewhat exceptionally:
+
+
+
+
+it allows a process to bypass the corresponding rules so long as
+at least the file's user ID has a mapping in the user namespace
+(i.e., the file's group ID does not need to have a valid mapping).
+
+
+
+<A NAME="lbAO">&nbsp;</A>
+<H3>Set-user-ID and set-group-ID programs</H3>
+
+<P>
+
+When a process inside a user namespace executes
+a set-user-ID (set-group-ID) program,
+the process's effective user (group) ID inside the namespace is changed
+to whatever value is mapped for the user (group) ID of the file.
+However, if either the user
+<I>or</I>
+
+the group ID of the file has no mapping inside the namespace,
+the set-user-ID (set-group-ID) bit is silently ignored:
+the new program is executed,
+but the process's effective user (group) ID is left unchanged.
+(This mirrors the semantics of executing a set-user-ID or set-group-ID
+program that resides on a filesystem that was mounted with the
+<B>MS_NOSUID</B>
+
+flag, as described in
+<B><A HREF="/cgi-bin/man/man2html?2+mount">mount</A></B>(2).)
+
+
+
+
+<A NAME="lbAP">&nbsp;</A>
+<H3>Miscellaneous</H3>
+
+<P>
+
+When a process's user and group IDs are passed over a UNIX domain socket
+to a process in a different user namespace (see the description of
+<B>SCM_CREDENTIALS</B>
+
+in
+<B><A HREF="/cgi-bin/man/man2html?7+unix">unix</A></B>(7)),
+
+they are translated into the corresponding values as per the
+receiving process's user and group ID mappings.
+
+<A NAME="lbAQ">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+Namespaces are a Linux-specific feature.
+
+<A NAME="lbAR">&nbsp;</A>
+<H2>NOTES</H2>
+
+Over the years, there have been a lot of features that have been added
+to the Linux kernel that have been made available only to privileged users
+because of their potential to confuse set-user-ID-root applications.
+In general, it becomes safe to allow the root user in a user namespace to
+use those features because it is impossible, while in a user namespace,
+to gain more privilege than the root user of a user namespace has.
+
+
+
+<A NAME="lbAS">&nbsp;</A>
+<H3>Availability</H3>
+
+Use of user namespaces requires a kernel that is configured with the
+<B>CONFIG_USER_NS</B>
+
+option.
+User namespaces require support in a range of subsystems across
+the kernel.
+When an unsupported subsystem is configured into the kernel,
+it is not possible to configure user namespaces support.
+<P>
+
+As at Linux 3.8, most relevant subsystems supported user namespaces,
+but a number of filesystems did not have the infrastructure needed
+to map user and group IDs between user namespaces.
+Linux 3.9 added the required infrastructure support for many of
+the remaining unsupported filesystems
+(Plan 9 (9P), Andrew File System (AFS), Ceph, CIFS, CODA, NFS, and OCFS2).
+Linux 3.12 added support for the last of the unsupported major filesystems,
+
+XFS.
+
+<A NAME="lbAT">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+The program below is designed to allow experimenting with
+user namespaces, as well as other types of namespaces.
+It creates namespaces as specified by command-line options and then executes
+a command inside those namespaces.
+The comments and
+<I>usage()</I>
+
+function inside the program provide a full explanation of the program.
+The following shell session demonstrates its use.
+<P>
+
+First, we look at the run-time environment:
+<P>
+
+
+
+$ <B>uname -rs</B>     # Need Linux 3.8 or later
+Linux 3.8.0
+$ <B>id -u</B>         # Running as unprivileged user
+1000
+$ <B>id -g</B>
+1000
+
+
+<P>
+
+Now start a new shell in new user
+(<I>-U</I>),
+
+mount
+(<I>-m</I>),
+
+and PID
+(<I>-p</I>)
+
+namespaces, with user ID
+(<I>-M</I>)
+
+and group ID
+(<I>-G</I>)
+
+1000 mapped to 0 inside the user namespace:
+<P>
+
+
+
+$ <B>./userns_child_exec -p -m -U -M '0 1000 1' -G '0 1000 1' bash</B>
+
+
+<P>
+
+The shell has PID 1, because it is the first process in the new
+PID namespace:
+<P>
+
+
+
+bash$ <B>echo $$</B>
+1
+
+
+<P>
+
+Mounting a new
+<I>/proc</I>
+
+filesystem and listing all of the processes visible
+in the new PID namespace shows that the shell can't see
+any processes outside the PID namespace:
+<P>
+
+
+
+bash$ <B>mount -t proc proc /proc</B>
+bash$ <B>ps ax</B>
+<BR>&nbsp;&nbsp;PID&nbsp;TTY&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STAT&nbsp;&nbsp;&nbsp;TIME&nbsp;COMMAND
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;1&nbsp;pts/3&nbsp;&nbsp;&nbsp;&nbsp;S&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0:00&nbsp;bash
+<BR>&nbsp;&nbsp;&nbsp;22&nbsp;pts/3&nbsp;&nbsp;&nbsp;&nbsp;R+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0:00&nbsp;ps&nbsp;ax
+
+
+<P>
+
+Inside the user namespace, the shell has user and group ID 0,
+and a full set of permitted and effective capabilities:
+<P>
+
+
+
+bash$ <B>cat /proc/$$/status | egrep '^[UG]id'</B>
+Uid:<TT>&nbsp;&nbsp;&nbsp;&nbsp;</TT>0<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>0<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>0<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>0<BR>
+Gid:<TT>&nbsp;&nbsp;&nbsp;&nbsp;</TT>0<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>0<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>0<TT>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</TT>0<BR>
+bash$ <B>cat /proc/$$/status | egrep '^Cap(Prm|Inh|Eff)'</B>
+CapInh:<TT>&nbsp;</TT>0000000000000000<BR>
+CapPrm:<TT>&nbsp;</TT>0000001fffffffff<BR>
+CapEff:<TT>&nbsp;</TT>0000001fffffffff<BR>
+
+
+<A NAME="lbAU">&nbsp;</A>
+<H3>Program source</H3>
+
+
+
+/* userns_child_exec.c
+<P>
+<BR>&nbsp;&nbsp;&nbsp;Licensed&nbsp;under&nbsp;GNU&nbsp;General&nbsp;Public&nbsp;License&nbsp;v2&nbsp;or&nbsp;later
+<P>
+<BR>&nbsp;&nbsp;&nbsp;Create&nbsp;a&nbsp;child&nbsp;process&nbsp;that&nbsp;executes&nbsp;a&nbsp;shell&nbsp;command&nbsp;in&nbsp;new
+<BR>&nbsp;&nbsp;&nbsp;namespace(s);&nbsp;allow&nbsp;UID&nbsp;and&nbsp;GID&nbsp;mappings&nbsp;to&nbsp;be&nbsp;specified&nbsp;when
+<BR>&nbsp;&nbsp;&nbsp;creating&nbsp;a&nbsp;user&nbsp;namespace.
+*/
+#define _GNU_SOURCE
+#include &lt;<A HREF="file:///usr/include/sched.h">sched.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/unistd.h">unistd.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdlib.h">stdlib.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/sys/wait.h">sys/wait.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/signal.h">signal.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/fcntl.h">fcntl.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/string.h">string.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/limits.h">limits.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/errno.h">errno.h</A>&gt;
+<P>
+/* A simple error-handling function: print an error message based
+<BR>&nbsp;&nbsp;&nbsp;on&nbsp;the&nbsp;value&nbsp;in&nbsp;'errno'&nbsp;and&nbsp;terminate&nbsp;the&nbsp;calling&nbsp;process&nbsp;*/
+<P>
+#define errExit(msg)    do { perror(msg); exit(EXIT_FAILURE); \
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;while&nbsp;(0)
+<P>
+struct child_args {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;**argv;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Command&nbsp;to&nbsp;be&nbsp;executed&nbsp;by&nbsp;child,&nbsp;with&nbsp;args&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;&nbsp;&nbsp;&nbsp;pipe_fd[2];&nbsp;&nbsp;/*&nbsp;Pipe&nbsp;used&nbsp;to&nbsp;synchronize&nbsp;parent&nbsp;and&nbsp;child&nbsp;*/
+};
+<P>
+static int verbose;
+<P>
+static void
+usage(char *pname)
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;Usage:&nbsp;%s&nbsp;[options]&nbsp;cmd&nbsp;[arg...]\n\n&quot;,&nbsp;pname);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;Create&nbsp;a&nbsp;child&nbsp;process&nbsp;that&nbsp;executes&nbsp;a&nbsp;shell&nbsp;&quot;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;command&nbsp;in&nbsp;a&nbsp;new&nbsp;user&nbsp;namespace,\n&quot;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;and&nbsp;possibly&nbsp;also&nbsp;other&nbsp;new&nbsp;namespace(s).\n\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;Options&nbsp;can&nbsp;be:\n\n&quot;);
+#define fpe(str) fprintf(stderr, &quot;    %s&quot;, str);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fpe(&quot;-i&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;New&nbsp;IPC&nbsp;namespace\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fpe(&quot;-m&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;New&nbsp;mount&nbsp;namespace\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fpe(&quot;-n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;New&nbsp;network&nbsp;namespace\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fpe(&quot;-p&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;New&nbsp;PID&nbsp;namespace\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fpe(&quot;-u&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;New&nbsp;UTS&nbsp;namespace\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fpe(&quot;-U&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;New&nbsp;user&nbsp;namespace\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fpe(&quot;-M&nbsp;uid_map&nbsp;&nbsp;Specify&nbsp;UID&nbsp;map&nbsp;for&nbsp;user&nbsp;namespace\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fpe(&quot;-G&nbsp;gid_map&nbsp;&nbsp;Specify&nbsp;GID&nbsp;map&nbsp;for&nbsp;user&nbsp;namespace\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fpe(&quot;-z&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Map&nbsp;user's&nbsp;UID&nbsp;and&nbsp;GID&nbsp;to&nbsp;0&nbsp;in&nbsp;user&nbsp;namespace\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fpe(&quot;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(equivalent&nbsp;to:&nbsp;-M&nbsp;'0&nbsp;&lt;uid&gt;&nbsp;1'&nbsp;-G&nbsp;'0&nbsp;&lt;gid&gt;&nbsp;1')\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fpe(&quot;-v&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Display&nbsp;verbose&nbsp;messages\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fpe(&quot;\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fpe(&quot;If&nbsp;-z,&nbsp;-M,&nbsp;or&nbsp;-G&nbsp;is&nbsp;specified,&nbsp;-U&nbsp;is&nbsp;required.\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fpe(&quot;It&nbsp;is&nbsp;not&nbsp;permitted&nbsp;to&nbsp;specify&nbsp;both&nbsp;-z&nbsp;and&nbsp;either&nbsp;-M&nbsp;or&nbsp;-G.\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fpe(&quot;\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fpe(&quot;Map&nbsp;strings&nbsp;for&nbsp;-M&nbsp;and&nbsp;-G&nbsp;consist&nbsp;of&nbsp;records&nbsp;of&nbsp;the&nbsp;form:\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fpe(&quot;\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fpe(&quot;&nbsp;&nbsp;&nbsp;&nbsp;ID-inside-ns&nbsp;&nbsp;&nbsp;ID-outside-ns&nbsp;&nbsp;&nbsp;len\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fpe(&quot;\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fpe(&quot;A&nbsp;map&nbsp;string&nbsp;can&nbsp;contain&nbsp;multiple&nbsp;records,&nbsp;separated&quot;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;&nbsp;by&nbsp;commas;\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fpe(&quot;the&nbsp;commas&nbsp;are&nbsp;replaced&nbsp;by&nbsp;newlines&nbsp;before&nbsp;writing&quot;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;&nbsp;to&nbsp;map&nbsp;files.\n&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+}
+<P>
+/* Update the mapping file 'map_file', with the value provided in
+<BR>&nbsp;&nbsp;&nbsp;'mapping',&nbsp;a&nbsp;string&nbsp;that&nbsp;defines&nbsp;a&nbsp;UID&nbsp;or&nbsp;GID&nbsp;mapping.&nbsp;A&nbsp;UID&nbsp;or
+<BR>&nbsp;&nbsp;&nbsp;GID&nbsp;mapping&nbsp;consists&nbsp;of&nbsp;one&nbsp;or&nbsp;more&nbsp;newline-delimited&nbsp;records
+<BR>&nbsp;&nbsp;&nbsp;of&nbsp;the&nbsp;form:
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ID_inside-ns&nbsp;&nbsp;&nbsp;&nbsp;ID-outside-ns&nbsp;&nbsp;&nbsp;length
+<P>
+<BR>&nbsp;&nbsp;&nbsp;Requiring&nbsp;the&nbsp;user&nbsp;to&nbsp;supply&nbsp;a&nbsp;string&nbsp;that&nbsp;contains&nbsp;newlines&nbsp;is
+<BR>&nbsp;&nbsp;&nbsp;of&nbsp;course&nbsp;inconvenient&nbsp;for&nbsp;command-line&nbsp;use.&nbsp;Thus,&nbsp;we&nbsp;permit&nbsp;the
+<BR>&nbsp;&nbsp;&nbsp;use&nbsp;of&nbsp;commas&nbsp;to&nbsp;delimit&nbsp;records&nbsp;in&nbsp;this&nbsp;string,&nbsp;and&nbsp;replace&nbsp;them
+<BR>&nbsp;&nbsp;&nbsp;with&nbsp;newlines&nbsp;before&nbsp;writing&nbsp;the&nbsp;string&nbsp;to&nbsp;the&nbsp;file.&nbsp;*/
+<P>
+static void
+update_map(char *mapping, char *map_file)
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;fd,&nbsp;j;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;size_t&nbsp;map_len;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Length&nbsp;of&nbsp;'mapping'&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Replace&nbsp;commas&nbsp;in&nbsp;mapping&nbsp;string&nbsp;with&nbsp;newlines&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;map_len&nbsp;=&nbsp;strlen(mapping);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;(j&nbsp;=&nbsp;0;&nbsp;j&nbsp;&lt;&nbsp;map_len;&nbsp;j++)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(mapping[j]&nbsp;==&nbsp;',')
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mapping[j]&nbsp;=&nbsp;'\n';
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fd&nbsp;=&nbsp;open(map_file,&nbsp;O_RDWR);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(fd&nbsp;==&nbsp;-1)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;ERROR:&nbsp;open&nbsp;%s:&nbsp;%s\n&quot;,&nbsp;map_file,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;strerror(errno));
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(write(fd,&nbsp;mapping,&nbsp;map_len)&nbsp;!=&nbsp;map_len)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;ERROR:&nbsp;write&nbsp;%s:&nbsp;%s\n&quot;,&nbsp;map_file,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;strerror(errno));
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;close(fd);
+}
+<P>
+/* Linux 3.19 made a change in the handling of <A HREF="/cgi-bin/man/man2html?2+setgroups">setgroups</A>(2) and the
+<BR>&nbsp;&nbsp;&nbsp;'gid_map'&nbsp;file&nbsp;to&nbsp;address&nbsp;a&nbsp;security&nbsp;issue.&nbsp;The&nbsp;issue&nbsp;allowed
+<BR>&nbsp;&nbsp;&nbsp;*unprivileged*&nbsp;users&nbsp;to&nbsp;employ&nbsp;user&nbsp;namespaces&nbsp;in&nbsp;order&nbsp;to&nbsp;drop
+<BR>&nbsp;&nbsp;&nbsp;The&nbsp;upshot&nbsp;of&nbsp;the&nbsp;3.19&nbsp;changes&nbsp;is&nbsp;that&nbsp;in&nbsp;order&nbsp;to&nbsp;update&nbsp;the
+<BR>&nbsp;&nbsp;&nbsp;'gid_maps'&nbsp;file,&nbsp;use&nbsp;of&nbsp;the&nbsp;setgroups()&nbsp;system&nbsp;call&nbsp;in&nbsp;this
+<BR>&nbsp;&nbsp;&nbsp;user&nbsp;namespace&nbsp;must&nbsp;first&nbsp;be&nbsp;disabled&nbsp;by&nbsp;writing&nbsp;&quot;deny&quot;&nbsp;to&nbsp;one&nbsp;of
+<BR>&nbsp;&nbsp;&nbsp;the&nbsp;/proc/PID/setgroups&nbsp;files&nbsp;for&nbsp;this&nbsp;namespace.&nbsp;&nbsp;That&nbsp;is&nbsp;the
+<BR>&nbsp;&nbsp;&nbsp;purpose&nbsp;of&nbsp;the&nbsp;following&nbsp;function.&nbsp;*/
+<P>
+static void
+proc_setgroups_write(pid_t child_pid, char *str)
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;setgroups_path[PATH_MAX];
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;fd;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;snprintf(setgroups_path,&nbsp;PATH_MAX,&nbsp;&quot;/proc/%ld/setgroups&quot;,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(long)&nbsp;child_pid);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fd&nbsp;=&nbsp;open(setgroups_path,&nbsp;O_RDWR);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(fd&nbsp;==&nbsp;-1)&nbsp;{
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;We&nbsp;may&nbsp;be&nbsp;on&nbsp;a&nbsp;system&nbsp;that&nbsp;doesn't&nbsp;support
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/proc/PID/setgroups.&nbsp;In&nbsp;that&nbsp;case,&nbsp;the&nbsp;file&nbsp;won't&nbsp;exist,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;and&nbsp;the&nbsp;system&nbsp;won't&nbsp;impose&nbsp;the&nbsp;restrictions&nbsp;that&nbsp;Linux&nbsp;3.19
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;added.&nbsp;That's&nbsp;fine:&nbsp;we&nbsp;don't&nbsp;need&nbsp;to&nbsp;do&nbsp;anything&nbsp;in&nbsp;order
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;to&nbsp;permit&nbsp;'gid_map'&nbsp;to&nbsp;be&nbsp;updated.
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;However,&nbsp;if&nbsp;the&nbsp;error&nbsp;from&nbsp;open()&nbsp;was&nbsp;something&nbsp;other&nbsp;than
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;the&nbsp;ENOENT&nbsp;error&nbsp;that&nbsp;is&nbsp;expected&nbsp;for&nbsp;that&nbsp;case,&nbsp;&nbsp;let&nbsp;the
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;user&nbsp;know.&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(errno&nbsp;!=&nbsp;ENOENT)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;ERROR:&nbsp;open&nbsp;%s:&nbsp;%s\n&quot;,&nbsp;setgroups_path,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;strerror(errno));
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(write(fd,&nbsp;str,&nbsp;strlen(str))&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;ERROR:&nbsp;write&nbsp;%s:&nbsp;%s\n&quot;,&nbsp;setgroups_path,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;strerror(errno));
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;close(fd);
+}
+<P>
+static int              /* Start function for cloned child */
+childFunc(void *arg)
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;child_args&nbsp;*args&nbsp;=&nbsp;(struct&nbsp;child_args&nbsp;*)&nbsp;arg;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;ch;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Wait&nbsp;until&nbsp;the&nbsp;parent&nbsp;has&nbsp;updated&nbsp;the&nbsp;UID&nbsp;and&nbsp;GID&nbsp;mappings.
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;See&nbsp;the&nbsp;comment&nbsp;in&nbsp;main().&nbsp;We&nbsp;wait&nbsp;for&nbsp;end&nbsp;of&nbsp;file&nbsp;on&nbsp;a
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pipe&nbsp;that&nbsp;will&nbsp;be&nbsp;closed&nbsp;by&nbsp;the&nbsp;parent&nbsp;process&nbsp;once&nbsp;it&nbsp;has
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;updated&nbsp;the&nbsp;mappings.&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;close(args-&gt;pipe_fd[1]);&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Close&nbsp;our&nbsp;descriptor&nbsp;for&nbsp;the&nbsp;write
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;end&nbsp;of&nbsp;the&nbsp;pipe&nbsp;so&nbsp;that&nbsp;we&nbsp;see&nbsp;EOF
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;when&nbsp;parent&nbsp;closes&nbsp;its&nbsp;descriptor&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(read(args-&gt;pipe_fd[0],&nbsp;&amp;ch,&nbsp;1)&nbsp;!=&nbsp;0)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;Failure&nbsp;in&nbsp;child:&nbsp;read&nbsp;from&nbsp;pipe&nbsp;returned&nbsp;!=&nbsp;0\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;close(args-&gt;pipe_fd[0]);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Execute&nbsp;a&nbsp;shell&nbsp;command&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;About&nbsp;to&nbsp;exec&nbsp;%s\n&quot;,&nbsp;args-&gt;argv[0]);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;execvp(args-&gt;argv[0],&nbsp;args-&gt;argv);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;errExit(&quot;execvp&quot;);
+}
+<P>
+#define STACK_SIZE (1024 * 1024)
+<P>
+static char child_stack[STACK_SIZE];    /* Space for child's stack */
+<P>
+int
+main(int argc, char *argv[])
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;flags,&nbsp;opt,&nbsp;map_zero;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;pid_t&nbsp;child_pid;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;child_args&nbsp;args;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;*uid_map,&nbsp;*gid_map;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;const&nbsp;int&nbsp;MAP_BUF_SIZE&nbsp;=&nbsp;100;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;map_buf[MAP_BUF_SIZE];
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;map_path[PATH_MAX];
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Parse&nbsp;command-line&nbsp;options.&nbsp;The&nbsp;initial&nbsp;'+'&nbsp;character&nbsp;in
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;the&nbsp;final&nbsp;getopt()&nbsp;argument&nbsp;prevents&nbsp;GNU-style&nbsp;permutation
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;of&nbsp;command-line&nbsp;options.&nbsp;That's&nbsp;useful,&nbsp;since&nbsp;sometimes
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;the&nbsp;'command'&nbsp;to&nbsp;be&nbsp;executed&nbsp;by&nbsp;this&nbsp;program&nbsp;itself
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;has&nbsp;command-line&nbsp;options.&nbsp;We&nbsp;don't&nbsp;want&nbsp;getopt()&nbsp;to&nbsp;treat
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;those&nbsp;as&nbsp;options&nbsp;to&nbsp;this&nbsp;program.&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;flags&nbsp;=&nbsp;0;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;verbose&nbsp;=&nbsp;0;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;gid_map&nbsp;=&nbsp;NULL;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uid_map&nbsp;=&nbsp;NULL;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;map_zero&nbsp;=&nbsp;0;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;while&nbsp;((opt&nbsp;=&nbsp;getopt(argc,&nbsp;argv,&nbsp;&quot;+imnpuUM:G:zv&quot;))&nbsp;!=&nbsp;-1)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;switch&nbsp;(opt)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;case&nbsp;'i':&nbsp;flags&nbsp;|=&nbsp;CLONE_NEWIPC;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;break;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;case&nbsp;'m':&nbsp;flags&nbsp;|=&nbsp;CLONE_NEWNS;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;break;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;case&nbsp;'n':&nbsp;flags&nbsp;|=&nbsp;CLONE_NEWNET;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;break;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;case&nbsp;'p':&nbsp;flags&nbsp;|=&nbsp;CLONE_NEWPID;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;break;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;case&nbsp;'u':&nbsp;flags&nbsp;|=&nbsp;CLONE_NEWUTS;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;break;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;case&nbsp;'v':&nbsp;verbose&nbsp;=&nbsp;1;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;break;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;case&nbsp;'z':&nbsp;map_zero&nbsp;=&nbsp;1;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;break;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;case&nbsp;'M':&nbsp;uid_map&nbsp;=&nbsp;optarg;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;break;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;case&nbsp;'G':&nbsp;gid_map&nbsp;=&nbsp;optarg;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;break;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;case&nbsp;'U':&nbsp;flags&nbsp;|=&nbsp;CLONE_NEWUSER;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;break;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;default:&nbsp;&nbsp;usage(argv[0]);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;-M&nbsp;or&nbsp;-G&nbsp;without&nbsp;-U&nbsp;is&nbsp;nonsensical&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(((uid_map&nbsp;!=&nbsp;NULL&nbsp;||&nbsp;gid_map&nbsp;!=&nbsp;NULL&nbsp;||&nbsp;map_zero)&nbsp;&amp;&amp;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;!(flags&nbsp;&amp;&nbsp;CLONE_NEWUSER))&nbsp;||
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(map_zero&nbsp;&amp;&amp;&nbsp;(uid_map&nbsp;!=&nbsp;NULL&nbsp;||&nbsp;gid_map&nbsp;!=&nbsp;NULL)))
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;usage(argv[0]);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;args.argv&nbsp;=&nbsp;&amp;argv[optind];
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;We&nbsp;use&nbsp;a&nbsp;pipe&nbsp;to&nbsp;synchronize&nbsp;the&nbsp;parent&nbsp;and&nbsp;child,&nbsp;in&nbsp;order&nbsp;to
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ensure&nbsp;that&nbsp;the&nbsp;parent&nbsp;sets&nbsp;the&nbsp;UID&nbsp;and&nbsp;GID&nbsp;maps&nbsp;before&nbsp;the&nbsp;child
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;calls&nbsp;execve().&nbsp;This&nbsp;ensures&nbsp;that&nbsp;the&nbsp;child&nbsp;maintains&nbsp;its
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;capabilities&nbsp;during&nbsp;the&nbsp;execve()&nbsp;in&nbsp;the&nbsp;common&nbsp;case&nbsp;where&nbsp;we
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;want&nbsp;to&nbsp;map&nbsp;the&nbsp;child's&nbsp;effective&nbsp;user&nbsp;ID&nbsp;to&nbsp;0&nbsp;in&nbsp;the&nbsp;new&nbsp;user
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;namespace.&nbsp;Without&nbsp;this&nbsp;synchronization,&nbsp;the&nbsp;child&nbsp;would&nbsp;lose
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;its&nbsp;capabilities&nbsp;if&nbsp;it&nbsp;performed&nbsp;an&nbsp;execve()&nbsp;with&nbsp;nonzero
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;user&nbsp;IDs&nbsp;(see&nbsp;the&nbsp;<A HREF="/cgi-bin/man/man2html?7+capabilities">capabilities</A>(7)&nbsp;man&nbsp;page&nbsp;for&nbsp;details&nbsp;of&nbsp;the
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;transformation&nbsp;of&nbsp;a&nbsp;process's&nbsp;capabilities&nbsp;during&nbsp;execve()).&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(pipe(args.pipe_fd)&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errExit(&quot;pipe&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Create&nbsp;the&nbsp;child&nbsp;in&nbsp;new&nbsp;namespace(s)&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;child_pid&nbsp;=&nbsp;clone(childFunc,&nbsp;child_stack&nbsp;+&nbsp;STACK_SIZE,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;flags&nbsp;|&nbsp;SIGCHLD,&nbsp;&amp;args);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(child_pid&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errExit(&quot;clone&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Parent&nbsp;falls&nbsp;through&nbsp;to&nbsp;here&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(verbose)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;%s:&nbsp;PID&nbsp;of&nbsp;child&nbsp;created&nbsp;by&nbsp;clone()&nbsp;is&nbsp;%ld\n&quot;,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;argv[0],&nbsp;(long)&nbsp;child_pid);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Update&nbsp;the&nbsp;UID&nbsp;and&nbsp;GID&nbsp;maps&nbsp;in&nbsp;the&nbsp;child&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(uid_map&nbsp;!=&nbsp;NULL&nbsp;||&nbsp;map_zero)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;snprintf(map_path,&nbsp;PATH_MAX,&nbsp;&quot;/proc/%ld/uid_map&quot;,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(long)&nbsp;child_pid);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(map_zero)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;snprintf(map_buf,&nbsp;MAP_BUF_SIZE,&nbsp;&quot;0&nbsp;%ld&nbsp;1&quot;,&nbsp;(long)&nbsp;getuid());
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;uid_map&nbsp;=&nbsp;map_buf;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;update_map(uid_map,&nbsp;map_path);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(gid_map&nbsp;!=&nbsp;NULL&nbsp;||&nbsp;map_zero)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;proc_setgroups_write(child_pid,&nbsp;&quot;deny&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;snprintf(map_path,&nbsp;PATH_MAX,&nbsp;&quot;/proc/%ld/gid_map&quot;,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(long)&nbsp;child_pid);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(map_zero)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;snprintf(map_buf,&nbsp;MAP_BUF_SIZE,&nbsp;&quot;0&nbsp;%ld&nbsp;1&quot;,&nbsp;(long)&nbsp;getgid());
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gid_map&nbsp;=&nbsp;map_buf;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;update_map(gid_map,&nbsp;map_path);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Close&nbsp;the&nbsp;write&nbsp;end&nbsp;of&nbsp;the&nbsp;pipe,&nbsp;to&nbsp;signal&nbsp;to&nbsp;the&nbsp;child&nbsp;that&nbsp;we
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;have&nbsp;updated&nbsp;the&nbsp;UID&nbsp;and&nbsp;GID&nbsp;maps&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;close(args.pipe_fd[1]);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(waitpid(child_pid,&nbsp;NULL,&nbsp;0)&nbsp;==&nbsp;-1)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Wait&nbsp;for&nbsp;child&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errExit(&quot;waitpid&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(verbose)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;%s:&nbsp;terminating\n&quot;,&nbsp;argv[0]);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_SUCCESS);
+}
+
+<A NAME="lbAV">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?1+newgidmap">newgidmap</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?1+newuidmap">newuidmap</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?2+clone">clone</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+ptrace">ptrace</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+setns">setns</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+unshare">unshare</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?5+proc">proc</A></B>(5),
+
+<B><A HREF="/cgi-bin/man/man2html?5+subgid">subgid</A></B>(5),
+
+<B><A HREF="/cgi-bin/man/man2html?5+subuid">subuid</A></B>(5),
+
+<B><A HREF="/cgi-bin/man/man2html?7+capabilities">capabilities</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+cgroup_namespaces">cgroup_namespaces</A></B>(7)
+
+<B><A HREF="/cgi-bin/man/man2html?7+credentials">credentials</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+namespaces">namespaces</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+pid_namespaces">pid_namespaces</A></B>(7)
+
+<P>
+
+The kernel source file
+<I>Documentation/namespaces/resource-control.txt</I>.
+
+<A NAME="lbAW">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="38"><A HREF="#lbAB">NAME</A><DD>
+<DT id="39"><A HREF="#lbAC">DESCRIPTION</A><DD>
+<DL>
+<DT id="40"><A HREF="#lbAD">Nested namespaces, namespace membership</A><DD>
+<DT id="41"><A HREF="#lbAE">Capabilities</A><DD>
+<DT id="42"><A HREF="#lbAF">Effect of capabilities within a user namespace</A><DD>
+<DT id="43"><A HREF="#lbAG">Interaction of user namespaces and other types of namespaces</A><DD>
+<DT id="44"><A HREF="#lbAH">User and group ID mappings: uid_map and gid_map</A><DD>
+<DT id="45"><A HREF="#lbAI">Defining user and group ID mappings: writing to uid_map and gid_map</A><DD>
+<DT id="46"><A HREF="#lbAJ">Interaction with system calls that change process UIDs or GIDs</A><DD>
+<DT id="47"><A HREF="#lbAK">The /proc/[pid]/setgroups file</A><DD>
+<DT id="48"><A HREF="#lbAL">Unmapped user and group IDs</A><DD>
+<DT id="49"><A HREF="#lbAM">Accessing files</A><DD>
+<DT id="50"><A HREF="#lbAN">Operation of file-related capabilities</A><DD>
+<DT id="51"><A HREF="#lbAO">Set-user-ID and set-group-ID programs</A><DD>
+<DT id="52"><A HREF="#lbAP">Miscellaneous</A><DD>
+</DL>
+<DT id="53"><A HREF="#lbAQ">CONFORMING TO</A><DD>
+<DT id="54"><A HREF="#lbAR">NOTES</A><DD>
+<DL>
+<DT id="55"><A HREF="#lbAS">Availability</A><DD>
+</DL>
+<DT id="56"><A HREF="#lbAT">EXAMPLE</A><DD>
+<DL>
+<DT id="57"><A HREF="#lbAU">Program source</A><DD>
+</DL>
+<DT id="58"><A HREF="#lbAV">SEE ALSO</A><DD>
+<DT id="59"><A HREF="#lbAW">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:10 GMT, March 31, 2021
+</BODY>
+</HTML>

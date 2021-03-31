@@ -1,0 +1,475 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of IO::ScalarArray</TITLE>
+</HEAD><BODY>
+<H1>IO::ScalarArray</H1>
+Section: User Contributed Perl Documentation (3pm)<BR>Updated: 2019-02-28<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+IO::ScalarArray - IO:: interface for reading/writing an array of scalars
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+
+
+Perform I/O on strings, using the basic <FONT SIZE="-1">OO</FONT> interface...
+<P>
+
+
+
+<PRE>
+    use IO::ScalarArray;
+    @data = (&quot;My mes&quot;, &quot;sage:\n&quot;);
+
+    ### Open a handle on an array, and append to it:
+    $AH = new IO::ScalarArray \@data;
+    $AH-&gt;print(&quot;Hello&quot;);       
+    $AH-&gt;print(&quot;, world!\nBye now!\n&quot;);  
+    print &quot;The array is now: &quot;, @data, &quot;\n&quot;;
+
+    ### Open a handle on an array, read it line-by-line, then close it:
+    $AH = new IO::ScalarArray \@data;
+    while (defined($_ = $AH-&gt;getline)) { 
+        print &quot;Got line: $_&quot;;
+    }
+    $AH-&gt;close;
+
+    ### Open a handle on an array, and slurp in all the lines:
+    $AH = new IO::ScalarArray \@data;
+    print &quot;All lines:\n&quot;, $AH-&gt;getlines; 
+
+    ### Get the current position (either of two ways):
+    $pos = $AH-&gt;getpos;         
+    $offset = $AH-&gt;tell;  
+
+    ### Set the current position (either of two ways):
+    $AH-&gt;setpos($pos);        
+    $AH-&gt;seek($offset, 0);
+
+    ### Open an anonymous temporary array:
+    $AH = new IO::ScalarArray;
+    $AH-&gt;print(&quot;Hi there!&quot;);
+    print &quot;I printed: &quot;, @{$AH-&gt;aref}, &quot;\n&quot;;      ### get at value
+
+</PRE>
+
+
+<P>
+
+Don't like <FONT SIZE="-1">OO</FONT> for your I/O?  No problem.  
+Thanks to the magic of an invisible <B>tie()</B>, the following now 
+works out of the box, just as it does with IO::Handle:
+<P>
+
+
+
+<PRE>
+    use IO::ScalarArray;
+    @data = (&quot;My mes&quot;, &quot;sage:\n&quot;);
+
+    ### Open a handle on an array, and append to it:
+    $AH = new IO::ScalarArray \@data;
+    print $AH &quot;Hello&quot;;    
+    print $AH &quot;, world!\nBye now!\n&quot;;
+    print &quot;The array is now: &quot;, @data, &quot;\n&quot;;
+
+    ### Open a handle on a string, read it line-by-line, then close it:
+    $AH = new IO::ScalarArray \@data;
+    while (&lt;$AH&gt;) {
+        print &quot;Got line: $_&quot;;
+    }
+    close $AH;
+
+    ### Open a handle on a string, and slurp in all the lines:
+    $AH = new IO::ScalarArray \@data;
+    print &quot;All lines:\n&quot;, &lt;$AH&gt;;
+
+    ### Get the current position (WARNING: requires 5.6):
+    $offset = tell $AH;
+
+    ### Set the current position (WARNING: requires 5.6):
+    seek $AH, $offset, 0;
+
+    ### Open an anonymous temporary scalar:
+    $AH = new IO::ScalarArray;
+    print $AH &quot;Hi there!&quot;;
+    print &quot;I printed: &quot;, @{$AH-&gt;aref}, &quot;\n&quot;;      ### get at value
+
+</PRE>
+
+
+<P>
+
+And for you folks with 1.x code out there: the old <B>tie()</B> style still works,
+though this is <I>unnecessary and deprecated</I>:
+<P>
+
+
+
+<PRE>
+    use IO::ScalarArray;
+
+    ### Writing to a scalar...
+    my @a; 
+    tie *OUT, 'IO::ScalarArray', \@a;
+    print OUT &quot;line 1\nline 2\n&quot;, &quot;line 3\n&quot;;
+    print &quot;Array is now: &quot;, @a, &quot;\n&quot;
+
+    ### Reading and writing an anonymous scalar... 
+    tie *OUT, 'IO::ScalarArray';
+    print OUT &quot;line 1\nline 2\n&quot;, &quot;line 3\n&quot;;
+    tied(OUT)-&gt;seek(0,0);
+    while (&lt;OUT&gt;) { 
+        print &quot;Got line: &quot;, $_;
+    }
+
+</PRE>
+
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+
+This class is part of the IO::Stringy distribution;
+see IO::Stringy for change log and general information.
+<P>
+
+The IO::ScalarArray class implements objects which behave just like 
+IO::Handle (or FileHandle) objects, except that you may use them 
+to write to (or read from) arrays of scalars.  Logically, an
+array of scalars defines an in-core ``file'' whose contents are
+the concatenation of the scalars in the array.  The handles created by 
+this class are automatically tiehandle'd (though please see ``<FONT SIZE="-1">WARNINGS''</FONT>
+for information relevant to your Perl version).
+<P>
+
+For writing large amounts of data with individual <B>print()</B> statements, 
+this class is likely to be more efficient than IO::Scalar.
+<P>
+
+Basically, this:
+<P>
+
+
+
+<PRE>
+    my @a;
+    $AH = new IO::ScalarArray \@a;
+    $AH-&gt;print(&quot;Hel&quot;, &quot;lo, &quot;);         ### OO style
+    $AH-&gt;print(&quot;world!\n&quot;);            ### ditto
+
+</PRE>
+
+
+<P>
+
+Or this:
+<P>
+
+
+
+<PRE>
+    my @a;
+    $AH = new IO::ScalarArray \@a;
+    print $AH &quot;Hel&quot;, &quot;lo, &quot;;           ### non-OO style
+    print $AH &quot;world!\n&quot;;              ### ditto
+
+</PRE>
+
+
+<P>
+
+Causes <TT>@a</TT> to be set to the following array of 3 strings:
+<P>
+
+
+
+<PRE>
+    ( &quot;Hel&quot; , 
+      &quot;lo, &quot; , 
+      &quot;world!\n&quot; )
+
+</PRE>
+
+
+<P>
+
+See IO::Scalar and compare with this class.
+<A NAME="lbAE">&nbsp;</A>
+<H2>PUBLIC INTERFACE</H2>
+
+
+
+<A NAME="lbAF">&nbsp;</A>
+<H3>Construction</H3>
+
+
+
+<DL COMPACT>
+<DT id="1">new [<FONT SIZE="-1">ARGS...</FONT>]<DD>
+
+
+<I>Class method.</I>
+Return a new, unattached array handle.  
+If any arguments are given, they're sent to <B>open()</B>.
+<DT id="2">open [<FONT SIZE="-1">ARRAYREF</FONT>]<DD>
+
+
+<I>Instance method.</I>
+Open the array handle on a new array, pointed to by <FONT SIZE="-1">ARRAYREF.</FONT>
+If no <FONT SIZE="-1">ARRAYREF</FONT> is given, a ``private'' array is created to hold
+the file data.
+
+
+<P>
+
+
+Returns the self object on success, undefined on error.
+<DT id="3">opened<DD>
+
+
+<I>Instance method.</I>
+Is the array handle opened on something?
+<DT id="4">close<DD>
+
+
+<I>Instance method.</I>
+Disassociate the array handle from its underlying array.
+Done automatically on destroy.
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H3>Input and output</H3>
+
+
+
+<DL COMPACT>
+<DT id="5">flush<DD>
+
+
+<I>Instance method.</I>
+No-op, provided for <FONT SIZE="-1">OO</FONT> compatibility.
+<DT id="6">fileno<DD>
+
+
+<I>Instance method.</I>
+No-op, returns undef
+<DT id="7">getc<DD>
+
+
+<I>Instance method.</I>
+Return the next character, or undef if none remain.
+This does a <B><A HREF="/cgi-bin/man/man2html?1+read">read</A></B>(1), which is somewhat costly.
+<DT id="8">getline<DD>
+
+
+<I>Instance method.</I>
+Return the next line, or undef on end of data.
+Can safely be called in an array context.
+Currently, lines are delimited by ``\n''.
+<DT id="9">getlines<DD>
+
+
+<I>Instance method.</I>
+Get all remaining lines.
+It will <B>croak()</B> if accidentally called in a scalar context.
+<DT id="10">print <FONT SIZE="-1">ARGS...</FONT><DD>
+
+
+<I>Instance method.</I>
+Print <FONT SIZE="-1">ARGS</FONT> to the underlying array.
+
+
+<P>
+
+
+Currently, this always causes a ``seek to the end of the array''
+and generates a new array entry.  This may change in the future.
+<DT id="11">read <FONT SIZE="-1">BUF, NBYTES,</FONT> [<FONT SIZE="-1">OFFSET</FONT>];<DD>
+
+
+<I>Instance method.</I>
+Read some bytes from the array.
+Returns the number of bytes actually read, 0 on end-of-file, undef on error.
+<DT id="12">write <FONT SIZE="-1">BUF, NBYTES,</FONT> [<FONT SIZE="-1">OFFSET</FONT>];<DD>
+
+
+<I>Instance method.</I>
+Write some bytes into the array.
+</DL>
+<A NAME="lbAH">&nbsp;</A>
+<H3>Seeking/telling and other attributes</H3>
+
+
+
+<DL COMPACT>
+<DT id="13">autoflush<DD>
+
+
+<I>Instance method.</I>
+No-op, provided for <FONT SIZE="-1">OO</FONT> compatibility.
+<DT id="14">binmode<DD>
+
+
+<I>Instance method.</I>
+No-op, provided for <FONT SIZE="-1">OO</FONT> compatibility.
+<DT id="15">clearerr<DD>
+
+
+<I>Instance method.</I>  Clear the error and <FONT SIZE="-1">EOF</FONT> flags.  A no-op.
+<DT id="16">eof<DD>
+
+
+<I>Instance method.</I>  Are we at end of file?
+<DT id="17">seek <FONT SIZE="-1">POS,WHENCE</FONT><DD>
+
+
+<I>Instance method.</I>
+Seek to a given position in the stream.
+Only a <FONT SIZE="-1">WHENCE</FONT> of 0 (<FONT SIZE="-1">SEEK_SET</FONT>) is supported.
+<DT id="18">tell<DD>
+
+
+<I>Instance method.</I>
+Return the current position in the stream, as a numeric offset.
+<DT id="19">setpos <FONT SIZE="-1">POS</FONT><DD>
+
+
+<I>Instance method.</I>
+Seek to a given position in the array, using the opaque <B>getpos()</B> value.
+Don't expect this to be a number.
+<DT id="20">getpos<DD>
+
+
+<I>Instance method.</I>
+Return the current position in the array, as an opaque value.
+Don't expect this to be a number.
+<DT id="21">aref<DD>
+
+
+<I>Instance method.</I>
+Return a reference to the underlying array.
+</DL>
+<A NAME="lbAI">&nbsp;</A>
+<H2>WARNINGS</H2>
+
+
+
+Perl's <FONT SIZE="-1">TIEHANDLE</FONT> spec was incomplete prior to 5.005_57;
+it was missing support for <TT>&quot;seek()&quot;</TT>, <TT>&quot;tell()&quot;</TT>, and <TT>&quot;eof()&quot;</TT>.
+Attempting to use these functions with an IO::ScalarArray will not work
+prior to 5.005_57. IO::ScalarArray will not have the relevant methods 
+invoked; and even worse, this kind of bug can lie dormant for a while.
+If you turn warnings on (via <TT>$^W</TT> or <TT>&quot;perl -w&quot;</TT>),
+and you see something like this...
+<P>
+
+
+
+<PRE>
+    attempt to seek on unopened filehandle
+
+</PRE>
+
+
+<P>
+
+...then you are probably trying to use one of these functions
+on an IO::ScalarArray with an old Perl.  The remedy is to simply
+use the <FONT SIZE="-1">OO</FONT> version; e.g.:
+<P>
+
+
+
+<PRE>
+    $AH-&gt;seek(0,0);    ### GOOD: will work on any 5.005
+    seek($AH,0,0);     ### WARNING: will only work on 5.005_57 and beyond
+
+</PRE>
+
+
+<A NAME="lbAJ">&nbsp;</A>
+<H2>VERSION</H2>
+
+
+
+<TT>$Id:</TT> ScalarArray.pm,v 1.7 2005/02/10 21:21:53 dfs Exp $
+<A NAME="lbAK">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+
+
+<A NAME="lbAL">&nbsp;</A>
+<H3>Primary Maintainer</H3>
+
+
+
+Dianne Skoll (<I><A HREF="mailto:dfs@roaringpenguin.com">dfs@roaringpenguin.com</A></I>).
+<A NAME="lbAM">&nbsp;</A>
+<H3>Principal author</H3>
+
+
+
+Eryq (<I><A HREF="mailto:eryq@zeegee.com">eryq@zeegee.com</A></I>).
+President, ZeeGee Software Inc (<I><A HREF="http://www.zeegee.com">http://www.zeegee.com</A></I>).
+<A NAME="lbAN">&nbsp;</A>
+<H3>Other contributors</H3>
+
+
+
+Thanks to the following individuals for their invaluable contributions
+(if I've forgotten or misspelled your name, please email me!):
+<P>
+
+<I>Andy Glew,</I>
+for suggesting <TT>&quot;getc()&quot;</TT>.
+<P>
+
+<I>Brandon Browning,</I>
+for suggesting <TT>&quot;opened()&quot;</TT>.
+<P>
+
+<I>Eric L. Brine,</I>
+for his offset-using <B>read()</B> and <B>write()</B> implementations.
+<P>
+
+<I>Doug Wilson,</I>
+for the IO::Handle inheritance and automatic tie-ing.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="22"><A HREF="#lbAB">NAME</A><DD>
+<DT id="23"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="24"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="25"><A HREF="#lbAE">PUBLIC INTERFACE</A><DD>
+<DL>
+<DT id="26"><A HREF="#lbAF">Construction</A><DD>
+<DT id="27"><A HREF="#lbAG">Input and output</A><DD>
+<DT id="28"><A HREF="#lbAH">Seeking/telling and other attributes</A><DD>
+</DL>
+<DT id="29"><A HREF="#lbAI">WARNINGS</A><DD>
+<DT id="30"><A HREF="#lbAJ">VERSION</A><DD>
+<DT id="31"><A HREF="#lbAK">AUTHOR</A><DD>
+<DL>
+<DT id="32"><A HREF="#lbAL">Primary Maintainer</A><DD>
+<DT id="33"><A HREF="#lbAM">Principal author</A><DD>
+<DT id="34"><A HREF="#lbAN">Other contributors</A><DD>
+</DL>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:46 GMT, March 31, 2021
+</BODY>
+</HTML>

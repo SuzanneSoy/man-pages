@@ -1,0 +1,889 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of GIT-BISECT</TITLE>
+</HEAD><BODY>
+<H1>GIT-BISECT</H1>
+Section: Git Manual (1)<BR>Updated: 03/04/2021<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+git-bisect - Use binary search to find the commit that introduced a bug
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+<PRE>
+<I>git bisect</I> &lt;subcommand&gt; &lt;options&gt;
+</PRE>
+
+<P>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+The command takes various subcommands, and different options depending on the subcommand:
+<P>
+<DL COMPACT><DT id="1"><DD>
+
+
+
+<PRE>
+git bisect start [--term-{old,good}=&lt;term&gt; --term-{new,bad}=&lt;term&gt;]
+                 [--no-checkout] [&lt;bad&gt; [&lt;good&gt;...]] [--] [&lt;paths&gt;...]
+git bisect (bad|new|&lt;term-new&gt;) [&lt;rev&gt;]
+git bisect (good|old|&lt;term-old&gt;) [&lt;rev&gt;...]
+git bisect terms [--term-good | --term-bad]
+git bisect skip [(&lt;rev&gt;|&lt;range&gt;)...]
+git bisect reset [&lt;commit&gt;]
+git bisect (visualize|view)
+git bisect replay &lt;logfile&gt;
+git bisect log
+git bisect run &lt;cmd&gt;...
+git bisect help
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+This command uses a binary search algorithm to find which commit in your project's history introduced a bug. You use it by first telling it a &quot;bad&quot; commit that is known to contain the bug, and a &quot;good&quot; commit that is known to be before the bug was introduced. Then <B>git bisect</B> picks a commit between those two endpoints and asks you whether the selected commit is &quot;good&quot; or &quot;bad&quot;. It continues narrowing down the range until it finds the exact commit that introduced the change.
+<P>
+In fact, <B>git bisect</B> can be used to find the commit that changed <B>any</B> property of your project; e.g., the commit that fixed a bug, or the commit that caused a benchmark's performance to improve. To support this more general usage, the terms &quot;old&quot; and &quot;new&quot; can be used in place of &quot;good&quot; and &quot;bad&quot;, or you can choose your own terms. See section &quot;Alternate terms&quot; below for more information.
+<A NAME="lbAE">&nbsp;</A>
+<H3>Basic bisect commands: start, bad, good</H3>
+
+<P>
+As an example, suppose you are trying to find the commit that broke a feature that was known to work in version <B>v2.6.13-rc2</B> of your project. You start a bisect session as follows:
+<P>
+<DL COMPACT><DT id="2"><DD>
+
+
+
+<PRE>
+$ git bisect start
+$ git bisect bad                 # Current version is bad
+$ git bisect good v2.6.13-rc2    # v2.6.13-rc2 is known to be good
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+Once you have specified at least one bad and one good commit, <B>git bisect</B> selects a commit in the middle of that range of history, checks it out, and outputs something similar to the following:
+<P>
+<DL COMPACT><DT id="3"><DD>
+
+
+
+<PRE>
+Bisecting: 675 revisions left to test after this (roughly 10 steps)
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+You should now compile the checked-out version and test it. If that version works correctly, type
+<P>
+<DL COMPACT><DT id="4"><DD>
+
+
+
+<PRE>
+$ git bisect good
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+If that version is broken, type
+<P>
+<DL COMPACT><DT id="5"><DD>
+
+
+
+<PRE>
+$ git bisect bad
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+Then <B>git bisect</B> will respond with something like
+<P>
+<DL COMPACT><DT id="6"><DD>
+
+
+
+<PRE>
+Bisecting: 337 revisions left to test after this (roughly 9 steps)
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+Keep repeating the process: compile the tree, test it, and depending on whether it is good or bad run <B>git bisect good</B> or <B>git bisect bad</B> to ask for the next commit that needs testing.
+<P>
+Eventually there will be no more revisions left to inspect, and the command will print out a description of the first bad commit. The reference <B>refs/bisect/bad</B> will be left pointing at that commit.
+<A NAME="lbAF">&nbsp;</A>
+<H3>Bisect reset</H3>
+
+<P>
+After a bisect session, to clean up the bisection state and return to the original HEAD, issue the following command:
+<P>
+<DL COMPACT><DT id="7"><DD>
+
+
+
+<PRE>
+$ git bisect reset
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+By default, this will return your tree to the commit that was checked out before <B>git bisect start</B>. (A new <B>git bisect start</B> will also do that, as it cleans up the old bisection state.)
+<P>
+With an optional argument, you can return to a different commit instead:
+<P>
+<DL COMPACT><DT id="8"><DD>
+
+
+
+<PRE>
+$ git bisect reset &lt;commit&gt;
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+For example, <B>git bisect reset bisect/bad</B> will check out the first bad revision, while <B>git bisect reset HEAD</B> will leave you on the current bisection commit and avoid switching commits at all.
+<A NAME="lbAG">&nbsp;</A>
+<H3>Alternate terms</H3>
+
+<P>
+Sometimes you are not looking for the commit that introduced a breakage, but rather for a commit that caused a change between some other &quot;old&quot; state and &quot;new&quot; state. For example, you might be looking for the commit that introduced a particular fix. Or you might be looking for the first commit in which the source-code filenames were finally all converted to your company's naming standard. Or whatever.
+<P>
+In such cases it can be very confusing to use the terms &quot;good&quot; and &quot;bad&quot; to refer to &quot;the state before the change&quot; and &quot;the state after the change&quot;. So instead, you can use the terms &quot;old&quot; and &quot;new&quot;, respectively, in place of &quot;good&quot; and &quot;bad&quot;. (But note that you cannot mix &quot;good&quot; and &quot;bad&quot; with &quot;old&quot; and &quot;new&quot; in a single session.)
+<P>
+In this more general usage, you provide <B>git bisect</B> with a &quot;new&quot; commit that has some property and an &quot;old&quot; commit that doesn't have that property. Each time <B>git bisect</B> checks out a commit, you test if that commit has the property. If it does, mark the commit as &quot;new&quot;; otherwise, mark it as &quot;old&quot;. When the bisection is done, <B>git bisect</B> will report which commit introduced the property.
+<P>
+To use &quot;old&quot; and &quot;new&quot; instead of &quot;good&quot; and bad, you must run <B>git bisect start</B> without commits as argument and then run the following commands to add the commits:
+<P>
+<DL COMPACT><DT id="9"><DD>
+
+
+
+<PRE>
+git bisect old [&lt;rev&gt;]
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+to indicate that a commit was before the sought change, or
+<P>
+<DL COMPACT><DT id="10"><DD>
+
+
+
+<PRE>
+git bisect new [&lt;rev&gt;...]
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+to indicate that it was after.
+<P>
+To get a reminder of the currently used terms, use
+<P>
+<DL COMPACT><DT id="11"><DD>
+
+
+
+<PRE>
+git bisect terms
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+You can get just the old (respectively new) term with <B>git bisect terms --term-old</B> or <B>git bisect terms --term-good</B>.
+<P>
+If you would like to use your own terms instead of &quot;bad&quot;/&quot;good&quot; or &quot;new&quot;/&quot;old&quot;, you can choose any names you like (except existing bisect subcommands like <B>reset</B>, <B>start</B>, ...) by starting the bisection using
+<P>
+<DL COMPACT><DT id="12"><DD>
+
+
+
+<PRE>
+git bisect start --term-old &lt;term-old&gt; --term-new &lt;term-new&gt;
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+For example, if you are looking for a commit that introduced a performance regression, you might use
+<P>
+<DL COMPACT><DT id="13"><DD>
+
+
+
+<PRE>
+git bisect start --term-old fast --term-new slow
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+Or if you are looking for the commit that fixed a bug, you might use
+<P>
+<DL COMPACT><DT id="14"><DD>
+
+
+
+<PRE>
+git bisect start --term-new fixed --term-old broken
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+Then, use <B>git bisect &lt;term-old&gt;</B> and <B>git bisect &lt;term-new&gt;</B> instead of <B>git bisect good</B> and <B>git bisect bad</B> to mark commits.
+<A NAME="lbAH">&nbsp;</A>
+<H3>Bisect visualize/view</H3>
+
+<P>
+To see the currently remaining suspects in <I>gitk</I>, issue the following command during the bisection process (the subcommand <B>view</B> can be used as an alternative to <B>visualize</B>):
+<P>
+<DL COMPACT><DT id="15"><DD>
+
+
+
+<PRE>
+$ git bisect visualize
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+If the <B>DISPLAY</B> environment variable is not set, <I>git log</I> is used instead. You can also give command-line options such as <B>-p</B> and <B>--stat</B>.
+<P>
+<DL COMPACT><DT id="16"><DD>
+
+
+
+<PRE>
+$ git bisect visualize --stat
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<A NAME="lbAI">&nbsp;</A>
+<H3>Bisect log and bisect replay</H3>
+
+<P>
+After having marked revisions as good or bad, issue the following command to show what has been done so far:
+<P>
+<DL COMPACT><DT id="17"><DD>
+
+
+
+<PRE>
+$ git bisect log
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+If you discover that you made a mistake in specifying the status of a revision, you can save the output of this command to a file, edit it to remove the incorrect entries, and then issue the following commands to return to a corrected state:
+<P>
+<DL COMPACT><DT id="18"><DD>
+
+
+
+<PRE>
+$ git bisect reset
+$ git bisect replay that-file
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<A NAME="lbAJ">&nbsp;</A>
+<H3>Avoiding testing a commit</H3>
+
+<P>
+If, in the middle of a bisect session, you know that the suggested revision is not a good one to test (e.g. it fails to build and you know that the failure does not have anything to do with the bug you are chasing), you can manually select a nearby commit and test that one instead.
+<P>
+For example:
+<P>
+<DL COMPACT><DT id="19"><DD>
+
+
+
+<PRE>
+$ git bisect good/bad                   # previous round was good or bad.
+Bisecting: 337 revisions left to test after this (roughly 9 steps)
+$ git bisect visualize                  # oops, that is uninteresting.
+$ git reset --hard HEAD~3               # try 3 revisions before what
+                                        # was suggested
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+Then compile and test the chosen revision, and afterwards mark the revision as good or bad in the usual manner.
+<A NAME="lbAK">&nbsp;</A>
+<H3>Bisect skip</H3>
+
+<P>
+Instead of choosing a nearby commit by yourself, you can ask Git to do it for you by issuing the command:
+<P>
+<DL COMPACT><DT id="20"><DD>
+
+
+
+<PRE>
+$ git bisect skip                 # Current version cannot be tested
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+However, if you skip a commit adjacent to the one you are looking for, Git will be unable to tell exactly which of those commits was the first bad one.
+<P>
+You can also skip a range of commits, instead of just one commit, using range notation. For example:
+<P>
+<DL COMPACT><DT id="21"><DD>
+
+
+
+<PRE>
+$ git bisect skip v2.5..v2.6
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+This tells the bisect process that no commit after <B>v2.5</B>, up to and including <B>v2.6</B>, should be tested.
+<P>
+Note that if you also want to skip the first commit of the range you would issue the command:
+<P>
+<DL COMPACT><DT id="22"><DD>
+
+
+
+<PRE>
+$ git bisect skip v2.5 v2.5..v2.6
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+This tells the bisect process that the commits between <B>v2.5</B> and <B>v2.6</B> (inclusive) should be skipped.
+<A NAME="lbAL">&nbsp;</A>
+<H3>Cutting down bisection by giving more parameters to bisect start</H3>
+
+<P>
+You can further cut down the number of trials, if you know what part of the tree is involved in the problem you are tracking down, by specifying path parameters when issuing the <B>bisect start</B> command:
+<P>
+<DL COMPACT><DT id="23"><DD>
+
+
+
+<PRE>
+$ git bisect start -- arch/i386 include/asm-i386
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+If you know beforehand more than one good commit, you can narrow the bisect space down by specifying all of the good commits immediately after the bad commit when issuing the <B>bisect start</B> command:
+<P>
+<DL COMPACT><DT id="24"><DD>
+
+
+
+<PRE>
+$ git bisect start v2.6.20-rc6 v2.6.20-rc4 v2.6.20-rc1 --
+                   # v2.6.20-rc6 is bad
+                   # v2.6.20-rc4 and v2.6.20-rc1 are good
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<A NAME="lbAM">&nbsp;</A>
+<H3>Bisect run</H3>
+
+<P>
+If you have a script that can tell if the current source code is good or bad, you can bisect by issuing the command:
+<P>
+<DL COMPACT><DT id="25"><DD>
+
+
+
+<PRE>
+$ git bisect run my_script arguments
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+Note that the script (<B>my_script</B> in the above example) should exit with code 0 if the current source code is good/old, and exit with a code between 1 and 127 (inclusive), except 125, if the current source code is bad/new.
+<P>
+Any other exit code will abort the bisect process. It should be noted that a program that terminates via <B>exit(-1)</B> leaves $? = 255, (see the <A HREF="/cgi-bin/man/man2html?3+exit">exit</A>(3) manual page), as the value is chopped with <B>&amp; 0377</B>.
+<P>
+The special exit code 125 should be used when the current source code cannot be tested. If the script exits with this code, the current revision will be skipped (see <B>git bisect skip</B> above). 125 was chosen as the highest sensible value to use for this purpose, because 126 and 127 are used by POSIX shells to signal specific error status (127 is for command not found, 126 is for command found but not executable---these details do not matter, as they are normal errors in the script, as far as <B>bisect run</B> is concerned).
+<P>
+You may often find that during a bisect session you want to have temporary modifications (e.g. s/#define DEBUG 0/#define DEBUG 1/ in a header file, or &quot;revision that does not have this commit needs this patch applied to work around another problem this bisection is not interested in&quot;) applied to the revision being tested.
+<P>
+To cope with such a situation, after the inner <I>git bisect</I> finds the next revision to test, the script can apply the patch before compiling, run the real test, and afterwards decide if the revision (possibly with the needed patch) passed the test and then rewind the tree to the pristine state. Finally the script should exit with the status of the real test to let the <B>git bisect run</B> command loop determine the eventual outcome of the bisect session.
+<A NAME="lbAN">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<P>
+
+--no-checkout
+<DL COMPACT><DT id="26"><DD>
+Do not checkout the new working tree at each iteration of the bisection process. Instead just update a special reference named
+<B>BISECT_HEAD</B>
+to make it point to the commit that should be tested.
+<P>
+This option may be useful when the test you would perform in each step does not require a checked out tree.
+<P>
+If the repository is bare,
+<B>--no-checkout</B>
+is assumed.
+</DL>
+
+<A NAME="lbAO">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+<P>
+<DL COMPACT><DT id="27"><DD>
+&bull;
+
+
+Automatically bisect a broken build between v1.2 and HEAD:
+<P>
+<DL COMPACT><DT id="28"><DD>
+
+
+
+<PRE>
+$ git bisect start HEAD v1.2 --      # HEAD is bad, v1.2 is good
+$ git bisect run make                # &quot;make&quot; builds the app
+$ git bisect reset                   # quit the bisect session
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+</DL>
+
+<P>
+<DL COMPACT><DT id="29"><DD>
+&bull;
+
+
+Automatically bisect a test failure between origin and HEAD:
+<P>
+<DL COMPACT><DT id="30"><DD>
+
+
+
+<PRE>
+$ git bisect start HEAD origin --    # HEAD is bad, origin is good
+$ git bisect run make test           # &quot;make test&quot; builds and tests
+$ git bisect reset                   # quit the bisect session
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+</DL>
+
+<P>
+<DL COMPACT><DT id="31"><DD>
+&bull;
+
+
+Automatically bisect a broken test case:
+<P>
+<DL COMPACT><DT id="32"><DD>
+
+
+
+<PRE>
+$ cat ~/test.sh
+#!/bin/sh
+make || exit 125                     # this skips broken builds
+~/check_test_case.sh                 # does the test case pass?
+$ git bisect start HEAD HEAD~10 --   # culprit is among the last 10
+$ git bisect run ~/test.sh
+$ git bisect reset                   # quit the bisect session
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+Here we use a
+<B>test.sh</B>
+custom script. In this script, if
+<B>make</B>
+fails, we skip the current commit.
+<B>check_test_case.sh</B>
+should
+<B>exit 0</B>
+if the test case passes, and
+<B>exit 1</B>
+otherwise.
+<P>
+It is safer if both
+<B>test.sh</B>
+and
+<B>check_test_case.sh</B>
+are outside the repository to prevent interactions between the bisect, make and test processes and the scripts.
+</DL>
+
+<P>
+<DL COMPACT><DT id="33"><DD>
+&bull;
+
+
+Automatically bisect with temporary modifications (hot-fix):
+<P>
+<DL COMPACT><DT id="34"><DD>
+
+
+
+<PRE>
+$ cat ~/test.sh
+#!/bin/sh
+
+# tweak the working tree by merging the hot-fix branch
+# and then attempt a build
+if      git merge --no-commit --no-ff hot-fix &amp;&amp;
+        make
+then
+        # run project specific test and report its status
+        ~/check_test_case.sh
+        status=$?
+else
+        # tell the caller this is untestable
+        status=125
+fi
+
+# undo the tweak to allow clean flipping to the next commit
+git reset --hard
+
+# return control
+exit $status
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+This applies modifications from a hot-fix branch before each test run, e.g. in case your build or test environment changed so that older revisions may need a fix which newer ones have already. (Make sure the hot-fix branch is based off a commit which is contained in all revisions which you are bisecting, so that the merge does not pull in too much, or use
+<B>git cherry-pick</B>
+instead of
+<B>git merge</B>.)
+</DL>
+
+<P>
+<DL COMPACT><DT id="35"><DD>
+&bull;
+
+
+Automatically bisect a broken test case:
+<P>
+<DL COMPACT><DT id="36"><DD>
+
+
+
+<PRE>
+$ git bisect start HEAD HEAD~10 --   # culprit is among the last 10
+$ git bisect run sh -c &quot;make || exit 125; ~/check_test_case.sh&quot;
+$ git bisect reset                   # quit the bisect session
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+This shows that you can do without a run script if you write the test on a single line.
+</DL>
+
+<P>
+<DL COMPACT><DT id="37"><DD>
+&bull;
+
+
+Locate a good region of the object graph in a damaged repository
+<P>
+<DL COMPACT><DT id="38"><DD>
+
+
+
+<PRE>
+$ git bisect start HEAD &lt;known-good-commit&gt; [ &lt;boundary-commit&gt; ... ] --no-checkout
+$ git bisect run sh -c '
+        GOOD=$(git for-each-ref &quot;--format=%(objectname)&quot; refs/bisect/good-*) &amp;&amp;
+        git rev-list --objects BISECT_HEAD --not $GOOD &gt;tmp.$$ &amp;&amp;
+        git pack-objects --stdout &gt;/dev/null &lt;tmp.$$
+        rc=$?
+        rm -f tmp.$$
+        test $rc = 0'
+
+$ git bisect reset                   # quit the bisect session
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+In this case, when
+<I>git bisect run</I>
+finishes, bisect/bad will refer to a commit that has at least one parent whose reachable graph is fully traversable in the sense required by
+<I>git pack objects</I>.
+</DL>
+
+<P>
+<DL COMPACT><DT id="39"><DD>
+&bull;
+
+
+Look for a fix instead of a regression in the code
+<P>
+<DL COMPACT><DT id="40"><DD>
+
+
+
+<PRE>
+$ git bisect start
+$ git bisect new HEAD    # current commit is marked as new
+$ git bisect old HEAD~10 # the tenth commit from now is marked as old
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+or:
+</DL>
+
+<P>
+<DL COMPACT><DT id="41"><DD>
+
+
+
+<PRE>
+$ git bisect start --term-old broken --term-new fixed
+$ git bisect fixed
+$ git bisect broken HEAD~10
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<A NAME="lbAP">&nbsp;</A>
+<H3>Getting help</H3>
+
+<P>
+Use <B>git bisect</B> to get a short usage description, and <B>git bisect help</B> or <B>git bisect -h</B> to get a long usage description.
+<A NAME="lbAQ">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+m[blue]<B>Fighting regressions with git bisect</B>m[]<FONT SIZE="-2">[1]</FONT>, <B><A HREF="/cgi-bin/man/man2html?1+git-blame">git-blame</A></B>(1).
+<A NAME="lbAR">&nbsp;</A>
+<H2>GIT</H2>
+
+<P>
+Part of the <B><A HREF="/cgi-bin/man/man2html?1+git">git</A></B>(1) suite
+<A NAME="lbAS">&nbsp;</A>
+<H2>NOTES</H2>
+
+<DL COMPACT>
+<DT id="42"> 1.<DD>
+Fighting regressions with git bisect
+<DL COMPACT><DT id="43"><DD>
+<A HREF="file:///usr/share/doc/git/html/git-bisect-lk2009.html">file:///usr/share/doc/git/html/git-bisect-lk2009.html</A>
+</DL>
+
+<P>
+</DL>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="44"><A HREF="#lbAB">NAME</A><DD>
+<DT id="45"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="46"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DL>
+<DT id="47"><A HREF="#lbAE">Basic bisect commands: start, bad, good</A><DD>
+<DT id="48"><A HREF="#lbAF">Bisect reset</A><DD>
+<DT id="49"><A HREF="#lbAG">Alternate terms</A><DD>
+<DT id="50"><A HREF="#lbAH">Bisect visualize/view</A><DD>
+<DT id="51"><A HREF="#lbAI">Bisect log and bisect replay</A><DD>
+<DT id="52"><A HREF="#lbAJ">Avoiding testing a commit</A><DD>
+<DT id="53"><A HREF="#lbAK">Bisect skip</A><DD>
+<DT id="54"><A HREF="#lbAL">Cutting down bisection by giving more parameters to bisect start</A><DD>
+<DT id="55"><A HREF="#lbAM">Bisect run</A><DD>
+</DL>
+<DT id="56"><A HREF="#lbAN">OPTIONS</A><DD>
+<DT id="57"><A HREF="#lbAO">EXAMPLES</A><DD>
+<DL>
+<DT id="58"><A HREF="#lbAP">Getting help</A><DD>
+</DL>
+<DT id="59"><A HREF="#lbAQ">SEE ALSO</A><DD>
+<DT id="60"><A HREF="#lbAR">GIT</A><DD>
+<DT id="61"><A HREF="#lbAS">NOTES</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:13 GMT, March 31, 2021
+</BODY>
+</HTML>

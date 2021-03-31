@@ -1,0 +1,318 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of DH_INSTALLINIT</TITLE>
+</HEAD><BODY>
+<H1>DH_INSTALLINIT</H1>
+Section: Debhelper (1)<BR>Updated: 2020-03-27<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+dh_installinit - install service init files into package build directories
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+
+
+<B>dh_installinit</B> [<I>debhelper options</I>] [<B>--name=</B><I>name</I>] [<B>-n</B>] [<B>-R</B>] [<B>-r</B>] [<B>-d</B>] [<B>--</B> <I>params</I>]
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+
+<B>dh_installinit</B> is a debhelper program that is responsible for
+installing init scripts with associated defaults files.  In
+compatibility levels up to and including 10, <B>dh_installinit</B> will
+also install some systemd related files provided by the debian
+packaging (see the ``<FONT SIZE="-1">FILES''</FONT> section below).  In compatibility levels
+up to and including 11, <B>dh_installinit</B> will also handle upstart
+jobs provided in the debian packaging (see the ``<FONT SIZE="-1">FILES''</FONT> for more
+information on this as well).
+<P>
+
+It also automatically generates the <I>postinst</I> and <I>postrm</I> and <I>prerm</I>
+commands needed to set up the symlinks in <I>/etc/rc*.d/</I> to start and stop
+the init scripts.
+<P>
+
+In compat 10 or earlier: If a package only ships a systemd service
+file and no sysvinit script is provided, you may want to exclude the
+call to dh_installinit for that package (e.g. via <B>-N</B>).  Otherwise,
+you may get warnings from lintian about init.d scripts not being
+included in the package.
+<A NAME="lbAE">&nbsp;</A>
+<H2>FILES</H2>
+
+
+
+<DL COMPACT>
+<DT id="1">debian/<I>package</I>.init<DD>
+
+
+If this exists, it is installed into etc/init.d/<I>package</I> in the package
+build directory.
+<DT id="2">debian/<I>package</I>.default<DD>
+
+
+If this exists, it is installed into etc/default/<I>package</I> in the package
+build directory.
+<DT id="3">debian/<I>package</I>.upstart<DD>
+
+
+In compatibility level 11, this file will trigger an error with a reminder
+about ensuring the proper removal of the upstart file in the previous package
+version.  Please consider using the ``rm_conffile'' feature from
+<B><A HREF="/cgi-bin/man/man2html?1+dh_installdeb">dh_installdeb</A></B>(1) to ensure the proper removal of previous upstart files.
+
+
+<P>
+
+
+In compatibility level 10, if this file exists, it is installed into
+etc/init/<I>package</I>.conf in the package build directory.
+<DT id="4">debian/<I>package</I>.service<DD>
+
+
+If this exists, it is installed into lib/systemd/system/<I>package</I>.service in
+the package build directory. Only used in compat levels 10 and below.
+<DT id="5">debian/<I>package</I>.tmpfile<DD>
+
+
+If this exists, it is installed into usr/lib/tmpfiles.d/<I>package</I>.conf in the
+package build directory. (The tmpfiles.d mechanism is currently only used
+by systemd.) Only used in compat levels 10 and below.
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+
+
+<DL COMPACT>
+<DT id="6"><B>-n</B>, <B>--no-scripts</B><DD>
+
+
+Do not modify <I>postinst</I>/<I>postrm</I>/<I>prerm</I> scripts.
+<DT id="7"><B>-o</B>, <B>--only-scripts</B><DD>
+
+
+Only modify <I>postinst</I>/<I>postrm</I>/<I>prerm</I> scripts, do not actually install
+any init script, default files, upstart job or systemd service file. May be
+useful if the file is shipped and/or installed by upstream in a way that
+doesn't make it easy to let <B>dh_installinit</B> find it.
+
+
+<P>
+
+
+<B>Caveat</B>: This will bypass all the regular checks and
+<I>unconditionally</I> modify the scripts.  You will almost certainly want
+to use this with <B>-p</B> to limit, which packages are affected by the
+call.  Example:
+
+
+<P>
+
+
+
+
+<PRE>
+ override_dh_installinit:
+        dh_installinit -pfoo --only-scripts
+        dh_installinit --remaining
+
+</PRE>
+
+
+<DT id="8"><B>-R</B>, <B>--restart-after-upgrade</B><DD>
+
+
+Do not stop the init script until after the package upgrade has been
+completed.  This is the default behaviour in compat 10.
+
+
+<P>
+
+
+In early compat levels, the default was to stop the script in the
+<I>prerm</I>, and starts it again in the <I>postinst</I>.
+
+
+<P>
+
+
+This can be useful for daemons that should not have a possibly long
+downtime during upgrade. But you should make sure that the daemon will not
+get confused by the package being upgraded while it's running before using
+this option.
+<DT id="9"><B>--no-restart-after-upgrade</B><DD>
+
+
+Undo a previous <B>--restart-after-upgrade</B> (or the default of compat
+10).  If no other options are given, this will cause the service to be
+stopped in the <I>prerm</I> script and started again in the <I>postinst</I>
+script.
+<DT id="10"><B>-r</B>, <B>--no-stop-on-upgrade</B>, <B>--no-restart-on-upgrade</B><DD>
+
+
+Do not stop init script on upgrade.  This has the side-effect of not
+restarting the service as a part of the upgrade.
+
+
+<P>
+
+
+If you want to restart the service with minimal downtime, please use
+<B>--restart-after-upgrade</B> (default in compat 10 or later).  If you want
+the service to be restarted but be stopped during the upgrade, then please
+use <B>--no-restart-after-upgrade</B> (note the ``after-upgrade'').
+
+
+<P>
+
+
+Note that the <B>--no-restart-on-upgrade</B> alias is deprecated and will
+be removed in compat 12.  This is to avoid confusion with the
+<B>--no-restart-after-upgrade</B> option.  The <B>--no-stop-on-upgrade</B>
+variant was introduced in debhelper 10.2 (included in Debian stretch).
+<DT id="11"><B>--no-start</B><DD>
+
+
+Do not start the init script on install or upgrade, or stop it on removal.
+Only call <B>update-rc.d</B>. Useful for rcS scripts.
+<DT id="12"><B>--no-enable</B><DD>
+
+
+Disable the init script on purge, but do not enable them on install.
+This implies a versioned dependency on <B>init-system-helpers (&gt;=
+1.51)</B> as it is the first (functional) version that supports
+<B>update-rc.d &lt;script&gt; defaults-disabled</B>.
+
+
+<P>
+
+
+<B>Note</B> that this option does not affect whether the services are
+started.  Please remember to also use <B>--no-start</B> if the service
+should not be started.
+
+
+<P>
+
+
+Cannot be combined with <B>-u</B><I>params</I>,
+<B>--update-rcd-params=</B><I>params</I>, or <B>--</B> <I>params</I>.
+<DT id="13"><B>-d</B>, <B>--remove-d</B><DD>
+
+
+Remove trailing <B>d</B> from the name of the package, and use the result for the
+filename the upstart job file is installed as in <I>etc/init/</I> , and for the
+filename the init script is installed as in etc/init.d and the default file
+is installed as in <I>etc/default/</I>. This may be useful for daemons with names
+ending in <B>d</B>. (Note: this takes precedence over the <B>--init-script</B> parameter
+described below.)
+<DT id="14"><B>-u</B><I>params</I> <B>--update-rcd-params=</B><I>params</I><DD>
+
+
+
+<DT id="15"><B>--</B> <I>params</I><DD>
+
+
+
+Pass <I>params</I> to <B><A HREF="/cgi-bin/man/man2html?8+update-rc.d">update-rc.d</A></B>(8). If not specified, <B>defaults</B> (or
+<B>defaults-disabled</B> with <B>--no-enable</B>) will be passed to
+<B><A HREF="/cgi-bin/man/man2html?8+update-rc.d">update-rc.d</A></B>(8).
+
+
+<P>
+
+
+Cannot be combined with <B>--no-enable</B>.
+<DT id="16"><B>--name=</B><I>name</I><DD>
+
+
+Install the init script (and default file) as well as upstart job file
+using the filename <I>name</I> instead of the default filename, which is
+the package name. When this parameter is used, <B>dh_installinit</B> looks
+for and installs files named <I>debian/package.name.init</I>,
+<I>debian/package.name.default</I> and <I>debian/package.name.upstart</I>
+instead of the usual <I>debian/package.init</I>, <I>debian/package.default</I> and
+<I>debian/package.upstart</I>.
+<DT id="17"><B>--init-script=</B><I>scriptname</I><DD>
+
+
+Use <I>scriptname</I> as the filename the init script is installed as in
+<I>etc/init.d/</I> (and also use it as the filename for the defaults file, if it
+is installed). If you use this parameter, <B>dh_installinit</B> will look to see
+if a file in the <I>debian/</I> directory exists that looks like
+<I>package.scriptname</I> and if so will install it as the init script in
+preference to the files it normally installs.
+
+
+<P>
+
+
+This parameter is deprecated, use the <B>--name</B> parameter instead. This
+parameter is incompatible with the use of upstart jobs.
+<DT id="18"><B>--error-handler=</B><I>function</I><DD>
+
+
+Call the named shell <I>function</I> if running the init script fails. The
+function should be provided in the <I>prerm</I> and <I>postinst</I> scripts, before the
+<B>#DEBHELPER#</B> token.
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H2>NOTES</H2>
+
+
+
+Note that this command is not idempotent. <B><A HREF="/cgi-bin/man/man2html?1+dh_prep">dh_prep</A></B>(1) should be called
+between invocations of this command. Otherwise, it may cause multiple
+instances of the same text to be added to maintainer scripts.
+<A NAME="lbAH">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+
+<B><A HREF="/cgi-bin/man/man2html?7+debhelper">debhelper</A></B>(7), <B><A HREF="/cgi-bin/man/man2html?1+dh_installsystemd">dh_installsystemd</A></B>(1)
+<P>
+
+This program is a part of debhelper.
+<A NAME="lbAI">&nbsp;</A>
+<H2>AUTHORS</H2>
+
+
+
+Joey Hess &lt;<A HREF="mailto:joeyh@debian.org">joeyh@debian.org</A>&gt;
+<P>
+
+Steve Langasek &lt;<A HREF="mailto:steve.langasek@canonical.com">steve.langasek@canonical.com</A>&gt;
+<P>
+
+Michael Stapelberg &lt;<A HREF="mailto:stapelberg@debian.org">stapelberg@debian.org</A>&gt;
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="19"><A HREF="#lbAB">NAME</A><DD>
+<DT id="20"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="21"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="22"><A HREF="#lbAE">FILES</A><DD>
+<DT id="23"><A HREF="#lbAF">OPTIONS</A><DD>
+<DT id="24"><A HREF="#lbAG">NOTES</A><DD>
+<DT id="25"><A HREF="#lbAH">SEE ALSO</A><DD>
+<DT id="26"><A HREF="#lbAI">AUTHORS</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:10 GMT, March 31, 2021
+</BODY>
+</HTML>

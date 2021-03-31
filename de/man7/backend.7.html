@@ -1,0 +1,273 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of Backend</TITLE>
+</HEAD><BODY>
+<H1>Backend</H1>
+Section: Apple Inc. (7)<BR>Updated: CUPS<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+backend - CUPS Backend-Übertragungsschnittstellen
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<B>backend</B>
+<BR>
+
+<B>backend</B> <I>Auftrag</I> <I>Benutzer</I> <I>Titel</I> <I>Anzahl-Kopien</I> <I>Optionen</I> [
+<I>Dateiname</I> ]
+<PRE>
+
+<B>#include &lt;<A HREF="file:///usr/include/cups/cups.h">cups/cups.h</A>&gt;</B>
+
+<B>const char *cupsBackendDeviceURI</B>(<B>char **</B><I>argv</I>);
+
+<B>void cupsBackendReport</B>(<B>const char *</B><I>device_scheme</I>,
+                       <B>const char *</B><I>device_uri</I>,
+                       <B>const char *</B><I>device_make_and_model</I>,
+                       <B>const char *</B><I>device_info</I>,
+                       <B>const char *</B><I>device_id</I>,
+                       <B>const char *</B><I>device_location</I>);
+
+<B>ssize_t cupsBackChannelWrite</B>(<B>const char *</B><I>buffer</I>,
+                             <B>size_t </B><I>bytes</I>, <B>double </B><I>timeout</I>);
+
+<B>int cupsSideChannelRead</B>(<B>cups_sc_command_t *</B><I>command</I>,
+                        <B>cups_sc_status_t *</B><I>status</I>, <B>char *</B><I>data</I>,
+                        <B>int *</B><I>datalen</I>, <B>double </B><I>timeout</I>);
+
+<B>int cupsSideChannelWrite</B>(<B>cups_sc_command_t </B><I>command</I>,
+                         <B>cups_sc_status_t </B><I>status</I>, <B>const char *</B><I>data</I>,
+                         <B>int </B><I>datalen</I>, <B>double </B><I>timeout</I>);
+</PRE>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>BESCHREIBUNG</H2>
+
+Backends sind eine besondere Art von <B><A HREF="/cgi-bin/man/man2html?7+filter">filter</A></B>(7), die verwendet werden, um
+Daten zu verschiedenen Geräten auf dem System zu senden und entsprechende
+Geräte zu ermitteln.
+<P>
+
+Wie Filter müssen Backends in der Lage sein, aus Dateinamen auf der
+Befehlszeile oder von der Standardeingabe zu lesen, die Standardeingabe in
+eine temporäre Datei zu kopieren, wie dies von der physischen Schnittstelle
+gefordert wird.
+<P>
+
+Der Befehlsname (<I>argv[0]</I>) wird auf die Geräte-URI des Zieldruckers
+gesetzt. Jede Authentifizierungsinformation wird aus <I>argv[0]</I> entfernt,
+daher wird Backend-Entwicklern empfohlen, die Umgebungsvariable
+<B>DEVICE_URI</B> zu verwenden, wenn immer Authentifizierungsinformationen
+benötigt werden. Die Funktion <B>cupsBackendDeviceURI</B>() kann zum Ermitteln
+der korrekten Geräte-URI verwandt werden.
+<P>
+
+Rückgeleitete Daten vom Gerät sollten an die Filter für die Aufträge mittels
+der Funktion <I>cupsBackChannelWrite</I> weitergeleitet werden.
+<P>
+
+Backends sind dafür verantwortlich, mittels der Funktion
+<B>cupsSideChannelRead</B>() Seitenkanalanfragen zu lesen und mit der Funktion
+<B>cupsSideChannelWrite</B>() zu antworten. Die Konstante <B>CUPS_SC_FD</B>
+definiert den Dateideskriptor, der für eingehende Anfragen überwacht werden
+sollte.
+<A NAME="lbAE">&nbsp;</A>
+<H3>GERÄTE-ERMITTLUNG</H3>
+
+Beim Aufruf ohne Argumente sollte das Backend die Geräte und unterstützten
+oder beworbenen Schemata auf der Standardausgabe aufführen. Die Ausgabe
+besteht aus null oder mehr Zeilen, die in einer der folgenden Formen
+vorliegen:
+<PRE>
+
+    device-class scheme &quot;Unknown&quot; &quot;device-info&quot;
+    device-class device-uri &quot;device-make-and-model&quot; &quot;device-info&quot;
+    device-class device-uri &quot;device-make-and-model&quot; &quot;device-info&quot; &quot;device-id&quot;
+    device-class device-uri &quot;device-make-and-model&quot; &quot;device-info&quot; &quot;device-id&quot; &quot;device-location&quot;
+</PRE>
+
+<P>
+
+Die Funktion <B>cupsBackendReport</B>() kann dazu verwandt werden, um diese
+Zeilen zu erzeugen und in den verschiedenen Zeichenketten alle notwendigen
+Zeichen zu maskieren.
+<P>
+
+Das Feld <I>device-class</I> enthält einen der folgenden Werte:
+<DL COMPACT>
+<DT id="1"><B>direct</B><DD>
+Die Geräte-URI bezieht sich auf spezielle Geräte mit direktem Zugriff ohne
+Optionen, wie z.B. Parallelport-, USB- oder SCSI-Geräte.
+<DT id="2"><B>file</B><DD>
+Die Geräte-URI bezieht sich auf eine Datei auf dem Speichermedium.
+<DT id="3"><B>network</B><DD>
+Die Geräte-URI bezieht sich auf ein vernetztes Gerät und folgt der
+allgemeinen Form für vernetzte URIs.
+<DT id="4"><B>serial</B><DD>
+Die Geräte-URI bezieht sich auf ein serielles Gerät mit einer
+konfigurierbaren Baudrate und anderen Optionen. Falls die Geräte-URI einen
+Baud-Wert enthält, repräsentiert er die maximale vom Gerät unterstützte
+Baudrate.
+</DL>
+<P>
+
+Das Feld <I>scheme</I> stellt das vom Backend unterstützte URI-Schema
+bereit. Backends sollten diese Form nur verwenden, wenn das Backend
+irgendeine dem Schema folgende URI unterstützt. Das Feld <I>device-uri</I> legt
+die komplette URI, die bei der Kommunikation mit dem Gerät verwandt werden
+soll, fest.
+<P>
+
+Das Feld <I>device-make-and-model</I> legt die Marke und das Modell des Gerätes,
+z.B. »Beispiel Foojet 2000«, fest. Falls die Marke und das Modell nicht
+bekannt ist, müssen Sie »Unknown« melden.
+<P>
+
+Das Feld <I>device-info</I> legt zusätzliche Informationen über das Gerät
+fest. Typischerweise enthält es die Marke und das Modell zusammen mit der
+Port-Nummer oder der Netz-Adresse, z.B. »Beispiel Foojet 2000 USB #1«.
+<P>
+
+Das optionale Feld <I>device-id</I> legt die IEEE-1284-Geräte-ID-Zeichenkette
+für das Gerät, die zur Auswahl des passenden Treibers verwandt wird, fest.
+<P>
+
+Das optionale Feld <I>device-location</I> legt den physischen Standort des
+Geräts fest. Es wird oft dazu verwandt, die Drucker-Standort-Attribute vorab
+zu belegen, wenn ein Drucker hinzugefügt wird.
+<A NAME="lbAF">&nbsp;</A>
+<H3>RECHTE</H3>
+
+Backends, denen die Lese- und Ausführungsrechte für »world« (andere) fehlen,
+werden als Benutzer »root« ausgeführt. Andernfalls läuft das Backend unter
+einem unprivilegierten Benutzerkonto, typischerweise »lp«.
+<A NAME="lbAG">&nbsp;</A>
+<H2>EXIT-STATUS</H2>
+
+Die nachfolgenden Exit-Codes sind für Backends definiert:
+<DL COMPACT>
+<DT id="5"><B>CUPS_BACKEND_OK</B><DD>
+Die Druckdatei wurde erfolgreich an das Gerät oder den fernen Server
+übertragen.
+<DT id="6"><B>CUPS_BACKEND_FAILED</B><DD>
+<BR>
+
+Die Druckdatei wurde nicht erfolgreich zum Gerät oder fernen Server
+übertragen. Der Auftragsplaner (Scheduler) wird daraufhin den Auftrag
+abbrechen, den Auftrag erneut versuchen oder die Warteschlange anhalten,
+abhängig vom Zustand des Attributs <I>printer-error-policy</I>.
+<DT id="7"><B>CUPS_BACKEND_AUTH_REQUIRED</B><DD>
+Die Druckdatei wurde nicht erfolgreich übertragen, da gültige
+Authentifizierungsinformationen benötigt werden. Der Auftragsplaner wird
+darauf durch Halten des Auftrags reagieren und das Schlüsselwort
+»cups-held-for-authentication« zu dem Auftragsbeschreibungsattribut
+»job-reasons« hinzufügen.
+<DT id="8"><B>CUPS_BACKEND_HOLD</B><DD>
+Die Druckdatei wurde nicht erfolgreich übertragen, da sie derzeit nicht
+gedruckt werden kann. Der Auftragsplaner wird darauf durch Halten des
+Auftrags reagieren.
+<DT id="9"><B>CUPS_BACKEND_STOP</B><DD>
+Die Druckdatei wurde nicht erfolgreich übertragen, da sie derzeit nicht
+gedruckt werden kann. Der Auftragsplaner wird durch Anhalten der
+Warteschlange darauf reagieren.
+<DT id="10"><B>CUPS_BACKEND_CANCEL</B><DD>
+Die Druckdatei wurde nicht erfolgreich übertragen, da eine oder mehrere der
+Attribute nicht unterstützt werden oder der Auftrag am Drucker abgebrochen
+wurde. Der Auftragsplaner wird durch Abbruch des Auftrages darauf reagieren.
+<DT id="11"><B>CUPS_BACKEND_RETRY</B><DD>
+Die Druckdatei wurde aufgrund eines temporären Problems nicht erfolgreich
+übertragen. Der Auftragsplaner wird den Auftrag zu einem zukünftigen
+Zeitpunkt erneut versuchen - andere Aufträge können vor diesem gedruckt
+werden.
+<DT id="12"><B>CUPS_BACKEND_RETRY_CURRENT</B><DD>
+Die Druckdatei wurde aufgrund eines temporären Problems nicht erfolgreich
+übertragen. Der Auftragsplaner wird den Auftrag sofort erneut versuchen,
+ohne andere Aufträge dazwischen zu erlauben.
+</DL>
+<P>
+
+Alle anderen Exit-Codes sind reserviert.
+<A NAME="lbAH">&nbsp;</A>
+<H2>UMGEBUNG</H2>
+
+Zusätzlich zu den in <B><A HREF="/cgi-bin/man/man2html?1+cups">cups</A></B>(1) und <B><A HREF="/cgi-bin/man/man2html?7+filter">filter</A></B>(7) aufgeführten
+Umgebungsvariablen können CUPS-Backends die folgenden Umgebungsvariablen
+erwarten:
+<DL COMPACT>
+<DT id="13"><B>DEVICE_URI</B><DD>
+Die mit dem Drucker verbundene Geräte-URI.
+</DL>
+<A NAME="lbAI">&nbsp;</A>
+<H2>DATEIEN</H2>
+
+<I>/etc/cups/cups-files.conf</I>
+<A NAME="lbAJ">&nbsp;</A>
+<H2>HINWEISE</H2>
+
+CUPS-Backends wurden im Allgemeinen nicht dafür entwickelt, um vom Benutzer
+direkt aufgerufen zu werden. Neben der Geräte-URI (<I>argv[0]</I> und der
+Umgebungsvariablen <B>DEVICE_URI</B>, die die Geräte-URI enthält) erwarten die
+CUPS-Backends auch bestimmte Umgebungsvariablen und Dateideskriptoren und
+laufen typischerweise auch in einer Benutzersitzung, die (unter macOS)
+zusätzlichen Beschränkungen unterliegt, die die Ausführung
+betreffen. Backends können auch mit eingeschränkten Rechten installiert
+werden (0500 oder 0700), die dem Auftragsplaner mitteilen, sie als Benutzer
+»root« statt des unprivilegierten Benutzers (typischerweise »lp«)
+auszuführen.
+<P>
+
+Sofern Sie kein Entwickler sind und nicht wissen, was Sie tun, führen Sie
+kein Backend direkt aus. Verwenden Sie stattdessen die Programme <B><A HREF="/cgi-bin/man/man2html?1+lp">lp</A></B>(1)
+oder <B><A HREF="/cgi-bin/man/man2html?1+lpr">lpr</A></B>(1), um Druckaufträge zu übersenden oder das Programm
+<B><A HREF="/cgi-bin/man/man2html?8+lpinfo">lpinfo</A></B>(8), um verfügbare Drucker über ein Backend abzufragen. Die einzige
+Ausnahme ist das SNMP-Backend - lesen Sie <B><A HREF="/cgi-bin/man/man2html?8+cups-snmp">cups-snmp</A></B>(8) für weitere
+Informationen.
+<A NAME="lbAK">&nbsp;</A>
+<H2>HINWEISE</H2>
+
+CUPS-Druckertreiber und -Backends sind veraltet und werden in einer
+zukünftigen Funktionsveröffentlichung von CUPS nicht mehr
+unterstützt. Drucker, die IPP nicht unterstützen, können mittels Anwendungen
+wie <B><A HREF="/cgi-bin/man/man2html?1+ippeveprinter">ippeveprinter</A></B>(1) unterstützt werden.
+<A NAME="lbAL">&nbsp;</A>
+<H2>SIEHE AUCH</H2>
+
+<I><A HREF="/cgi-bin/man/man2html?1+cups">cups</A></I>(1), <I><A HREF="/cgi-bin/man/man2html?5+cups-files.conf">cups-files.conf</A></I>(5), <I><A HREF="/cgi-bin/man/man2html?8+cups-snmp">cups-snmp</A></I>(8), <I><A HREF="/cgi-bin/man/man2html?8+cupsd">cupsd</A></I>(8),
+<I><A HREF="/cgi-bin/man/man2html?7+filter">filter</A></I>(7), <I><A HREF="/cgi-bin/man/man2html?1+lp">lp</A></I>(1), <I><A HREF="/cgi-bin/man/man2html?8+lpinfo">lpinfo</A></I>(8), <I><A HREF="/cgi-bin/man/man2html?1+lpr">lpr</A></I>(1),
+<BR>
+
+CUPS-Online-Hilfe (<A HREF="http://localhost:631/help)">http://localhost:631/help)</A>
+<A NAME="lbAM">&nbsp;</A>
+<H2>COPYRIGHT</H2>
+
+Copyright &#169; 2007-2019 by Apple Inc.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="14"><A HREF="#lbAB">NAME</A><DD>
+<DT id="15"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="16"><A HREF="#lbAD">BESCHREIBUNG</A><DD>
+<DL>
+<DT id="17"><A HREF="#lbAE">GERÄTE-ERMITTLUNG</A><DD>
+<DT id="18"><A HREF="#lbAF">RECHTE</A><DD>
+</DL>
+<DT id="19"><A HREF="#lbAG">EXIT-STATUS</A><DD>
+<DT id="20"><A HREF="#lbAH">UMGEBUNG</A><DD>
+<DT id="21"><A HREF="#lbAI">DATEIEN</A><DD>
+<DT id="22"><A HREF="#lbAJ">HINWEISE</A><DD>
+<DT id="23"><A HREF="#lbAK">HINWEISE</A><DD>
+<DT id="24"><A HREF="#lbAL">SIEHE AUCH</A><DD>
+<DT id="25"><A HREF="#lbAM">COPYRIGHT</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:04:58 GMT, March 31, 2021
+</BODY>
+</HTML>

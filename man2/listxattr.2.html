@@ -1,0 +1,445 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of LISTXATTR</TITLE>
+</HEAD><BODY>
+<H1>LISTXATTR</H1>
+Section: Linux Programmer's Manual (2)<BR>Updated: 2019-03-06<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+listxattr, llistxattr, flistxattr - list extended attribute names
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+
+<PRE>
+<B>#include &lt;<A HREF="file:///usr/include/sys/types.h">sys/types.h</A>&gt;</B>
+<B>#include &lt;<A HREF="file:///usr/include/sys/xattr.h">sys/xattr.h</A>&gt;</B>
+
+<B>ssize_t listxattr(const char&nbsp;*</B><I>path</I><B>, char&nbsp;*</B><I>list</I><B>, size_t </B><I>size</I><B>);</B>
+<B>ssize_t llistxattr(const char&nbsp;*</B><I>path</I><B>, char&nbsp;*</B><I>list</I><B>, size_t </B><I>size</I><B>);</B>
+<B>ssize_t flistxattr(int </B><I>fd</I><B>, char&nbsp;*</B><I>list</I><B>, size_t </B><I>size</I><B>);</B>
+</PRE>
+
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+Extended attributes are
+<I>name</I>:<I>value</I>
+
+pairs associated with inodes (files, directories, symbolic links, etc.).
+They are extensions to the normal attributes which are associated
+with all inodes in the system (i.e., the
+<B><A HREF="/cgi-bin/man/man2html?2+stat">stat</A></B>(2)
+
+data).
+A complete overview of extended attributes concepts can be found in
+<B><A HREF="/cgi-bin/man/man2html?7+xattr">xattr</A></B>(7).
+
+<P>
+
+<B>listxattr</B>()
+
+retrieves the list
+of extended attribute names associated with the given
+<I>path</I>
+
+in the filesystem.
+The retrieved list is placed in
+<I>list</I>,
+
+a caller-allocated buffer whose size (in bytes) is specified in the argument
+<I>size</I>.
+
+The list is the set of (null-terminated) names, one after the other.
+Names of extended attributes to which the calling process does not
+have access may be omitted from the list.
+The length of the attribute name
+<I>list</I>
+
+is returned.
+<P>
+
+<B>llistxattr</B>()
+
+is identical to
+<B>listxattr</B>(),
+
+except in the case of a symbolic link, where the list of names of
+extended attributes associated with the link itself is retrieved,
+not the file that it refers to.
+<P>
+
+<B>flistxattr</B>()
+
+is identical to
+<B>listxattr</B>(),
+
+only the open file referred to by
+<I>fd</I>
+
+(as returned by
+<B><A HREF="/cgi-bin/man/man2html?2+open">open</A></B>(2))
+
+is interrogated in place of
+<I>path</I>.
+
+<P>
+
+A single extended attribute
+<I>name</I>
+
+is a null-terminated string.
+The name includes a namespace prefix; there may be several, disjoint
+namespaces associated with an individual inode.
+<P>
+
+If
+<I>size</I>
+
+is specified as zero, these calls return the current size of the
+list of extended attribute names (and leave
+<I>list</I>
+
+unchanged).
+This can be used to determine the size of the buffer that
+should be supplied in a subsequent call.
+(But, bear in mind that there is a possibility that the
+set of extended attributes may change between the two calls,
+so that it is still necessary to check the return status
+from the second call.)
+<A NAME="lbAE">&nbsp;</A>
+<H3>Example</H3>
+
+The
+<I>list</I>
+
+of names is returned as an unordered array of null-terminated character
+strings (attribute names are separated by null bytes ('\0')), like this:
+<P>
+
+
+
+user.name1\0system.name1\0user.name2\0
+
+
+<P>
+
+Filesystems that implement POSIX ACLs using
+extended attributes might return a
+<I>list</I>
+
+like this:
+<P>
+
+
+
+system.posix_acl_access\0system.posix_acl_default\0
+
+
+<A NAME="lbAF">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+On success, a nonnegative number is returned indicating the size of the
+extended attribute name list.
+On failure, -1 is returned and
+<I>errno</I>
+
+is set appropriately.
+<A NAME="lbAG">&nbsp;</A>
+<H2>ERRORS</H2>
+
+<DL COMPACT>
+<DT id="1"><B>E2BIG</B>
+
+<DD>
+The size of the list of extended attribute names is larger than the maximum
+size allowed; the list cannot be retrieved.
+This can happen on filesystems that support an unlimited number of
+extended attributes per file such as XFS, for example.
+See BUGS.
+<DT id="2"><B>ENOTSUP</B>
+
+<DD>
+Extended attributes are not supported by the filesystem, or are disabled.
+<DT id="3"><B>ERANGE</B>
+
+<DD>
+The
+<I>size</I>
+
+of the
+<I>list</I>
+
+buffer is too small to hold the result.
+</DL>
+<P>
+
+In addition, the errors documented in
+<B><A HREF="/cgi-bin/man/man2html?2+stat">stat</A></B>(2)
+
+can also occur.
+<A NAME="lbAH">&nbsp;</A>
+<H2>VERSIONS</H2>
+
+These system calls have been available on Linux since kernel 2.4;
+glibc support is provided since version 2.3.
+<A NAME="lbAI">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+These system calls are Linux-specific.
+
+
+
+
+
+
+<A NAME="lbAJ">&nbsp;</A>
+<H2>BUGS</H2>
+
+
+As noted in
+<B><A HREF="/cgi-bin/man/man2html?7+xattr">xattr</A></B>(7),
+
+the VFS imposes a limit of 64&nbsp;kB on the size of the extended
+attribute name list returned by
+<B><A HREF="/cgi-bin/man/man2html?7+listxattr">listxattr</A></B>(7).
+
+If the total size of attribute names attached to a file exceeds this limit,
+it is no longer possible to retrieve the list of attribute names.
+<A NAME="lbAK">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+The following program demonstrates the usage of
+<B>listxattr</B>()
+
+and
+<B><A HREF="/cgi-bin/man/man2html?2+getxattr">getxattr</A></B>(2).
+
+For the file whose pathname is provided as a command-line argument,
+it lists all extended file attributes and their values.
+<P>
+
+To keep the code simple, the program assumes that attribute keys and
+values are constant during the execution of the program.
+A production program should expect and handle changes during
+execution of the program.
+For example,
+the number of bytes required for attribute keys
+might increase between the two calls to
+<B>listxattr</B>().
+
+An application could handle this possibility using
+a loop that retries the call
+(perhaps up to a predetermined maximum number of attempts)
+with a larger buffer each time it fails with the error
+<B>ERANGE</B>.
+
+Calls to
+<B><A HREF="/cgi-bin/man/man2html?2+getxattr">getxattr</A></B>(2)
+
+could be handled similarly.
+<P>
+
+The following output was recorded by first creating a file, setting
+some extended file attributes,
+and then listing the attributes with the example program.
+<A NAME="lbAL">&nbsp;</A>
+<H3>Example output</H3>
+
+
+
+$ <B>touch /tmp/foo</B>
+$ <B>setfattr -n user.fred -v chocolate /tmp/foo</B>
+$ <B>setfattr -n user.frieda -v bar /tmp/foo</B>
+$ <B>setfattr -n user.empty /tmp/foo</B>
+$ <B>./listxattr /tmp/foo</B>
+user.fred: chocolate
+user.frieda: bar
+user.empty: &lt;no value&gt;
+
+
+<A NAME="lbAM">&nbsp;</A>
+<H3>Program source (listxattr.c)</H3>
+
+
+#include &lt;<A HREF="file:///usr/include/malloc.h">malloc.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdlib.h">stdlib.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/string.h">string.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/sys/types.h">sys/types.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/sys/xattr.h">sys/xattr.h</A>&gt;
+<P>
+int
+main(int argc, char *argv[])
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;ssize_t&nbsp;buflen,&nbsp;keylen,&nbsp;vallen;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;*buf,&nbsp;*key,&nbsp;*val;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(argc&nbsp;!=&nbsp;2)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;Usage:&nbsp;%s&nbsp;path\n&quot;,&nbsp;argv[0]);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;Determine&nbsp;the&nbsp;length&nbsp;of&nbsp;the&nbsp;buffer&nbsp;needed.
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;buflen&nbsp;=&nbsp;listxattr(argv[1],&nbsp;NULL,&nbsp;0);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(buflen&nbsp;==&nbsp;-1)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;perror(&quot;listxattr&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(buflen&nbsp;==&nbsp;0)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;%s&nbsp;has&nbsp;no&nbsp;attributes.\n&quot;,&nbsp;argv[1]);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_SUCCESS);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;Allocate&nbsp;the&nbsp;buffer.
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;buf&nbsp;=&nbsp;malloc(buflen);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(buf&nbsp;==&nbsp;NULL)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;perror(&quot;malloc&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;Copy&nbsp;the&nbsp;list&nbsp;of&nbsp;attribute&nbsp;keys&nbsp;to&nbsp;the&nbsp;buffer.
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;buflen&nbsp;=&nbsp;listxattr(argv[1],&nbsp;buf,&nbsp;buflen);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(buflen&nbsp;==&nbsp;-1)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;perror(&quot;listxattr&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;Loop&nbsp;over&nbsp;the&nbsp;list&nbsp;of&nbsp;zero&nbsp;terminated&nbsp;strings&nbsp;with&nbsp;the
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;attribute&nbsp;keys.&nbsp;Use&nbsp;the&nbsp;remaining&nbsp;buffer&nbsp;length&nbsp;to&nbsp;determine
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;the&nbsp;end&nbsp;of&nbsp;the&nbsp;list.
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;key&nbsp;=&nbsp;buf;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;while&nbsp;(buflen&nbsp;&gt;&nbsp;0)&nbsp;{
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;Output&nbsp;attribute&nbsp;key.
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;%s:&nbsp;&quot;,&nbsp;key);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;Determine&nbsp;length&nbsp;of&nbsp;the&nbsp;value.
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;vallen&nbsp;=&nbsp;getxattr(argv[1],&nbsp;key,&nbsp;NULL,&nbsp;0);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(vallen&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;perror(&quot;getxattr&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(vallen&nbsp;&gt;&nbsp;0)&nbsp;{
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;Allocate&nbsp;value&nbsp;buffer.
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;One&nbsp;extra&nbsp;byte&nbsp;is&nbsp;needed&nbsp;to&nbsp;append&nbsp;0x00.
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;=&nbsp;malloc(vallen&nbsp;+&nbsp;1);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(val&nbsp;==&nbsp;NULL)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;perror(&quot;malloc&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;Copy&nbsp;value&nbsp;to&nbsp;buffer.
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;vallen&nbsp;=&nbsp;getxattr(argv[1],&nbsp;key,&nbsp;val,&nbsp;vallen);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(vallen&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;perror(&quot;getxattr&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;else&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;Output&nbsp;attribute&nbsp;value.
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val[vallen]&nbsp;=&nbsp;0;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;%s&quot;,&nbsp;val);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;free(val);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;else&nbsp;if&nbsp;(vallen&nbsp;==&nbsp;0)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;&lt;no&nbsp;value&gt;&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;\n&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;Forward&nbsp;to&nbsp;next&nbsp;attribute&nbsp;key.
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;keylen&nbsp;=&nbsp;strlen(key)&nbsp;+&nbsp;1;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;buflen&nbsp;-=&nbsp;keylen;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;key&nbsp;+=&nbsp;keylen;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;free(buf);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_SUCCESS);
+}
+
+<A NAME="lbAN">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?1+getfattr">getfattr</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?1+setfattr">setfattr</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?2+getxattr">getxattr</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+open">open</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+removexattr">removexattr</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+setxattr">setxattr</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+stat">stat</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?7+symlink">symlink</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+xattr">xattr</A></B>(7)
+
+<A NAME="lbAO">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="4"><A HREF="#lbAB">NAME</A><DD>
+<DT id="5"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="6"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DL>
+<DT id="7"><A HREF="#lbAE">Example</A><DD>
+</DL>
+<DT id="8"><A HREF="#lbAF">RETURN VALUE</A><DD>
+<DT id="9"><A HREF="#lbAG">ERRORS</A><DD>
+<DT id="10"><A HREF="#lbAH">VERSIONS</A><DD>
+<DT id="11"><A HREF="#lbAI">CONFORMING TO</A><DD>
+<DT id="12"><A HREF="#lbAJ">BUGS</A><DD>
+<DT id="13"><A HREF="#lbAK">EXAMPLE</A><DD>
+<DL>
+<DT id="14"><A HREF="#lbAL">Example output</A><DD>
+<DT id="15"><A HREF="#lbAM">Program source (listxattr.c)</A><DD>
+</DL>
+<DT id="16"><A HREF="#lbAN">SEE ALSO</A><DD>
+<DT id="17"><A HREF="#lbAO">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:33 GMT, March 31, 2021
+</BODY>
+</HTML>

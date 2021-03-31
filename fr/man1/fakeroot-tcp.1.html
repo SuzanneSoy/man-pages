@@ -1,0 +1,306 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of fakeroot</TITLE>
+</HEAD><BODY>
+<H1>fakeroot</H1>
+Section: Manuel de Debian (1)<BR>Updated: 5 October 2014<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NOM</H2>
+
+fakeroot - lance une commande dans un environnement simulant les privilèges
+du superutilisateur pour la manipulation des fichiers.
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<B>fakeroot</B> <B>[-l|--lib</B> <I>bibliothèque]</I> <B>[--faked</B>
+<I>binaire</I><B>de</B><I>simulation]</I> <B>[-i</B> <I>fichier-de-chargement</I><B>]</B> <B>[-s</B>
+<I>fichier-de-sauvegarde</I><B>]</B> <B>[-u|--unknown-is-real ]</B> <B>[-b|--fd-base ]</B>
+<B>[-h|--help ]</B> <B>[-v|--version ]</B> <B>[--]</B> <B>[commande]</B>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<B>fakeroot</B> lance une commande dans un environnement dans lequel cette
+commande obtient les droits de l'administrateur pour manipuler des
+fichiers. C'est pratique pour permettre aux utilisateurs de créer des
+archives (tar, ar, .deb, etc.) qui contiennent des fichiers avec les
+privilèges et appartenances du superutilisateur. Sans <B>fakeroot</B>, il
+faudrait posséder les droits du superutilisateur pour donner les droits et
+appartenances convenables aux fichiers constituant l'archive, puis de les
+assembler&nbsp;; ou bien, il faudrait construire directement l'archive, sans
+utiliser le programme d'archivage.
+<P>
+<B>fakeroot</B> works by replacing the file manipulation library functions
+(<A HREF="/cgi-bin/man/man2html?2+chmod">chmod</A>(2), <A HREF="/cgi-bin/man/man2html?2+stat">stat</A>(2) etc.) by ones that simulate the effect the real library
+functions would have had, had the user really been root. These wrapper
+functions are in a shared library <B>/usr/lib/*/libfakeroot-*.so</B> or similar
+location on your platform.  The shared object is loaded through the
+<B>LD_PRELOAD</B> mechanism of the dynamic loader. (See <B><A HREF="/cgi-bin/man/man2html?8+ld.so">ld.so</A></B>(8))
+<P>
+Si vous désirez construire des paquets avec <B>fakeroot</B>, veuillez essayer de
+construire d'abord le paquet fakeroot&nbsp;: l'étape «&nbsp;debian/rules build&nbsp;»
+réalise quelques tests (principalement pour les bogues des vieilles versions
+de fakeroot). Si ces tests échouent (si vous avez par exemple certains
+programmes en libc5 sur votre système), la construction d'autres paquets
+avec fakeroot échouera certainement aussi, mais de façon parfois plus
+subtile.
+<P>
+De même, notez qu'il vaut mieux ne pas construire les binaires eux-mêmes
+sous fakeroot. En particulier, configure et ses amis n'apprécient pas quand
+le système se comporte différemment de ce qu'ils attendent (parfois, ils
+modifient aléatoirement des variables d'environnement dont fakeroot a
+besoin).
+<P>
+<A NAME="lbAE">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<DL COMPACT>
+<DT id="1"><B>-l</B> <I>bibliothèque</I>, <B>--lib</B> <I>bibliothèque</I><DD>
+Spécifie une autre bibliothèque de substitution (wrapper library).
+<DT id="2"><B>--faked</B><I>&nbsp;binaire</I><DD>
+Spécifie l'utilisation d'une autre bibliothèque que faked.
+<DT id="3"><B>[--]</B><I>&nbsp;commande</I><DD>
+La commande à lancer sous fakeroot. Utilisez «&nbsp;--&nbsp;»  si des options de la
+commande risque d'être confondues avec celles de fakeroot.
+<DT id="4"><B>-s</B><I>&nbsp;fichier-de-sauvegarde</I><DD>
+Enregistre l'environnement de fakeroot dans fichier-de-sauvegarde en
+quittant. Ce fichier pourra servir plus tard à restaurer cette configuration
+grâce à l'option -i. Toutefois, cette option échouera et fakeroot se
+comportera bizarrement sauf si vous laissez les fichiers manipulés par
+fakeroot intacts quand vous êtes en dehors de cet environnement. Malgré
+cette restriction, cela peut être utile. Par exemple, cela peut servir avec
+<A HREF="/cgi-bin/man/man2html?1+rsync">rsync</A>(1) pour sauvegarder et restaurer toute une arborescence de répertoires
+avec les informations de propriétaire, groupe et périphérique sans avoir à
+être superutilisateur. Voir <I>/usr/share/doc/fakeroot/README.saving</I> pour
+plus d'informations.
+<DT id="5"><B>-i</B><I>&nbsp;fichier-de-chargement</I><DD>
+Recharge à partir de fichier-de-chargement un environnement fakeroot
+préalablement sauvegardé en utilisant l'option -s. Notez que cela ne
+sauvegardera pas automatiquement la configuration, vous devez repréciser -s
+dans ce but. L'utilisation du même nom de fichier pour -i et -s dans une
+seule commande <B>fakeroot</B> ne pose pas de problème.
+<DT id="6"><B>-u</B>, <B>--unknown-is-real</B><DD>
+Utilise le véritable propriétaire des fichiers auparavant inconnus de
+fakeroot, plutôt que de considérer qu'ils appartiennent à root:root.
+<DT id="7"><B>-b</B><I>&nbsp;fd</I><DD>
+Définit la valeur de base du descripteur de fichier (en mode TCP
+uniquement). Fd sera la plus petite valeur du descripteur de fichier utilisé
+pour les connexions TCP. Ce réglage peut être très pratique pour gérer les
+descripteurs de fichiers utilisés par les programmes qui fonctionnent sous
+fakeroot.
+<DT id="8"><B>-h</B><DD>
+Affiche l'aide.
+<DT id="9"><B>-v</B><DD>
+Affiche la version.
+<P>
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>EXEMPLES</H2>
+
+Voici un exemple d'utilisation de <B>fakeroot</B>. Notez bien qu'à l'intérieur
+de l'environnement fakeroot, les manipulations de fichiers qui requièrent
+les privilèges du superutilisateur ont lieu, mais uniquement virtuellement.
+
+<P>
+<PRE>
+$  whoami
+joost
+$ fakeroot /bin/bash
+#  whoami
+root
+# mknod hda3 b 3 1
+# ls -ld hda3
+brw-r--r--   1 root     root       3,   1 Jul  2 22:58 hda3
+# chown joost:root hda3
+# ls -ld hda3
+brw-r--r--   1 joost    root       3,   1 Jul  2 22:58 hda3
+# ls -ld /
+drwxr-xr-x  20 root     root         1024 Jun 17 21:50 /
+# chown joost:users /
+# chmod a+w /
+# ls -ld /
+drwxrwxrwx  20 joost    users        1024 Jun 17 21:50 /
+# exit
+$ ls -ld /
+drwxr-xr-x  20 root     root         1024 Jun 17 21:50 //
+$ ls -ld hda3
+-rw-r--r--   1 joost    users           0 Jul  2 22:58 hda3
+
+</PRE>
+
+<P>
+
+Seule l'opération que l'utilisateur <B>joost</B> pouvait réaliser a réellement
+aboutie.
+<P>
+<B>fakeroot</B> a été écrit spécifiquement pour permettre aux utilisateurs de
+créer des paquets pour Debian GNU/Linux (au format <B><A HREF="/cgi-bin/man/man2html?5+deb">deb</A>(5)</B>) sans avoir à
+leur donner les privilèges du superutilisateur. Ceci peut être fait par des
+commandes telles que <B>dpkg-buildpackage -rfakeroot</B> ou <B>debuild
+-rfakeroot</B> (-rfakeroot est actuellement utilisé par défaut par debuild,
+donc vous n'avez pas besoin de cet argument).
+<A NAME="lbAG">&nbsp;</A>
+<H2>ASPECTS DE SÉCURITÉ</H2>
+
+<B>fakeroot</B> est un programme normal, sans privilèges spéciaux. Il n'augmente
+pas les privilèges de l'utilisateur et n'altère pas la sécurité du système.
+<A NAME="lbAH">&nbsp;</A>
+<H2>FICHIERS</H2>
+
+<I>/usr/lib/*/libfakeroot-*.so</I> The shared library containing the wrapper
+functions.
+<A NAME="lbAI">&nbsp;</A>
+<H2>ENVIRONNEMENT</H2>
+
+<DL COMPACT>
+<DT id="10"><B>FAKEROOTKEY</B><DD>
+La clé utilisée pour communiquer avec le démon fakeroot. Tout programme qui
+démarre avec le bon <B>LD_PRELOAD</B> et une <B>FAKEROOTKEY</B> d'un serveur actif
+se connectera automatiquement à ce démon, et aura la même «&nbsp;fausse&nbsp;»
+vision des droits du système de fichiers (si le serveur et le programme
+connecté ont bien été lancés par le même utilisateur).
+<DT id="11"><B>LD_LIBRARY_PATH</B><DD>
+<DT id="12"><B>LD_PRELOAD</B><DD>
+Fakeroot a été conçu en encapsulant les appels systèmes. On y arrive en
+définissant LD_LIBRARY_PATH=/usr/lib/fakeroot et
+LD_PRELOAD=libfakeroot.so.0. Cette bibliothèque est chargée avant la
+bibliothèque C du système, d'où l'interception de la plupart des fonctions
+de la bibliothèque. Si vous devez définir d'autres <B>LD_LIBRARY_PATH</B> ou
+<B>LD_PRELOAD</B> au sein d'un environnement fakeroot, cela devrait être fait en
+respectant l'ordre de placement, par exemple comme dans
+<B>LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/toto/titi/</B>.
+<P>
+</DL>
+<A NAME="lbAJ">&nbsp;</A>
+<H2>LIMITES</H2>
+
+<DL COMPACT>
+<DT id="13"><B>Versions des bibliothèques</B><DD>
+Toute commande exécutée sous <B>fakeroot</B> devra être liée à la même version
+de la bibliothèque C que <B>fakeroot</B> lui-même.
+<DT id="14"><B>open()/create()</B><DD>
+fakeroot n'encapsule pas open(), create(), etc. Donc si l'utilisateur
+<B>joost</B> tape soit
+
+<P>
+<PRE>
+touch foo
+fakeroot
+ls -al foo
+
+</PRE>
+
+<P>
+
+soit
+
+<P>
+<PRE>
+fakeroot
+touch foo
+ls -al foo
+
+</PRE>
+
+<P>
+
+fakeroot n'aura aucun moyen de savoir que dans le premier cas, le
+propriétaire de foo est réellement <B>joost</B> tandis que dans le second cas,
+il aurait dû être <B>root</B>. Pour un paquet Debian, il est toujours correct de
+donner à tous les fichiers «&nbsp;inconnus&nbsp;» l'uid=gid=0. La vraie solution est
+de simuler <B>open()</B> et <B>create()</B>, mais cela soulève d'autres problèmes,
+comme démontré par le paquet libtricks. Ce paquet simule beaucoup d'autres
+fonctions, et tente d'aller plus loin que <B>fakeroot .</B> On peut s'apercevoir
+qu'une mise à jour minime de la libc (d'une version dans laquelle la
+fonction <B>stat()</B> n'utilise pas <B>open()</B> à une nouvelle version dans
+laquelle la fonction <B>stat()</B> utilise (dans certains cas)  <B>open()</B>),
+causera d'inexplicables erreurs de segmentation (ainsi, le <B>stat()</B> de la
+libc6 appellera la fonction simulée <B>open()</B>, qui à son tour appellera la
+fonction <B>stat()</B> de la libc6, etc.). La correction n'a pas été facile,
+mais une fois corrigé, ce n'était plus qu'une question de temps avant qu'une
+autre fonction ne se mette à utiliser open(). Quant au portage sur un autre
+système d'exploitation, il n'a pas été envisagé. Il a donc été décidé de
+limiter au maximum le nombre de fonctions simulées par fakeroot, afin de
+limiter l'éventualité de ces «&nbsp;collisions&nbsp;».
+<DT id="15"><B>GNU configure (et autres programmes du même genre)</B><DD>
+En pratique, fakeroot modifie le comportement du système. Les programmes qui
+testent le système (tel que configure du GNU) peuvent être troublés par cela
+(ou, s'ils ne le sont pas, ils risquent de solliciter fakeroot à un point
+tel que celui-ci risque lui-même de s'y perdre). Il est donc préférable de
+ne pas lancer «&nbsp;configure&nbsp;» dans un environnement fakeroot. Comme
+configure doit être lancé par la cible build de debian/rules, l'utilisation
+de «&nbsp;dpkg-buildpackage -rfakeroot&nbsp;» gère correctement ce problème.
+</DL>
+<A NAME="lbAK">&nbsp;</A>
+<H2>BOGUES</H2>
+
+open() n'est pas simulé. Ce n'est pas si grave que cela, mais si un
+programme invoque open(&quot;file&quot;, O_WRONLY, 000), écrit dans ce fichier «&nbsp;file&nbsp;», le ferme, puis réessaye ensuite de l'ouvrir en lecture, alors cette
+tentative échouera, car les droits du fichier seront 000. Le bogue, c'est
+que si root fait cette opération, alors open() fonctionne, puisque les
+droits des fichiers ne sont pas du tout vérifiés pour root. Il a été choisi
+de ne pas simuler open(), car open() est utilisé par nombre d'autres
+fonctions de la libc (dont certaines qui sont déjà simulées par fakeroot),
+ce qui créerait des boucles (ou pourrait en créer quand l'implémentation des
+diverses fonctions de la libc change).
+<A NAME="lbAL">&nbsp;</A>
+<H2>COPIES</H2>
+
+<B>fakeroot</B> est distribué sous la licence GNU General Public License.  (GPL
+2.0 ou supérieure).
+<A NAME="lbAM">&nbsp;</A>
+<H2>AUTEURS</H2>
+
+<DL COMPACT>
+<DT id="16">Joost Witteveen<DD>
+&lt;<I><A HREF="mailto:joostje@debian.org">joostje@debian.org</A></I>&gt;
+<DT id="17">Clint Adams<DD>
+&lt;<I><A HREF="mailto:clint@debian.org">clint@debian.org</A></I>&gt;
+<DT id="18">Timo Savola<DD>
+</DL>
+<A NAME="lbAN">&nbsp;</A>
+<H2>TRADUCTION</H2>
+
+Sylvain Cherrier &lt;<A HREF="mailto:sylvain.cherrier@free.fr">sylvain.cherrier@free.fr</A>&gt;.
+<A NAME="lbAO">&nbsp;</A>
+<H2>PAGE DE MANUEL</H2>
+
+En majeure partie écrite par J.H.M. Dassen &lt;<A HREF="mailto:jdassen@debian.org">jdassen@debian.org</A>&gt;: La
+plupart des ajouts et des modifications par Joost et Clint.
+<A NAME="lbAP">&nbsp;</A>
+<H2>VOIR AUSSI</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?1+faked">faked</A></B>(1)  <B><A HREF="/cgi-bin/man/man2html?1+dpkg-buildpackage">dpkg-buildpackage</A></B>(1), <B><A HREF="/cgi-bin/man/man2html?1+debuild">debuild</A></B>(1)
+<B>/usr/share/doc/fakeroot/DEBUG</B>
+<P>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="19"><A HREF="#lbAB">NOM</A><DD>
+<DT id="20"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="21"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="22"><A HREF="#lbAE">OPTIONS</A><DD>
+<DT id="23"><A HREF="#lbAF">EXEMPLES</A><DD>
+<DT id="24"><A HREF="#lbAG">ASPECTS DE SÉCURITÉ</A><DD>
+<DT id="25"><A HREF="#lbAH">FICHIERS</A><DD>
+<DT id="26"><A HREF="#lbAI">ENVIRONNEMENT</A><DD>
+<DT id="27"><A HREF="#lbAJ">LIMITES</A><DD>
+<DT id="28"><A HREF="#lbAK">BOGUES</A><DD>
+<DT id="29"><A HREF="#lbAL">COPIES</A><DD>
+<DT id="30"><A HREF="#lbAM">AUTEURS</A><DD>
+<DT id="31"><A HREF="#lbAN">TRADUCTION</A><DD>
+<DT id="32"><A HREF="#lbAO">PAGE DE MANUEL</A><DD>
+<DT id="33"><A HREF="#lbAP">VOIR AUSSI</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:01 GMT, March 31, 2021
+</BODY>
+</HTML>

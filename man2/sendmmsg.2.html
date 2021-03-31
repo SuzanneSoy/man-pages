@@ -1,0 +1,339 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SENDMMSG</TITLE>
+</HEAD><BODY>
+<H1>SENDMMSG</H1>
+Section: Linux Programmer's Manual (2)<BR>Updated: 2019-03-06<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+sendmmsg - send multiple messages on a socket
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<PRE>
+<B>#define _GNU_SOURCE</B>         /* See <A HREF="/cgi-bin/man/man2html?7+feature_test_macros">feature_test_macros</A>(7) */
+<B>#include &lt;<A HREF="file:///usr/include/sys/socket.h">sys/socket.h</A>&gt;</B>
+
+<B>int sendmmsg(int </B><I>sockfd</I><B>, struct mmsghdr *</B><I>msgvec</I><B>, unsigned int </B><I>vlen</I><B>,</B>
+<B>             int </B><I>flags</I><B>);</B>
+</PRE>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+The
+<B>sendmmsg</B>()
+
+system call is an extension of
+<B><A HREF="/cgi-bin/man/man2html?2+sendmsg">sendmsg</A></B>(2)
+
+that allows the caller to transmit multiple messages on a socket
+using a single system call.
+(This has performance benefits for some applications.)
+
+<P>
+
+The
+<I>sockfd</I>
+
+argument is the file descriptor of the socket
+on which data is to be transmitted.
+<P>
+
+The
+<I>msgvec</I>
+
+argument is a pointer to an array of
+<I>mmsghdr</I>
+
+structures.
+The size of this array is specified in
+<I>vlen</I>.
+
+<P>
+
+The
+<I>mmsghdr</I>
+
+structure is defined in
+<I>&lt;<A HREF="file:///usr/include/sys/socket.h">sys/socket.h</A>&gt;</I>
+
+as:
+<P>
+
+
+
+struct mmsghdr {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;msghdr&nbsp;msg_hdr;&nbsp;&nbsp;/*&nbsp;Message&nbsp;header&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;unsigned&nbsp;int&nbsp;&nbsp;msg_len;&nbsp;&nbsp;/*&nbsp;Number&nbsp;of&nbsp;bytes&nbsp;transmitted&nbsp;*/
+};
+
+
+<P>
+
+The
+<I>msg_hdr</I>
+
+field is a
+<I>msghdr</I>
+
+structure, as described in
+<B><A HREF="/cgi-bin/man/man2html?2+sendmsg">sendmsg</A></B>(2).
+
+The
+<I>msg_len</I>
+
+field is used to return the number of bytes sent from the message in
+<I>msg_hdr</I>
+
+(i.e., the same as the return value from a single
+<B><A HREF="/cgi-bin/man/man2html?2+sendmsg">sendmsg</A></B>(2)
+
+call).
+<P>
+
+The
+<I>flags</I>
+
+argument contains flags ORed together.
+The flags are the same as for
+<B><A HREF="/cgi-bin/man/man2html?2+sendmsg">sendmsg</A></B>(2).
+
+<P>
+
+A blocking
+<B>sendmmsg</B>()
+
+call blocks until
+<I>vlen</I>
+
+messages have been sent.
+A nonblocking call sends as many messages as possible
+(up to the limit specified by
+<I>vlen</I>)
+
+and returns immediately.
+<P>
+
+On return from
+<B>sendmmsg</B>(),
+
+the
+<I>msg_len</I>
+
+fields of successive elements of
+<I>msgvec</I>
+
+are updated to contain the number of bytes transmitted from the corresponding
+<I>msg_hdr</I>.
+
+The return value of the call indicates the number of elements of
+<I>msgvec</I>
+
+that have been updated.
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+On success,
+<B>sendmmsg</B>()
+
+returns the number of messages sent from
+<I>msgvec</I>;
+
+if this is less than
+<I>vlen</I>,
+
+the caller can retry with a further
+<B>sendmmsg</B>()
+
+call to send the remaining messages.
+<P>
+
+On error, -1 is returned, and
+<I>errno</I>
+
+is set to indicate the error.
+<A NAME="lbAF">&nbsp;</A>
+<H2>ERRORS</H2>
+
+Errors are as for
+<B><A HREF="/cgi-bin/man/man2html?2+sendmsg">sendmsg</A></B>(2).
+
+An error is returned only if no datagrams could be sent.
+See also BUGS.
+
+
+
+
+
+
+
+
+<A NAME="lbAG">&nbsp;</A>
+<H2>VERSIONS</H2>
+
+The
+<B>sendmmsg</B>()
+
+system call was added in Linux 3.0.
+Support in glibc was added in version 2.14.
+<A NAME="lbAH">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+<B>sendmmsg</B>()
+
+is Linux-specific.
+<A NAME="lbAI">&nbsp;</A>
+<H2>NOTES</H2>
+
+The value specified in
+<I>vlen</I>
+
+is capped to
+<B>UIO_MAXIOV</B>
+
+(1024).
+
+
+
+
+
+
+
+
+
+<A NAME="lbAJ">&nbsp;</A>
+<H2>BUGS</H2>
+
+If an error occurs after at least one message has been sent,
+the call succeeds, and returns the number of messages sent.
+The error code is lost.
+The caller can retry the transmission,
+starting at the first failed message, but there is no guarantee that,
+if an error is returned, it will be the same as the one that was lost
+on the previous call.
+<A NAME="lbAK">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+The example below uses
+<B>sendmmsg</B>()
+
+to send
+<I>onetwo</I>
+
+and
+<I>three</I>
+
+in two distinct UDP datagrams using one system call.
+The contents of the first datagram originates from a pair of buffers.
+<P>
+
+
+#define _GNU_SOURCE
+#include &lt;<A HREF="file:///usr/include/netinet/ip.h">netinet/ip.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdlib.h">stdlib.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/string.h">string.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/sys/types.h">sys/types.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/sys/socket.h">sys/socket.h</A>&gt;
+<P>
+int
+main(void)
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;sockfd;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;sockaddr_in&nbsp;addr;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;mmsghdr&nbsp;msg[2];
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;iovec&nbsp;msg1[2],&nbsp;msg2;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;retval;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;sockfd&nbsp;=&nbsp;socket(AF_INET,&nbsp;SOCK_DGRAM,&nbsp;0);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(sockfd&nbsp;==&nbsp;-1)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;perror(&quot;socket()&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;addr.sin_family&nbsp;=&nbsp;AF_INET;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;addr.sin_addr.s_addr&nbsp;=&nbsp;htonl(INADDR_LOOPBACK);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;addr.sin_port&nbsp;=&nbsp;htons(1234);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(connect(sockfd,&nbsp;(struct&nbsp;sockaddr&nbsp;*)&nbsp;&amp;addr,&nbsp;sizeof(addr))&nbsp;==&nbsp;-1)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;perror(&quot;connect()&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;memset(msg1,&nbsp;0,&nbsp;sizeof(msg1));
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;msg1[0].iov_base&nbsp;=&nbsp;&quot;one&quot;;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;msg1[0].iov_len&nbsp;=&nbsp;3;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;msg1[1].iov_base&nbsp;=&nbsp;&quot;two&quot;;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;msg1[1].iov_len&nbsp;=&nbsp;3;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;memset(&amp;msg2,&nbsp;0,&nbsp;sizeof(msg2));
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;msg2.iov_base&nbsp;=&nbsp;&quot;three&quot;;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;msg2.iov_len&nbsp;=&nbsp;5;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;memset(msg,&nbsp;0,&nbsp;sizeof(msg));
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;msg[0].msg_hdr.msg_iov&nbsp;=&nbsp;msg1;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;msg[0].msg_hdr.msg_iovlen&nbsp;=&nbsp;2;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;msg[1].msg_hdr.msg_iov&nbsp;=&nbsp;&amp;msg2;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;msg[1].msg_hdr.msg_iovlen&nbsp;=&nbsp;1;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;retval&nbsp;=&nbsp;sendmmsg(sockfd,&nbsp;msg,&nbsp;2,&nbsp;0);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(retval&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;perror(&quot;sendmmsg()&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;else
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;%d&nbsp;messages&nbsp;sent\n&quot;,&nbsp;retval);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;exit(0);
+}
+
+<A NAME="lbAL">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?2+recvmmsg">recvmmsg</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+sendmsg">sendmsg</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+socket">socket</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?7+socket">socket</A></B>(7)
+
+<A NAME="lbAM">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="1"><A HREF="#lbAB">NAME</A><DD>
+<DT id="2"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="3"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="4"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DT id="5"><A HREF="#lbAF">ERRORS</A><DD>
+<DT id="6"><A HREF="#lbAG">VERSIONS</A><DD>
+<DT id="7"><A HREF="#lbAH">CONFORMING TO</A><DD>
+<DT id="8"><A HREF="#lbAI">NOTES</A><DD>
+<DT id="9"><A HREF="#lbAJ">BUGS</A><DD>
+<DT id="10"><A HREF="#lbAK">EXAMPLE</A><DD>
+<DT id="11"><A HREF="#lbAL">SEE ALSO</A><DD>
+<DT id="12"><A HREF="#lbAM">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:34 GMT, March 31, 2021
+</BODY>
+</HTML>

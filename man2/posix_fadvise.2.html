@@ -1,0 +1,347 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of POSIX_FADVISE</TITLE>
+</HEAD><BODY>
+<H1>POSIX_FADVISE</H1>
+Section: Linux Programmer's Manual (2)<BR>Updated: 2019-03-06<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+posix_fadvise - predeclare an access pattern for file data
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<PRE>
+<B>#include &lt;<A HREF="file:///usr/include/fcntl.h">fcntl.h</A>&gt;</B>
+
+<B>int posix_fadvise(int </B><I>fd</I><B>, off_t </B><I>offset</I><B>, off_t </B><I>len</I><B>, int </B><I>advice</I><B>);</B>
+</PRE>
+
+<P>
+
+
+
+Feature Test Macro Requirements for glibc (see
+<B><A HREF="/cgi-bin/man/man2html?7+feature_test_macros">feature_test_macros</A></B>(7)):
+
+
+<P>
+
+<B>posix_fadvise</B>():
+
+<DL COMPACT><DT id="1"><DD>
+_POSIX_C_SOURCE&nbsp;&gt;=&nbsp;200112L
+</DL>
+
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+Programs can use
+<B>posix_fadvise</B>()
+
+to announce an intention to access
+file data in a specific pattern in the future, thus allowing the kernel
+to perform appropriate optimizations.
+<P>
+
+The <I>advice</I> applies to a (not necessarily existent) region starting
+at <I>offset</I> and extending for <I>len</I> bytes (or until the end of
+the file if <I>len</I> is 0) within the file referred to by <I>fd</I>.
+The <I>advice</I> is not binding;
+it merely constitutes an expectation on behalf of
+the application.
+<P>
+
+Permissible values for <I>advice</I> include:
+<DL COMPACT>
+<DT id="2"><B>POSIX_FADV_NORMAL</B>
+
+<DD>
+Indicates that the application has no advice to give about its access
+pattern for the specified data.
+If no advice is given for an open file,
+this is the default assumption.
+<DT id="3"><B>POSIX_FADV_SEQUENTIAL</B>
+
+<DD>
+The application expects to access the specified data sequentially (with
+lower offsets read before higher ones).
+<DT id="4"><B>POSIX_FADV_RANDOM</B>
+
+<DD>
+The specified data will be accessed in random order.
+<DT id="5"><B>POSIX_FADV_NOREUSE</B>
+
+<DD>
+The specified data will be accessed only once.
+<DT id="6"><DD>
+In kernels before 2.6.18, <B>POSIX_FADV_NOREUSE</B> had the
+same semantics as <B>POSIX_FADV_WILLNEED</B>.
+This was probably a bug; since kernel 2.6.18, this flag is a no-op.
+<DT id="7"><B>POSIX_FADV_WILLNEED</B>
+
+<DD>
+The specified data will be accessed in the near future.
+<DT id="8"><DD>
+<B>POSIX_FADV_WILLNEED</B> initiates a
+nonblocking read of the specified region into the page cache.
+The amount of data read may be decreased by the kernel depending
+on virtual memory load.
+(A few megabytes will usually be fully satisfied,
+and more is rarely useful.)
+<DT id="9"><B>POSIX_FADV_DONTNEED</B>
+
+<DD>
+The specified data will not be accessed in the near future.
+<DT id="10"><DD>
+<B>POSIX_FADV_DONTNEED</B> attempts to free cached pages associated with
+the specified region.
+This is useful, for example, while streaming large
+files.
+A program may periodically request the kernel to free cached data
+that has already been used, so that more useful cached pages are not
+discarded instead.
+<DT id="11"><DD>
+Requests to discard partial pages are ignored.
+It is preferable to preserve needed data than discard unneeded data.
+If the application requires that data be considered for discarding, then
+<I>offset</I>
+
+and
+<I>len</I>
+
+must be page-aligned.
+<DT id="12"><DD>
+The implementation
+<I>may</I>
+
+attempt to write back dirty pages in the specified region,
+but this is not guaranteed.
+Any unwritten dirty pages will not be freed.
+If the application wishes to ensure that dirty pages will be released,
+it should call
+<B><A HREF="/cgi-bin/man/man2html?2+fsync">fsync</A></B>(2)
+
+or
+<B><A HREF="/cgi-bin/man/man2html?2+fdatasync">fdatasync</A></B>(2)
+
+first.
+</DL>
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+On success, zero is returned.
+On error, an error number is returned.
+<A NAME="lbAF">&nbsp;</A>
+<H2>ERRORS</H2>
+
+<DL COMPACT>
+<DT id="13"><B>EBADF</B>
+
+<DD>
+The <I>fd</I> argument was not a valid file descriptor.
+<DT id="14"><B>EINVAL</B>
+
+<DD>
+An invalid value was specified for <I>advice</I>.
+<DT id="15"><B>ESPIPE</B>
+
+<DD>
+The specified file descriptor refers to a pipe or FIFO.
+(<B>ESPIPE</B>
+
+is the error specified by POSIX,
+but before kernel version 2.6.16,
+
+Linux returned
+<B>EINVAL</B>
+
+in this case.)
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H2>VERSIONS</H2>
+
+Kernel support first appeared in Linux 2.5.60;
+the underlying system call is called
+<B>fadvise64</B>().
+
+
+Library support has been provided since glibc version 2.2,
+via the wrapper function
+<B>posix_fadvise</B>().
+
+<P>
+
+Since Linux 3.18,
+
+support for the underlying system call is optional,
+depending on the setting of the
+<B>CONFIG_ADVISE_SYSCALLS</B>
+
+configuration option.
+<A NAME="lbAH">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+POSIX.1-2001, POSIX.1-2008.
+Note that the type of the
+<I>len</I>
+
+argument was changed from
+<I>size_t</I>
+
+to
+<I>off_t</I>
+
+in POSIX.1-2003 TC1.
+<A NAME="lbAI">&nbsp;</A>
+<H2>NOTES</H2>
+
+Under Linux, <B>POSIX_FADV_NORMAL</B> sets the readahead window to the
+default size for the backing device; <B>POSIX_FADV_SEQUENTIAL</B> doubles
+this size, and <B>POSIX_FADV_RANDOM</B> disables file readahead entirely.
+These changes affect the entire file, not just the specified region
+(but other open file handles to the same file are unaffected).
+<P>
+
+The contents of the kernel buffer cache can be cleared via the
+<I>/proc/sys/vm/drop_caches</I>
+
+interface described in
+<B><A HREF="/cgi-bin/man/man2html?5+proc">proc</A></B>(5).
+
+<P>
+
+One can obtain a snapshot of which pages of a file are resident
+in the buffer cache by opening a file, mapping it with
+<B><A HREF="/cgi-bin/man/man2html?2+mmap">mmap</A></B>(2),
+
+and then applying
+<B><A HREF="/cgi-bin/man/man2html?2+mincore">mincore</A></B>(2)
+
+to the mapping.
+<A NAME="lbAJ">&nbsp;</A>
+<H3>C library/kernel differences</H3>
+
+The name of the wrapper function in the C library is
+<B>posix_fadvise</B>().
+
+The underlying system call is called
+<B>fadvise64</B>()
+
+(or, on some architectures,
+<B>fadvise64_64</B>());
+
+the difference between the two is that the former system call
+assumes that the type of the <I>len</I> argument is <I>size_t</I>,
+while the latter expects <I>loff_t</I> there.
+<A NAME="lbAK">&nbsp;</A>
+<H3>Architecture-specific variants</H3>
+
+Some architectures require
+64-bit arguments to be aligned in a suitable pair of registers (see
+<B><A HREF="/cgi-bin/man/man2html?2+syscall">syscall</A></B>(2)
+
+for further detail).
+On such architectures, the call signature of
+<B>posix_fadvise</B>()
+
+shown in the SYNOPSIS would force
+a register to be wasted as padding between the
+<I>fd</I>
+
+and
+<I>offset</I>
+
+arguments.
+Therefore, these architectures define a version of the
+system call that orders the arguments suitably,
+but is otherwise exactly the same as
+<B>posix_fadvise</B>().
+
+<P>
+
+For example, since Linux 2.6.14, ARM has the following system call:
+<P>
+
+
+
+<B>long arm_fadvise64_64(int </B><I>fd</I><B>, int </B><I>advice</I><B>,</B>
+
+<B>                      loff_t </B><I>offset</I><B>, loff_t </B><I>len</I><B>);</B>
+
+
+
+<P>
+
+These architecture-specific details are generally
+hidden from applications by the glibc
+<B>posix_fadvise</B>()
+
+wrapper function,
+which invokes the appropriate architecture-specific system call.
+<A NAME="lbAL">&nbsp;</A>
+<H2>BUGS</H2>
+
+In kernels before 2.6.6, if
+<I>len</I>
+
+was specified as 0, then this was interpreted literally as &quot;zero bytes&quot;,
+rather than as meaning &quot;all bytes through to the end of the file&quot;.
+<A NAME="lbAM">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?1+fincore">fincore</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?2+mincore">mincore</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+readahead">readahead</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+sync_file_range">sync_file_range</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?3+posix_fallocate">posix_fallocate</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+posix_madvise">posix_madvise</A></B>(3)
+
+<A NAME="lbAN">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="16"><A HREF="#lbAB">NAME</A><DD>
+<DT id="17"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="18"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="19"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DT id="20"><A HREF="#lbAF">ERRORS</A><DD>
+<DT id="21"><A HREF="#lbAG">VERSIONS</A><DD>
+<DT id="22"><A HREF="#lbAH">CONFORMING TO</A><DD>
+<DT id="23"><A HREF="#lbAI">NOTES</A><DD>
+<DL>
+<DT id="24"><A HREF="#lbAJ">C library/kernel differences</A><DD>
+<DT id="25"><A HREF="#lbAK">Architecture-specific variants</A><DD>
+</DL>
+<DT id="26"><A HREF="#lbAL">BUGS</A><DD>
+<DT id="27"><A HREF="#lbAM">SEE ALSO</A><DD>
+<DT id="28"><A HREF="#lbAN">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:33 GMT, March 31, 2021
+</BODY>
+</HTML>

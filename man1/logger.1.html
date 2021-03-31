@@ -1,0 +1,466 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of LOGGER</TITLE>
+</HEAD><BODY>
+<H1>LOGGER</H1>
+Section: User Commands (1)<BR>Updated: November 2015<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+logger - enter messages into the system log
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<B>logger</B>
+
+[options]
+[<I>message</I>]
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<B>logger</B>
+
+makes entries in the system log.
+<P>
+When the optional <I>message</I> argument is present, it is written
+to the log.  If it is not present, and the <B>-f</B> option is not
+given either, then standard input is logged.
+<A NAME="lbAE">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<DL COMPACT>
+<DT id="1"><B>-d</B>,<B> --udp</B>
+
+<DD>
+Use datagrams (UDP) only.  By default the connection is tried to the
+syslog port defined in /etc/services, which is often 514 .
+<P>
+See also <B>--server</B> and <B>--socket</B> to specify where to connect.
+<DT id="2"><B>-e</B>,<B> --skip-empty</B>
+
+<DD>
+Ignore empty lines when processing files.  An empty line
+is defined to be a line without any characters.  Thus a line consisting
+only of whitespace is NOT considered empty.
+Note that when the <B>--prio-prefix</B> option is specified, the priority
+is not part of the line.  Thus an empty line in this mode is a line that does
+not have any characters after the priority prefix (e.g. <B>&lt;13&gt;</B>).
+<DT id="3"><B>-f</B>,<B> --file </B><I>file</I>
+
+<DD>
+Log the contents of the specified <I>file</I>.
+This option cannot be combined with a command-line message.
+<DT id="4"><B>-i</B>
+
+<DD>
+Log the PID of the logger process with each line.
+<DT id="5"><B>--id</B>[<B>=</B><I>id</I>]
+
+<DD>
+Log the PID of the logger process with each line.  When the optional
+argument <I>id</I> is specified, then it is used instead of the logger
+command's PID.  The use of <B>--id=$$</B>
+(PPID) is recommended in scripts that send several messages.
+<P>
+Note that the system logging infrastructure (for example <B>systemd</B> when
+listening on /dev/log) may follow local socket credentials to overwrite the
+PID specified in the message.
+<B><A HREF="/cgi-bin/man/man2html?1+logger">logger</A></B>(1)
+
+is able to set those socket credentials to the given <I>id</I>, but only if you
+have root permissions and a process with the specified PID exists, otherwise
+the socket credentials are not modified and the problem is silently ignored.
+<DT id="6"><B>--journald</B>[<B>=</B><I>file</I>]
+
+<DD>
+Write a systemd journal entry.  The entry is read from the given <I>file</I>,
+when specified, otherwise from standard input.
+Each line must begin with a field that is accepted by journald; see
+<B><A HREF="/cgi-bin/man/man2html?7+systemd.journal-fields">systemd.journal-fields</A></B>(7)
+
+for details.  The use of a MESSAGE_ID field is generally a good idea, as it
+makes finding entries easy.  Examples:
+<DT id="7"><DD>
+<PRE>
+<B>    logger --journald &lt;&lt;end
+    MESSAGE_ID=67feb6ffbaf24c5cbec13c008dd72309
+    MESSAGE=The dogs bark, but the caravan goes on.
+    DOGS=bark
+    CARAVAN=goes on
+    end
+<DT id="8"><DD>    logger --journald=entry.txt
+</B></PRE>
+
+<DT id="9"><DD>
+Notice that
+<B>--journald</B>
+
+will ignore values of other options, such as priority.  If priority is
+needed it must be within input, and use PRIORITY field.  The simple
+execution of
+<B>journalctl</B>
+
+will display MESSAGE field.  Use
+<B>journalctl --output json-pretty</B>
+
+to see rest of the fields.
+<P>
+To include newlines in MESSAGE, specify MESSAGE several times.  This is
+handled as a special case, other fields will be stored as an array in
+the journal if they appear multiple times.
+<DT id="10"><B>--msgid</B> <I>msgid</I>
+
+<DD>
+Sets the RFC5424 MSGID field.  Note that the space character is not permitted
+inside of <I>msgid</I>.  This option is only used if <B>--rfc5424</B> is
+specified as well; otherwise, it is silently ignored.
+<DT id="11"><B>-n</B>,<B> --server </B><I>server</I>
+
+<DD>
+Write to the specified remote syslog <I>server</I>
+instead of to the system log socket.  Unless
+<B>--udp</B> or <B>--tcp</B>
+is specified, <B>logger</B> will first try to use UDP,
+but if this fails a TCP connection is attempted.
+<DT id="12"><B>--no-act</B>
+
+<DD>
+Causes everything to be done except for writing the log message to the system
+log, and removing the connection or the journal.  This option can be used
+together with <B>--stderr</B> for testing purposes.
+<DT id="13"><B>--octet-count</B>
+
+<DD>
+Use the RFC 6587 octet counting framing method for sending messages.
+When this option is not used, the default is no framing on UDP, and
+RFC6587 non-transparent framing (also known as octet stuffing) on TCP.
+<DT id="14"><B>-P</B>,<B> --port </B><I>port</I>
+
+<DD>
+Use the specified <I>port</I>.  When this option is not specified, the
+port defaults to syslog for udp and to syslog-conn for tcp connections.
+<DT id="15"><B>-p</B>,<B> --priority </B><I>priority</I>
+
+<DD>
+Enter the message into the log with the specified <I>priority</I>.
+The priority may be specified numerically or as a
+<I>facility</I>.<I>level</I>
+
+pair.
+For example, <B>-p local3.info</B>
+logs the message as informational in the local3 facility.
+The default is <B>user.notice</B>.
+<DT id="16"><B>--prio-prefix</B>
+
+<DD>
+Look for a syslog prefix on every line read from standard input.
+This prefix is a decimal number within angle brackets that encodes both
+the facility and the level.  The number is constructed by multiplying the
+facility by 8 and then adding the level.  For example, <B>local0.info</B>,
+meaning facility=16 and level=6, becomes <B>&lt;134&gt;</B>.
+<P>
+If the prefix contains no facility, the facility defaults to what is
+specified by the <B>-p</B> option.  Similarly, if no prefix is provided,
+the line is logged using the <I>priority</I> given with <B>-p</B>.
+<P>
+This option doesn't affect a command-line message.
+<DT id="17"><B>--rfc3164</B>
+
+<DD>
+Use the RFC 3164 BSD syslog protocol to submit messages to a remote server.
+<DT id="18"><B>--rfc5424</B>[<B>=</B><I>without</I>]
+
+<DD>
+Use the RFC 5424 syslog protocol to submit messages to a remote server.
+The optional <I>without</I> argument can be a comma-separated list of
+the following values: <B>notq</B>, <B>notime</B>, <B>nohost</B>.
+<P>
+The <B>notq</B> value suppresses the time-quality structured data
+from the submitted message.  The time-quality information shows whether
+the local clock was synchronized plus the maximum number of microseconds
+the timestamp might be off.  The time quality is also automatically
+suppressed when <B>--sd-id timeQuality</B> is specified.
+<P>
+The <B>notime</B> value (which implies <B>notq</B>)
+suppresses the complete sender timestamp that is in
+ISO-8601 format, including microseconds and timezone.
+<P>
+The <B>nohost</B> value suppresses
+<B><A HREF="/cgi-bin/man/man2html?2+gethostname">gethostname</A></B>(2)
+
+information from the message header.
+<DT id="19"><DD>
+The RFC 5424 protocol has been the default for
+<B>logger</B>
+
+since version 2.26.
+<DT id="20"><B>-s</B>,<B> --stderr</B>
+
+<DD>
+Output the message to standard error as well as to the system log.
+<DT id="21"><B>--sd-id </B><I>name</I>[<B>@</B><I>digits</I>]
+
+<DD>
+Specifies a structured data element ID for an RFC 5424 message header.  The
+option has to be used before <B>--sd-param</B> to introduce a new element.
+The number of structured data elements is unlimited.  The ID (<I>name</I> plus
+possibly <B>@</B><I>digits</I>) is case-sensitive and uniquely identifies the type
+and purpose of the element.  The same ID must not exist more than once in
+a message.  The <B>@</B><I>digits</I> part is required for user-defined
+non-standardized IDs.
+<P>
+<B>logger</B> currently generates the <B>timeQuality</B> standardized element
+only.  RFC 5424 also describes the elements <B>origin</B> (with parameters
+ip, enterpriseId, software and swVersion) and <B>meta</B> (with parameters
+sequenceId, sysUpTime and language).
+These element IDs may be specified without the <B>@</B><I>digits</I> suffix.
+<P>
+<DT id="22"><B>--sd-param </B><I>name</I><B>=</B><I>value</I><B></B>
+
+<DD>
+Specifies a structured data element parameter, a name and value pair.
+The option has to be used after <B>--sd-id</B> and may be specified more
+than once for the same element.  Note that the quotation marks around
+<I>value</I> are required and must be escaped on the command line.
+<DT id="23"><DD>
+<PRE>
+<B>    logger --rfc5424 --sd-id zoo@123               \
+                     --sd-param tiger=\&quot;hungry\&quot;   \
+                     --sd-param zebra=\&quot;running\&quot;  \
+                     --sd-id manager@123           \
+                     --sd-param onMeeting=\&quot;yes\&quot;  \
+                     &quot;this is message&quot;
+</B></PRE>
+
+<DT id="24"><DD>
+produces:
+<DT id="25"><DD>
+<PRE>
+<B>  &lt;13&gt;1 2015-10-01T14:07:59.168662+02:00 ws kzak - - [timeQuality tzKnown=&quot;1&quot; isSynced=&quot;1&quot; syncAccuracy=&quot;218616&quot;][zoo@123 tiger=&quot;hungry&quot; zebra=&quot;running&quot;][manager@123 onMeeting=&quot;yes&quot;] this is message
+</B></PRE>
+
+<DT id="26"><DD>
+<DT id="27"><B>-S</B>,<B> --size </B><I>size</I>
+
+<DD>
+Sets the maximum permitted message size to <I>size</I>.  The default
+is 1KiB characters, which is the limit traditionally used and specified
+in RFC 3164.  With RFC 5424, this limit has become flexible.  A good assumption
+is that RFC 5424 receivers can at least process 4KiB messages.
+<P>
+Most receivers accept messages larger than 1KiB over any type of syslog
+protocol.  As such, the <B>--size</B> option affects logger in
+all cases (not only when <B>--rfc5424</B> was used).
+<P>
+Note: the message-size limit limits the overall message size, including
+the syslog header.  Header sizes vary depending on the selected options and
+the hostname length.  As a rule of thumb, headers are usually not longer than
+50 to 80 characters.  When selecting a maximum message size, it is important
+to ensure that the receiver supports the max size as well, otherwise messages
+may become truncated.  Again, as a rule of thumb two to four KiB message size
+should generally be OK, whereas anything larger should be verified to work.
+<P>
+<DT id="28"><B>--socket-errors</B>[<B>=</B><I>mode</I>]
+
+<DD>
+Print errors about Unix socket connections.  The <I>mode</I> can be a value of
+<B>off</B>, <B>on</B>, or <B>auto</B>.  When the mode is auto logger will detect
+if the init process is systemd, and if so assumption is made /dev/log can be
+used early at boot.  Other init systems lack of /dev/log will not cause errors
+that is identical with messaging using
+<B><A HREF="/cgi-bin/man/man2html?3+openlog">openlog</A></B>(3)
+
+system call.  The
+<B><A HREF="/cgi-bin/man/man2html?1+logger">logger</A></B>(1)
+
+before version 2.26 used openlog, and hence was unable to detected loss of
+messages sent to Unix sockets.
+<DT id="29"><DD>
+The default mode is <B>auto</B>.  When errors are not enabled lost messages are
+not communicated and will result to successful return value of
+<B><A HREF="/cgi-bin/man/man2html?1+logger">logger</A></B>(1)
+
+invocation.
+<DT id="30"><B>-T</B>,<B> --tcp</B>
+
+<DD>
+Use stream (TCP) only.  By default the connection is tried to the
+<I>syslog-conn</I>
+
+port defined in /etc/services, which is often
+<I>601</I>.
+
+<P>
+See also <B>--server</B> and <B>--socket</B> to specify where to connect.
+<DT id="31"><B>-t</B>,<B> --tag </B><I>tag</I>
+
+<DD>
+Mark every line to be logged with the specified
+<I>tag</I>.
+
+The default tag is the name of the user logged in on the terminal (or a user
+name based on effective user ID).
+<DT id="32"><B>-u</B>,<B> --socket </B><I>socket</I>
+
+<DD>
+Write to the specified
+<I>socket</I>
+
+instead of to the system log socket.
+<DT id="33"><B>--</B>
+
+<DD>
+End the argument list.  This allows the <I>message</I>
+to start with a hyphen (-).
+<DT id="34"><B>-V</B>,<B> --version</B>
+
+<DD>
+Display version information and exit.
+<DT id="35"><B>-h</B>,<B> --help</B>
+
+<DD>
+Display help text and exit.
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+The
+<B>logger</B>
+
+utility exits 0 on success, and &gt;0 if an error occurs.
+<A NAME="lbAG">&nbsp;</A>
+<H2>FACILITIES AND LEVELS</H2>
+
+Valid facility names are:
+<DL COMPACT>
+<DT id="36"><DD>
+
+<TABLE>
+<TR VALIGN=top><TD><B>auth</B></TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B>authpriv</B></TD><TD>for security information of a sensitive nature<BR></TD></TR>
+<TR VALIGN=top><TD><B>cron</B></TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B>daemon</B></TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B>ftp</B></TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B>kern</B></TD><TD>
+cannot be generated from userspace process, automatically converted to <B>user
+</B><BR></TD></TR>
+<TR VALIGN=top><TD><B>lpr</B></TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B>mail</B></TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B>news</B></TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B>syslog</B></TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B>user</B></TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B>uucp</B></TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B>local0</B></TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><BR>&nbsp;&nbsp;to</TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B>local7</B></TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B>security</B></TD><TD>deprecated synonym for <B>auth</B><BR></TD></TR>
+</TABLE>
+
+</DL>
+<P>
+
+Valid level names are:
+<DL COMPACT>
+<DT id="37"><DD>
+<TABLE>
+<TR VALIGN=top><TD><B>emerg</B></TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B>alert</B></TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B>crit</B></TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B>err</B></TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B>warning</B></TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B>notice</B></TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B>info</B></TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B>debug</B></TD><TD><BR></TD></TR>
+<TR VALIGN=top><TD><B>panic</B></TD><TD>deprecated synonym for <B>emerg</B><BR></TD></TR>
+<TR VALIGN=top><TD><B>error</B></TD><TD>deprecated synonym for <B>err</B><BR></TD></TR>
+<TR VALIGN=top><TD><B>warn</B></TD><TD>deprecated synonym for <B>warning</B><BR></TD></TR>
+</TABLE>
+
+</DL>
+<P>
+
+For the priority order and intended purposes of these facilities and levels, see
+<B><A HREF="/cgi-bin/man/man2html?3+syslog">syslog</A></B>(3).
+
+<A NAME="lbAH">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+<B>logger System rebooted</B>
+
+<BR>
+
+<B>logger -p local0.notice -t HOSTIDM -f /dev/idmc</B>
+
+<BR>
+
+<B>logger -n loghost.example.com System rebooted</B>
+
+<A NAME="lbAI">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?1+journalctl">journalctl</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?3+syslog">syslog</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?7+systemd.journal-fields">systemd.journal-fields</A></B>(7)
+
+<A NAME="lbAJ">&nbsp;</A>
+<H2>STANDARDS</H2>
+
+The
+<B>logger</B>
+
+command is expected to be IEEE Std 1003.2 (&quot;POSIX.2&quot;) compatible.
+<A NAME="lbAK">&nbsp;</A>
+<H2>AUTHORS</H2>
+
+The
+<B>logger</B>
+
+command
+was originally written by University of California in 1983-1993 and later
+rewritten by
+
+Karel Zak
+
+
+Rainer Gerhards
+
+and
+
+Sami Kerola
+
+<A NAME="lbAL">&nbsp;</A>
+<H2>AVAILABILITY</H2>
+
+The logger command is part of the util-linux package and is available from
+
+Linux Kernel Archive
+
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="38"><A HREF="#lbAB">NAME</A><DD>
+<DT id="39"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="40"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="41"><A HREF="#lbAE">OPTIONS</A><DD>
+<DT id="42"><A HREF="#lbAF">RETURN VALUE</A><DD>
+<DT id="43"><A HREF="#lbAG">FACILITIES AND LEVELS</A><DD>
+<DT id="44"><A HREF="#lbAH">EXAMPLES</A><DD>
+<DT id="45"><A HREF="#lbAI">SEE ALSO</A><DD>
+<DT id="46"><A HREF="#lbAJ">STANDARDS</A><DD>
+<DT id="47"><A HREF="#lbAK">AUTHORS</A><DD>
+<DT id="48"><A HREF="#lbAL">AVAILABILITY</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:18 GMT, March 31, 2021
+</BODY>
+</HTML>

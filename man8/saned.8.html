@@ -1,0 +1,647 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of saned</TITLE>
+</HEAD><BODY>
+<H1>saned</H1>
+Section: SANE Scanner Access Now Easy (8)<BR>Updated: 29 Sep 2017<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="ixAAB"></A>
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+saned - SANE network daemon
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<B>saned</B>
+
+<B>[ -a</B>
+
+<I>[ username ]</I>
+
+<B>]</B>
+
+<B>[ -u</B>
+
+<I>username</I>
+
+<B>]</B>
+
+<B>[ -b</B>
+
+<I>address</I>
+
+<B>]</B>
+
+<B>[ -l ]</B>
+
+<B>[ -D ]</B>
+
+<B>[ -o ]</B>
+
+<B>[ -d</B>
+
+<I>n</I>
+
+<B>]</B>
+
+<B>[ -e ]</B>
+
+<B>[ -h ]</B>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<B>saned</B>
+
+is the SANE (Scanner Access Now Easy) daemon that allows remote clients
+to access image acquisition devices available on the local host.
+<A NAME="lbAE">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<P>
+
+The
+<B>-l</B>
+
+flag requests that
+<B>saned</B>
+
+run in standalone daemon mode.  In this mode,
+<B>saned</B>
+
+will listen for incoming client connections;
+<B>inetd</B>
+
+is not required for
+<B>saned</B>
+
+operations in this mode. The
+<B>-b</B>
+
+flag tells
+<B>saned</B>
+
+to bind to the
+<I>address</I>
+
+given.  The
+<B>-u</B>
+
+flag requests that
+<B>saned</B>
+
+drop root privileges and run as the user (and group) associated with
+<I>username</I>
+
+after binding.
+The
+<B>-D</B>
+
+flag will request
+<B>saned</B>
+
+to detach from the console and run in the background.
+The flag
+<B>-a</B>
+
+is equivalent to the combination of
+<B>-l -B -u</B>
+
+<I>username</I>
+
+options.
+<P>
+
+The
+<B>-d</B>
+
+flag sets the level of
+<B>saned</B>
+
+debug output.  When compiled with debugging enabled, this flag may be
+followed by a number to request more or less debug info.  The larger
+the number, the more verbose the debug output.  E.g.,
+<B>-d128</B>
+
+will request output of all debug info.  A level of 0 produces no
+output at all.  The default value is 2.
+<P>
+
+The
+<B>-e</B>
+
+flag will divert
+<B>saned</B>
+
+debug output to stderr instead of the syslog default.
+<P>
+
+The
+<B>-o</B>
+
+flag requests that
+<B>saned</B>
+
+exits after the first client disconnects.  This is useful for debugging.
+<P>
+
+The
+<B>-h</B>
+
+flag displays a short help message.
+<P>
+
+If
+<B>saned</B>
+
+is run from other programs such as inetd, xinetd and systemd, check that
+program's documentation on how to pass command-line options.
+<A NAME="lbAF">&nbsp;</A>
+<H2>CONFIGURATION</H2>
+
+First and foremost:
+<B>saned</B>
+
+is not intended to be exposed to the internet or other non-trusted
+networks. Make sure that access is limited by tcpwrappers and/or a firewall
+setup. Don't depend only on
+<B>saned</B>'s
+
+own authentication. Don't run
+<B>saned</B>
+
+as root if it's not necessary. And do
+<B>not</B>
+
+install
+<B>saned</B>
+
+as setuid root.
+<P>
+
+The
+<I>saned.conf</I>
+
+configuration file contains both options for the daemon and the access
+list.
+<DL COMPACT>
+<DT id="1"><B>data_portrange</B> = <I>min_port</I> - <I>max_port</I><DD>
+Specify the port range to use for the data connection. Pick a port
+range between 1024 and 65535; don't pick a too large port range, as it
+may have performance issues. Use this option if your <B>saned</B>
+server is sitting behind a firewall. If that firewall is a Linux
+machine, we strongly recommend using the Netfilter
+<I>nf_conntrack_sane</I> module instead.
+<DT id="2"><B>data_connect_timeout</B> = <I>timeout</I><DD>
+Specify the time in milliseconds that saned will wait for a data
+connection. Without this option, if the data connection is not done
+before the scanner reaches the end of scan, the scanner will continue
+to scan past the end and may damage it depending on the
+backend. Specify zero to have the old behavior. The default is 4000ms.
+</DL>
+<P>
+
+The access list is a list of host names, IP addresses or IP subnets
+(CIDR notation) that are permitted to use local SANE devices. IPv6
+addresses must be enclosed in brackets, and should always be specified
+in their compressed form. Connections from localhost are always
+permitted. Empty lines and lines starting with a hash mark (#) are
+ignored. A line containing the single character ``+'' is interpreted
+to match any hostname. This allows any remote machine to use your
+scanner and may present a security risk, so this shouldn't be used
+unless you know what you're doing.
+<P>
+
+A sample configuration file is shown below:
+<P>
+
+<DL COMPACT><DT id="3"><DD>
+# Daemon options
+<BR>
+
+data_portrange = 10000 - 10100
+<BR>
+
+# Access list
+<BR>
+
+scan-client.somedomain.firm
+<BR>
+
+# this is a comment
+<BR>
+
+192.168.0.1
+<BR>
+
+192.168.2.12/29
+<BR>
+
+[::1]
+<BR>
+
+[2001:db8:185e::42:12]/64
+</DL>
+
+<P>
+
+The case of the host names does not matter, so AHost.COM is considered
+identical to ahost.com.
+<A NAME="lbAG">&nbsp;</A>
+<H2>SERVER DAEMON CONFIGURATION</H2>
+
+For
+<B>saned</B>
+
+to work properly in its default mode of operation, it is also necessary to
+add the appropriate configuration for
+<I>(x)inetd or systemd.</I>
+
+(see below).
+Note that your inetd must support IPv6 if you
+want to connect to saned over IPv6 ; xinetd, openbsd-inetd and systemd
+are known to support IPv6, check the documentation for your inetd daemon.
+<P>
+
+In the sections below the configuration for
+<I>inetd, xinetd</I>
+
+and
+<I>systemd</I>
+
+are described in more detail.
+<P>
+
+For the configurations below it is necessary to add a line of the following
+form to
+<I>/etc/services</I>:
+
+<P>
+
+<DL COMPACT><DT id="4"><DD>
+sane-port 6566/tcp # SANE network scanner daemon
+</DL>
+
+<P>
+
+The official IANA short name for port 6566 is &quot;sane-port&quot;. The older name
+&quot;sane&quot; is now deprecated.
+<A NAME="lbAH">&nbsp;</A>
+<H2>INETD CONFIGURATION</H2>
+
+It is required to add a single line to the inetd configuration file
+<I>(/etc/inetd.conf)</I>
+
+<P>
+
+The configuration line normally looks like this:
+<P>
+
+<DL COMPACT><DT id="5"><DD>
+sane-port stream tcp nowait saned.saned @SBINDIR@/saned saned
+</DL>
+
+<P>
+
+However, if your system uses
+<B><A HREF="/cgi-bin/man/man2html?8+tcpd">tcpd</A></B>(8)
+
+for additional security screening, you may want to disable saned
+access control by putting ``+'' in
+<I>saned.conf</I>
+
+and use a line of the following form in
+<I>/etc/inetd.conf</I>
+
+instead:
+<P>
+
+<DL COMPACT><DT id="6"><DD>
+sane-port stream tcp nowait saned.saned /usr/sbin/tcpd @SBINDIR@/saned
+</DL>
+
+<P>
+
+Note that both examples assume that there is a
+<B>saned</B>
+
+group and a
+<B>saned</B>
+
+user.  If you follow this example, please make sure that the
+access permissions on the special device are set such that
+<B>saned</B>
+
+can access the scanner (the program generally needs read and
+write access to scanner devices).
+<A NAME="lbAI">&nbsp;</A>
+<H2>XINETD CONFIGURATION</H2>
+
+If xinetd is installed on your system instead of inetd the following example
+for
+<I>/etc/xinetd.conf</I>
+
+may be helpful:
+<P>
+
+<DL COMPACT><DT id="7"><DD>
+
+<PRE>
+# default: off
+# description: The sane server accepts requests
+# for network access to a local scanner via the
+# network.
+service sane-port
+{
+   port        = 6566
+   socket_type = stream
+   wait        = no
+   user        = saned
+   group       = saned
+   server      = @SBINDIR@/saned
+}
+</PRE>
+
+
+</DL>
+
+<A NAME="lbAJ">&nbsp;</A>
+<H2>SYSTEMD CONFIGURATION</H2>
+
+Saned can be compiled with explicit systemd support. This
+will allow logging debugging information to be forwarded
+to the systemd journal. The systemd support
+requires compilation with the systemd-devel package
+installed on the system. this is the preferred option.
+<P>
+Saned can be used wih systemd without the systemd integration
+compiled in, but then logging of debug information is not supported.
+<P>
+The systemd configuration is different for the 2 options, so
+both are described below.
+<A NAME="lbAK">&nbsp;</A>
+<H2>Systemd configuration for saned with systemd support compiled in</H2>
+
+for the systemd configuration we need to add 2 configuration files in
+<I>/etc/systemd/system.</I>
+
+<P>
+
+The first file we need to add here is called
+<I>saned.socket.</I>
+
+It shall have
+the following contents:
+<P>
+
+<DL COMPACT><DT id="8"><DD>
+
+<PRE>
+[Unit]
+Description=saned incoming socket
+
+[Socket]
+ListenStream=6566
+Accept=yes
+MaxConnections=1
+
+[Install]
+WantedBy=sockets.target
+</PRE>
+
+
+</DL>
+
+<P>
+
+The second file to be added is
+<I><A HREF="mailto:saned@.service">saned@.service</A></I>
+
+with the following contents:
+<P>
+
+<DL COMPACT><DT id="9"><DD>
+
+<PRE>
+[Unit]
+Description=Scanner Service
+Requires=saned.socket
+
+[Service]
+ExecStart=/usr/sbin/saned
+User=saned
+Group=saned
+StandardInput=null
+StandardOutput=syslog
+StandardError=syslog
+Environment=SANE_CONFIG_DIR=@CONFIGDIR@
+# If you need to debug your configuration uncomment the next line and
+# change it as appropriate to set the desired debug options
+# Environment=SANE_DEBUG_DLL=255 SANE_DEBUG_BJNP=5
+
+[Install]
+Also=saned.socket
+</PRE>
+
+
+</DL>
+
+<P>
+
+You need to set an environment variable for
+<B>SANE_CONFIG_DIR</B>
+
+pointing to the directory where saned can find its configuration files.
+you will have to remove the # on the last line and set the variables
+for the desired debugging information if required.  Multiple variables
+can be set by separating the assignments by spaces as shown in the
+example above.
+<P>
+
+Unlike
+<I>(x)inetd</I>
+
+, systemd allows debugging output from backends set using
+<B>SANE_DEBUG_XXX</B>
+
+to be captured. See the man-page for your backend to see what options
+are  supported.
+With the service unit as described above, the debugging output is
+forwarded to the system log.
+<P>
+<A NAME="lbAL">&nbsp;</A>
+<H2>Systemd configuration when saned is compiled without systemd support</H2>
+
+This configuration will also work when Saned is compiled WITH systemd integration
+support, but it does not allow debugging information to be logged.
+<P>
+
+for systemd configuration for saned, we need to add 2 configuration files in
+<I>/etc/systemd/system.</I>
+
+<P>
+
+The first file we need to add here is called
+<I>saned.socket.</I>
+
+It is identical to the version for systemd with the support compiled in.
+It shall have the following contents:
+<P>
+
+<DL COMPACT><DT id="10"><DD>
+
+<PRE>
+[Unit]
+Description=saned incoming socket
+
+[Socket]
+ListenStream=6566
+Accept=yes
+MaxConnections=1
+
+[Install]
+WantedBy=sockets.target
+</PRE>
+
+
+</DL>
+
+<P>
+
+The second file to be added is
+<I><A HREF="mailto:saned@.service">saned@.service</A></I>
+
+This one differes from the sersion with systemd integration compiled in:
+<P>
+
+<DL COMPACT><DT id="11"><DD>
+
+<PRE>
+[Unit]
+Description=Scanner Service
+Requires=saned.socket
+
+[Service]
+ExecStart=/usr/sbin/saned
+User=saned
+Group=saned
+StandardInput=socket
+
+Environment=SANE_CONFIG_DIR=/etc/sane.d
+
+[Install]
+Also=saned.socket
+</PRE>
+
+
+</DL>
+
+<P>
+
+<P>
+<A NAME="lbAM">&nbsp;</A>
+<H2>FILES</H2>
+
+<DL COMPACT>
+<DT id="12"><I>/etc/hosts.equiv</I>
+
+<DD>
+The hosts listed in this file are permitted to access all local SANE
+devices.  Caveat: this file imposes serious security risks and its use
+is not recommended.
+<DT id="13"><I>@CONFIGDIR@/saned.conf</I>
+
+<DD>
+Contains a list of hosts permitted to access local SANE devices (see
+also description of
+<B>SANE_CONFIG_DIR</B>
+
+below).
+<DT id="14"><I>@CONFIGDIR@/saned.users</I>
+
+<DD>
+If this file contains lines of the form
+<P>
+user:password:backend
+<P>
+access to the listed backends is restricted. A backend may be listed multiple
+times for different user/password combinations. The server uses MD5 hashing
+if supported by the client.
+</DL>
+<A NAME="lbAN">&nbsp;</A>
+<H2>ENVIRONMENT</H2>
+
+<DL COMPACT>
+<DT id="15"><B>SANE_CONFIG_DIR</B>
+
+<DD>
+This environment variable specifies the list of directories that may
+contain the configuration file.  Under UNIX, the directories are
+separated by a colon (`:'), under OS/2, they are separated by a
+semi-colon (`;').  If this variable is not set, the configuration file
+is searched in two default directories: first, the current working
+directory (&quot;.&quot;) and then in @CONFIGDIR@.  If the value of the
+environment variable ends with the directory separator character, then
+the default directories are searched after the explicitly specified
+directories.  For example, setting
+<B>SANE_CONFIG_DIR</B>
+
+to &quot;/tmp/config:&quot; would result in directories &quot;tmp/config&quot;, &quot;.&quot;, and
+&quot;@CONFIGDIR@&quot; being searched (in this order).
+<P>
+</DL>
+<A NAME="lbAO">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?7+sane">sane</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?1+scanimage">scanimage</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?1+xscanimage">xscanimage</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?1+xcam">xcam</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?5+sane-dll">sane-dll</A></B>(5),
+
+<B><A HREF="/cgi-bin/man/man2html?5+sane-net">sane-net</A></B>(5),
+
+<B><A HREF="/cgi-bin/man/man2html?5+sane-backendname">sane-backendname</A></B>(5)
+
+<BR>
+
+<I><A HREF="http://www.penguin-breeder.org/?page=sane-net">http://www.penguin-breeder.org/?page=sane-net</A></I>
+
+<A NAME="lbAP">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+David Mosberger
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="16"><A HREF="#lbAB">NAME</A><DD>
+<DT id="17"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="18"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="19"><A HREF="#lbAE">OPTIONS</A><DD>
+<DT id="20"><A HREF="#lbAF">CONFIGURATION</A><DD>
+<DT id="21"><A HREF="#lbAG">SERVER DAEMON CONFIGURATION</A><DD>
+<DT id="22"><A HREF="#lbAH">INETD CONFIGURATION</A><DD>
+<DT id="23"><A HREF="#lbAI">XINETD CONFIGURATION</A><DD>
+<DT id="24"><A HREF="#lbAJ">SYSTEMD CONFIGURATION</A><DD>
+<DT id="25"><A HREF="#lbAK">Systemd configuration for saned with systemd support compiled in</A><DD>
+<DT id="26"><A HREF="#lbAL">Systemd configuration when saned is compiled without systemd support</A><DD>
+<DT id="27"><A HREF="#lbAM">FILES</A><DD>
+<DT id="28"><A HREF="#lbAN">ENVIRONMENT</A><DD>
+<DT id="29"><A HREF="#lbAO">SEE ALSO</A><DD>
+<DT id="30"><A HREF="#lbAP">AUTHOR</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:15 GMT, March 31, 2021
+</BODY>
+</HTML>

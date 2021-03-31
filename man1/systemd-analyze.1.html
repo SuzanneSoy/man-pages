@@ -1,0 +1,1064 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SYSTEMD-ANALYZE</TITLE>
+</HEAD><BODY>
+<H1>SYSTEMD-ANALYZE</H1>
+Section: systemd-analyze (1)<BR>Updated: <BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+systemd-analyze - Analyze and debug system manager
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<DL COMPACT>
+<DT id="1">
+<B>systemd-analyze</B> [OPTIONS...] [time]
+<DT id="2">
+<B>systemd-analyze</B> [OPTIONS...] blame
+<DT id="3">
+<B>systemd-analyze</B> [OPTIONS...] critical-chain [<I>UNIT</I>...]
+<DT id="4">
+<B>systemd-analyze</B> [OPTIONS...] dump
+<DT id="5">
+<B>systemd-analyze</B> [OPTIONS...] plot [&gt;file.svg]
+<DT id="6">
+<B>systemd-analyze</B> [OPTIONS...] dot [<I>PATTERN</I>...] [&gt;file.dot]
+<DT id="7">
+<B>systemd-analyze</B> [OPTIONS...] unit-paths
+<DT id="8">
+<B>systemd-analyze</B> [OPTIONS...] exit-status [<I>STATUS</I>...]
+<DT id="9">
+<B>systemd-analyze</B> [OPTIONS...] condition <I>CONDITION</I>...
+<DT id="10">
+<B>systemd-analyze</B> [OPTIONS...] syscall-filter [<I>SET</I>...]
+<DT id="11">
+<B>systemd-analyze</B> [OPTIONS...] calendar <I>SPEC</I>...
+<DT id="12">
+<B>systemd-analyze</B> [OPTIONS...] timestamp <I>TIMESTAMP</I>...
+<DT id="13">
+<B>systemd-analyze</B> [OPTIONS...] timespan <I>SPAN</I>...
+<DT id="14">
+<B>systemd-analyze</B> [OPTIONS...] cat-config <I>NAME</I>|<I>PATH</I>...
+<DT id="15">
+<B>systemd-analyze</B> [OPTIONS...] verify [<I>FILE</I>...]
+<DT id="16">
+<B>systemd-analyze</B> [OPTIONS...] security <I>UNIT</I>...
+</DL>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+<B>systemd-analyze</B>
+<DD>may be used to determine system boot-up performance statistics and retrieve other state and tracing information from the system and service manager, and to verify the correctness of unit files. It is also used to access special functions useful for advanced system manager debugging.
+<P>
+
+If no command is passed,
+<B>systemd-analyze time</B>
+is implied.
+<A NAME="lbAE">&nbsp;</A>
+<H3>systemd-analyze time</H3>
+
+<P>
+
+This command prints the time spent in the kernel before userspace has been reached, the time spent in the initial RAM disk (initrd) before normal system userspace has been reached, and the time normal system userspace took to initialize. Note that these measurements simply measure the time passed up to the point where all system services have been spawned, but not necessarily until they fully finished initialization or the disk is idle.
+<P>
+
+<B>Example&nbsp;1.&nbsp;Show how long the boot took</B>
+<P>
+<DL COMPACT><DT id="17"><DD>
+
+
+
+<PRE>
+# in a container
+$ systemd-analyze time
+Startup finished in 296ms (userspace)
+multi-user.target reached after 275ms in userspace
+
+# on a real machine
+$ systemd-analyze time
+Startup finished in 2.584s (kernel) + 19.176s (initrd) + 47.847s (userspace) = 1min 9.608s
+multi-user.target reached after 47.820s in userspace
+</PRE>
+
+</DL>
+
+
+
+
+<A NAME="lbAF">&nbsp;</A>
+<H3>systemd-analyze blame</H3>
+
+<P>
+
+This command prints a list of all running units, ordered by the time they took to initialize. This information may be used to optimize boot-up times. Note that the output might be misleading as the initialization of one service might be slow simply because it waits for the initialization of another service to complete. Also note:
+<B>systemd-analyze blame</B>
+doesn't display results for services with
+<I>Type=simple</I>, because systemd considers such services to be started immediately, hence no measurement of the initialization delays can be done. Also note that this command only shows the time units took for starting up, it does not show how long unit jobs spent in the execution queue. In particular it shows the time units spent in
+&quot;activating&quot;
+state, which is not defined for units such as device units that transition directly from
+&quot;inactive&quot;
+to
+&quot;active&quot;. This command hence gives an impression of the performance of program code, but cannot accurately reflect latency introduced by waiting for hardware and similar events.
+<P>
+
+<B>Example&nbsp;2.&nbsp;Show which units took the most time during boot</B>
+<P>
+<DL COMPACT><DT id="18"><DD>
+
+
+
+<PRE>
+$ systemd-analyze blame
+         32.875s pmlogger.service
+         20.905s systemd-networkd-wait-online.service
+         13.299s dev-vda1.device
+         ...
+            23ms sysroot.mount
+            11ms initrd-udevadm-cleanup-db.service
+             3ms sys-kernel-config.mount
+        
+</PRE>
+
+</DL>
+
+
+
+
+<A NAME="lbAG">&nbsp;</A>
+<H3>systemd-analyze critical-chain [<I>UNIT</I>...]</H3>
+
+<P>
+
+This command prints a tree of the time-critical chain of units (for each of the specified
+<I>UNIT</I>s or for the default target otherwise). The time after the unit is active or started is printed after the &quot;@&quot; character. The time the unit takes to start is printed after the &quot;+&quot; character. Note that the output might be misleading as the initialization of services might depend on socket activation and because of the parallel execution of units. Also, similar to the
+<B>blame</B>
+command, this only takes into account the time units spent in
+&quot;activating&quot;
+state, and hence does not cover units that never went through an
+&quot;activating&quot;
+state (such as device units that transition directly from
+&quot;inactive&quot;
+to
+&quot;active&quot;). Moreover it does not show information on jobs (and in particular not jobs that timed out).
+<P>
+
+<B>Example&nbsp;3.&nbsp;systemd-analyze critical-chain</B>
+<P>
+<DL COMPACT><DT id="19"><DD>
+
+
+
+<PRE>
+$ systemd-analyze critical-chain
+multi-user.target @47.820s
+└─pmie.service @35.968s +548ms
+  └─pmcd.service @33.715s +2.247s
+    └─network-online.target @33.712s
+      └─systemd-networkd-wait-online.service @12.804s +20.905s
+        └─systemd-networkd.service @11.109s +1.690s
+          └─systemd-udevd.service @9.201s +1.904s
+            └─systemd-tmpfiles-setup-dev.service @7.306s +1.776s
+              └─kmod-static-nodes.service @6.976s +177ms
+                └─systemd-journald.socket
+                  └─system.slice
+                    └─-.slice
+</PRE>
+
+</DL>
+
+
+
+
+<A NAME="lbAH">&nbsp;</A>
+<H3>systemd-analyze dump</H3>
+
+<P>
+
+This command outputs a (usually very long) human-readable serialization of the complete server state. Its format is subject to change without notice and should not be parsed by applications.
+<P>
+
+<B>Example&nbsp;4.&nbsp;Show the internal state of user manager</B>
+<P>
+<DL COMPACT><DT id="20"><DD>
+
+
+
+<PRE>
+$ systemd-analyze --user dump
+Timestamp userspace: Thu 2019-03-14 23:28:07 CET
+Timestamp finish: Thu 2019-03-14 23:28:07 CET
+Timestamp generators-start: Thu 2019-03-14 23:28:07 CET
+Timestamp generators-finish: Thu 2019-03-14 23:28:07 CET
+Timestamp units-load-start: Thu 2019-03-14 23:28:07 CET
+Timestamp units-load-finish: Thu 2019-03-14 23:28:07 CET
+-&gt; Unit proc-timer_list.mount:
+        Description: /proc/timer_list
+        ...
+-&gt; Unit default.target:
+        Description: Main user target
+...
+</PRE>
+
+</DL>
+
+
+
+
+<A NAME="lbAI">&nbsp;</A>
+<H3>systemd-analyze plot</H3>
+
+<P>
+
+This command prints an SVG graphic detailing which system services have been started at what time, highlighting the time they spent on initialization.
+<P>
+
+<B>Example&nbsp;5.&nbsp;Plot a bootchart</B>
+<P>
+<DL COMPACT><DT id="21"><DD>
+
+
+
+<PRE>
+$ systemd-analyze plot &gt;bootup.svg
+$ eog bootup.svg&amp;
+</PRE>
+
+</DL>
+
+
+
+
+<A NAME="lbAJ">&nbsp;</A>
+<H3>systemd-analyze dot [<I>pattern</I>...]</H3>
+
+<P>
+
+This command generates textual dependency graph description in dot format for further processing with the GraphViz
+<B><A HREF="/cgi-bin/man/man2html?1+dot">dot</A></B>(1)
+tool. Use a command line like
+<B>systemd-analyze dot | dot -Tsvg &gt;systemd.svg</B>
+to generate a graphical dependency tree. Unless
+<B>--order</B>
+or
+<B>--require</B>
+is passed, the generated graph will show both ordering and requirement dependencies. Optional pattern globbing style specifications (e.g.
+*.target) may be given at the end. A unit dependency is included in the graph if any of these patterns match either the origin or destination node.
+<P>
+
+<B>Example&nbsp;6.&nbsp;Plot all dependencies of any unit whose name starts with &quot;avahi-daemon&quot;</B>
+<P>
+<DL COMPACT><DT id="22"><DD>
+
+
+
+<PRE>
+$ systemd-analyze dot 'avahi-daemon.*' | dot -Tsvg &gt;avahi.svg
+$ eog avahi.svg
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+<B>Example&nbsp;7.&nbsp;Plot the dependencies between all known target units</B>
+<P>
+<DL COMPACT><DT id="23"><DD>
+
+
+
+<PRE>
+$ systemd-analyze dot --to-pattern='*.target' --from-pattern='*.target' \
+      | dot -Tsvg &gt;targets.svg
+$ eog targets.svg
+</PRE>
+
+</DL>
+
+
+
+
+<A NAME="lbAK">&nbsp;</A>
+<H3>systemd-analyze unit-paths</H3>
+
+<P>
+
+This command outputs a list of all directories from which unit files,
+.d
+overrides, and
+.wants,
+.requires
+symlinks may be loaded. Combine with
+<B>--user</B>
+to retrieve the list for the user manager instance, and
+<B>--global</B>
+for the global configuration of user manager instances.
+<P>
+
+<B>Example&nbsp;8.&nbsp;Show all paths for generated units</B>
+<P>
+<DL COMPACT><DT id="24"><DD>
+
+
+
+<PRE>
+$ systemd-analyze unit-paths | grep '^/run'
+/run/systemd/system.control
+/run/systemd/transient
+/run/systemd/generator.early
+/run/systemd/system
+/run/systemd/system.attached
+/run/systemd/generator
+/run/systemd/generator.late
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+Note that this verb prints the list that is compiled into
+<B>systemd-analyze</B>
+itself, and does not communicate with the running manager. Use
+<P>
+<DL COMPACT><DT id="25"><DD>
+
+
+
+<PRE>
+systemctl [--user] [--global] show -p UnitPath --value
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+to retrieve the actual list that the manager uses, with any empty directories omitted.
+<A NAME="lbAL">&nbsp;</A>
+<H3>systemd-analyze exit-status [<I>STATUS</I>...]</H3>
+
+<P>
+
+This command prints a list of exit statuses along with their &quot;class&quot;, i.e. the source of the definition (one of
+&quot;glibc&quot;,
+&quot;systemd&quot;,
+&quot;LSB&quot;, or
+&quot;BSD&quot;), see the Process Exit Codes section in
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.exec">systemd.exec</A></B>(5). If no additional arguments are specified, all known statuses are are shown. Otherwise, only the definitions for the specified codes are shown.
+<P>
+
+<B>Example&nbsp;9.&nbsp;Show some example exit status names</B>
+<P>
+<DL COMPACT><DT id="26"><DD>
+
+
+
+<PRE>
+$ systemd-analyze exit-status 0 1 {63..65}
+NAME    STATUS CLASS
+SUCCESS 0      glibc
+FAILURE 1      glibc
+-       63     -
+USAGE   64     BSD
+DATAERR 65     BSD
+</PRE>
+
+</DL>
+
+
+
+
+<A NAME="lbAM">&nbsp;</A>
+<H3>systemd-analyze condition <I>CONDITION</I>...</H3>
+
+<P>
+
+This command will evaluate
+<I>Condition*=...</I>
+and
+<I>Assert*=...</I>
+assignments, and print their values, and the resulting value of the combined condition set. See
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.unit">systemd.unit</A></B>(5)
+for a list of available conditions and asserts.
+<P>
+
+<B>Example&nbsp;10.&nbsp;Evaluate conditions that check kernel versions</B>
+<P>
+<DL COMPACT><DT id="27"><DD>
+
+
+
+<PRE>
+$ systemd-analyze condition 'ConditionKernelVersion = ! &lt;4.0' \
+        'ConditionKernelVersion = &gt;=5.1' \
+        'ConditionACPower=|false' \
+        'ConditionArchitecture=|!arm' \
+        'AssertPathExists=/etc/os-release'
+test.service: AssertPathExists=/etc/os-release succeeded.
+Asserts succeeded.
+test.service: ConditionArchitecture=|!arm succeeded.
+test.service: ConditionACPower=|false failed.
+test.service: ConditionKernelVersion=&gt;=5.1 succeeded.
+test.service: ConditionKernelVersion=!&lt;4.0 succeeded.
+Conditions succeeded.
+</PRE>
+
+</DL>
+
+
+
+
+<A NAME="lbAN">&nbsp;</A>
+<H3>systemd-analyze syscall-filter [<I>SET</I>...]</H3>
+
+<P>
+
+This command will list system calls contained in the specified system call set
+<I>SET</I>, or all known sets if no sets are specified. Argument
+<I>SET</I>
+must include the
+&quot;@&quot;
+prefix.
+<A NAME="lbAO">&nbsp;</A>
+<H3>systemd-analyze calendar <I>EXPRESSION</I>...</H3>
+
+<P>
+
+This command will parse and normalize repetitive calendar time events, and will calculate when they elapse next. This takes the same input as the
+<I>OnCalendar=</I>
+setting in
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.timer">systemd.timer</A></B>(5), following the syntax described in
+<B><A HREF="/cgi-bin/man/man2html?7+systemd.time">systemd.time</A></B>(7). By default, only the next time the calendar expression will elapse is shown; use
+<B>--iterations=</B>
+to show the specified number of next times the expression elapses. Each time the expression elapses forms a timestamp, see the
+<B>timestamp</B>
+verb below.
+<P>
+
+<B>Example&nbsp;11.&nbsp;Show leap days in the near future</B>
+<P>
+<DL COMPACT><DT id="28"><DD>
+
+
+
+<PRE>
+$ systemd-analyze calendar --iterations=5 '*-2-29 0:0:0'
+  Original form: *-2-29 0:0:0
+Normalized form: *-02-29 00:00:00
+    Next elapse: Sat 2020-02-29 00:00:00 UTC
+       From now: 11 months 15 days left
+       Iter. #2: Thu 2024-02-29 00:00:00 UTC
+       From now: 4 years 11 months left
+       Iter. #3: Tue 2028-02-29 00:00:00 UTC
+       From now: 8 years 11 months left
+       Iter. #4: Sun 2032-02-29 00:00:00 UTC
+       From now: 12 years 11 months left
+       Iter. #5: Fri 2036-02-29 00:00:00 UTC
+       From now: 16 years 11 months left
+</PRE>
+
+</DL>
+
+
+
+
+<A NAME="lbAP">&nbsp;</A>
+<H3>systemd-analyze timestamp <I>TIMESTAMP</I>...</H3>
+
+<P>
+
+This command parses a timestamp (i.e. a single point in time) and outputs the normalized form and the difference between this timestamp and now. The timestamp should adhere to the syntax documented in
+<B><A HREF="/cgi-bin/man/man2html?7+systemd.time">systemd.time</A></B>(7), section &quot;PARSING TIMESTAMPS&quot;.
+<P>
+
+<B>Example&nbsp;12.&nbsp;Show parsing of timestamps</B>
+<P>
+<DL COMPACT><DT id="29"><DD>
+
+
+
+<PRE>
+$ systemd-analyze timestamp yesterday now tomorrow
+  Original form: yesterday
+Normalized form: Mon 2019-05-20 00:00:00 CEST
+       (in UTC): Sun 2019-05-19 22:00:00 UTC
+   UNIX seconds: @15583032000
+       From now: 1 day 9h ago
+
+  Original form: now
+Normalized form: Tue 2019-05-21 09:48:39 CEST
+       (in UTC): Tue 2019-05-21 07:48:39 UTC
+   UNIX seconds: @1558424919.659757
+       From now: 43us ago
+
+  Original form: tomorrow
+Normalized form: Wed 2019-05-22 00:00:00 CEST
+       (in UTC): Tue 2019-05-21 22:00:00 UTC
+   UNIX seconds: @15584760000
+       From now: 14h left
+</PRE>
+
+</DL>
+
+
+
+
+<A NAME="lbAQ">&nbsp;</A>
+<H3>systemd-analyze timespan <I>EXPRESSION</I>...</H3>
+
+<P>
+
+This command parses a time span (i.e. a difference between two timestamps) and outputs the normalized form and the equivalent value in microseconds. The time span should adhere to the syntax documented in
+<B><A HREF="/cgi-bin/man/man2html?7+systemd.time">systemd.time</A></B>(7), section &quot;PARSING TIME SPANS&quot;. Values without units are parsed as seconds.
+<P>
+
+<B>Example&nbsp;13.&nbsp;Show parsing of timespans</B>
+<P>
+<DL COMPACT><DT id="30"><DD>
+
+
+
+<PRE>
+$ systemd-analyze timespan 1s 300s '1year 0.000001s'
+Original: 1s
+      μs: 1000000
+   Human: 1s
+
+Original: 300s
+      μs: 300000000
+   Human: 5min
+
+Original: 1year 0.000001s
+      μs: 31557600000001
+   Human: 1y 1us
+</PRE>
+
+</DL>
+
+
+
+
+<A NAME="lbAR">&nbsp;</A>
+<H3>systemd-analyze cat-config <I>NAME</I>|<I>PATH</I>...</H3>
+
+<P>
+
+This command is similar to
+<B>systemctl cat</B>, but operates on config files. It will copy the contents of a config file and any drop-ins to standard output, using the usual systemd set of directories and rules for precedence. Each argument must be either an absolute path including the prefix (such as
+/etc/systemd/logind.conf
+or
+/usr/lib/systemd/logind.conf), or a name relative to the prefix (such as
+systemd/logind.conf).
+<P>
+
+<B>Example&nbsp;14.&nbsp;Showing logind configuration</B>
+<P>
+<DL COMPACT><DT id="31"><DD>
+
+
+
+<PRE>
+$ systemd-analyze cat-config systemd/logind.conf
+# /etc/systemd/logind.conf
+...
+[Login]
+NAutoVTs=8
+...
+
+# /usr/lib/systemd/logind.conf.d/20-test.conf
+... some override from another package
+
+# /etc/systemd/logind.conf.d/50-override.conf
+... some administrator override
+        
+</PRE>
+
+</DL>
+
+
+
+
+<A NAME="lbAS">&nbsp;</A>
+<H3>systemd-analyze verify <I>FILE</I>...</H3>
+
+<P>
+
+This command will load unit files and print warnings if any errors are detected. Files specified on the command line will be loaded, but also any other units referenced by them. The full unit search path is formed by combining the directories for all command line arguments, and the usual unit load paths (variable
+<I>$SYSTEMD_UNIT_PATH</I>
+is supported, and may be used to replace or augment the compiled in set of unit load paths; see
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.unit">systemd.unit</A></B>(5)). All units files present in the directories containing the command line arguments will be used in preference to the other paths.
+<P>
+
+The following errors are currently detected:
+<P>
+<DL COMPACT><DT id="32"><DD>
+&bull;
+
+
+unknown sections and directives,
+</DL>
+
+<P>
+<DL COMPACT><DT id="33"><DD>
+&bull;
+
+
+missing dependencies which are required to start the given unit,
+</DL>
+
+<P>
+<DL COMPACT><DT id="34"><DD>
+&bull;
+
+
+man pages listed in
+<I>Documentation=</I>
+which are not found in the system,
+</DL>
+
+<P>
+<DL COMPACT><DT id="35"><DD>
+&bull;
+
+
+commands listed in
+<I>ExecStart=</I>
+and similar which are not found in the system or not executable.
+</DL>
+
+<P>
+
+<B>Example&nbsp;15.&nbsp;Misspelt directives</B>
+<P>
+<DL COMPACT><DT id="36"><DD>
+
+
+
+<PRE>
+$ cat ./user.slice
+[Unit]
+WhatIsThis=11
+Documentation=<A HREF="/cgi-bin/man/man2html?1+man:nosuchfile">man:nosuchfile</A>(1)
+Requires=different.service
+
+[Service]
+Description=x
+
+$ systemd-analyze verify ./user.slice
+[./user.slice:9] Unknown lvalue 'WhatIsThis' in section 'Unit'
+[./user.slice:13] Unknown section 'Service'. Ignoring.
+Error: org.freedesktop.systemd1.LoadFailed:
+   Unit different.service failed to load:
+   No such file or directory.
+Failed to create user.slice/start: Invalid argument
+user.slice: man <A HREF="/cgi-bin/man/man2html?1+nosuchfile">nosuchfile</A>(1) command failed with code 16
+        
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+<B>Example&nbsp;16.&nbsp;Missing service units</B>
+<P>
+<DL COMPACT><DT id="37"><DD>
+
+
+
+<PRE>
+$ tail ./a.socket ./b.socket
+==&gt; ./a.socket &lt;==
+[Socket]
+ListenStream=100
+
+==&gt; ./b.socket &lt;==
+[Socket]
+ListenStream=100
+Accept=yes
+
+$ systemd-analyze verify ./a.socket ./b.socket
+Service a.service not loaded, a.socket cannot be started.
+Service b@0.service not loaded, b.socket cannot be started.
+        
+</PRE>
+
+</DL>
+
+
+
+
+<A NAME="lbAT">&nbsp;</A>
+<H3>systemd-analyze security [<I>UNIT</I>...]</H3>
+
+<P>
+
+This command analyzes the security and sandboxing settings of one or more specified service units. If at least one unit name is specified the security settings of the specified service units are inspected and a detailed analysis is shown. If no unit name is specified, all currently loaded, long-running service units are inspected and a terse table with results shown. The command checks for various security-related service settings, assigning each a numeric &quot;exposure level&quot; value, depending on how important a setting is. It then calculates an overall exposure level for the whole unit, which is an estimation in the range 0.0...10.0 indicating how exposed a service is security-wise. High exposure levels indicate very little applied sandboxing. Low exposure levels indicate tight sandboxing and strongest security restrictions. Note that this only analyzes the per-service security features systemd itself implements. This means that any additional security mechanisms applied by the service code itself are not accounted for. The exposure level determined this way should not be misunderstood: a high exposure level neither means that there is no effective sandboxing applied by the service code itself, nor that the service is actually vulnerable to remote or local attacks. High exposure levels do indicate however that most likely the service might benefit from additional settings applied to them.
+<P>
+
+Please note that many of the security and sandboxing settings individually can be circumvented --- unless combined with others. For example, if a service retains the privilege to establish or undo mount points many of the sandboxing options can be undone by the service code itself. Due to that is essential that each service uses the most comprehensive and strict sandboxing and security settings possible. The tool will take into account some of these combinations and relationships between the settings, but not all. Also note that the security and sandboxing settings analyzed here only apply to the operations executed by the service code itself. If a service has access to an IPC system (such as D-Bus) it might request operations from other services that are not subject to the same restrictions. Any comprehensive security and sandboxing analysis is hence incomplete if the IPC access policy is not validated too.
+<P>
+
+<B>Example&nbsp;17.&nbsp;Analyze systemd-logind.service</B>
+<P>
+<DL COMPACT><DT id="38"><DD>
+
+
+
+<PRE>
+$ systemd-analyze security --no-pager systemd-logind.service
+  NAME                DESCRIPTION                              EXPOSURE
+✗ PrivateNetwork=     Service has access to the host's network      0.5
+✗ User=/DynamicUser=  Service runs as root user                     0.4
+✗ DeviceAllow=        Service has no device ACL                     0.2
+✓ IPAddressDeny=      Service blocks all IP address ranges
+...
+→ Overall exposure level for systemd-logind.service: 4.1 OK 🙂
+</PRE>
+
+</DL>
+
+
+
+
+<A NAME="lbAU">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<P>
+
+The following options are understood:
+<P>
+
+<B>--system</B>
+<DL COMPACT><DT id="39"><DD>
+Operates on the system systemd instance. This is the implied default.
+</DL>
+
+<P>
+
+<B>--user</B>
+<DL COMPACT><DT id="40"><DD>
+Operates on the user systemd instance.
+</DL>
+
+<P>
+
+<B>--global</B>
+<DL COMPACT><DT id="41"><DD>
+Operates on the system-wide configuration for user systemd instance.
+</DL>
+
+<P>
+
+<B>--order</B>, <B>--require</B>
+<DL COMPACT><DT id="42"><DD>
+When used in conjunction with the
+<B>dot</B>
+command (see above), selects which dependencies are shown in the dependency graph. If
+<B>--order</B>
+is passed, only dependencies of type
+<I>After=</I>
+or
+<I>Before=</I>
+are shown. If
+<B>--require</B>
+is passed, only dependencies of type
+<I>Requires=</I>,
+<I>Requisite=</I>,
+<I>Wants=</I>
+and
+<I>Conflicts=</I>
+are shown. If neither is passed, this shows dependencies of all these types.
+</DL>
+
+<P>
+
+<B>--from-pattern=</B>, <B>--to-pattern=</B>
+<DL COMPACT><DT id="43"><DD>
+When used in conjunction with the
+<B>dot</B>
+command (see above), this selects which relationships are shown in the dependency graph. Both options require a
+<B><A HREF="/cgi-bin/man/man2html?7+glob">glob</A></B>(7)
+pattern as an argument, which will be matched against the left-hand and the right-hand, respectively, nodes of a relationship.
+<P>
+Each of these can be used more than once, in which case the unit name must match one of the values. When tests for both sides of the relation are present, a relation must pass both tests to be shown. When patterns are also specified as positional arguments, they must match at least one side of the relation. In other words, patterns specified with those two options will trim the list of edges matched by the positional arguments, if any are given, and fully determine the list of edges shown otherwise.
+</DL>
+
+<P>
+
+<B>--fuzz=</B><I>timespan</I>
+<DL COMPACT><DT id="44"><DD>
+When used in conjunction with the
+<B>critical-chain</B>
+command (see above), also show units, which finished
+<I>timespan</I>
+earlier, than the latest unit in the same level. The unit of
+<I>timespan</I>
+is seconds unless specified with a different unit, e.g. &quot;50ms&quot;.
+</DL>
+
+<P>
+
+<B>--man=no</B>
+<DL COMPACT><DT id="45"><DD>
+Do not invoke man to verify the existence of man pages listed in
+<I>Documentation=</I>.
+</DL>
+
+<P>
+
+<B>--generators</B>
+<DL COMPACT><DT id="46"><DD>
+Invoke unit generators, see
+<B><A HREF="/cgi-bin/man/man2html?7+systemd.generator">systemd.generator</A></B>(7). Some generators require root privileges. Under a normal user, running with generators enabled will generally result in some warnings.
+</DL>
+
+<P>
+
+<B>--root=</B><B></B><I>PATH</I>
+<DL COMPACT><DT id="47"><DD>
+With
+<B>cat-files</B>, show config files underneath the specified root path
+<I>PATH</I>.
+</DL>
+
+<P>
+
+<B>--iterations=</B><B></B><I>NUMBER</I>
+<DL COMPACT><DT id="48"><DD>
+When used with the
+<B>calendar</B>
+command, show the specified number of iterations the specified calendar expression will elapse next. Defaults to 1.
+</DL>
+
+<P>
+
+<B>--base-time=</B><B></B><I>TIMESTAMP</I>
+<DL COMPACT><DT id="49"><DD>
+When used with the
+<B>calendar</B>
+command, show next iterations relative to the specified point in time. If not specified defaults to the current time.
+</DL>
+
+<P>
+
+<B>-H</B>, <B>--host=</B>
+<DL COMPACT><DT id="50"><DD>
+Execute the operation remotely. Specify a hostname, or a username and hostname separated by
+&quot;@&quot;, to connect to. The hostname may optionally be suffixed by a port ssh is listening on, separated by
+&quot;:&quot;, and then a container name, separated by
+&quot;/&quot;, which connects directly to a specific container on the specified host. This will use SSH to talk to the remote machine manager instance. Container names may be enumerated with
+<B>machinectl -H </B><B></B><I>HOST</I>. Put IPv6 addresses in brackets.
+</DL>
+
+<P>
+
+<B>-M</B>, <B>--machine=</B>
+<DL COMPACT><DT id="51"><DD>
+Execute operation on a local container. Specify a container name to connect to.
+</DL>
+
+<P>
+
+<B>-h</B>, <B>--help</B>
+<DL COMPACT><DT id="52"><DD>
+Print a short help text and exit.
+</DL>
+
+<P>
+
+<B>--version</B>
+<DL COMPACT><DT id="53"><DD>
+Print a short version string and exit.
+</DL>
+
+<P>
+
+<B>--no-pager</B>
+<DL COMPACT><DT id="54"><DD>
+Do not pipe output into a pager.
+</DL>
+
+<A NAME="lbAV">&nbsp;</A>
+<H2>EXIT STATUS</H2>
+
+<P>
+
+On success, 0 is returned, a non-zero failure code otherwise.
+<A NAME="lbAW">&nbsp;</A>
+<H2>ENVIRONMENT</H2>
+
+<P>
+
+<I>$SYSTEMD_PAGER</I>
+<DL COMPACT><DT id="55"><DD>
+Pager to use when
+<B>--no-pager</B>
+is not given; overrides
+<I>$PAGER</I>. If neither
+<I>$SYSTEMD_PAGER</I>
+nor
+<I>$PAGER</I>
+are set, a set of well-known pager implementations are tried in turn, including
+<B><A HREF="/cgi-bin/man/man2html?1+less">less</A></B>(1)
+and
+<B><A HREF="/cgi-bin/man/man2html?1+more">more</A></B>(1), until one is found. If no pager implementation is discovered no pager is invoked. Setting this environment variable to an empty string or the value
+&quot;cat&quot;
+is equivalent to passing
+<B>--no-pager</B>.
+</DL>
+
+<P>
+
+<I>$SYSTEMD_LESS</I>
+<DL COMPACT><DT id="56"><DD>
+Override the options passed to
+<B>less</B>
+(by default
+&quot;FRSXMK&quot;).
+<P>
+Users might want to change two options in particular:
+<P>
+
+<B>K</B>
+<DL COMPACT><DT id="57"><DD>
+This option instructs the pager to exit immediately when
+Ctrl+C
+is pressed. To allow
+<B>less</B>
+to handle
+Ctrl+C
+itself to switch back to the pager command prompt, unset this option.
+<P>
+If the value of
+<I>$SYSTEMD_LESS</I>
+does not include
+&quot;K&quot;, and the pager that is invoked is
+<B>less</B>,
+Ctrl+C
+will be ignored by the executable, and needs to be handled by the pager.
+</DL>
+
+<P>
+
+<B>X</B>
+<DL COMPACT><DT id="58"><DD>
+This option instructs the pager to not send termcap initialization and deinitialization strings to the terminal. It is set by default to allow command output to remain visible in the terminal even after the pager exits. Nevertheless, this prevents some pager functionality from working, in particular paged output cannot be scrolled with the mouse.
+</DL>
+
+<P>
+See
+<B><A HREF="/cgi-bin/man/man2html?1+less">less</A></B>(1)
+for more discussion.
+</DL>
+
+<P>
+
+<I>$SYSTEMD_LESSCHARSET</I>
+<DL COMPACT><DT id="59"><DD>
+Override the charset passed to
+<B>less</B>
+(by default
+&quot;utf-8&quot;, if the invoking terminal is determined to be UTF-8 compatible).
+</DL>
+
+<P>
+
+<I>$SYSTEMD_COLORS</I>
+<DL COMPACT><DT id="60"><DD>
+The value must be a boolean. Controls whether colorized output should be generated. This can be specified to override the decision that
+<B>systemd</B>
+makes based on
+<I>$TERM</I>
+and what the console is connected to.
+</DL>
+
+<P>
+
+<I>$SYSTEMD_URLIFY</I>
+<DL COMPACT><DT id="61"><DD>
+The value must be a boolean. Controls whether clickable links should be generated in the output for terminal emulators supporting this. This can be specified to override the decision that
+<B>systemd</B>
+makes based on
+<I>$TERM</I>
+and other conditions.
+</DL>
+
+<A NAME="lbAX">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?1+systemctl">systemctl</A></B>(1)
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="62"><A HREF="#lbAB">NAME</A><DD>
+<DT id="63"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="64"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DL>
+<DT id="65"><A HREF="#lbAE">systemd-analyze time</A><DD>
+<DT id="66"><A HREF="#lbAF">systemd-analyze blame</A><DD>
+<DT id="67"><A HREF="#lbAG">systemd-analyze critical-chain [<I>UNIT</I>...]</A><DD>
+<DT id="68"><A HREF="#lbAH">systemd-analyze dump</A><DD>
+<DT id="69"><A HREF="#lbAI">systemd-analyze plot</A><DD>
+<DT id="70"><A HREF="#lbAJ">systemd-analyze dot [<I>pattern</I>...]</A><DD>
+<DT id="71"><A HREF="#lbAK">systemd-analyze unit-paths</A><DD>
+<DT id="72"><A HREF="#lbAL">systemd-analyze exit-status [<I>STATUS</I>...]</A><DD>
+<DT id="73"><A HREF="#lbAM">systemd-analyze condition <I>CONDITION</I>...</A><DD>
+<DT id="74"><A HREF="#lbAN">systemd-analyze syscall-filter [<I>SET</I>...]</A><DD>
+<DT id="75"><A HREF="#lbAO">systemd-analyze calendar <I>EXPRESSION</I>...</A><DD>
+<DT id="76"><A HREF="#lbAP">systemd-analyze timestamp <I>TIMESTAMP</I>...</A><DD>
+<DT id="77"><A HREF="#lbAQ">systemd-analyze timespan <I>EXPRESSION</I>...</A><DD>
+<DT id="78"><A HREF="#lbAR">systemd-analyze cat-config <I>NAME</I>|<I>PATH</I>...</A><DD>
+<DT id="79"><A HREF="#lbAS">systemd-analyze verify <I>FILE</I>...</A><DD>
+<DT id="80"><A HREF="#lbAT">systemd-analyze security [<I>UNIT</I>...]</A><DD>
+</DL>
+<DT id="81"><A HREF="#lbAU">OPTIONS</A><DD>
+<DT id="82"><A HREF="#lbAV">EXIT STATUS</A><DD>
+<DT id="83"><A HREF="#lbAW">ENVIRONMENT</A><DD>
+<DT id="84"><A HREF="#lbAX">SEE ALSO</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:28 GMT, March 31, 2021
+</BODY>
+</HTML>

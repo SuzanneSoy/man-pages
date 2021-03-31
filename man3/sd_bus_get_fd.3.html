@@ -1,0 +1,204 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SD_BUS_GET_FD</TITLE>
+</HEAD><BODY>
+<H1>SD_BUS_GET_FD</H1>
+Section: sd_bus_get_fd (3)<BR>Updated: <BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+sd_bus_get_fd, sd_bus_get_events, sd_bus_get_timeout - Get the file descriptor, I/O events and time-out to wait for from a message bus object
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+<B>
+</B><PRE>
+#include &lt;<A HREF="file:///usr/include/systemd/sd-bus.h">systemd/sd-bus.h</A>&gt;
+</PRE>
+
+
+<DL COMPACT>
+<DT id="1">
+<B>int sd_bus_get_fd(sd_bus&nbsp;*</B><I>bus</I><B>);</B>
+
+<DT id="2">
+<B>int sd_bus_get_events(sd_bus&nbsp;*</B><I>bus</I><B>);</B>
+
+<DT id="3">
+<B>int sd_bus_get_timeout(sd_bus&nbsp;*</B><I>bus</I><B>, uint64_t&nbsp;*</B><I>timeout_usec</I><B>);</B>
+
+</DL>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+<B>sd_bus_get_fd()</B>
+<DD>returns the file descriptor used to communicate from a message bus object. This descriptor can be used with
+<B><A HREF="/cgi-bin/man/man2html?3+poll">poll</A></B>(3)
+or a similar function to wait for I/O events on the specified bus connection object. If the bus object was configured with the
+<B><A HREF="/cgi-bin/man/man2html?3+sd_bus_set_fd">sd_bus_set_fd</A></B>(3)
+function, then the
+<I>input_fd</I>
+file descriptor used in that call is returned.
+<P>
+
+<B>sd_bus_get_events()</B>
+returns the I/O events to wait for, suitable for passing to
+<B>poll()</B>
+or a similar call. Returns a combination of
+<B>POLLIN</B>,
+<B>POLLOUT</B>, ... events, or negative on error.
+<P>
+
+<B>sd_bus_get_timeout()</B>
+returns the time-out in &micro;s to pass to to
+<B>poll()</B>
+or a similar call when waiting for events on the specified bus connection. The returned time-out may be zero, in which case a subsequent I/O polling call should be invoked in non-blocking mode. The returned timeout may be
+<B>UINT64_MAX</B>
+in which case the I/O polling call may block indefinitely, without any applied time-out. Note that the returned time-out should be considered only a maximum sleeping time. It is permissible (and even expected) that shorter time-outs are used by the calling program, in case other event sources are polled in the same event loop. Note that the returned time-value is relative and specified in microseconds. When converting this value in order to pass it as third argument to
+<B>poll()</B>
+(which expects milliseconds), care should be taken to use a division that rounds up to ensure the I/O polling operation doesn't sleep for shorter than necessary, which might result in unintended busy looping (alternatively, use
+<B><A HREF="/cgi-bin/man/man2html?3+ppoll">ppoll</A></B>(3)
+instead of plain
+<B>poll()</B>, which understands time-outs with nano-second granularity).
+<P>
+
+These three functions are useful to hook up a bus connection object with an external or manual event loop involving
+<B>poll()</B>
+or a similar I/O polling call. Before each invocation of the I/O polling call, all three functions should be invoked: the file descriptor returned by
+<B>sd_bus_get_fd()</B>
+should be polled for the events indicated by
+<B>sd_bus_get_events()</B>, and the I/O call should block for that up to the time-out returned by
+<B>sd_bus_get_timeout()</B>. After each I/O polling call the bus connection needs to process incoming or outgoing data, by invoking
+<B><A HREF="/cgi-bin/man/man2html?3+sd_bus_process">sd_bus_process</A></B>(3).
+<P>
+
+Note that these function are only one of three supported ways to implement I/O event handling for bus connections. Alternatively use
+<B><A HREF="/cgi-bin/man/man2html?3+sd_bus_attach_event">sd_bus_attach_event</A></B>(3)
+to attach a bus connection to an
+<B><A HREF="/cgi-bin/man/man2html?3+sd-event">sd-event</A></B>(3)
+event loop. Or use
+<B><A HREF="/cgi-bin/man/man2html?3+sd_bus_wait">sd_bus_wait</A></B>(3)
+as a simple synchronous, blocking I/O waiting call.
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+<P>
+
+<B>sd_bus_get_fd()</B>
+returns the file descriptor used for communication, or a negative
+<I>errno</I>-style error code on error.
+<P>
+
+<B>sd_bus_get_events()</B>
+returns the I/O event mask to use for I/O event watching, or a negative
+<I>errno</I>-style error code on error.
+<P>
+
+<B>sd_bus_get_timeout()</B>
+returns zero or positive on success, or a negative
+<I>errno</I>-style error code on error.
+<A NAME="lbAF">&nbsp;</A>
+<H3>Errors</H3>
+
+<P>
+
+Returned errors may indicate the following problems:
+<P>
+
+<B>-EINVAL</B>
+<DL COMPACT><DT id="4"><DD>
+An invalid bus object was passed.
+</DL>
+
+<P>
+
+<B>-ECHILD</B>
+<DL COMPACT><DT id="5"><DD>
+The bus connection was allocated in a parent process and is being reused in a child process after
+<B>fork()</B>.
+</DL>
+
+<P>
+
+<B>-ENOTCONN</B>
+<DL COMPACT><DT id="6"><DD>
+The bus connection has been terminated.
+</DL>
+
+<P>
+
+<B>-EPERM</B>
+<DL COMPACT><DT id="7"><DD>
+Two distinct file descriptors were passed for input and output using
+<B>sd_bus_set_fd()</B>, which
+<B>sd_bus_get_fd()</B>
+cannot return.
+</DL>
+
+<A NAME="lbAG">&nbsp;</A>
+<H2>NOTES</H2>
+
+<P>
+
+These APIs are implemented as a shared library, which can be compiled and linked to with the
+<B>libsystemd</B>&nbsp;<B><A HREF="/cgi-bin/man/man2html?1+pkg-config">pkg-config</A></B>(1)
+file.
+<A NAME="lbAH">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?3+sd-bus">sd-bus</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_bus_set_fd">sd_bus_set_fd</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_bus_process">sd_bus_process</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_bus_attach_event">sd_bus_attach_event</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_bus_wait">sd_bus_wait</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+poll">poll</A></B>(3)
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="8"><A HREF="#lbAB">NAME</A><DD>
+<DT id="9"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="10"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="11"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DL>
+<DT id="12"><A HREF="#lbAF">Errors</A><DD>
+</DL>
+<DT id="13"><A HREF="#lbAG">NOTES</A><DD>
+<DT id="14"><A HREF="#lbAH">SEE ALSO</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:54 GMT, March 31, 2021
+</BODY>
+</HTML>

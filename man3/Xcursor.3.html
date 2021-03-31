@@ -1,0 +1,583 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of XCURSOR</TITLE>
+</HEAD><BODY>
+<H1>XCURSOR</H1>
+Section: Keith Packard (3)<BR>Updated: libXcursor 1.2.0<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<P>
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+XCURSOR - Cursor management library
+<P>
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<PRE>
+<B>#include &lt;<A HREF="file:///usr/include/X11/Xcursor/Xcursor.h">X11/Xcursor/Xcursor.h</A>&gt;</B>
+</PRE>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<B>Xcursor</B>
+
+is a simple library designed to help locate and load cursors.  Cursors can
+be loaded from files or memory.  A library of common cursors exists which
+map to the standard X cursor names.  Cursors can exist in several sizes and
+the library automatically picks the best size.
+<P>
+<A NAME="lbAE">&nbsp;</A>
+<H2>FUNCTIONAL OVERVIEW</H2>
+
+Xcursor is built in a couple of layers; at the bottom layer is code which
+can load cursor images from files.  Above that is a layer which locates
+cursor files based on the library path and theme.  At the top is a layer
+which builds cursors either out of an image loaded from a file or one of the
+standard X cursors.  When using images loaded from files, Xcursor prefers
+to use the Render extension CreateCursor request if supported by the X
+server.  Where not supported, Xcursor maps the cursor image to a standard X
+cursor and uses the core CreateCursor request.
+<P>
+<A NAME="lbAF">&nbsp;</A>
+<H3>CURSOR FILES</H3>
+
+Xcursor defines a new format for cursors on disk.  Each file holds
+one or more cursor images.  Each cursor image is tagged with a nominal size
+so that the best size can be selected automatically.  Multiple cursors of
+the same nominal size can be loaded together; applications are expected to
+use them as an animated sequence.
+<P>
+
+Cursor files are stored as a header containing a table of contents followed
+by a sequence of chunks.  The table of contents indicates the type, subtype
+and position in the file of each chunk.  The file header looks like:
+<P>
+
+
+<I>magic</I>: CARD32 'Xcur' (0x58, 0x63, 0x75, 0x72)
+<BR>
+
+<I>header</I>: CARD32 bytes in this header
+<BR>
+
+<I>version</I>: CARD32 file version number
+<BR>
+
+<I>ntoc</I>: CARD32 number of toc entries
+<BR>
+
+<I>toc</I>: LISTofTOC table of contents
+
+<P>
+
+Each table of contents entry looks like:
+<P>
+
+
+<I>type</I>: CARD32 entry type
+<BR>
+
+<I>subtype</I>: CARD32 type-specific label - size for images
+<BR>
+
+<I>position</I>: CARD32 absolute byte position of table in file
+
+<P>
+
+<P>
+
+Each chunk in the file has set of common header fields followed by
+additional type-specific fields:
+<P>
+
+
+<I>header</I>: CARD32 bytes in chunk header (including type-specific fields)
+<BR>
+
+<I>type</I>: CARD32 must match type in TOC for this chunk
+<BR>
+
+<I>subtype</I>: CARD32 must match subtype in TOC for this chunk
+<BR>
+
+<I>version</I>: CARD32 version number for this chunk type
+
+<P>
+
+There are currently two chunk types defined for cursor files; comments and
+images.  Comments look like:
+<P>
+
+
+<I>header</I>: 20 Comment headers are 20 bytes
+<BR>
+
+<I>type</I>: 0xfffe0001 Comment type is 0xfffe0001
+<BR>
+
+<I>subtype</I>: { 1 (COPYRIGHT), 2 (LICENSE), 3 (OTHER) }
+<BR>
+
+<I>version</I>: 1
+<BR>
+
+<I>length</I>: CARD32 byte length of UTF-8 string
+<BR>
+
+<I>string</I>: LISTofCARD8 UTF-8 string
+
+<P>
+
+Images look like:
+<P>
+
+
+<I>header</I>: 36 Image headers are 36 bytes
+<BR>
+
+<I>type</I>: 0xfffd0002 Image type is 0xfffd0002
+<BR>
+
+<I>subtype</I>: CARD32 Image subtype is the nominal size
+<BR>
+
+<I>version</I>: 1
+<BR>
+
+<I>width</I>: CARD32 Must be less than or equal to 0x7fff
+<BR>
+
+<I>height</I>: CARD32 Must be less than or equal to 0x7fff
+<BR>
+
+<I>xhot</I>: CARD32 Must be less than or equal to width
+<BR>
+
+<I>yhot</I>: CARD32 Must be less than or equal to height
+<BR>
+
+<I>delay</I>: CARD32 Delay between animation frames in milliseconds
+<BR>
+
+<I>pixels</I>: LISTofCARD32 Packed ARGB format pixels
+
+<P>
+<A NAME="lbAG">&nbsp;</A>
+<H3>THEMES</H3>
+
+Xcursor (mostly) follows the freedesktop.org spec for theming icons.  The
+default search path it uses is ~/.icons, /usr/share/icons, /usr/share/pixmaps.  Within each of these
+directories, it searches for a directory using the theme name.  Within the
+theme directory, it looks for cursor files in the 'cursors' subdirectory.
+It uses the first cursor file found along  the path.
+<P>
+
+If necessary, Xcursor also looks for a &quot;index.theme&quot; file in each theme
+directory to find inherited themes and searches along the path for those
+themes as well.
+<P>
+
+If no theme is set, or if no cursor is found for the specified theme,
+Xcursor checks the &quot;default&quot; theme.
+<P>
+<A NAME="lbAH">&nbsp;</A>
+<H2>DATATYPES</H2>
+
+<P>
+<DL COMPACT>
+<DT id="1"><B>XcursorImage</B>
+
+<DD>
+holds a single cursor image in memory.  Each pixel in the cursor is a 32-bit
+value containing ARGB with A in the high byte.
+<P>
+<PRE>
+    typedef struct _XcursorImage {
+        XcursorDim      size;       /* nominal size for matching */
+        XcursorDim      width;      /* actual width */
+        XcursorDim      height;     /* actual height */
+        XcursorDim      xhot;       /* hot spot x (must be inside image) */
+        XcursorDim      yhot;       /* hot spot y (must be inside image) */
+        XcursorPixel    *pixels;    /* pointer to pixels */
+    } XcursorImage;
+</PRE>
+
+<P>
+<DT id="2"><B>XcursorImages</B>
+
+<DD>
+holds multiple XcursorImage structures.  They're all freed when the
+XcursorImages is freed.
+<P>
+<PRE>
+    typedef struct _XcursorImages {
+        int             nimage;     /* number of images */
+        XcursorImage    **images;   /* array of XcursorImage pointers */
+    } XcursorImages;
+</PRE>
+
+<P>
+<DT id="3"><B>XcursorCursors</B>
+
+<DD>
+Holds multiple Cursor objects.  They're all freed when the XcursorCursors is
+freed.  These are reference counted so that multiple XcursorAnimate
+structures can use the same XcursorCursors.
+<P>
+<PRE>
+    typedef struct _XcursorCursors {
+        Display     *dpy;       /* Display holding cursors */
+        int         ref;        /* reference count */
+        int         ncursor;    /* number of cursors */
+        Cursor      *cursors;   /* array of cursors */
+    } XcursorCursors;
+</PRE>
+
+<P>
+<DT id="4"><B>XcursorAnimate</B>
+
+<DD>
+References a set of cursors and a sequence within that set.  Multiple
+XcursorAnimate structures may reference the same XcursorCursors; each
+holds a reference which is removed when the XcursorAnimate is freed.
+<P>
+<PRE>
+    typedef struct _XcursorAnimate {
+        XcursorCursors   *cursors;  /* list of cursors to use */
+        int              sequence;  /* which cursor is next */
+    } XcursorAnimate;
+</PRE>
+
+<P>
+<DT id="5"><B>XcursorFile</B>
+
+<DD>
+Xcursor provides an abstract API for accessing the file data.  Xcursor
+provides a stdio implementation of this abstract API; applications
+are free to create additional implementations.  These functions
+parallel the stdio functions in return value and expected argument values;
+the read and write functions flip the arguments around to match the POSIX
+versions.
+<P>
+<PRE>
+    typedef struct _XcursorFile {
+        void    *closure;
+        int     (*read)  (XcursorFile *file, unsigned char *buf, int len);
+        int     (*write) (XcursorFile *file, unsigned char *buf, int len);
+        int     (*seek)  (XcursorFile *file, long offset, int whence);
+    };
+</PRE>
+
+<P>
+</DL>
+<A NAME="lbAI">&nbsp;</A>
+<H2>FUNCTIONS</H2>
+
+<P>
+<A NAME="lbAJ">&nbsp;</A>
+<H3>Object Management</H3>
+
+<DL COMPACT>
+<DT id="6">XcursorImage *XcursorImageCreate (int width, int height)<DD>
+
+<BR>
+
+
+<DT id="7">
+
+<DD>void XcursorImageDestroy (XcursorImage *image)
+Allocate and free images.  On allocation, the hotspot and the pixels are
+left uninitialized.  The size is set to the maximum of width and height.
+<P>
+<DT id="8">XcursorImages *XcursorImagesCreate (int size)<DD>
+
+<BR>
+
+
+<DT id="9">
+
+<DD>void XcursorImagesDestroy (XcursorImages *images)
+Allocate and free arrays to hold multiple cursor images.  On allocation,
+nimage is set to zero.
+<P>
+<DT id="10">XcursorCursors *XcursorCursorsCreate (Display *dpy, int size)<DD>
+
+<BR>
+
+
+<DT id="11">
+
+<DD>void XcursorCursorsDestroy (XcursorCursors *cursors)
+Allocate and free arrays to hold multiple cursors.  On allocation,
+ncursor is set to zero, ref is set to one.
+<P>
+</DL>
+<A NAME="lbAK">&nbsp;</A>
+<H3>Reading and writing images.</H3>
+
+<P>
+<DL COMPACT>
+<DT id="12">XcursorImage *XcursorXcFileLoadImage (XcursorFile *file, int size)<DD>
+
+<BR>
+
+
+<DT id="13">
+
+<DD>XcursorImages *XcursorXcFileLoadImages (XcursorFile *file, int size)
+
+<BR>
+
+
+<DT id="14">
+
+<DD>XcursorImages *XcursorXcFileLoadAllImages (XcursorFile *file)
+
+<BR>
+
+
+<DT id="15">
+
+<DD>XcursorBool XcursorXcFileLoad (XcursorFile *file, XcursorComments **commentsp, XcursorImages **imagesp)
+
+<BR>
+
+
+<DT id="16">
+
+<DD>XcursorBool XcursorXcFileSave (XcursorFile *file, const XcursorComments *comments, const XcursorImages *images)
+These read and write cursors from an XcursorFile handle.  After reading, the
+file pointer will be left at some random place in the file.
+<P>
+<DT id="17">XcursorImage *XcursorFileLoadImage (FILE *file, int size)<DD>
+
+<BR>
+
+
+<DT id="18">
+
+<DD>XcursorImages *XcursorFileLoadImages (FILE *file, int size)
+
+<BR>
+
+
+<DT id="19">
+
+<DD>XcursorImages *XcursorFileLoadAllImages (FILE *file)
+
+<BR>
+
+
+<DT id="20">
+
+<DD>XcursorBool XcursorFileLoad (FILE *file, XcursorComments **commentsp, XcursorImages **imagesp)
+
+<BR>
+
+
+<DT id="21">
+
+<DD>XcursorBool XcursorFileSaveImages (FILE *file, const XcursorImages *images)
+
+<BR>
+
+
+<DT id="22">
+
+<DD>XcursorBool XcursorFileSave (FILE * file, const XcursorComments *comments, const XcursorImages *images)
+These read and write cursors from a stdio FILE handle.  Writing flushes
+before returning so that any errors should be detected.
+<P>
+<DT id="23">XcursorImage *XcursorFilenameLoadImage (const char *filename, int size)<DD>
+
+<BR>
+
+
+<DT id="24">
+
+<DD>XcursorImages *XcursorFilenameLoadImages (const char *filename, int size)
+
+<BR>
+
+
+<DT id="25">
+
+<DD>XcursorImages *XcursorFilenameLoadAllImages (FILE *file)
+
+<BR>
+
+
+<DT id="26">
+
+<DD>XcursorBool XcursorFilenameLoad (const char *file, XcursorComments **commentsp, XcursorImages **imagesp)
+
+<BR>
+
+
+<DT id="27">
+
+<DD>XcursorBool XcursorFilenameSaveImages (const char *filename, const XcursorImages *images)
+
+<BR>
+
+
+<DT id="28">
+
+<DD>XcursorBool XcursorFilenameSave (const char *file, const XcursorComments *comments, const XcursorImages *images)
+These parallel the stdio FILE interfaces above, but take filenames.
+<P>
+</DL>
+<A NAME="lbAL">&nbsp;</A>
+<H3>Reading library images</H3>
+
+<DL COMPACT>
+<DT id="29">XcursorImage *XcursorLibraryLoadImage (const char *name, const char *theme, int size)<DD>
+
+<BR>
+
+
+<DT id="30">
+
+<DD>XcursorImages *XcursorLibraryLoadImages (const char *name, const char *theme, int size)
+These search the library path, loading the first file found.  If 'theme' is
+not NULL, these functions first try appending -theme to name and then
+name alone.
+<P>
+</DL>
+<A NAME="lbAM">&nbsp;</A>
+<H3>Cursor APIs</H3>
+
+<P>
+<DL COMPACT>
+<DT id="31">Cursor XcursorFilenameLoadCursor (Display *dpy, const char *file)<DD>
+
+<BR>
+
+
+<DT id="32">
+
+<DD>XcursorCursors *XcursorFilenameLoadCursors (Display *dpy, const char *file)
+These load cursors from the specified file.
+<P>
+<DT id="33">Cursor XcursorLibraryLoadCursor (Display *dpy, const char *name)<DD>
+
+<BR>
+
+
+<DT id="34">
+
+<DD>XcursorCursors *XcursorLibraryLoadCursors (Display *dpy, const char *name)
+These load cursors using the specified library name.  The theme
+comes from the display.
+<P>
+</DL>
+<A NAME="lbAN">&nbsp;</A>
+<H3>X Cursor Name APIs</H3>
+
+<P>
+<DL COMPACT>
+<DT id="35">XcursorImage *XcursorShapeLoadImage (unsigned int shape, const char *theme, int size)<DD>
+
+<BR>
+
+
+<DT id="36">
+
+<DD>XcursorImages *XcursorShapeLoadImages (unsigned int shape, const char *theme, int size)
+These map 'shape' to a library name using the standard X cursor names and
+then load the images.
+<P>
+<DT id="37">Cursor XcursorShapeLoadCursor (Display *dpy, unsigned int shape)<DD>
+
+<BR>
+
+
+<DT id="38">
+
+<DD>XcursorCursors *XcursorShapeLoadCursors (Display *dpy, unsigned int shape)
+These map 'shape' to a library name and then load the cursors.
+<P>
+</DL>
+<A NAME="lbAO">&nbsp;</A>
+<H3>Display Information APIs</H3>
+
+<P>
+<DL COMPACT>
+<DT id="39">XcursorBool XcursorSupportsARGB (Display *dpy)<DD>
+Returns whether the display supports ARGB cursors or whether cursors will be
+mapped to a core X cursor.
+<P>
+<DT id="40">XcursorBool XcursorSetDefaultSize (Display *dpy, int size)<DD>
+Sets the default size for cursors on the specified display. When loading
+cursors, those whose nominal size is closest to this size will be preferred.
+<P>
+<DT id="41">int XcursorGetDefaultSize (Display *dpy)<DD>
+Gets the default cursor size.
+<P>
+<DT id="42">XcursorBool XcursorSetTheme (Display *dpy, const char *theme)<DD>
+Sets the current theme name.
+<P>
+<DT id="43">char *XcursorGetTheme (Display *dpy)<DD>
+Gets the current theme name.
+<P>
+</DL>
+<A NAME="lbAP">&nbsp;</A>
+<H2>ENVIRONMENT VARIABLES</H2>
+
+<DL COMPACT>
+<DT id="44"><B>XCURSOR_PATH</B>
+
+<DD>
+This variable sets the list of paths to look for cursors in.
+Directories in this path are separated by colons (:).
+<P>
+</DL>
+<A NAME="lbAQ">&nbsp;</A>
+<H2>RESTRICTIONS</H2>
+
+<B>Xcursor</B>
+
+will probably change radically in the future; weak attempts will be made to
+retain some level of source-file compatibility.
+<P>
+<A NAME="lbAR">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+Keith Packard
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="45"><A HREF="#lbAB">NAME</A><DD>
+<DT id="46"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="47"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="48"><A HREF="#lbAE">FUNCTIONAL OVERVIEW</A><DD>
+<DL>
+<DT id="49"><A HREF="#lbAF">CURSOR FILES</A><DD>
+<DT id="50"><A HREF="#lbAG">THEMES</A><DD>
+</DL>
+<DT id="51"><A HREF="#lbAH">DATATYPES</A><DD>
+<DT id="52"><A HREF="#lbAI">FUNCTIONS</A><DD>
+<DL>
+<DT id="53"><A HREF="#lbAJ">Object Management</A><DD>
+<DT id="54"><A HREF="#lbAK">Reading and writing images.</A><DD>
+<DT id="55"><A HREF="#lbAL">Reading library images</A><DD>
+<DT id="56"><A HREF="#lbAM">Cursor APIs</A><DD>
+<DT id="57"><A HREF="#lbAN">X Cursor Name APIs</A><DD>
+<DT id="58"><A HREF="#lbAO">Display Information APIs</A><DD>
+</DL>
+<DT id="59"><A HREF="#lbAP">ENVIRONMENT VARIABLES</A><DD>
+<DT id="60"><A HREF="#lbAQ">RESTRICTIONS</A><DD>
+<DT id="61"><A HREF="#lbAR">AUTHOR</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:00 GMT, March 31, 2021
+</BODY>
+</HTML>

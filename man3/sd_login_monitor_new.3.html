@@ -1,0 +1,298 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SD_LOGIN_MONITOR_NEW</TITLE>
+</HEAD><BODY>
+<H1>SD_LOGIN_MONITOR_NEW</H1>
+Section: sd_login_monitor_new (3)<BR>Updated: <BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+sd_login_monitor_new, sd_login_monitor_unref, sd_login_monitor_unrefp, sd_login_monitor_flush, sd_login_monitor_get_fd, sd_login_monitor_get_events, sd_login_monitor_get_timeout, sd_login_monitor - Monitor login sessions, seats, users and virtual machines/containers
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+<B>
+</B><PRE>
+#include &lt;<A HREF="file:///usr/include/systemd/sd-login.h">systemd/sd-login.h</A>&gt;
+</PRE>
+
+
+<DL COMPACT>
+<DT id="1">
+<B>int sd_login_monitor_new(const&nbsp;char&nbsp;*</B><I>category</I><B>, sd_login_monitor&nbsp;**</B><I>ret</I><B>);</B>
+
+<DT id="2">
+<B>sd_login_monitor *sd_login_monitor_unref(sd_login_monitor&nbsp;*</B><I>m</I><B>);</B>
+
+<DT id="3">
+<B>void sd_login_monitor_unrefp(sd_login_monitor&nbsp;**</B><I>m</I><B>);</B>
+
+<DT id="4">
+<B>int sd_login_monitor_flush(sd_login_monitor&nbsp;*</B><I>m</I><B>);</B>
+
+<DT id="5">
+<B>int sd_login_monitor_get_fd(sd_login_monitor&nbsp;*</B><I>m</I><B>);</B>
+
+<DT id="6">
+<B>int sd_login_monitor_get_events(sd_login_monitor&nbsp;*</B><I>m</I><B>);</B>
+
+<DT id="7">
+<B>int sd_login_monitor_get_timeout(sd_login_monitor&nbsp;*</B><I>m</I><B>, uint64_t&nbsp;*</B><I>timeout_usec</I><B>);</B>
+
+</DL>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+<B>sd_login_monitor_new()</B>
+<DD>may be used to monitor login sessions, users, seats, and virtual machines/containers. Via a monitor object a file descriptor can be integrated into an application defined event loop which is woken up each time a user logs in, logs out or a seat is added or removed, or a session, user, seat or virtual machine/container changes state otherwise. The first parameter takes a string which can be
+&quot;seat&quot;
+(to get only notifications about seats being added, removed or changed),
+&quot;session&quot;
+(to get only notifications about sessions being created or removed or changed),
+&quot;uid&quot;
+(to get only notifications when a user changes state in respect to logins) or
+&quot;machine&quot;
+(to get only notifications when a virtual machine or container is started or stopped). If notifications shall be generated in all these conditions,
+<B>NULL</B>
+may be passed. Note that in the future additional categories may be defined. The second parameter returns a monitor object and needs to be freed with the
+<B>sd_login_monitor_unref()</B>
+call after use.
+<P>
+
+<B>sd_login_monitor_unref()</B>
+may be used to destroy a monitor object. Note that this will invalidate any file descriptor returned by
+<B>sd_login_monitor_get_fd()</B>.
+<P>
+
+<B>sd_login_monitor_unrefp()</B>
+is similar to
+<B>sd_login_monitor_unref()</B>
+but takes a pointer to a pointer to an
+<B>sd_login_monitor</B>
+object. This call is useful in conjunction with GCC's and LLVM's
+m[blue]<B>Clean-up Variable Attribute</B>m[]<FONT SIZE="-2">[1]</FONT>. Note that this function is defined as inline function. Use a declaration like the following, in order to allocate a login monitor object that is freed automatically as the code block is left:
+<P>
+<DL COMPACT><DT id="8"><DD>
+
+
+
+<PRE>
+{
+  __attribute__((cleanup(sd_login_monitor_unrefp)) sd_login_monitor *m = NULL;
+  int r;
+  ...
+  r = sd_login_monitor_default(&amp;m);
+  if (r &lt; 0)
+    fprintf(stderr, &quot;Failed to allocate login monitor object: %s\n&quot;, strerror(-r));
+  ...
+}
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+<B>sd_login_monitor_flush()</B>
+may be used to reset the wakeup state of the monitor object. Whenever an event causes the monitor to wake up the event loop via the file descriptor this function needs to be called to reset the wake-up state. If this call is not invoked, the file descriptor will immediately wake up the event loop again.
+<P>
+
+<B>sd_login_monitor_unref()</B>
+and
+<B>sd_login_monitor_unrefp()</B>
+execute no operation if the passed in monitor object is
+<B>NULL</B>.
+<P>
+
+<B>sd_login_monitor_get_fd()</B>
+may be used to retrieve the file descriptor of the monitor object that may be integrated in an application defined event loop, based around
+<B><A HREF="/cgi-bin/man/man2html?2+poll">poll</A></B>(2)
+or a similar interface. The application should include the returned file descriptor as wake-up source for the events mask returned by
+<B>sd_login_monitor_get_events()</B>. It should pass a timeout value as returned by
+<B>sd_login_monitor_get_timeout()</B>. Whenever a wake-up is triggered the file descriptor needs to be reset via
+<B>sd_login_monitor_flush()</B>. An application needs to reread the login state with a function like
+<B><A HREF="/cgi-bin/man/man2html?3+sd_get_seats">sd_get_seats</A></B>(3)
+or similar to determine what changed.
+<P>
+
+<B>sd_login_monitor_get_events()</B>
+will return the
+<B>poll()</B>
+mask to wait for. This function will return a combination of
+<B>POLLIN</B>,
+<B>POLLOUT</B>
+and similar to fill into the
+&quot;.events&quot;
+field of
+<I>struct pollfd</I>.
+<P>
+
+<B>sd_login_monitor_get_timeout()</B>
+will return a timeout value for usage in
+<B>poll()</B>. This returns a value in microseconds since the epoch of
+<B>CLOCK_MONOTONIC</B>
+for timing out
+<B>poll()</B>
+in
+<I>timeout_usec</I>. See
+<B><A HREF="/cgi-bin/man/man2html?2+clock_gettime">clock_gettime</A></B>(2)
+for details about
+<B>CLOCK_MONOTONIC</B>. If there is no timeout to wait for this will fill in
+<B>(uint64_t) -1</B>
+instead. Note that
+<B>poll()</B>
+takes a relative timeout in milliseconds rather than an absolute timeout in microseconds. To convert the absolute '&micro;s' timeout into relative 'ms', use code like the following:
+<P>
+<DL COMPACT><DT id="9"><DD>
+
+
+
+<PRE>
+uint64_t t;
+int msec;
+sd_login_monitor_get_timeout(m, &amp;t);
+if (t == (uint64_t) -1)
+  msec = -1;
+else {
+  struct timespec ts;
+  uint64_t n;
+  clock_gettime(CLOCK_MONOTONIC, &amp;ts);
+  n = (uint64_t) ts.tv_sec * 1000000 + ts.tv_nsec / 1000;
+  msec = t &gt; n ? (int) ((t - n + 999) / 1000) : 0;
+}
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+The code above does not do any error checking for brevity's sake. The calculated
+<I>msec</I>
+integer can be passed directly as
+<B>poll()</B>'s timeout parameter.
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+<P>
+
+On success,
+<B>sd_login_monitor_new()</B>,
+<B>sd_login_monitor_flush()</B>
+and
+<B>sd_login_monitor_get_timeout()</B>
+return 0 or a positive integer. On success,
+<B>sd_login_monitor_get_fd()</B>
+returns a Unix file descriptor. On success,
+<B>sd_login_monitor_get_events()</B>
+returns a combination of
+<B>POLLIN</B>,
+<B>POLLOUT</B>
+and suchlike. On failure, these calls return a negative errno-style error code.
+<P>
+
+<B>sd_login_monitor_unref()</B>
+always returns
+<B>NULL</B>.
+<A NAME="lbAF">&nbsp;</A>
+<H3>Errors</H3>
+
+<P>
+
+Returned errors may indicate the following problems:
+<P>
+
+<B>-EINVAL</B>
+<DL COMPACT><DT id="10"><DD>
+An input parameter was invalid (out of range, or
+<B>NULL</B>, where that is not accepted). The specified category to watch is not known.
+</DL>
+
+<P>
+
+<B>-ENOMEM</B>
+<DL COMPACT><DT id="11"><DD>
+Memory allocation failed.
+</DL>
+
+<A NAME="lbAG">&nbsp;</A>
+<H2>NOTES</H2>
+
+<P>
+
+These APIs are implemented as a shared library, which can be compiled and linked to with the
+<B>libsystemd</B>&nbsp;<B><A HREF="/cgi-bin/man/man2html?1+pkg-config">pkg-config</A></B>(1)
+file.
+<A NAME="lbAH">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?3+sd-login">sd-login</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_get_seats">sd_get_seats</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?2+poll">poll</A></B>(2),
+<B><A HREF="/cgi-bin/man/man2html?2+clock_gettime">clock_gettime</A></B>(2)
+<A NAME="lbAI">&nbsp;</A>
+<H2>NOTES</H2>
+
+<DL COMPACT>
+<DT id="12"> 1.<DD>
+Clean-up Variable Attribute
+<DL COMPACT><DT id="13"><DD>
+<A HREF="https://gcc.gnu.org/onlinedocs/gcc/Common-Variable-Attributes.html">https://gcc.gnu.org/onlinedocs/gcc/Common-Variable-Attributes.html</A>
+</DL>
+
+<P>
+</DL>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="14"><A HREF="#lbAB">NAME</A><DD>
+<DT id="15"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="16"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="17"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DL>
+<DT id="18"><A HREF="#lbAF">Errors</A><DD>
+</DL>
+<DT id="19"><A HREF="#lbAG">NOTES</A><DD>
+<DT id="20"><A HREF="#lbAH">SEE ALSO</A><DD>
+<DT id="21"><A HREF="#lbAI">NOTES</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:55 GMT, March 31, 2021
+</BODY>
+</HTML>

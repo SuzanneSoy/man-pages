@@ -1,0 +1,741 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of MEMFD_CREATE</TITLE>
+</HEAD><BODY>
+<H1>MEMFD_CREATE</H1>
+Section: Linux Programmer's Manual (2)<BR>Updated: 2020-02-09<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+memfd_create - create an anonymous file
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<PRE>
+<B>#define _GNU_SOURCE</B>         /* See <A HREF="/cgi-bin/man/man2html?7+feature_test_macros">feature_test_macros</A>(7) */
+<B>#include &lt;<A HREF="file:///usr/include/sys/mman.h">sys/mman.h</A>&gt;</B>
+
+<B>int memfd_create(const char *</B><I>name</I><B>, unsigned int </B><I>flags</I><B>);</B>
+</PRE><A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<B>memfd_create</B>()
+
+creates an anonymous file and returns a file descriptor that refers to it.
+The file behaves like a regular file, and so can be modified,
+truncated, memory-mapped, and so on.
+However, unlike a regular file,
+it lives in RAM and has a volatile backing storage.
+Once all references to the file are dropped, it is automatically released.
+Anonymous memory is used for all backing pages of the file.
+Therefore, files created by
+<B>memfd_create</B>()
+
+have the same semantics as other anonymous
+
+
+
+
+
+
+memory allocations such as those allocated using
+<B><A HREF="/cgi-bin/man/man2html?2+mmap">mmap</A></B>(2)
+
+with the
+<B>MAP_ANONYMOUS</B>
+
+flag.
+<P>
+
+The initial size of the file is set to 0.
+Following the call, the file size should be set using
+<B><A HREF="/cgi-bin/man/man2html?2+ftruncate">ftruncate</A></B>(2).
+
+(Alternatively, the file may be populated by calls to
+<B><A HREF="/cgi-bin/man/man2html?2+write">write</A></B>(2)
+
+or similar.)
+<P>
+
+The name supplied in
+<I>name</I>
+
+is used as a filename and will be displayed
+as the target of the corresponding symbolic link in the directory
+<I>/proc/self/fd/</I>.
+
+The displayed name is always prefixed with
+<I>memfd:</I>
+
+and serves only for debugging purposes.
+Names do not affect the behavior of the file descriptor,
+and as such multiple files can have the same name without any side effects.
+<P>
+
+The following values may be bitwise ORed in
+<I>flags</I>
+
+to change the behavior of
+<B>memfd_create</B>():
+
+<DL COMPACT>
+<DT id="1"><B>MFD_CLOEXEC</B>
+
+<DD>
+Set the close-on-exec
+(<B>FD_CLOEXEC</B>)
+
+flag on the new file descriptor.
+See the description of the
+<B>O_CLOEXEC</B>
+
+flag in
+<B><A HREF="/cgi-bin/man/man2html?2+open">open</A></B>(2)
+
+for reasons why this may be useful.
+<DT id="2"><B>MFD_ALLOW_SEALING</B>
+
+<DD>
+Allow sealing operations on this file.
+See the discussion of the
+<B>F_ADD_SEALS</B>
+
+and
+<B>F_GET_SEALS</B>
+
+operations in
+<B><A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A></B>(2),
+
+and also NOTES, below.
+The initial set of seals is empty.
+If this flag is not set, the initial set of seals will be
+<B>F_SEAL_SEAL</B>,
+
+meaning that no other seals can be set on the file.
+
+
+<DT id="3"><B>MFD_HUGETLB</B> (since Linux 4.14)
+
+<DD>
+
+The anonymous file will be created in the hugetlbfs filesystem using
+huge pages.
+See the Linux kernel source file
+<I>Documentation/admin-guide/mm/hugetlbpage.rst</I>
+
+for more information about hugetlbfs.
+
+Specifying both
+<B>MFD_HUGETLB</B>
+
+and
+<B>MFD_ALLOW_SEALING</B>
+
+in
+<I>flags</I>
+
+is supported since Linux 4.16.
+<DT id="4"><B>MFD_HUGE_2MB</B>, <B>MFD_HUGE_1GB</B>, <B>...</B>
+
+<DD>
+Used in conjunction with
+<B>MFD_HUGETLB</B>
+
+to select alternative hugetlb page sizes (respectively, 2&nbsp;MB, 1&nbsp;GB, ...)
+on systems that support multiple hugetlb page sizes.
+Definitions for known
+huge page sizes are included in the header file
+<I>&lt;<A HREF="file:///usr/include/linux/memfd.h">linux/memfd.h</A>&gt;.</I>
+
+<DT id="5"><DD>
+For details on encoding huge page sizes not included in the header file,
+see the discussion of the similarly named constants in
+<B><A HREF="/cgi-bin/man/man2html?2+mmap">mmap</A></B>(2).
+
+</DL>
+<P>
+
+Unused bits in
+<I>flags</I>
+
+must be 0.
+<P>
+
+As its return value,
+<B>memfd_create</B>()
+
+returns a new file descriptor that can be used to refer to the file.
+This file descriptor is opened for both reading and writing
+(<B>O_RDWR</B>)
+
+and
+<B>O_LARGEFILE</B>
+
+is set for the file descriptor.
+<P>
+
+With respect to
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2)
+
+and
+<B><A HREF="/cgi-bin/man/man2html?2+execve">execve</A></B>(2),
+
+the usual semantics apply for the file descriptor created by
+<B>memfd_create</B>().
+
+A copy of the file descriptor is inherited by the child produced by
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2)
+
+and refers to the same file.
+The file descriptor is preserved across
+<B><A HREF="/cgi-bin/man/man2html?2+execve">execve</A></B>(2),
+
+unless the close-on-exec flag has been set.
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+On success,
+<B>memfd_create</B>()
+
+returns a new file descriptor.
+On error, -1 is returned and
+<I>errno</I>
+
+is set to indicate the error.
+<A NAME="lbAF">&nbsp;</A>
+<H2>ERRORS</H2>
+
+<DL COMPACT>
+<DT id="6"><B>EFAULT</B>
+
+<DD>
+The address in
+<I>name</I>
+
+points to invalid memory.
+<DT id="7"><B>EINVAL</B>
+
+<DD>
+<I>flags</I>
+
+included unknown bits.
+<DT id="8"><B>EINVAL</B>
+
+<DD>
+<I>name</I>
+
+was too long.
+(The limit is
+
+249 bytes, excluding the terminating null byte.)
+<DT id="9"><B>EINVAL</B>
+
+<DD>
+Both
+<B>MFD_HUGETLB</B>
+
+and
+<B>MFD_ALLOW_SEALING</B>
+
+were specified in
+<I>flags</I>.
+
+<DT id="10"><B>EMFILE</B>
+
+<DD>
+The per-process limit on the number of open file descriptors has been reached.
+<DT id="11"><B>ENFILE</B>
+
+<DD>
+The system-wide limit on the total number of open files has been reached.
+<DT id="12"><B>ENOMEM</B>
+
+<DD>
+There was insufficient memory to create a new anonymous file.
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H2>VERSIONS</H2>
+
+The
+<B>memfd_create</B>()
+
+system call first appeared in Linux 3.17;
+glibc support was added in version 2.27.
+<A NAME="lbAH">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+The
+<B>memfd_create</B>()
+
+system call is Linux-specific.
+<A NAME="lbAI">&nbsp;</A>
+<H2>NOTES</H2>
+
+<P>
+
+
+
+The
+<B>memfd_create</B>()
+
+system call provides a simple alternative to manually mounting a
+<B><A HREF="/cgi-bin/man/man2html?5+tmpfs">tmpfs</A></B>(5)
+
+filesystem and creating and opening a file in that filesystem.
+The primary purpose of
+<B>memfd_create</B>()
+
+is to create files and associated file descriptors that are
+used with the file-sealing APIs provided by
+<B><A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A></B>(2).
+
+<P>
+
+The
+<B>memfd_create</B>()
+
+system call also has uses without file sealing
+(which is why file-sealing is disabled, unless explicitly requested with the
+<B>MFD_ALLOW_SEALING</B>
+
+flag).
+In particular, it can be used as an alternative to creating files in
+<I>tmp</I>
+
+or as an alternative to using the
+<B><A HREF="/cgi-bin/man/man2html?2+open">open</A></B>(2)
+
+<B>O_TMPFILE</B>
+
+in cases where there is no intention to actually link the
+resulting file into the filesystem.
+<A NAME="lbAJ">&nbsp;</A>
+<H3>File sealing</H3>
+
+In the absence of file sealing,
+processes that communicate via shared memory must either trust each other,
+or take measures to deal with the possibility that an untrusted peer
+may manipulate the shared memory region in problematic ways.
+For example, an untrusted peer might modify the contents of the
+shared memory at any time, or shrink the shared memory region.
+The former possibility leaves the local process vulnerable to
+time-of-check-to-time-of-use race conditions
+(typically dealt with by copying data from
+the shared memory region before checking and using it).
+The latter possibility leaves the local process vulnerable to
+<B>SIGBUS</B>
+
+signals when an attempt is made to access a now-nonexistent
+location in the shared memory region.
+(Dealing with this possibility necessitates the use of a handler for the
+<B>SIGBUS</B>
+
+signal.)
+<P>
+
+Dealing with untrusted peers imposes extra complexity on
+code that employs shared memory.
+Memory sealing enables that extra complexity to be eliminated,
+by allowing a process to operate secure in the knowledge that
+its peer can't modify the shared memory in an undesired fashion.
+<P>
+
+An example of the usage of the sealing mechanism is as follows:
+<DL COMPACT>
+<DT id="13">1.<DD>
+The first process creates a
+<B><A HREF="/cgi-bin/man/man2html?5+tmpfs">tmpfs</A></B>(5)
+
+file using
+<B>memfd_create</B>().
+
+The call yields a file descriptor used in subsequent steps.
+<DT id="14">2.<DD>
+The first process
+sizes the file created in the previous step using
+<B><A HREF="/cgi-bin/man/man2html?2+ftruncate">ftruncate</A></B>(2),
+
+maps it using
+<B><A HREF="/cgi-bin/man/man2html?2+mmap">mmap</A></B>(2),
+
+and populates the shared memory with the desired data.
+<DT id="15">3.<DD>
+The first process uses the
+<B><A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A></B>(2)
+
+<B>F_ADD_SEALS</B>
+
+operation to place one or more seals on the file,
+in order to restrict further modifications on the file.
+(If placing the seal
+<B>F_SEAL_WRITE</B>,
+
+then it will be necessary to first unmap the shared writable mapping
+created in the previous step.
+Otherwise, behavior similar to
+<B>F_SEAL_WRITE</B>
+
+can be achieved by using
+<B>F_SEAL_FUTURE_WRITE</B>,
+
+which will prevent future writes via
+<B><A HREF="/cgi-bin/man/man2html?2+mmap">mmap</A></B>(2)
+
+and
+<B><A HREF="/cgi-bin/man/man2html?2+write">write</A></B>(2)
+
+from succeeding while keeping existing shared writable mappings).
+<DT id="16">4.<DD>
+A second process obtains a file descriptor for the
+<B><A HREF="/cgi-bin/man/man2html?5+tmpfs">tmpfs</A></B>(5)
+
+file and maps it.
+Among the possible ways in which this could happen are the following:
+<DL COMPACT><DT id="17"><DD>
+<DL COMPACT>
+<DT id="18">*<DD>
+The process that called
+<B>memfd_create</B>()
+
+could transfer the resulting file descriptor to the second process
+via a UNIX domain socket (see
+<B><A HREF="/cgi-bin/man/man2html?7+unix">unix</A></B>(7)
+
+and
+<B><A HREF="/cgi-bin/man/man2html?3+cmsg">cmsg</A></B>(3)).
+
+The second process then maps the file using
+<B><A HREF="/cgi-bin/man/man2html?2+mmap">mmap</A></B>(2).
+
+<DT id="19">*<DD>
+The second process is created via
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2)
+
+and thus automatically inherits the file descriptor and mapping.
+(Note that in this case and the next,
+there is a natural trust relationship between the two processes,
+since they are running under the same user ID.
+Therefore, file sealing would not normally be necessary.)
+<DT id="20">*<DD>
+The second process opens the file
+<I>/proc/&lt;pid&gt;/fd/&lt;fd&gt;</I>,
+
+where
+<I>&lt;pid&gt;</I>
+
+is the PID of the first process (the one that called
+<B>memfd_create</B>()),
+
+and
+<I>&lt;fd&gt;</I>
+
+is the number of the file descriptor returned by the call to
+<B>memfd_create</B>()
+
+in that process.
+The second process then maps the file using
+<B><A HREF="/cgi-bin/man/man2html?2+mmap">mmap</A></B>(2).
+
+</DL>
+</DL>
+
+<DT id="21">5.<DD>
+The second process uses the
+<B><A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A></B>(2)
+
+<B>F_GET_SEALS</B>
+
+operation to retrieve the bit mask of seals
+that has been applied to the file.
+This bit mask can be inspected in order to determine
+what kinds of restrictions have been placed on file modifications.
+If desired, the second process can apply further seals
+to impose additional restrictions (so long as the
+<B>F_SEAL_SEAL</B>
+
+seal has not yet been applied).
+</DL>
+<A NAME="lbAK">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+Below are shown two example programs that demonstrate the use of
+<B>memfd_create</B>()
+
+and the file sealing API.
+<P>
+
+The first program,
+<I>t_memfd_create.c</I>,
+
+creates a
+<B><A HREF="/cgi-bin/man/man2html?5+tmpfs">tmpfs</A></B>(5)
+
+file using
+<B>memfd_create</B>(),
+
+sets a size for the file, maps it into memory,
+and optionally places some seals on the file.
+The program accepts up to three command-line arguments,
+of which the first two are required.
+The first argument is the name to associate with the file,
+the second argument is the size to be set for the file,
+and the optional third argument is a string of characters that specify
+seals to be set on file.
+<P>
+
+The second program,
+<I>t_get_seals.c</I>,
+
+can be used to open an existing file that was created via
+<B>memfd_create</B>()
+
+and inspect the set of seals that have been applied to that file.
+<P>
+
+The following shell session demonstrates the use of these programs.
+First we create a
+<B><A HREF="/cgi-bin/man/man2html?5+tmpfs">tmpfs</A></B>(5)
+
+file and set some seals on it:
+<P>
+
+
+
+$ <B>./t_memfd_create my_memfd_file 4096 sw &amp;</B>
+[1] 11775
+PID: 11775; fd: 3; /proc/11775/fd/3
+
+
+<P>
+
+At this point, the
+<I>t_memfd_create</I>
+
+program continues to run in the background.
+From another program, we can obtain a file descriptor for the
+file created by
+<B>memfd_create</B>()
+
+by opening the
+<I>/proc/[pid]/fd</I>
+
+file that corresponds to the file descriptor opened by
+<B>memfd_create</B>().
+
+Using that pathname, we inspect the content of the
+<I>/proc/[pid]/fd</I>
+
+symbolic link, and use our
+<I>t_get_seals</I>
+
+program to view the seals that have been placed on the file:
+<P>
+
+
+
+$ <B>readlink /proc/11775/fd/3</B>
+/memfd:my_memfd_file (deleted)
+$ <B>./t_get_seals /proc/11775/fd/3</B>
+Existing seals: WRITE SHRINK
+
+
+<A NAME="lbAL">&nbsp;</A>
+<H3>Program source: t_memfd_create.c</H3>
+
+
+
+#define _GNU_SOURCE
+#include &lt;<A HREF="file:///usr/include/sys/mman.h">sys/mman.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/fcntl.h">fcntl.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdlib.h">stdlib.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/unistd.h">unistd.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/string.h">string.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+<P>
+#define errExit(msg)    do { perror(msg); exit(EXIT_FAILURE); \
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;while&nbsp;(0)
+<P>
+int
+main(int argc, char *argv[])
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;fd;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;unsigned&nbsp;int&nbsp;seals;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;*addr;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;*name,&nbsp;*seals_arg;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;ssize_t&nbsp;len;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(argc&nbsp;&lt;&nbsp;3)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;%s&nbsp;name&nbsp;size&nbsp;[seals]\n&quot;,&nbsp;argv[0]);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;\t'seals'&nbsp;can&nbsp;contain&nbsp;any&nbsp;of&nbsp;the&nbsp;&quot;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;following&nbsp;characters:\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;\t\tg&nbsp;-&nbsp;F_SEAL_GROW\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;\t\ts&nbsp;-&nbsp;F_SEAL_SHRINK\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;\t\tw&nbsp;-&nbsp;F_SEAL_WRITE\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;\t\tW&nbsp;-&nbsp;F_SEAL_FUTURE_WRITE\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;\t\tS&nbsp;-&nbsp;F_SEAL_SEAL\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;name&nbsp;=&nbsp;argv[1];
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;len&nbsp;=&nbsp;atoi(argv[2]);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;seals_arg&nbsp;=&nbsp;argv[3];
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Create&nbsp;an&nbsp;anonymous&nbsp;file&nbsp;in&nbsp;tmpfs;&nbsp;allow&nbsp;seals&nbsp;to&nbsp;be
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;placed&nbsp;on&nbsp;the&nbsp;file&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fd&nbsp;=&nbsp;memfd_create(name,&nbsp;MFD_ALLOW_SEALING);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(fd&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errExit(&quot;memfd_create&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Size&nbsp;the&nbsp;file&nbsp;as&nbsp;specified&nbsp;on&nbsp;the&nbsp;command&nbsp;line&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(ftruncate(fd,&nbsp;len)&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errExit(&quot;truncate&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;PID:&nbsp;%ld;&nbsp;fd:&nbsp;%d;&nbsp;/proc/%ld/fd/%d\n&quot;,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(long)&nbsp;getpid(),&nbsp;fd,&nbsp;(long)&nbsp;getpid(),&nbsp;fd);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Code&nbsp;to&nbsp;map&nbsp;the&nbsp;file&nbsp;and&nbsp;populate&nbsp;the&nbsp;mapping&nbsp;with&nbsp;data
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;omitted&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;If&nbsp;a&nbsp;'seals'&nbsp;command-line&nbsp;argument&nbsp;was&nbsp;supplied,&nbsp;set&nbsp;some
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;seals&nbsp;on&nbsp;the&nbsp;file&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(seals_arg&nbsp;!=&nbsp;NULL)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;seals&nbsp;=&nbsp;0;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(strchr(seals_arg,&nbsp;'g')&nbsp;!=&nbsp;NULL)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;seals&nbsp;|=&nbsp;F_SEAL_GROW;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(strchr(seals_arg,&nbsp;'s')&nbsp;!=&nbsp;NULL)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;seals&nbsp;|=&nbsp;F_SEAL_SHRINK;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(strchr(seals_arg,&nbsp;'w')&nbsp;!=&nbsp;NULL)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;seals&nbsp;|=&nbsp;F_SEAL_WRITE;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(strchr(seals_arg,&nbsp;'W')&nbsp;!=&nbsp;NULL)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;seals&nbsp;|=&nbsp;F_SEAL_FUTURE_WRITE;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(strchr(seals_arg,&nbsp;'S')&nbsp;!=&nbsp;NULL)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;seals&nbsp;|=&nbsp;F_SEAL_SEAL;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(fcntl(fd,&nbsp;F_ADD_SEALS,&nbsp;seals)&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errExit(&quot;fcntl&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Keep&nbsp;running,&nbsp;so&nbsp;that&nbsp;the&nbsp;file&nbsp;created&nbsp;by&nbsp;memfd_create()
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;continues&nbsp;to&nbsp;exist&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;pause();
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_SUCCESS);
+}
+
+<A NAME="lbAM">&nbsp;</A>
+<H3>Program source: t_get_seals.c</H3>
+
+
+
+#define _GNU_SOURCE
+#include &lt;<A HREF="file:///usr/include/sys/mman.h">sys/mman.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/fcntl.h">fcntl.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/unistd.h">unistd.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdlib.h">stdlib.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/string.h">string.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+<P>
+#define errExit(msg)    do { perror(msg); exit(EXIT_FAILURE); \
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;while&nbsp;(0)
+<P>
+int
+main(int argc, char *argv[])
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;fd;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;unsigned&nbsp;int&nbsp;seals;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(argc&nbsp;!=&nbsp;2)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;%s&nbsp;/proc/PID/fd/FD\n&quot;,&nbsp;argv[0]);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fd&nbsp;=&nbsp;open(argv[1],&nbsp;O_RDWR);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(fd&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errExit(&quot;open&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;seals&nbsp;=&nbsp;fcntl(fd,&nbsp;F_GET_SEALS);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(seals&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errExit(&quot;fcntl&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;Existing&nbsp;seals:&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(seals&nbsp;&amp;&nbsp;F_SEAL_SEAL)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;&nbsp;SEAL&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(seals&nbsp;&amp;&nbsp;F_SEAL_GROW)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;&nbsp;GROW&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(seals&nbsp;&amp;&nbsp;F_SEAL_WRITE)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;&nbsp;WRITE&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(seals&nbsp;&amp;&nbsp;F_SEAL_FUTURE_WRITE)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;&nbsp;FUTURE_WRITE&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(seals&nbsp;&amp;&nbsp;F_SEAL_SHRINK)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;&nbsp;SHRINK&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;\n&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Code&nbsp;to&nbsp;map&nbsp;the&nbsp;file&nbsp;and&nbsp;access&nbsp;the&nbsp;contents&nbsp;of&nbsp;the
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;resulting&nbsp;mapping&nbsp;omitted&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_SUCCESS);
+}
+
+<A NAME="lbAN">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+ftruncate">ftruncate</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+mmap">mmap</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+shmget">shmget</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?3+shm_open">shm_open</A></B>(3)
+
+<A NAME="lbAO">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="22"><A HREF="#lbAB">NAME</A><DD>
+<DT id="23"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="24"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="25"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DT id="26"><A HREF="#lbAF">ERRORS</A><DD>
+<DT id="27"><A HREF="#lbAG">VERSIONS</A><DD>
+<DT id="28"><A HREF="#lbAH">CONFORMING TO</A><DD>
+<DT id="29"><A HREF="#lbAI">NOTES</A><DD>
+<DL>
+<DT id="30"><A HREF="#lbAJ">File sealing</A><DD>
+</DL>
+<DT id="31"><A HREF="#lbAK">EXAMPLE</A><DD>
+<DL>
+<DT id="32"><A HREF="#lbAL">Program source: t_memfd_create.c</A><DD>
+<DT id="33"><A HREF="#lbAM">Program source: t_get_seals.c</A><DD>
+</DL>
+<DT id="34"><A HREF="#lbAN">SEE ALSO</A><DD>
+<DT id="35"><A HREF="#lbAO">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:33 GMT, March 31, 2021
+</BODY>
+</HTML>

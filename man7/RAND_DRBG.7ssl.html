@@ -1,0 +1,408 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of RAND_DRBG</TITLE>
+</HEAD><BODY>
+<H1>RAND_DRBG</H1>
+Section: OpenSSL (7SSL)<BR>Updated: 2021-03-22<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+RAND_DRBG - the deterministic random bit generator
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+
+
+
+
+<PRE>
+ #include &lt;<A HREF="file:///usr/include/openssl/rand_drbg.h">openssl/rand_drbg.h</A>&gt;
+
+</PRE>
+
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+
+The default OpenSSL <FONT SIZE="-1">RAND</FONT> method is based on the <FONT SIZE="-1">RAND_DRBG</FONT> class,
+which implements a deterministic random bit generator (<FONT SIZE="-1">DRBG</FONT>).
+A <FONT SIZE="-1">DRBG</FONT> is a certain type of cryptographically-secure pseudo-random
+number generator (<FONT SIZE="-1">CSPRNG</FONT>), which is described in
+[<FONT SIZE="-1">NIST SP 800-90A</FONT> Rev. 1].
+<P>
+
+While the <FONT SIZE="-1">RAND API</FONT> is the 'frontend' which is intended to be used by
+application developers for obtaining random bytes, the <FONT SIZE="-1">RAND_DRBG API</FONT>
+serves as the 'backend', connecting the former with the operating
+systems's entropy sources and providing access to the <FONT SIZE="-1">DRBG</FONT>'s
+configuration parameters.
+<A NAME="lbAE">&nbsp;</A>
+<H3>Disclaimer</H3>
+
+
+
+Unless you have very specific requirements for your random generator,
+it is in general not necessary to utilize the <FONT SIZE="-1">RAND_DRBG API</FONT> directly.
+The usual way to obtain random bytes is to use <B><A HREF="/cgi-bin/man/man2html?3+RAND_bytes">RAND_bytes</A></B>(3) or
+<B><A HREF="/cgi-bin/man/man2html?3+RAND_priv_bytes">RAND_priv_bytes</A></B>(3), see also <FONT SIZE="-1"><B><A HREF="/cgi-bin/man/man2html?7+RAND">RAND</A></B></FONT><B></B>(7).
+<A NAME="lbAF">&nbsp;</A>
+<H3>Typical Use Cases</H3>
+
+
+
+Typical examples for such special use cases are the following:
+<DL COMPACT>
+<DT id="1">&bull;<DD>
+You want to use your own private <FONT SIZE="-1">DRBG</FONT> instances.
+Multiple <FONT SIZE="-1">DRBG</FONT> instances which are accessed only by a single thread provide
+additional security (because their internal states are independent) and
+better scalability in multithreaded applications (because they don't need
+to be locked).
+<DT id="2">&bull;<DD>
+You need to integrate a previously unsupported entropy source.
+<DT id="3">&bull;<DD>
+You need to change the default settings of the standard OpenSSL <FONT SIZE="-1">RAND</FONT>
+implementation to meet specific requirements.
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H2>CHAINING</H2>
+
+
+
+A <FONT SIZE="-1">DRBG</FONT> instance can be used as the entropy source of another <FONT SIZE="-1">DRBG</FONT> instance,
+provided it has itself access to a valid entropy source.
+The <FONT SIZE="-1">DRBG</FONT> instance which acts as entropy source is called the <I>parent</I> <FONT SIZE="-1">DRBG,</FONT>
+the other instance the <I>child</I> <FONT SIZE="-1">DRBG.</FONT>
+<P>
+
+This is called chaining. A chained <FONT SIZE="-1">DRBG</FONT> instance is created by passing
+a pointer to the parent <FONT SIZE="-1">DRBG</FONT> as argument to the <B>RAND_DRBG_new()</B> call.
+It is possible to create chains of more than two <FONT SIZE="-1">DRBG</FONT> in a row.
+<A NAME="lbAH">&nbsp;</A>
+<H2>THE THREE SHARED DRBG INSTANCES</H2>
+
+
+
+Currently, there are three shared <FONT SIZE="-1">DRBG</FONT> instances,
+the &lt;master&gt;, &lt;public&gt;, and &lt;private&gt; <FONT SIZE="-1">DRBG.</FONT>
+While the &lt;master&gt; <FONT SIZE="-1">DRBG</FONT> is a single global instance, the &lt;public&gt; and &lt;private&gt;
+<FONT SIZE="-1">DRBG</FONT> are created per thread and accessed through thread-local storage.
+<P>
+
+By default, the functions <B><A HREF="/cgi-bin/man/man2html?3+RAND_bytes">RAND_bytes</A></B>(3) and <B><A HREF="/cgi-bin/man/man2html?3+RAND_priv_bytes">RAND_priv_bytes</A></B>(3) use
+the thread-local &lt;public&gt; and &lt;private&gt; <FONT SIZE="-1">DRBG</FONT> instance, respectively.
+<A NAME="lbAI">&nbsp;</A>
+<H3>The &lt;master&gt; <FONT SIZE="-1">DRBG</FONT> instance</H3>
+
+
+
+The &lt;master&gt; <FONT SIZE="-1">DRBG</FONT> is not used directly by the application, only for reseeding
+the two other two <FONT SIZE="-1">DRBG</FONT> instances. It reseeds itself by obtaining randomness
+either from os entropy sources or by consuming randomness which was added
+previously by <B><A HREF="/cgi-bin/man/man2html?3+RAND_add">RAND_add</A></B>(3).
+<A NAME="lbAJ">&nbsp;</A>
+<H3>The &lt;public&gt; <FONT SIZE="-1">DRBG</FONT> instance</H3>
+
+
+
+This instance is used per default by <B><A HREF="/cgi-bin/man/man2html?3+RAND_bytes">RAND_bytes</A></B>(3).
+<A NAME="lbAK">&nbsp;</A>
+<H3>The &lt;private&gt; <FONT SIZE="-1">DRBG</FONT> instance</H3>
+
+
+
+This instance is used per default by <B><A HREF="/cgi-bin/man/man2html?3+RAND_priv_bytes">RAND_priv_bytes</A></B>(3)
+<A NAME="lbAL">&nbsp;</A>
+<H2>LOCKING</H2>
+
+
+
+The &lt;master&gt; <FONT SIZE="-1">DRBG</FONT> is intended to be accessed concurrently for reseeding
+by its child <FONT SIZE="-1">DRBG</FONT> instances. The necessary locking is done internally.
+It is <I>not</I> thread-safe to access the &lt;master&gt; <FONT SIZE="-1">DRBG</FONT> directly via the
+<FONT SIZE="-1">RAND_DRBG</FONT> interface.
+The &lt;public&gt; and &lt;private&gt; <FONT SIZE="-1">DRBG</FONT> are thread-local, i.e. there is an
+instance of each per thread. So they can safely be accessed without
+locking via the <FONT SIZE="-1">RAND_DRBG</FONT> interface.
+<P>
+
+Pointers to these <FONT SIZE="-1">DRBG</FONT> instances can be obtained using
+<B>RAND_DRBG_get0_master()</B>,
+<B>RAND_DRBG_get0_public()</B>, and
+<B>RAND_DRBG_get0_private()</B>, respectively.
+Note that it is not allowed to store a pointer to one of the thread-local
+<FONT SIZE="-1">DRBG</FONT> instances in a variable or other memory location where it will be
+accessed and used by multiple threads.
+<P>
+
+All other <FONT SIZE="-1">DRBG</FONT> instances created by an application don't support locking,
+because they are intended to be used by a single thread.
+Instead of accessing a single <FONT SIZE="-1">DRBG</FONT> instance concurrently from different
+threads, it is recommended to instantiate a separate <FONT SIZE="-1">DRBG</FONT> instance per
+thread. Using the &lt;master&gt; <FONT SIZE="-1">DRBG</FONT> as entropy source for multiple <FONT SIZE="-1">DRBG</FONT>
+instances on different threads is thread-safe, because the <FONT SIZE="-1">DRBG</FONT> instance
+will lock the &lt;master&gt; <FONT SIZE="-1">DRBG</FONT> automatically for obtaining random input.
+<A NAME="lbAM">&nbsp;</A>
+<H2>THE OVERALL PICTURE</H2>
+
+
+
+The following picture gives an overview over how the <FONT SIZE="-1">DRBG</FONT> instances work
+together and are being used.
+<P>
+
+
+
+<PRE>
+               +--------------------+
+               | os entropy sources |
+               +--------------------+
+                        |
+                        v           +-----------------------------+
+      RAND_add() ==&gt; &lt;master&gt;     &lt;-| shared DRBG (with locking)  |
+                      /   \         +-----------------------------+
+                     /     \              +---------------------------+
+              &lt;public&gt;     &lt;private&gt;   &lt;- | per-thread DRBG instances |
+                 |             |          +---------------------------+
+                 v             v
+               RAND_bytes()   RAND_priv_bytes()
+                    |               ^
+                    |               |
+    +------------------+      +------------------------------------+
+    | general purpose  |      | used for secrets like session keys |
+    | random generator |      | and private keys for certificates  |
+    +------------------+      +------------------------------------+
+
+</PRE>
+
+
+<P>
+
+The usual way to obtain random bytes is to call RAND_bytes(...) or
+RAND_priv_bytes(...). These calls are roughly equivalent to calling
+RAND_DRBG_bytes(&lt;public&gt;, ...) and RAND_DRBG_bytes(&lt;private&gt;, ...),
+respectively. The method <B><A HREF="/cgi-bin/man/man2html?3+RAND_DRBG_bytes">RAND_DRBG_bytes</A></B>(3) is a convenience method
+wrapping the <B><A HREF="/cgi-bin/man/man2html?3+RAND_DRBG_generate">RAND_DRBG_generate</A></B>(3) function, which serves the actual
+request for random data.
+<A NAME="lbAN">&nbsp;</A>
+<H2>RESEEDING</H2>
+
+
+
+A <FONT SIZE="-1">DRBG</FONT> instance seeds itself automatically, pulling random input from
+its entropy source. The entropy source can be either a trusted operating
+system entropy source, or another <FONT SIZE="-1">DRBG</FONT> with access to such a source.
+<P>
+
+Automatic reseeding occurs after a predefined number of generate requests.
+The selection of the trusted entropy sources is configured at build
+time using the --with-rand-seed option. The following sections explain
+the reseeding process in more detail.
+<A NAME="lbAO">&nbsp;</A>
+<H3>Automatic Reseeding</H3>
+
+
+
+Before satisfying a generate request (<B><A HREF="/cgi-bin/man/man2html?3+RAND_DRBG_generate">RAND_DRBG_generate</A></B>(3)), the <FONT SIZE="-1">DRBG</FONT>
+reseeds itself automatically, if one of the following conditions holds:
+<P>
+
+- the <FONT SIZE="-1">DRBG</FONT> was not instantiated (=seeded) yet or has been uninstantiated.
+<P>
+
+- the number of generate requests since the last reseeding exceeds a
+certain threshold, the so called <I>reseed_interval</I>.
+This behaviour can be disabled by setting the <I>reseed_interval</I> to 0.
+<P>
+
+- the time elapsed since the last reseeding exceeds a certain time
+interval, the so called <I>reseed_time_interval</I>.
+This can be disabled by setting the <I>reseed_time_interval</I> to 0.
+<P>
+
+- the <FONT SIZE="-1">DRBG</FONT> is in an error state.
+<P>
+
+<B>Note</B>: An error state is entered if the entropy source fails while
+the <FONT SIZE="-1">DRBG</FONT> is seeding or reseeding.
+The last case ensures that the <FONT SIZE="-1">DRBG</FONT> automatically recovers
+from the error as soon as the entropy source is available again.
+<A NAME="lbAP">&nbsp;</A>
+<H3>Manual Reseeding</H3>
+
+
+
+In addition to automatic reseeding, the caller can request an immediate
+reseeding of the <FONT SIZE="-1">DRBG</FONT> with fresh entropy by setting the
+<I>prediction resistance</I> parameter to 1 when calling <B><A HREF="/cgi-bin/man/man2html?3+RAND_DRBG_generate">RAND_DRBG_generate</A></B>(3).
+<P>
+
+The document [<FONT SIZE="-1">NIST SP 800-90C</FONT>] describes prediction resistance requests
+in detail and imposes strict conditions on the entropy sources that are
+approved for providing prediction resistance.
+Since the default <FONT SIZE="-1">DRBG</FONT> implementation does not have access to such an approved
+entropy source, a request for prediction resistance will currently always fail.
+In other words, prediction resistance is currently not supported yet by the <FONT SIZE="-1">DRBG.</FONT>
+<P>
+
+For the three shared DRBGs (and only for these) there is another way to
+reseed them manually:
+If <B><A HREF="/cgi-bin/man/man2html?3+RAND_add">RAND_add</A></B>(3) is called with a positive <I>randomness</I> argument
+(or <B><A HREF="/cgi-bin/man/man2html?3+RAND_seed">RAND_seed</A></B>(3)), then this will immediately reseed the &lt;master&gt; <FONT SIZE="-1">DRBG.</FONT>
+The &lt;public&gt; and &lt;private&gt; <FONT SIZE="-1">DRBG</FONT> will detect this on their next generate
+call and reseed, pulling randomness from &lt;master&gt;.
+<P>
+
+The last feature has been added to support the common practice used with
+previous OpenSSL versions to call <B>RAND_add()</B> before calling <B>RAND_bytes()</B>.
+<A NAME="lbAQ">&nbsp;</A>
+<H3>Entropy Input vs. Additional Data</H3>
+
+
+
+The <FONT SIZE="-1">DRBG</FONT> distinguishes two different types of random input: <I>entropy</I>,
+which comes from a trusted source, and <I>additional input</I>',
+which can optionally be added by the user and is considered untrusted.
+It is possible to add <I>additional input</I> not only during reseeding,
+but also for every generate request.
+This is in fact done automatically by <B><A HREF="/cgi-bin/man/man2html?3+RAND_DRBG_bytes">RAND_DRBG_bytes</A></B>(3).
+<A NAME="lbAR">&nbsp;</A>
+<H3>Configuring the Random Seed Source</H3>
+
+
+
+In most cases OpenSSL will automatically choose a suitable seed source
+for automatically seeding and reseeding its &lt;master&gt; <FONT SIZE="-1">DRBG.</FONT> In some cases
+however, it will be necessary to explicitly specify a seed source during
+configuration, using the --with-rand-seed option. For more information,
+see the <FONT SIZE="-1">INSTALL</FONT> instructions. There are also operating systems where no
+seed source is available and automatic reseeding is disabled by default.
+<P>
+
+The following two sections describe the reseeding process of the master
+<FONT SIZE="-1">DRBG,</FONT> depending on whether automatic reseeding is available or not.
+<A NAME="lbAS">&nbsp;</A>
+<H3>Reseeding the master <FONT SIZE="-1">DRBG</FONT> with automatic seeding enabled</H3>
+
+
+
+Calling <B>RAND_poll()</B> or <B>RAND_add()</B> is not necessary, because the <FONT SIZE="-1">DRBG</FONT>
+pulls the necessary entropy from its source automatically.
+However, both calls are permitted, and do reseed the <FONT SIZE="-1">RNG.</FONT>
+<P>
+
+<B>RAND_add()</B> can be used to add both kinds of random input, depending on the
+value of the <B>randomness</B> argument:
+<DL COMPACT>
+<DT id="4">randomness == 0:<DD>
+
+
+The random bytes are mixed as additional input into the current state of
+the <FONT SIZE="-1">DRBG.</FONT>
+Mixing in additional input is not considered a full reseeding, hence the
+reseed counter is not reset.
+<DT id="5">randomness &gt; 0:<DD>
+
+
+The random bytes are used as entropy input for a full reseeding
+(resp. reinstantiation) if the <FONT SIZE="-1">DRBG</FONT> is instantiated
+(resp. uninstantiated or in an error state).
+The number of random bits required for reseeding is determined by the
+security strength of the <FONT SIZE="-1">DRBG.</FONT> Currently it defaults to 256 bits (32 bytes).
+It is possible to provide less randomness than required.
+In this case the missing randomness will be obtained by pulling random input
+from the trusted entropy sources.
+</DL>
+<A NAME="lbAT">&nbsp;</A>
+<H3>Reseeding the master <FONT SIZE="-1">DRBG</FONT> with automatic seeding disabled</H3>
+
+
+
+Calling <B>RAND_poll()</B> will always fail.
+<P>
+
+<B>RAND_add()</B> needs to be called for initial seeding and periodic reseeding.
+At least 48 bytes (384 bits) of randomness have to be provided, otherwise
+the (re-)seeding of the <FONT SIZE="-1">DRBG</FONT> will fail. This corresponds to one and a half
+times the security strength of the <FONT SIZE="-1">DRBG.</FONT> The extra half is used for the
+nonce during instantiation.
+<P>
+
+More precisely, the number of bytes needed for seeding depend on the
+<I>security strength</I> of the <FONT SIZE="-1">DRBG,</FONT> which is set to 256 by default.
+<A NAME="lbAU">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+
+<B><A HREF="/cgi-bin/man/man2html?3+RAND_DRBG_bytes">RAND_DRBG_bytes</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+RAND_DRBG_generate">RAND_DRBG_generate</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+RAND_DRBG_reseed">RAND_DRBG_reseed</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+RAND_DRBG_get0_master">RAND_DRBG_get0_master</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+RAND_DRBG_get0_public">RAND_DRBG_get0_public</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+RAND_DRBG_get0_private">RAND_DRBG_get0_private</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+RAND_DRBG_set_reseed_interval">RAND_DRBG_set_reseed_interval</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+RAND_DRBG_set_reseed_time_interval">RAND_DRBG_set_reseed_time_interval</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+RAND_DRBG_set_reseed_defaults">RAND_DRBG_set_reseed_defaults</A></B>(3),
+<FONT SIZE="-1"><B><A HREF="/cgi-bin/man/man2html?7+RAND">RAND</A></B></FONT><B></B>(7),
+<A NAME="lbAV">&nbsp;</A>
+<H2>COPYRIGHT</H2>
+
+
+
+Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+<P>
+
+Licensed under the OpenSSL license (the ``License'').  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file <FONT SIZE="-1">LICENSE</FONT> in the source distribution or at
+&lt;<A HREF="https://www.openssl.org/source/license.html">https://www.openssl.org/source/license.html</A>&gt;.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="6"><A HREF="#lbAB">NAME</A><DD>
+<DT id="7"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="8"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DL>
+<DT id="9"><A HREF="#lbAE">Disclaimer</A><DD>
+<DT id="10"><A HREF="#lbAF">Typical Use Cases</A><DD>
+</DL>
+<DT id="11"><A HREF="#lbAG">CHAINING</A><DD>
+<DT id="12"><A HREF="#lbAH">THE THREE SHARED DRBG INSTANCES</A><DD>
+<DL>
+<DT id="13"><A HREF="#lbAI">The &lt;master&gt; <FONT SIZE="-1">DRBG</FONT> instance</A><DD>
+<DT id="14"><A HREF="#lbAJ">The &lt;public&gt; <FONT SIZE="-1">DRBG</FONT> instance</A><DD>
+<DT id="15"><A HREF="#lbAK">The &lt;private&gt; <FONT SIZE="-1">DRBG</FONT> instance</A><DD>
+</DL>
+<DT id="16"><A HREF="#lbAL">LOCKING</A><DD>
+<DT id="17"><A HREF="#lbAM">THE OVERALL PICTURE</A><DD>
+<DT id="18"><A HREF="#lbAN">RESEEDING</A><DD>
+<DL>
+<DT id="19"><A HREF="#lbAO">Automatic Reseeding</A><DD>
+<DT id="20"><A HREF="#lbAP">Manual Reseeding</A><DD>
+<DT id="21"><A HREF="#lbAQ">Entropy Input vs. Additional Data</A><DD>
+<DT id="22"><A HREF="#lbAR">Configuring the Random Seed Source</A><DD>
+<DT id="23"><A HREF="#lbAS">Reseeding the master <FONT SIZE="-1">DRBG</FONT> with automatic seeding enabled</A><DD>
+<DT id="24"><A HREF="#lbAT">Reseeding the master <FONT SIZE="-1">DRBG</FONT> with automatic seeding disabled</A><DD>
+</DL>
+<DT id="25"><A HREF="#lbAU">SEE ALSO</A><DD>
+<DT id="26"><A HREF="#lbAV">COPYRIGHT</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:09 GMT, March 31, 2021
+</BODY>
+</HTML>

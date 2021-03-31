@@ -1,0 +1,248 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SD_BUS_MESSAGE_APPEND_ARRAY</TITLE>
+</HEAD><BODY>
+<H1>SD_BUS_MESSAGE_APPEND_ARRAY</H1>
+Section: sd_bus_message_append_array (3)<BR>Updated: <BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+sd_bus_message_append_array, sd_bus_message_append_array_memfd, sd_bus_message_append_array_iovec, sd_bus_message_append_array_space - Append an array of fields to a D-Bus message
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+<B>
+</B><PRE>
+#include &lt;<A HREF="file:///usr/include/systemd/sd-bus.h">systemd/sd-bus.h</A>&gt;
+</PRE>
+
+
+<DL COMPACT>
+<DT id="1">
+<B>int sd_bus_message_append_array(sd_bus_message&nbsp;*</B><I>m</I><B>, char&nbsp;</B><I>type</I><B>, char&nbsp;void&nbsp;*</B><I>ptr</I><B>, size_t&nbsp;</B><I>size</I><B>);</B>
+
+<DT id="2">
+<B>int sd_bus_message_append_array_memfd(sd_bus_message&nbsp;*</B><I>m</I><B>, char&nbsp;</B><I>type</I><B>, int&nbsp;</B><I>memfd</I><B>, uint64_t&nbsp;</B><I>offset</I><B>, uint64_t&nbsp;</B><I>size</I><B>);</B>
+
+<DT id="3">
+<B>int sd_bus_message_append_array_iovec(sd_bus_message&nbsp;*</B><I>m</I><B>, char&nbsp;</B><I>type</I><B>, const&nbsp;struct&nbsp;iovec&nbsp;*</B><I>iov</I><B>, unsigned&nbsp;</B><I>n</I><B>);</B>
+
+<DT id="4">
+<B>int sd_bus_message_append_array_space(char&nbsp;</B><I>type</I><B>, size_t&nbsp;</B><I>size</I><B>, void&nbsp;**</B><I>ptr</I><B>);</B>
+
+</DL>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+<DD>The
+<B>sd_bus_message_append_array()</B>
+function appends an array to a D-Bus message
+<I>m</I>. A container will be opened, the array contents appended, and the container closed. The parameter
+<I>type</I>
+determines how the pointer
+<I>p</I>
+is interpreted.
+<I>type</I>
+must be one of the &quot;trivial&quot; types
+&quot;y&quot;,
+&quot;n&quot;,
+&quot;q&quot;,
+&quot;i&quot;,
+&quot;u&quot;,
+&quot;x&quot;,
+&quot;t&quot;,
+&quot;d&quot;
+(but not
+&quot;b&quot;), as defined by the
+m[blue]<B>Basic Types</B>m[]<FONT SIZE="-2">[1]</FONT>
+section of the D-Bus specification, and listed in
+<B><A HREF="/cgi-bin/man/man2html?3+sd_bus_message_append_basic">sd_bus_message_append_basic</A></B>(3). Pointer
+<I>p</I>
+must point to an array of size
+<I>size</I>
+bytes containing items of the respective type. Size
+<I>size</I>
+must be a multiple of the size of the type
+<I>type</I>. As a special case,
+<I>p</I>
+may be
+<B>NULL</B>, if
+<I>size</I>
+is 0. The memory pointed to by
+<I>p</I>
+is copied into the memory area containing the message and stays in possession of the caller. The caller may hence freely change the data after this call without affecting the message the array was appended to.
+<P>
+
+The
+<B>sd_bus_message_append_array_memfd()</B>
+function appends an array of a trivial type to message
+<I>m</I>, similar to
+<B>sd_bus_message_append_array()</B>. The contents of the memory file descriptor
+<I>memfd</I>
+starting at the specified offset and of the specified size is used as the contents of the array. The offset and size must be a multiple of the size of the type
+<I>type</I>. However, as a special exception, if the offset is specified as zero and the size specified as UINT64_MAX the full memory file descriptor contents is used. The memory file descriptor is sealed by this call if it has not been sealed yet, and cannot be modified after this call. See
+<B><A HREF="/cgi-bin/man/man2html?2+memfd_create">memfd_create</A></B>(2)
+for details about memory file descriptors. Appending arrays with memory file descriptors enables efficient zero-copy data transfer, as the memory file descriptor may be passed as-is to the destination, without copying the memory in it to the destination process. Not all protocol transports support passing memory file descriptors between participants, in which case this call will automatically fall back to copying. Also, as memory file descriptor passing is inefficient for smaller amounts of data, copying might still be enforced even where memory file descriptor passing is supported.
+<P>
+
+The
+<B>sd_bus_message_append_array_iovec()</B>
+function appends an array of a trivial type to the message
+<I>m</I>, similar to
+<B>sd_bus_message_append_array()</B>. Contents of the I/O vector array
+<I>iov</I>
+are used as the contents of the array. The total size of
+<I>iov</I>
+payload (the sum of
+<I>iov_len</I>
+fields) must be a multiple of the size of the type
+<I>type</I>. The
+<I>iov</I>
+argument must point to
+<I>n</I>
+I/O vector structures. Each structure may have the
+iov_base
+field set, in which case the memory pointed to will be copied into the message, or unset (set to zero), in which case a block of zeros of length
+iov_len
+bytes will be inserted. The memory pointed at by
+<I>iov</I>
+may be changed after this call.
+<P>
+
+The
+<B>sd_bus_message_append_array_space()</B>
+function appends space for an array of a trivial type to message
+<I>m</I>. It behaves the same as
+<B>sd_bus_message_append_array()</B>, but instead of copying items to the message, it returns a pointer to the destination area to the caller in pointer
+<I>p</I>. The caller should subsequently write the array contents to this memory. Modifications to the memory pointed to should only occur until the next operation on the bus message is invoked. Most importantly, the memory should not be altered anymore when another field has been added to the message or the message has been sealed.
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+<P>
+
+On success, these calls return 0 or a positive integer. On failure, they return a negative errno-style error code.
+<A NAME="lbAF">&nbsp;</A>
+<H3>Errors</H3>
+
+<P>
+
+Returned errors may indicate the following problems:
+<P>
+
+<B>-EINVAL</B>
+<DL COMPACT><DT id="5"><DD>
+Specified parameter is invalid.
+</DL>
+
+<P>
+
+<B>-EPERM</B>
+<DL COMPACT><DT id="6"><DD>
+Message has been sealed.
+</DL>
+
+<P>
+
+<B>-ESTALE</B>
+<DL COMPACT><DT id="7"><DD>
+Message is in invalid state.
+</DL>
+
+<P>
+
+<B>-ENXIO</B>
+<DL COMPACT><DT id="8"><DD>
+Message cannot be appended to.
+</DL>
+
+<P>
+
+<B>-ENOMEM</B>
+<DL COMPACT><DT id="9"><DD>
+Memory allocation failed.
+</DL>
+
+<A NAME="lbAG">&nbsp;</A>
+<H2>NOTES</H2>
+
+<P>
+
+These APIs are implemented as a shared library, which can be compiled and linked to with the
+<B>libsystemd</B>&nbsp;<B><A HREF="/cgi-bin/man/man2html?1+pkg-config">pkg-config</A></B>(1)
+file.
+<A NAME="lbAH">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?3+sd-bus">sd-bus</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_bus_message_append">sd_bus_message_append</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_bus_message_append_basic">sd_bus_message_append_basic</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?2+memfd_create">memfd_create</A></B>(2),
+m[blue]<B>The D-Bus specification</B>m[]<FONT SIZE="-2">[2]</FONT>
+<A NAME="lbAI">&nbsp;</A>
+<H2>NOTES</H2>
+
+<DL COMPACT>
+<DT id="10"> 1.<DD>
+Basic Types
+<DL COMPACT><DT id="11"><DD>
+<A HREF="http://dbus.freedesktop.org/doc/dbus-specification.html#basic-types">http://dbus.freedesktop.org/doc/dbus-specification.html#basic-types</A>
+</DL>
+
+<DT id="12"> 2.<DD>
+The D-Bus specification
+<DL COMPACT><DT id="13"><DD>
+<A HREF="http://dbus.freedesktop.org/doc/dbus-specification.html">http://dbus.freedesktop.org/doc/dbus-specification.html</A>
+</DL>
+
+<P>
+</DL>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="14"><A HREF="#lbAB">NAME</A><DD>
+<DT id="15"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="16"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="17"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DL>
+<DT id="18"><A HREF="#lbAF">Errors</A><DD>
+</DL>
+<DT id="19"><A HREF="#lbAG">NOTES</A><DD>
+<DT id="20"><A HREF="#lbAH">SEE ALSO</A><DD>
+<DT id="21"><A HREF="#lbAI">NOTES</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:54 GMT, March 31, 2021
+</BODY>
+</HTML>

@@ -1,0 +1,214 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of WPA_ACTION</TITLE>
+</HEAD><BODY>
+<H1>WPA_ACTION</H1>
+Section:  (8)<BR>Updated: 26 May 2006<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+wpa_action - wpa_cli action script
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<B>wpa_action</B> <I>IFACE ACTION</I>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<B>wpa_action</B> is a shell script designed to control the <B>ifupdown</B>
+framework according to <I>ACTION</I> events received from <B>wpa_supplicant</B>.
+<B>wpa_cli</B> receives <I>CONNECTED</I> and <I>DISCONNECTED</I> events from
+<B>wpa_supplicant</B> via the crtl_iface socket and gives the <I>ACTION</I> event
+to the <B>wpa_action</B> script as an argument, along with the <I>IFACE</I> to be
+acted upon.
+<P>
+
+<B>wpa_action</B> also receives an environment variable from <B>wpa_cli</B>,
+<I>WPA_ID_STR</I>, containing an alphanumeric identification string for the
+<I>CURRENT</I> network block. <I>WPA_ID_STR</I> is provided by the 'id_str'
+network block option of <B>wpa_supplicant.conf</B>, and provides a means to map
+the <I>ACTION</I> to a <I>LOGICAL</I> interface configured in the <B>interfaces</B>
+file.
+<P>
+
+If either the ifupdown <B>interfaces</B> or <I>ifstate</I> file cannot be found,
+<B>wpa_action</B> will exit silently (status 0). <B>wpa_action</B> will search
+the following locations for their existence:
+<PRE>
+        /etc/network/run/ifstate
+        /run/network/ifstate
+        /etc/network/interfaces
+</PRE>
+
+<P>
+
+<A NAME="lbAE">&nbsp;</A>
+<H2>IFACE</H2>
+
+Network interface to be acted upon, for example 'eth1' or 'wlan0'.
+<A NAME="lbAF">&nbsp;</A>
+<H2>ACTION</H2>
+
+An <I>ACTION</I> to be performed on the <I>IFACE</I>.
+<DL COMPACT>
+<DT id="1"><B>CONNECTED</B><DD>
+<B>wpa_supplicant</B> has completed authentication.
+<B>ifup</B> <I>IFACE=WPA_ID_STR</I> is invoked and the action is logged to
+syslog. Network settings for the <I>LOGICAL</I> interface <I>WPA_ID_STR</I>
+are applied.
+<DT id="2"><B>DISCONNECTED</B><DD>
+<B>wpa_supplicant</B> has detected disconnection.
+<B>ifdown</B> <I>IFACE=WPA_ID_STR</I> is invoked and the action is logged to
+syslog. Network settings for the <I>LOGICAL</I> interface <I>WPA_ID_STR</I>
+are undone.
+<DT id="3"><B>stop</B><DD>
+The 'stop' <I>ACTION</I> is a called manually by the user, to stop the 
+<B>wpa_cli</B> daemon, invoke <B>ifdown</B> <I>IFACE</I> (if the <I>IFACE</I> is
+present in the <I>ifstate</I> file) and stop the <B>wpa_supplicant</B> daemon.
+<DT id="4"><B>reload</B><DD>
+The 'reload' <I>ACTION</I> can be used to reload the <B>wpa_supplicant</B>
+configuration file specified by <I>wpa-roam</I> . 'restart' is a synonym 
+for 'reload' and can be used equally. The action is logged to
+<I>/var/log/wpa_action.log</I>.
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H2>ENVIRONMENT</H2>
+
+An alphanumeric identification string provided by the 'id_str' network block
+option of <B>wpa_supplicant.conf</B> is exported to <B>wpa_action</B> as an 
+environment variable, <I>WPA_ID_STR</I>. When 'id_str' is not configured for the
+<I>CURRENT</I> network block, 'default' is substituted for the absent
+<I>WPA_ID_STR</I> environment variable.
+<P>
+
+A unique network identifier, <I>WPA_ID</I>, is exported to <B>wpa_action</B>. It
+is the number assigned to the <I>CURRENT</I> <B>wpa_supplicant</B> network block
+(network_id).
+<A NAME="lbAH">&nbsp;</A>
+<H2>USAGE</H2>
+
+The only reasons for <B>wpa_action</B> to be explicitly executed by the user is
+to stop <B>wpa_cli</B> from controlling <B>ifupdown</B> or reload the 
+<I>wpa_supplicant.conf</I> file after editing.
+<P>
+
+<DL COMPACT><DT id="5"><DD>
+<B>wpa_action</B> <I>eth1 stop</I>
+</DL>
+
+<P>
+
+Otherwise, <B>wpa_action</B> is given as an argument to a <B>wpa_cli</B>
+daemon.
+<P>
+
+<DL COMPACT><DT id="6"><DD>
+<B>wpa_cli</B> <I>-i eth1 -a /sbin/wpa_action -B</I>
+</DL>
+
+<P>
+
+This can be done by using the <I>wpa-roam</I> option in the <B>interfaces</B>
+file. <I>wpa-roam</I> takes one argument, a user provided 
+<B>wpa_supplicant.conf</B> file. 
+<P>
+
+The inet <I>METHOD</I> must be 'manual' for this interface, as it will
+be configured according to <B>wpa_cli</B> action events. Also supply a 'default'
+<B>interfaces</B> stanza using the dhcp inet <I>METHOD</I> so that networks
+without an 'id_str' option can fallback to attempting to receive an ip via
+dhcp. If one or more networks requires additional network configuration,
+provide an unique 'id_str' for each network, and an <B>interfaces</B> stanza
+using the 'id_str' value as a <I>LOGICAL</I> interface. The following interfaces
+file is configured to use dhcp for any network without an 'id_str', a static ip
+for the network with an 'id_str' of 'home_static' and dhcp plus an additional
+post-up command for the network with an 'id_str' of 'uni'.
+<P>
+
+An example wpa_supplicant.conf configured to roam between 3 different networks:
+<P>
+
+<DL COMPACT><DT id="7"><DD>
+<PRE>
+network={
+        ssid=&quot;foo&quot;
+        id_str=&quot;uni&quot;
+        key_mgmt=NONE
+}
+
+network={
+        ssid=&quot;bar&quot;
+        id_str=&quot;home_static&quot;
+        psk=123456789...
+}
+
+network={
+        ssid=&quot;&quot;
+        key_mgmt=NONE
+}
+</PRE>
+
+</DL>
+
+<P>
+
+The corresponding <B>interfaces</B> file would contain <I>LOGICAL</I> interfaces,
+that correlate to each unique 'id_str' provided by the configuration file:
+<P>
+
+<DL COMPACT><DT id="8"><DD>
+<PRE>
+iface eth1 inet manual
+        wpa-driver wext
+        wpa-roam /etc/wpa_supplicant/wpa_supplicant.conf
+
+iface default inet dhcp
+
+iface uni inet dhcp
+
+iface home_static inet static
+        address 192.168.0.20
+        netmask 255.255.255.0
+        network 192.168.0.0
+        broadcast 192.168.0.255
+        gateway 192.168.0.1
+</PRE>
+
+</DL>
+
+<P>
+
+<A NAME="lbAI">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?8+wpa_cli">wpa_cli</A>(8)</B>, <B><A HREF="/cgi-bin/man/man2html?8+wpa_supplicant">wpa_supplicant</A>(8)</B>, <B><A HREF="/cgi-bin/man/man2html?5+wpa_supplicant.conf">wpa_supplicant.conf</A>(5)</B>,
+<B><A HREF="/cgi-bin/man/man2html?8+ifup">ifup</A>(8)</B>, <B><A HREF="/cgi-bin/man/man2html?5+interfaces">interfaces</A>(5)</B>
+<A NAME="lbAJ">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+This manual page was written by Kel Modderman &lt;<A HREF="mailto:kel@otaku42.de">kel@otaku42.de</A>&gt; for
+the Debian GNU system (but may be used by others).
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="9"><A HREF="#lbAB">NAME</A><DD>
+<DT id="10"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="11"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="12"><A HREF="#lbAE">IFACE</A><DD>
+<DT id="13"><A HREF="#lbAF">ACTION</A><DD>
+<DT id="14"><A HREF="#lbAG">ENVIRONMENT</A><DD>
+<DT id="15"><A HREF="#lbAH">USAGE</A><DD>
+<DT id="16"><A HREF="#lbAI">SEE ALSO</A><DD>
+<DT id="17"><A HREF="#lbAJ">AUTHOR</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:18 GMT, March 31, 2021
+</BODY>
+</HTML>

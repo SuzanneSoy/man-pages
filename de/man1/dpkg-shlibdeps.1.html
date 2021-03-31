@@ -1,0 +1,389 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of dpkg-shlibdeps</TITLE>
+</HEAD><BODY>
+<H1>dpkg-shlibdeps</H1>
+Section: dpkg-Programmsammlung (1)<BR>Updated: 2020-03-23<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>BEZEICHNUNG</H2>
+
+dpkg-shlibdeps - erstelle Substvar-Abh&auml;ngigkeiten f&uuml;r Laufzeitbibliotheken
+<A NAME="lbAC">&nbsp;</A>
+<H2>&Uuml;BERSICHT</H2>
+
+<B>dpkg-shlibdeps</B> [<I>Option</I> …] [<B>-e</B>]<I>Programm</I> [<I>Option</I> …]
+<A NAME="lbAD">&nbsp;</A>
+<H2>BESCHREIBUNG</H2>
+
+<B>dpkg-shlibdeps</B> berechnet Abh&auml;ngigkeiten von Laufzeitbibliotheken f&uuml;r
+Programme, deren Name als Argument &uuml;bergeben werden. Die Abh&auml;ngigkeiten
+werden zu der Datei der Substitutionsvariablen <B>debian/substvars</B> als
+Variablennamen <B>shlibs:</B><I>Abh&auml;ngigkeitsfeld</I> hinzugef&uuml;gt, wobei
+<I>Abh&auml;ngigkeitsfeld</I> der Feldname einer Abh&auml;ngigkeit ist. Alle anderen
+Variablen, die mit <B>shlibs:</B> beginnen, werden aus der Datei entfernt.
+<P>
+
+<B>dpkg-shlibdeps</B> hat zwei m&ouml;gliche Informationsquellen zur Erstellung der
+Abh&auml;ngigkeitsinformationen. Entweder <I>Symbol</I>- oder
+<I>Shlibs</I>-Dateien. <B>dpkg-shlibdeps</B> findet f&uuml;r jedes Programm, das es
+analysiert, die Bibliotheken heraus, gegen die es gelinkt ist. Bei jeder
+Bibliothek schaut es entweder in die <I>Symbol</I>- oder in in <I>Shlibs</I>-Datei
+(falls erstere nicht existiert odr falls debian/shlibs.local die relevanten
+Abh&auml;ngigkeiten enth&auml;lt). Beide Dateien sollten von dem Bibliothekspaket
+bereitgestellt werden und sollten daher als
+/var/lib/dpkg/info/<I>Paket</I>.<I>Symbol</I> oder /var/lib/dpkg/info/<I>Paket</I>.<I>Shlibs</I>
+verf&uuml;gbar sein. Der Paketname wird in zwei Schritten identifiziert: zuerst
+wird die Bibliotheksdatei auf dem System gefunden (durch Pr&uuml;fung der
+gleichen Verzeichnisse wie bei <B>ld.so</B>), dann wird <B>dpkg -S
+</B><I>Bibliotheksdatei</I> verwendet, um das Paket, das die Bibliothek
+bereitstellt, zu ermitteln.
+<A NAME="lbAE">&nbsp;</A>
+<H3>Symboldateien</H3>
+
+Symboldateien enthalten feiner-granulare Abh&auml;ngigkeitsinformationen, indem
+sie die Minimalabh&auml;ngigkeit f&uuml;r jedes von der Bibliothek exportierte Symbol
+beschreiben. Das Skript versucht, eine Symboldatei die zu dem
+Bibliothekspaket geh&ouml;rt, an den folgenden Orten zuzuordnen (der erste
+Treffer wird verwendet):
+<DL COMPACT>
+<DT id="1">debian/*/DEBIAN/symbols<DD>
+Informationen &uuml;ber Laufzeitbibliotheken, die vom aktuellen Bauprozess
+erstellt werden, der auch <B>dpkg-shlibdeps</B> aufruft. Sie werden von
+<B><A HREF="/cgi-bin/man/man2html?1+dpkg-gensymbols">dpkg-gensymbols</A></B>(1) erstellt. Sie werden nur verwendet, falls die
+Bibliothek im Bau-Baum des Pakets gefunden wird. Die Symboldatei im Bau-Baum
+hat Vorrang gegen&uuml;ber Symboldateien aus anderen Bin&auml;rpaketen.
+<DT id="2">/etc/dpkg/symbols/<I>Paket</I>.symbols.<I>Architektur</I><DD>
+<DT id="3">/etc/dpkg/symbols/<I>Paket</I>.symbols<DD>
+Systemabh&auml;ngige &Uuml;berschreibung der Abh&auml;ngigkeitsinformationen von
+Laufzeitbibliotheken. <I>Architektur</I> ist die Architektur des aktuellen
+Systems (ermittelt durch <B>dpkg-architecture -qDEB_HOST_ARCH</B>).
+<DT id="4">Ausgabe von Bq<B>dpkg-query --control-path</B> <I>Paket</I> symbols"<DD>
+Vom Paket bereitgestellte Abh&auml;ngigkeitsinformationen f&uuml;r
+Laufzeitbibliotheken. Falls nicht durch <B>--admindir</B> &uuml;berschrieben,
+befinden sich solche Dateien unter /var/lib/dpkg.
+</DL>
+<P>
+
+W&auml;hrend des Durchsuchens aller vom Programm verwendeten Symbole erinnert
+sich <B>dpkg-shlibdeps</B> an die gr&ouml;&szlig;te Minimalversion, die von jeder
+Bibliothek ben&ouml;tigt wird. Am Ende des Prozesses ist es in der Lage, die
+minimale Abh&auml;ngigkeit f&uuml;r jede eingesetzte Bibliothek zu schreiben
+(vorausgesetzt, die Informationen in den <I>Symbol</I>-Dateien sind korrekt).
+<P>
+
+Als Sicherheitsma&szlig;nahme kann eine Symbols-Datei ein Meta-Informationsfeld
+<B>Build-Depends-Package</B> enthalten. <B>dpkg-shlibdeps</B> extrahiert dann die
+minimale Version, die von dem korrespondierenden Paket im Feld
+<B>Build-Depends</B> ben&ouml;tigt wird, und verwendet diese Version, falls sie h&ouml;her
+ist als die minimale Version, die beim Durchsuchen der Symbole ermittelt
+wurde.
+<A NAME="lbAF">&nbsp;</A>
+<H3>Shlibs-Dateien</H3>
+
+Shlibs-Dateien ordnen Bibliotheken direkt Abh&auml;ngigkeiten zu (ohne auf die
+Symbole zu schauen). Daher ist dies oft st&auml;rker als ben&ouml;tigt, aber daf&uuml;r
+sicher und leicht zu handhaben.
+<P>
+
+Die Abh&auml;ngigkeiten f&uuml;r eine Bibliothek wird an verschiedenen Stellen
+nachgeschlagen. Die erste Datei, die Informationen f&uuml;r die betrachtete
+Bibliothek bereitstellt, wird verwendet:
+<DL COMPACT>
+<DT id="5">debian/shlibs.local<DD>
+Paket-beschr&auml;nkte &Uuml;berschreibung der Abh&auml;ngigkeitsinformationen von
+Laufzeitbibliotheken.
+<DT id="6">/etc/dpkg/shlibs.override<DD>
+Systemabh&auml;ngige &Uuml;berschreibung der Abh&auml;ngigkeitsinformationen von
+Laufzeitbibliotheken.
+<DT id="7">debian/*/DEBIAN/shlibs<DD>
+Informationen &uuml;ber Laufzeitbibliotheken, die vom aktuellen Bauprozess
+erstellt werden, der auch <B>dpkg-shlibdeps</B> aufruft. Sie werden nur
+verwendet, falls die Bibliothek im Bau-Verzeichnis eines Pakets gefunden
+wird. Die Shlibs-Datei in diesem Bau-Verzeichnis hat gegen&uuml;ber
+Shlibs-Dateien von anderen Bin&auml;rpaketen Vorrang.
+<DT id="8">Ausgabe von Bq<B>dpkg-query --control-path</B> <I>Paket</I> shlibs"<DD>
+Vom Paket bereitgestellte Abh&auml;ngigkeitsinformationen f&uuml;r
+Laufzeitbibliotheken. Falls nicht durch <B>--admindir</B> &uuml;berschrieben,
+befinden sich solche Dateien unter /var/lib/dpkg.
+<DT id="9">/etc/dpkg/shlibs.default<DD>
+Systemabh&auml;ngige Vorgaben f&uuml;r Abh&auml;ngigkeitsinformationen von
+Laufzeitbibliotheken.
+</DL>
+<P>
+
+Die entnommenen Abh&auml;ngigkeiten werden direkt verwendet (es sei den, sie
+werden als Dubletten herausgefiltert oder sie sind schw&auml;cher als eine andere
+Abh&auml;ngigkeit).
+<A NAME="lbAG">&nbsp;</A>
+<H2>OPTIONEN</H2>
+
+<B>dpkg-shlibdeps</B> interpretiert nicht-Options-Argumente als Namen von
+ausf&uuml;hrbaren Programmen, als ob diese mit <B>-e</B><I>Programm</I> &uuml;bergeben worden
+w&auml;ren.
+<DL COMPACT>
+<DT id="10"><B>-e</B><I>Programm</I><DD>
+Abh&auml;ngigkeiten aufnehmen, die f&uuml;r von <I>Programm</I> ben&ouml;tigte
+Laufzeitbibliotheken angemessen sind. Diese Option kann mehrfach angegeben
+werden.
+<DT id="11"><B>-l</B><I>Verzeichnis</I><DD>
+Stellt <I>Verzeichnis</I> der Liste der zu durchsuchenden privaten
+Laufzeitbibliotheken voran (seit Dpkg 1.17.0). Diese Option kann mehrfach
+angegeben werden.
+<P>
+Hinweis: Verwenden Sie diese Variable, statt <B>LD_LIBRARY_PATH</B> zu setzten,
+da diese Umgebungsvariable verwandt wird, um den Laufzeit-Linker zu steuern
+und ihr Missbrauch zum Setzen von Pfaden zu Laufzeitbibliotheken zur Bauzeit
+kann beispielsweise beim Cross-&Uuml;bersetzen problematisch werden.
+<DT id="12"><B>-d</B><I>Abh&auml;ngigkeitsfeld</I><DD>
+F&uuml;ge Abh&auml;ngigkeiten hinzu, die zum Abh&auml;ngigkeitsfeld <I>Abh&auml;ngigkeitsfeld</I>
+der Steuerdatei hinzugef&uuml;gt werden sollen. (Die Abh&auml;ngigkeiten f&uuml;r dieses
+Feld werden in die Variable <B>shlibs:</B><I>Abh&auml;ngigkeitsfeld</I> geschrieben.)
+<P>
+Die Option <B>-d</B><I>Abh&auml;ngigkeitsfeld</I> betrifft alle Programme, die danach
+angegeben werden, bis zum n&auml;chsten <B>-d</B><I>Abh&auml;ngigkeitsfeld</I>. Der
+Standardwert f&uuml;r <I>Abh&auml;ngigkeitsfeld</I> ist <B>Depends</B>.
+<P>
+Falls der gleiche Abh&auml;ngigkeitseintrag (oder ein Satz von Alternativen) mehr
+als einmal in den erkannten Abh&auml;ngigkeitsfeldnamen <B>Pre-Depends</B>,
+<B>Depends</B>, <B>Recommends</B>, <B>Enhances</B> oder <B>Suggests</B> auftaucht, wird
+<B>dpkg-shlibdeps</B> die Abh&auml;ngigkeit von allen Feldern au&szlig;er dem, das die
+wichtigsten Abh&auml;ngigkeiten repr&auml;sentiert, entfernen.
+<DT id="13"><B>-p</B><I>Variablennamepr&auml;fix</I><DD>
+Beginn die Substitutionsvariablen mit <I>Variablennamepr&auml;fix</I><B>:</B> statt mit
+<B>shlibs:</B>. Entsprechend werden alle Substitutionsvariablen, die mit
+<I>Variablennamepr&auml;fix</I><B>:</B> (statt mit <B>shlibs:</B>) beginnen, aus den
+Substitutionsvariablen entfernt.
+<DT id="14"><B>-O</B>[<I>Dateiname</I>]<DD>
+Gebe die Variableneinstellung in die Standardausgabe (oder nach
+<I>Dateiname</I>, falls angegeben, seit Dpkg 1.17.2) aus, statt sie zu der
+Substitutionsvariablendatei (standardm&auml;&szlig;ig (<B>debian/substvars</B>)
+hinzuzuf&uuml;gen.
+<DT id="15"><B>-t</B><I>Typ</I><DD>
+Bevorzuge Abh&auml;ngigkeitsinformationen f&uuml;r Laufzeitbibliotheken, die f&uuml;r ein
+vorgegebenes Paket markiert sind. Falls keine Markierungsinformation
+verf&uuml;gbar ist, f&auml;llt dies auf unmarkierte Informationen zur&uuml;ck. Der
+Standard-Pakettyp ist <B>deb</B>. Abh&auml;ngigkeitsinformationen f&uuml;r
+Laufzeitbibliotheken werden f&uuml;r einen vorgegebenen Typ markiert, indem vor
+sie der Namen des Typs, ein Doppelpunkt und ein Leerraumzeichen gesetzt
+wird.
+<DT id="16"><B>-L</B><I>lokale_shlibs-Datei</I><DD>
+Lese die Hinwegsetz-Abh&auml;ngigkeiten von Laufzeitbibliotheken aus
+<I>lokale_shlibs-Datei</I> statt aus <B>debian/shlibs.local</B>.
+<DT id="17"><B>-T</B><I>Substvars-Datei</I><DD>
+Schreibe Substitutionsvariablen in <I>Substvars-Datei</I>; standardm&auml;&szlig;ig
+<B>debian/substvars</B>.
+<DT id="18"><B>-v</B><DD>
+Aktiviere ausf&uuml;hrlichen Modus (seit Dpkg 1.14.8). Eine Vielzahl von
+Nachrichten wird angezeigt, um zu erkl&auml;ren, was <B>dpkg-shlibdeps</B>
+durchf&uuml;hrt.
+<DT id="19"><B>-x</B><I>Paket</I><DD>
+Schlie&szlig;e das Paket von den generierten Abh&auml;ngigkeiten aus (seit Dpkg
+1.14.8). Dies ist f&uuml;r Pakete n&uuml;tzlich, die ELF-Programmdateien (Programme
+oder Bibliothekserweiterungen) bereitstellen, die eine Bibliothek im
+gleichen Paket verwenden, um selbst-Abh&auml;ngigkeiten zu vermeiden. Diese
+Option kann mehrfach verwendet werden, um mehrere Pakete auszuschlie&szlig;en.
+<DT id="20"><B>-S</B><I>Paketbauverzeichnis</I><DD>
+Schaue beim Versuch, eine Bibliothek zu finden, zuerst in
+<I>Paketbauverzeichnis</I> (seit Dpkg 1.14.15). Dies ist n&uuml;tzlich, wenn das
+Quellpaket mehrere Spielarten der gleichen Bibliothek baut und Sie
+sicherstellen wollen, dass Sie die Abh&auml;ngigkeit aus einem bestimmten
+Bin&auml;rpaket erhalten. Sie k&ouml;nnen diese Option mehrfach verwenden:
+Verzeichnisse werden in der gleichen Reihenfolge vor Verzeichnissen anderer
+Bin&auml;rpakete probiert.
+<DT id="21"><B>-I</B><I>Paketbauverzeichnis</I><DD>
+Ignoriert <I>Paketbauverzeichnis</I> bei Schauen nach Shlibs, Symbolen und
+gemeinsam benutzten Bibliotheken (seit Dpkg 1.18.5). Sie k&ouml;nnen diese Option
+mehrfach verwenden.
+<DT id="22"><B>--ignore-missing-info</B><DD>
+Falls keine Abh&auml;ngigkeitsinformationen f&uuml;r die Laufzeitbibliothek gefunden
+werden kann, erfolgt kein Fehlschlag (seit Dpkg 1.14.8). Von der Verwendung
+dieser Option wird abgearten, da alle Bibliotheken
+Abh&auml;ngigkeitsinformationen bereitstellen sollten (entweder &uuml;ber
+shlibs-Dateien oder &uuml;ber symbols-Dateien), selbst falls diese noch nicht von
+anderen Paketen verwendet werden.
+<DT id="23"><B>--warnings=</B><I>Wert</I><DD>
+<I>Wert</I> ist ein Bitfeld, das den Satz an Warnungen definiert, die von
+<B>dpkg-shlibdeps</B> ausgegeben werden k&ouml;nnen (seit Dpkg 1.14.17). Bit 0
+(Wert=1) aktiviert die Warnung BqSymbol <I>Sym</I>, verwendet von <I>Programm</I>, in
+keiner der Bibliotheken gefunden.", Bit 1 (Wert=2) aktiviert die Warnung
+BqDas Paket k&ouml;nnte eine nutzlose Abh&auml;ngigkeit vermeiden" und Bit 2 (Wert=4)
+aktiviert die Warnung Bq<I>Programm</I> sollte nicht gegen <I>Bibliothek</I> gelinkt
+werden". Standardm&auml;&szlig;ig ist <I>Wert</I> 3: die ersten zwei Warnungen sind
+standardm&auml;&szlig;ig aktiv, die letzte nicht. Setzten Sie <I>Wert</I> auf 7, falls Sie
+m&ouml;chten, dass alle Warnungen aktiv sein sollen.
+<DT id="24"><B>--admindir=</B><I>Verz</I><DD>
+&Auml;ndert den Ablageort der <B>dpkg</B>-Datenbank (seit Dpkg 1.14.0). Der
+Standardort ist <I>/var/lib/dpkg</I>.
+<DT id="25"><B>-?</B>, <B>--help</B><DD>
+Zeige den Bedienungshinweis und beende.
+<DT id="26"><B>--version</B><DD>
+Gebe die Version aus und beende sich.
+</DL>
+<A NAME="lbAH">&nbsp;</A>
+<H2>UMGEBUNG</H2>
+
+<DL COMPACT>
+<DT id="27"><B>DPKG_COLORS</B><DD>
+Setzt den Farbmodus (seit Dpkg 1.18.5). Die derzeit unterst&uuml;tzten Werte
+sind: <B>auto</B> (Vorgabe), <B>always</B> und <B>never</B>.
+<DT id="28"><B>DPKG_NLS</B><DD>
+Falls dies gesetzt ist, wird es zur Entscheidung, ob Native Language
+Support, auch als Internationalisierung (oder i18n) Unterst&uuml;tzung bekannt,
+aktiviert wird (seit Dpkg 1.19.0). Die akzeptierten Werte sind: <B>0</B> und
+<B>1</B> (Vorgabe).
+</DL>
+<A NAME="lbAI">&nbsp;</A>
+<H2>DIAGNOSE</H2>
+
+<A NAME="lbAJ">&nbsp;</A>
+<H3>Warnungen</H3>
+
+Da <B>dpkg-shlibdeps</B> den Symbolsatz, der von jedem Programm des erstellten
+Pakets verwendet wird, analysiert, ist es in mehreren F&auml;llen in der Lage,
+Warnungen auszugeben. Sie informieren Sie &uuml;ber Dinge, die im Paket
+verbessert werden k&ouml;nnen. Meistens betreffen diese Verbesserungen direkt die
+Quellen der Originalautoren. In der Reihenfolge abnehmender Wichtigkeit
+folgen hier die relevanten Warnungen, die auftauchen k&ouml;nnten:
+<DL COMPACT>
+<DT id="29"><B>Symbol</B> <I> Symbol</I><B>, verwendet von </B><I>Programm</I><B>, in keiner der Bibliotheken gefunden.</B><DD>
+Das angegebene Symbol wurde nicht in den Bibliotheken gefunden, gegen die
+das Programm gelinkt wurde. <I>Programm</I> ist h&ouml;chstwahrscheinlich eine
+Bibliothek und muss mit zus&auml;tzlichen Bibliotheken w&auml;hrend des Bau-Prozesses
+gelinkt werden (Option <B>-l</B><I>Bibliothek</I> des Linkers).
+<DT id="30"><I>Programm</I><B> enth&auml;lt eine nicht-aufl&ouml;sbare Referenz auf Symbol </B><I>Sym</I><B>: wahrscheinlich eine Erweiterung</B>.<DD>
+Das angegebene Symbol wurde nicht in den Bibliotheken gefunden, die mit
+diesem Programm verlinkt sind. Das <I>Progamm</I> ist h&ouml;chstwahrscheinlich eine
+Erweiterung und das Symbol wird von dem Programm bereitgestellt, das diese
+Erweiterung l&auml;dt. Theoretisch verf&uuml;gt eine Erweiterung nicht &uuml;ber einen
+SONAMEn, allerdings ist dies bei diesem Programm der Fall und daher konnte
+es nicht eindeutig als Erweiterung erkannt werden. Die Tatsache, dass dieses
+Programm in einem nicht-&ouml;ffentlichen Verzeichnis gespeichert wird ist
+allerdings ein starkes Anzeichen daf&uuml;r, dass es keine normale gemeinsam
+benutzte Bibliothek ist. Falls dieses Programm tats&auml;chlich eine Erweiterung
+ist, ignorieren Sie die Warnung. Allerdings besteht immer die M&ouml;glichkeit,
+dass es eine echte Bibliothek ist und dass Programme, die damit verlinken,
+einen RPATH verwenden, so dass der dynamische Lader sie findet. In diesem
+Fall ist die Bibliothek besch&auml;digt und muss repariert werden.
+<DT id="31"><B>Das Paket k&ouml;nnte eine nutzlose Abh&auml;ngigkeit vermeiden, falls </B><I>Programm</I><B> nicht gegen </B><I>Bibliothek</I><B> gelinkt w&auml;re (es verwendet keines der Symbole der Bibliothek).</B><DD>
+Keines der <I>Programme</I> die gegen <I>Bibliothek</I> gelinkt sind verwendet eines
+der von der Bibliothek bereitgestellten Symbole. Indem Sie die Programme
+korrigierten, vermieden Sie die Abh&auml;ngigkeit, die mit dieser Bibliothek
+verbunden ist (es sei denn, die Abh&auml;ngigkeit wird auch durch eine andere
+Bibliothek generiert, die diese Bibliothek wirklich verwendet).
+<DT id="32"><B>Das Paket k&ouml;nnte eine nutzlose Abh&auml;ngigkeit vermeiden, falls </B><I>Programme</I><B> nicht gegen </B><I>Bibliothek</I><B> gelinkt w&auml;ren (sie verwenden keines der Symbole der Bibliothek).</B><DD>
+Exakt das gleiche wie die obige Warnung, aber f&uuml;r mehrere Programme.
+<DT id="33"><I>Programm</I><B> sollte nicht gegen </B><I>Bibliothek</I><B> gelinkt werden (es verwendet keines der Bibliotheks-Symbole).</B><DD>
+Das <I>Programm</I> ist gegen eine Bibliothek gelinkt, die es nicht
+ben&ouml;tigt. Das ist kein Problem, aber bei der Ladezeit k&ouml;nnen kleine
+Leistungsverbesserungen erreicht werden, indem diese Bibliothek nicht in das
+Programm gelinkt wird. Diese Warnung &uuml;berpr&uuml;ft die gleichen Informationen
+wie die vorhergehende, allerdings f&uuml;r jedes Programm statt global f&uuml;r alle
+&uuml;berpr&uuml;ften Programme.
+</DL>
+<A NAME="lbAK">&nbsp;</A>
+<H3>Fehler</H3>
+
+<B>dpkg-shlibdeps</B> wird fehlschlagen, falls es eine vom Programm verwendete
+&ouml;ffentliche Bibliothek nicht finden kann oder falls diese Bibliothek keine
+zugeordneten Abh&auml;ngigkeitsinformationen hat (entweder eine Shlibs- oder
+Symbols-Datei). Eine &ouml;ffentliche Bibliothek hat einen SONAME und ist
+versioniert (libirgendwas.so.<I>X</I>). Eine private Bibliothek (wie z.B. ein
+Erweiterung) sollte keinen SONAME haben und braucht nicht versioniert zu
+sein.
+<DL COMPACT>
+<DT id="34"><B>konnte Bibliothek </B><I>SONAME-der-Bibliothek</I><B> ben&ouml;tigt von </B><I>Programm</I><B> nicht finden (ihr RPATH ist &raquo;</B><I>rpath</I><B>&laquo;).</B><DD>
+Das <I>Programm</I> verwendet eine Bibliothek mit Namen
+<I>SONAME-der-Bibliothek</I>, aber <B>dpkg-shlibdeps</B> konnte diese Bibliothek
+nicht finden. <B>dpkg-shlibdeps</B> erstellt folgenderma&szlig;en eine Liste der zu
+pr&uuml;fenden Verzeichnisse: im RPATH des Programms aufgef&uuml;hrte Verzeichnisse,
+durch die Option <B>-l</B> hinzugef&uuml;gte Verzeichnisse, in der Umgebungsvariable
+<B>LD_LIBRARY_PATH</B> aufgef&uuml;hrte Verzeichnisse, Cross-Multiarch-Verzeichnisse
+(z.B. /lib/arm64-linux-gnu, /usr/lib/arm64-linux-gnu), standardm&auml;&szlig;ige
+&ouml;ffentliche Verzeichnisse (/lib, /usr/lib), in /etc/ld.so.conf aufgef&uuml;hrte
+Verzeichnisse und veraltete Multilib-Verzeichnisse (/lib32, /usr/lib32,
+/lib64, /usr/lib64). Dann pr&uuml;ft es diese Verzeichnisse im Bau-Baum des
+analysierten Pakets, in den mit der Befehlszeilenoption <B>-S</B> angegebenen
+Paketbauverzeichnissen, in anderen Paketbau-B&auml;umen, die eine DEBIAN/shlibs-
+oder DEBIAN/symbols-Datei enthalten und schlie&szlig;lich im
+Wurzelverzeichnis. Falls die Bibliothek nicht in einem dieser Verzeichnisse
+gefunden wird, erhalten Sie diesen Fehler.
+<P>
+Falls sich die nicht gefundene Bibliothek in einem privaten Verzeichnis des
+gleichen Pakets befindet, m&uuml;ssen Sie das Verzeichnis mit <B>-l</B>
+hinzuf&uuml;gen. Falls sie sich in einem anderen gerade zu bauenden Paket
+befindet, m&uuml;ssen Sie sicherstellen, dass die &raquo;shlibs/symbols&laquo;-Datei dieses
+Pakets bereits angelegt ist und dass <B>-l</B> das geeignete Verzeichnis
+enth&auml;lt, falls die Bibliothek zudem in einem privaten Verzeichnis liegt.
+<DT id="35"><B>Keine Abh&auml;ngigkeitsinformationen f&uuml;r </B><I>Bibliotheksdatei</I><B> (verwendet von </B><I>Programm</I><B>) gefunden.</B><DD>
+Die von <I>Programm</I> ben&ouml;tigte Bibliothek wurde von <B>dpkg-shlibdeps</B> in
+<I>Bibliotheksdatei</I> gefunden, allerdings konnte <B>dpkg-shlibdeps</B> keine
+Abh&auml;ngigkeitsinformationen f&uuml;r diese Bibliothek ermitteln. Um die
+Abh&auml;ngigkeit herauszufinden, hat es versucht, die Bibliothek mittels <B>dpkg
+-S </B><I>Bibliotheksdatei</I> auf ein Debian-Paket abzubilden. Dann &uuml;berpr&uuml;fte es
+die zugeh&ouml;rigen Shlibs- und Symboldateien in /var/lib/dpkg/info/ und die
+verschiedenen Paketbaub&auml;ume (debian/*/DEBIAN/).
+<P>
+Dieser Fehlschlag kann durch defekte oder fehlende Shlibs- oder
+Symboldateien im Paket der Bibliothek ausgel&ouml;st werden. Er k&ouml;nnte auch
+auftreten, falls die Bibliothek im gleichen Quellpaket gebaut wird und die
+Shlibs-Datei noch nicht angelegt wurde (wobei Sie in diesem Fall
+debian/rules korrigieren m&uuml;ssen, damit die Shlibs-Datei erstellt wird bevor
+<B>dpkg-shlibdeps</B> aufgerufen wird). Defekte RPATH k&ouml;nnen auch dazu f&uuml;hren,
+dass die Bibliothek unter nicht-kanonischen Namen gefunden wird
+(beispielsweise /usr/lib/openoffice.org/../lib/libssl.so.0.9.8 statt
+/usr/lib/libssl.so.0.9.8), so dass dann diese keinem Paket zugeordnet ist;
+<B>dpkg-shlibdeps</B> versucht dies zu umgehen, indem es auf einen kanonischen
+Namen (mittels <B><A HREF="/cgi-bin/man/man2html?3+realpath">realpath</A></B>(3)) zur&uuml;ckf&auml;llt, allerdings k&ouml;nnte dies manchmal
+nicht funktionieren. Es ist immer am besten, den RPATH zu bereinigen, um
+Probleme zu vermeiden.
+<P>
+Viele weitere Informationen dar&uuml;ber, wo nach Abh&auml;ngigkeitsinformationen
+gesucht wird, k&ouml;nnen durch einen Aufruf von <B>dpkg-shlibdeps</B> im
+detaillierten Modus (<B>-v</B>) erhalten werden. Dies kann n&uuml;tzlich sein, falls
+Sie nicht verstehen, warum es Ihnen diesen Fehler meldet.
+</DL>
+<A NAME="lbAL">&nbsp;</A>
+<H2>SIEHE AUCH</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?5+deb-shlibs">deb-shlibs</A></B>(5), <B><A HREF="/cgi-bin/man/man2html?5+deb-symbols">deb-symbols</A></B>(5), <B><A HREF="/cgi-bin/man/man2html?1+dpkg-gensymbols">dpkg-gensymbols</A></B>(1).
+<A NAME="lbAM">&nbsp;</A>
+<H2>&Uuml;BERSETZUNG</H2>
+
+Die deutsche &Uuml;bersetzung wurde 2004, 2006-2019 von Helge Kreutzmann
+&lt;<A HREF="mailto:debian@helgefjell.de">debian@helgefjell.de</A>&gt;, 2007 von Florian Rehnisch &lt;<A HREF="mailto:eixman@gmx.de">eixman@gmx.de</A>&gt; und
+2008 von Sven Joachim &lt;<A HREF="mailto:svenjoac@gmx.de">svenjoac@gmx.de</A>&gt;
+angefertigt. Diese &Uuml;bersetzung ist Freie Dokumentation; lesen Sie die
+GNU General Public License Version 2 oder neuer f&uuml;r die Kopierbedingungen.
+Es gibt KEINE HAFTUNG.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="36"><A HREF="#lbAB">BEZEICHNUNG</A><DD>
+<DT id="37"><A HREF="#lbAC">&Uuml;BERSICHT</A><DD>
+<DT id="38"><A HREF="#lbAD">BESCHREIBUNG</A><DD>
+<DL>
+<DT id="39"><A HREF="#lbAE">Symboldateien</A><DD>
+<DT id="40"><A HREF="#lbAF">Shlibs-Dateien</A><DD>
+</DL>
+<DT id="41"><A HREF="#lbAG">OPTIONEN</A><DD>
+<DT id="42"><A HREF="#lbAH">UMGEBUNG</A><DD>
+<DT id="43"><A HREF="#lbAI">DIAGNOSE</A><DD>
+<DL>
+<DT id="44"><A HREF="#lbAJ">Warnungen</A><DD>
+<DT id="45"><A HREF="#lbAK">Fehler</A><DD>
+</DL>
+<DT id="46"><A HREF="#lbAL">SIEHE AUCH</A><DD>
+<DT id="47"><A HREF="#lbAM">&Uuml;BERSETZUNG</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:04:56 GMT, March 31, 2021
+</BODY>
+</HTML>

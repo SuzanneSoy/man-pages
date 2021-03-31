@@ -1,0 +1,191 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of ISADUMP</TITLE>
+</HEAD><BODY>
+<H1>ISADUMP</H1>
+Section: Maintenance Commands (8)<BR>Updated: April 2011<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+isadump - examine ISA registers
+<P>
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<B>isadump</B>
+
+[<B>-y</B>]
+
+[<B>-W</B>|<B>-L</B>]
+
+[<B>-k V1,V2...</B>]
+
+<I>addrreg</I>
+
+<I>datareg</I>
+
+[<I>bank </I>[<I>bankreg</I>]]
+
+#for I2C-like access
+<BR>
+
+<B>isadump</B>
+
+<B>-f</B>
+
+[<B>-y</B>]
+
+[<B>-W</B>|<B>-L</B>]
+
+<I>address</I>
+
+[<I>range </I>[<I>bank </I>[<I>bankreg</I>]]]
+
+#for flat address space
+<P>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+isadump is a small helper program to examine registers visible through the ISA
+bus. It is intended to probe any chip that lives on the ISA bus working with an
+address register and a data register (I2C-like access) or a flat range (of up
+to 256 bytes).
+<P>
+<A NAME="lbAE">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<DL COMPACT>
+<DT id="1"><B>-f</B>
+
+<DD>
+Enable flat address space mode.
+<DT id="2"><B>-y</B>
+
+<DD>
+Disable interactive mode. By default, isadump will wait for a confirmation
+from the user before messing with the ISA bus. When this flag is used, it
+will perform the operation directly. This is mainly meant to be used in
+scripts.
+<DT id="3"><B>-k V1,V2...</B>
+
+<DD>
+Specify a comma-separated list of bytes to send as the key sequence to enter
+the chip configuration mode. Most Super-I/O chips need this.
+Known key sequences are: 0x87,0x01,0x55,0x55 for ITE, 0x55 for SMSC, 0x87,0x87
+for Winbond and VIA, none needed for National Semiconductor.
+<DT id="4"><B>-W</B>
+
+<DD>
+Perform 16-bit reads.
+<DT id="5"><B>-L</B>
+
+<DD>
+Perform 32-bit reads.
+<P>
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>OPTIONS (I2C-like access mode)</H2>
+
+At least two options must be provided to isadump. <I>addrreg</I> contains the
+ISA address of the address register for the chip to probe; <I>datareg</I>
+contains the address of the data register. Both addresses are integers between
+0x0000 and 0x3FFF. Usually, if the chip's base address is 0x0nn0, the
+address register is at 0x0nn5 and the data register is at 0x0nn6. The most
+common base address for hardware monitoring chips is 0x0290.
+<P>
+
+For Super-I/O chips, address register is typically at 0x2E with data
+register at 0x2F.
+<P>
+
+The <I>bank</I> and <I>bankreg</I> parameters are useful on the Winbond chips
+as well as on Super-I/O chips.
+<I>bank</I> is an integer between 0 and 31, and <I>bankreg</I> is an integer
+between 0x00 and 0xFF (default value: 0x4E for Winbond chips, 0x07
+for Super-I/O chips). The W83781D datasheet has more information on bank
+selection.
+<P>
+<A NAME="lbAG">&nbsp;</A>
+<H2>OPTIONS (flat address space mode)</H2>
+
+In flat mode, only one parameter is
+mandatory. <I>address</I> contains the ISA address of the chip to probe;
+it is an integer between 0x0000 and 0xFFFF.
+If provided, <I>range</I> is how many bytes should be read (must be a
+multiple of 16). If the range isn't provided, it defaults to 256 bytes
+and the address is forcibly aligned on a 256-byte boundary.
+<P>
+
+The <I>bank</I> and <I>bankreg</I> parameters are useful on the National
+Semiconductor PC87365 and PC87366 Super-I/O chips.
+<I>bank</I> is an integer between 0 and 31, and <I>bankreg</I> is an integer
+between 0x00 and 0xFF (default value: 0x09; must fit in the specified
+range). See the PC87365 datasheet for more information on bank selection.
+<P>
+<A NAME="lbAH">&nbsp;</A>
+<H2>NOTES</H2>
+
+If no bank is specified, no bank change operation is performed.
+<P>
+
+If a bank is specified, the original value is restored before isadump exits.
+<P>
+
+Dumping Super-I/O chips is typically a two-step process. First, you will have
+to access the main Super-I/O address using a command like:
+isadump 0x2e 0x2f 0x09.
+This will select logical device 9 (correct value depend on the chip). At 0x60
+you will find the logical device address word, for example &quot;ec c0&quot;.
+Then you can use a command like:
+isadump -f 0xecc0 16.
+This will dump the logical device registers. The correct range depends on
+the chip.
+<P>
+<A NAME="lbAI">&nbsp;</A>
+<H2>WARNING</H2>
+
+Poking around in ISA data space is extremely dangerous.
+Running isadump with random parameters can cause system
+crashes, data loss, and worse!  Be extremely careful when using
+this program.
+<P>
+<A NAME="lbAJ">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<A HREF="/cgi-bin/man/man2html?8+i2cdump">i2cdump</A>(8), <A HREF="/cgi-bin/man/man2html?8+isaset">isaset</A>(8)
+<P>
+<A NAME="lbAK">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+Frodo Looijaard, Mark D. Studebaker, and the lm_sensors group
+(<A HREF="https://hwmon.wiki.kernel.org/lm_sensors)">https://hwmon.wiki.kernel.org/lm_sensors)</A>
+<P>
+
+This manual page was originally written by David Z Maze &lt;<A HREF="mailto:dmaze@debian.org">dmaze@debian.org</A>&gt; for
+the Debian GNU/Linux system. It was then reviewed and augmented by the lm_sensors
+team and is now part of the lm_sensors source distribution.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="6"><A HREF="#lbAB">NAME</A><DD>
+<DT id="7"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="8"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="9"><A HREF="#lbAE">OPTIONS</A><DD>
+<DT id="10"><A HREF="#lbAF">OPTIONS (I2C-like access mode)</A><DD>
+<DT id="11"><A HREF="#lbAG">OPTIONS (flat address space mode)</A><DD>
+<DT id="12"><A HREF="#lbAH">NOTES</A><DD>
+<DT id="13"><A HREF="#lbAI">WARNING</A><DD>
+<DT id="14"><A HREF="#lbAJ">SEE ALSO</A><DD>
+<DT id="15"><A HREF="#lbAK">AUTHOR</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:13 GMT, March 31, 2021
+</BODY>
+</HTML>

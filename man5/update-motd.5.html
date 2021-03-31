@@ -1,0 +1,109 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of update-motd</TITLE>
+</HEAD><BODY>
+<H1>update-motd</H1>
+Section: File Formats (5)<BR>Updated: 13 April 2010<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<P>
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+update-motd - dynamic MOTD generation
+<P>
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<B>/etc/update-motd.d/*</B>
+
+<P>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+UNIX/Linux system adminstrators often communicate important information to console and remote users by maintaining text in the file <I>/etc/motd</I>, which is displayed by the <B><A HREF="/cgi-bin/man/man2html?8+pam_motd">pam_motd</A></B>(8) module on interactive shell logins.
+<P>
+Traditionally, this file is static text, typically installed by the distribution and only updated on release upgrades, or overwritten by the local administrator with pertinent information.
+<P>
+Ubuntu introduced the <B>update-motd</B> framework, by which the <B><A HREF="/cgi-bin/man/man2html?5+motd">motd</A></B>(5) is dynamically assembled from a collection of scripts at login.
+<P>
+Executable scripts in <I>/etc/update-motd.d/*</I> are executed by <B><A HREF="/cgi-bin/man/man2html?8+pam_motd">pam_motd</A></B>(8) as the root user at each login, and this information is concatenated in <I>/run/motd.dynamic</I>.  The order of script execution is determined by the <B><A HREF="/cgi-bin/man/man2html?8+run-parts">run-parts</A></B>(8) --lsbsysinit option (basically alphabetical order, with a few caveats).
+<P>
+On Ubuntu systems, <I>/etc/motd</I> is typically a symbolic link to <I>/run/motd.dynamic</I>.
+<P>
+<A NAME="lbAE">&nbsp;</A>
+<H2>BEST PRACTICES</H2>
+
+MOTD fragments must be scripts in <I>/etc/update-motd.d</I>, must be executable, and must emit information on standard out.
+<P>
+Scripts should be named named NN-xxxxxx where NN is a two digit number indicating their position in the MOTD, and xxxxxx is an appropriate name for the script.
+<P>
+Scripts must not have filename extensions, per <B><A HREF="/cgi-bin/man/man2html?8+run-parts">run-parts</A></B>(8) --lsbsysinit instructions.
+<P>
+Packages should add scripts directly into <I>/etc/update-motd.d</I>, rather than symlinks to other scripts, such that administrators can modify or remove these scripts and upgrades will not wipe the local changes.  Consider using a simple shell script that simply calls <B>exec</B> on the external utility.
+<P>
+Long running operations (such as network calls) or resource intensive scripts should cache output, and only update that output if it is deemed expired.  For instance:
+<P>
+<BR>&nbsp;&nbsp;/etc/update-motd.d/50-news
+<BR>&nbsp;&nbsp;#!/bin/sh
+<BR>&nbsp;&nbsp;out=/run/foo
+<BR>&nbsp;&nbsp;script=&quot;w3m&nbsp;-dump&nbsp;<A HREF="http://news.google.com/">http://news.google.com/</A>&quot;
+<BR>&nbsp;&nbsp;if&nbsp;[&nbsp;-f&nbsp;&quot;$out&quot;&nbsp;];&nbsp;then
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;Output&nbsp;exists,&nbsp;print&nbsp;it
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;echo
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;cat&nbsp;&quot;$out&quot;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;See&nbsp;if&nbsp;it's&nbsp;expired,&nbsp;and&nbsp;background&nbsp;update
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;lastrun=$(stat&nbsp;-c&nbsp;%Y&nbsp;&quot;$out&quot;)&nbsp;||&nbsp;lastrun=0
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;expiration=$(expr&nbsp;$lastrun&nbsp;+&nbsp;86400)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;[&nbsp;$(date&nbsp;+%s)&nbsp;-ge&nbsp;$expiration&nbsp;];&nbsp;then
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$script&nbsp;&gt;&nbsp;&quot;$out&quot;&nbsp;&amp;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fi
+<BR>&nbsp;&nbsp;else
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;No&nbsp;cache&nbsp;at&nbsp;all,&nbsp;so&nbsp;update&nbsp;in&nbsp;the&nbsp;background
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;$script&nbsp;&gt;&nbsp;&quot;$out&quot;&nbsp;&amp;
+<BR>&nbsp;&nbsp;fi
+<P>
+Scripts should emit a blank line before output, and end with a newline character.  For instance:
+<P>
+<BR>&nbsp;&nbsp;/etc/update-motd/05-lsb-release
+<BR>&nbsp;&nbsp;#!/bin/sh
+<BR>&nbsp;&nbsp;echo
+<BR>&nbsp;&nbsp;lsb-release&nbsp;-a
+<P>
+<A NAME="lbAF">&nbsp;</A>
+<H2>FILES</H2>
+
+<I>/etc/motd</I>, <I>/run/motd.dynamic</I>, <I>/etc/update-motd.d</I>
+<P>
+<P>
+<A NAME="lbAG">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?5+motd">motd</A></B>(5), <B><A HREF="/cgi-bin/man/man2html?8+pam_motd">pam_motd</A></B>(8), <B><A HREF="/cgi-bin/man/man2html?8+run-parts">run-parts</A></B>(8)
+<P>
+<A NAME="lbAH">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+This manpage and the update-motd framework was written by Dustin Kirkland &lt;<A HREF="mailto:kirkland@canonical.com">kirkland@canonical.com</A>&gt; for Ubuntu systems (but may be used by others).  Permission is granted to copy, distribute and/or modify this document under the terms of the GNU General Public License, Version 3 published by the Free Software Foundation.
+<P>
+On Debian systems, the complete text of the GNU General Public License can be found in /usr/share/common-licenses/GPL.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="1"><A HREF="#lbAB">NAME</A><DD>
+<DT id="2"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="3"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="4"><A HREF="#lbAE">BEST PRACTICES</A><DD>
+<DT id="5"><A HREF="#lbAF">FILES</A><DD>
+<DT id="6"><A HREF="#lbAG">SEE ALSO</A><DD>
+<DT id="7"><A HREF="#lbAH">AUTHOR</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:06 GMT, March 31, 2021
+</BODY>
+</HTML>

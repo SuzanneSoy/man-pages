@@ -1,0 +1,258 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of ctinfo action in tc</TITLE>
+</HEAD><BODY>
+<H1>ctinfo action in tc</H1>
+Section: Linux (8)<BR>Updated: 4 Jun 2019<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+ctinfo - tc connmark processing action
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<B>tc ... action ctinfo</B>
+
+[
+<B>dscp</B>
+
+MASK [STATEMASK] ] [
+<B>cpmark</B>
+
+[MASK] ] [
+<B>zone</B>
+
+ZONE ] [
+<B>CONTROL</B>
+
+] [
+<B>index</B>
+
+&lt;INDEX&gt;
+]
+<P>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+CTINFO (Conntrack Information) is a tc action for retrieving data from
+conntrack marks into various fields.  At present it has two independent
+processing modes which may be viewed as sub-functions.
+<P>
+DSCP mode copies a DSCP stored in conntrack's connmark into the IPv4/v6 diffserv
+field.  The copying may conditionally occur based on a flag also stored in the
+connmark.  DSCP mode was designed to assist in restoring packet classifications on
+ingress, classifications which may then be used by qdiscs such as CAKE.  It may be
+used in any circumstance where ingress classification needs to be maintained across
+links that otherwise bleach or remap according to their own policies.
+<P>
+CPMARK (copymark) mode copies the conntrack connmark into the packet's mark field.  Without
+additional parameters it is functionally completely equivalent to the existing
+connmark action.  An optional mask may be specified to mask which bits of the
+connmark are restored.  This may be useful when DSCP and CPMARK modes are combined.
+<P>
+Simple statistics (tc -s) on DSCP restores and CPMARK copies are maintained where values for
+set indicate a count of packets altered for that mode.  DSCP includes an error count
+where the destination packet's diffserv field was unwriteable.
+<A NAME="lbAE">&nbsp;</A>
+<H2>PARAMETERS</H2>
+
+<A NAME="lbAF">&nbsp;</A>
+<H3>DSCP mode parameters:</H3>
+
+<DL COMPACT>
+<DT id="1">mask<DD>
+A mask of 6 contiguous bits indicating where the DSCP value is located in the 32 bit
+conntrack mark field.  A mask must be provided for this mode.  mask is a 32 bit
+unsigned value.
+<DT id="2">statemask<DD>
+A mask of at least 1 bit indicating where a conditional restore flag is located in the
+32 bit conntrack mark field.  The statemask bit/s must NOT overlap the mask bits.  The
+DSCP will be restored if the conntrack mark logically ANDed with the statemask yields
+a non-zero result.  statemask is an optional unsigned 32 bit value.
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H3>CPMARK mode parameters:</H3>
+
+<DL COMPACT>
+<DT id="3">mask<DD>
+Store the logically ANDed result of conntrack mark and mask into the packet's mark
+field.  Default is 0xffffffff i.e. the whole mark field.  mask is an optional unsigned 32 bit
+value
+</DL>
+<A NAME="lbAH">&nbsp;</A>
+<H3>Overall action parameters:</H3>
+
+<DL COMPACT>
+<DT id="4">zone<DD>
+Specify the conntrack zone when doing conntrack lookups for packets.
+zone is a 16bit unsigned decimal value.
+Default is 0.
+<DT id="5">CONTROL<DD>
+The following keywords allow to control how the tree of qdisc, classes,
+filters and actions is further traversed after this action.
+<DL COMPACT><DT id="6"><DD>
+<DL COMPACT>
+<DT id="7"><B>reclassify</B>
+
+<DD>
+Restart with the first filter in the current list.
+<DT id="8"><B>pipe</B>
+
+<DD>
+Continue with the next action attached to the same filter.
+<DT id="9"><B>drop</B>
+
+<DD>
+Drop the packet.
+<DT id="10"><B>shot</B>
+
+<DD>
+synonym for
+<B>drop</B>
+
+<DT id="11"><B>continue</B>
+
+<DD>
+Continue classification with the next filter in line.
+<DT id="12"><B>pass</B>
+
+<DD>
+Finish classification process and return to calling qdisc for further packet
+processing. This is the default.
+</DL>
+</DL>
+
+<DT id="13">index<DD>
+Specify an index for this action in order to being able to identify it in later
+commands. index is a 32bit unsigned decimal value.
+</DL>
+<A NAME="lbAI">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+Example showing conditional restoration of DSCP on ingress via an IFB
+<DL COMPACT><DT id="14"><DD>
+
+<P>
+#Set up the IFB interface
+<BR>
+
+tc qdisc add dev ifb4eth0 handle ffff: ingress
+<P>
+#Put CAKE qdisc on it
+<BR>
+
+tc qdisc add dev ifb4eth0 root cake bandwidth 40mbit
+<P>
+#Set interface UP
+<BR>
+
+ip link set dev ifb4eth0 up
+<P>
+#Add 2 actions, ctinfo to restore dscp &amp; mirred to redirect the packets to IFB
+<BR>
+
+tc filter add dev eth0 parent ffff: protocol all prio 10 u32 \
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;match&nbsp;u32&nbsp;0&nbsp;0&nbsp;flowid&nbsp;1:1&nbsp;action&nbsp;&nbsp;&nbsp;&nbsp;\
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;ctinfo&nbsp;dscp&nbsp;0xfc000000&nbsp;0x01000000&nbsp;&nbsp;\
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;mirred&nbsp;egress&nbsp;redirect&nbsp;dev&nbsp;ifb4eth0
+<P>
+tc -s qdisc show dev eth0 ingress
+<P>
+<BR>&nbsp;filter&nbsp;parent&nbsp;ffff:&nbsp;protocol&nbsp;all&nbsp;pref&nbsp;10&nbsp;u32&nbsp;chain&nbsp;0
+<BR>&nbsp;filter&nbsp;parent&nbsp;ffff:&nbsp;protocol&nbsp;all&nbsp;pref&nbsp;10&nbsp;u32&nbsp;chain&nbsp;0&nbsp;fh&nbsp;800:&nbsp;ht&nbsp;divisor&nbsp;1
+<BR>&nbsp;filter&nbsp;parent&nbsp;ffff:&nbsp;protocol&nbsp;all&nbsp;pref&nbsp;10&nbsp;u32&nbsp;chain&nbsp;0&nbsp;fh&nbsp;800::800&nbsp;order&nbsp;2048&nbsp;key&nbsp;ht&nbsp;800&nbsp;bkt&nbsp;0&nbsp;flowid&nbsp;1:1&nbsp;not_in_hw
+<BR>&nbsp;&nbsp;match&nbsp;00000000/00000000&nbsp;at&nbsp;0
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;action&nbsp;order&nbsp;1:&nbsp;ctinfo&nbsp;zone&nbsp;0&nbsp;pipe
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;index&nbsp;2&nbsp;ref&nbsp;1&nbsp;bind&nbsp;1&nbsp;dscp&nbsp;0xfc000000&nbsp;0x01000000&nbsp;installed&nbsp;72&nbsp;sec&nbsp;used&nbsp;0&nbsp;sec&nbsp;DSCP&nbsp;set&nbsp;1333&nbsp;error&nbsp;0&nbsp;CPMARK&nbsp;set&nbsp;0
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;Action&nbsp;statistics:
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;Sent&nbsp;658484&nbsp;bytes&nbsp;1833&nbsp;pkt&nbsp;(dropped&nbsp;0,&nbsp;overlimits&nbsp;0&nbsp;requeues&nbsp;0)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;backlog&nbsp;0b&nbsp;0p&nbsp;requeues&nbsp;0
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;action&nbsp;order&nbsp;2:&nbsp;mirred&nbsp;(Egress&nbsp;Redirect&nbsp;to&nbsp;device&nbsp;ifb4eth0)&nbsp;stolen
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;index&nbsp;1&nbsp;ref&nbsp;1&nbsp;bind&nbsp;1&nbsp;installed&nbsp;72&nbsp;sec&nbsp;used&nbsp;0&nbsp;sec
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;Action&nbsp;statistics:
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;Sent&nbsp;658484&nbsp;bytes&nbsp;1833&nbsp;pkt&nbsp;(dropped&nbsp;0,&nbsp;overlimits&nbsp;0&nbsp;requeues&nbsp;0)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;backlog&nbsp;0b&nbsp;0p&nbsp;requeues&nbsp;0
+
+</DL>
+
+<P>
+Example showing conditional restoration of DSCP on egress
+<P>
+This may appear nonsensical since iptables marking of egress packets is easy
+to achieve, however the iptables flow classification rules may be extensive
+and so some sort of set once and forget may be useful especially on cpu
+constrained devices.
+<DL COMPACT><DT id="15"><DD>
+
+<P>
+# Send unmarked connections to a marking chain which needs to store a DSCP
+and set statemask bit in the connmark
+<BR>
+
+iptables -t mangle -A POSTROUTING -o eth0 -m connmark \
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;--mark&nbsp;0x00000000/0x01000000&nbsp;-g&nbsp;CLASS_MARKING_CHAIN
+<P>
+# Apply marked DSCP to the packets
+<BR>
+
+tc filter add dev eth0 protocol all prio 10 u32 \
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;match&nbsp;u32&nbsp;0&nbsp;0&nbsp;flowid&nbsp;1:1&nbsp;action&nbsp;\
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;ctinfo&nbsp;dscp&nbsp;0xfc000000&nbsp;0x01000000
+<P>
+tc -s filter show dev eth0
+<BR>&nbsp;filter&nbsp;parent&nbsp;800e:&nbsp;protocol&nbsp;all&nbsp;pref&nbsp;10&nbsp;u32&nbsp;chain&nbsp;0
+<BR>&nbsp;filter&nbsp;parent&nbsp;800e:&nbsp;protocol&nbsp;all&nbsp;pref&nbsp;10&nbsp;u32&nbsp;chain&nbsp;0&nbsp;fh&nbsp;800:&nbsp;ht&nbsp;divisor&nbsp;1
+<BR>&nbsp;filter&nbsp;parent&nbsp;800e:&nbsp;protocol&nbsp;all&nbsp;pref&nbsp;10&nbsp;u32&nbsp;chain&nbsp;0&nbsp;fh&nbsp;800::800&nbsp;order&nbsp;2048&nbsp;key&nbsp;ht&nbsp;800&nbsp;bkt&nbsp;0&nbsp;flowid&nbsp;1:1&nbsp;not_in_hw
+<BR>&nbsp;&nbsp;match&nbsp;00000000/00000000&nbsp;at&nbsp;0
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;action&nbsp;order&nbsp;1:&nbsp;ctinfo&nbsp;zone&nbsp;0&nbsp;pipe
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;index&nbsp;1&nbsp;ref&nbsp;1&nbsp;bind&nbsp;1&nbsp;dscp&nbsp;0xfc000000&nbsp;0x01000000&nbsp;installed&nbsp;7414&nbsp;sec&nbsp;used&nbsp;0&nbsp;sec&nbsp;DSCP&nbsp;set&nbsp;53404&nbsp;error&nbsp;0&nbsp;CPMARK&nbsp;set&nbsp;0
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;Action&nbsp;statistics:
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;Sent&nbsp;32890260&nbsp;bytes&nbsp;120441&nbsp;pkt&nbsp;(dropped&nbsp;0,&nbsp;overlimits&nbsp;0&nbsp;requeues&nbsp;0)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;backlog&nbsp;0b&nbsp;0p&nbsp;requeues&nbsp;0
+<BR>
+
+</DL>
+
+<A NAME="lbAJ">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?8+tc">tc</A></B>(8),
+
+<B><A HREF="/cgi-bin/man/man2html?8+tc-cake">tc-cake</A></B>(8)
+
+<B><A HREF="/cgi-bin/man/man2html?8+tc-connmark">tc-connmark</A></B>(8)
+
+<B><A HREF="/cgi-bin/man/man2html?8+tc-mirred">tc-mirred</A></B>(8)
+
+<A NAME="lbAK">&nbsp;</A>
+<H2>AUTHORS</H2>
+
+ctinfo was written by Kevin Darbyshire-Bryant.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="16"><A HREF="#lbAB">NAME</A><DD>
+<DT id="17"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="18"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="19"><A HREF="#lbAE">PARAMETERS</A><DD>
+<DL>
+<DT id="20"><A HREF="#lbAF">DSCP mode parameters:</A><DD>
+<DT id="21"><A HREF="#lbAG">CPMARK mode parameters:</A><DD>
+<DT id="22"><A HREF="#lbAH">Overall action parameters:</A><DD>
+</DL>
+<DT id="23"><A HREF="#lbAI">EXAMPLES</A><DD>
+<DT id="24"><A HREF="#lbAJ">SEE ALSO</A><DD>
+<DT id="25"><A HREF="#lbAK">AUTHORS</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:17 GMT, March 31, 2021
+</BODY>
+</HTML>

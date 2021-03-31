@@ -1,0 +1,759 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of dpkg-buildpackage</TITLE>
+</HEAD><BODY>
+<H1>dpkg-buildpackage</H1>
+Section: dpkg suite (1)<BR>Updated: 2020-03-23<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+dpkg-buildpackage - build binary or source packages from sources
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<B>dpkg-buildpackage</B>
+
+[<I>option</I>...]
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<B>dpkg-buildpackage</B>
+
+is a program that automates the process of building a Debian package. It
+consists of the following steps:
+<DL COMPACT>
+<DT id="1"><B>1.</B><DD>
+It prepares the build environment by setting various environment
+variables (see <B>ENVIRONMENT</B>), runs the <B>init</B> hook, and calls
+<B>dpkg-source --before-build</B> (unless <B>-T</B> or <B>--target</B>
+has been used).
+<DT id="2"><B>2.</B><DD>
+It checks that the build-dependencies and build-conflicts
+are satisfied (unless <B>-d</B> or <B>--no-check-builddeps</B> is specified).
+<DT id="3"><B>3.</B><DD>
+If one or more specific targets have been selected with the <B>-T</B> or
+<B>--target</B> option, it calls those targets and stops here. Otherwise it
+runs the <B>preclean</B> hook and calls <B>fakeroot debian/rules clean</B> to
+clean the build-tree (unless <B>-nc</B> or <B>--no-pre-clean</B>
+is specified).
+<DT id="4"><B>4.</B><DD>
+It runs the <B>source</B> hook and calls <B>dpkg-source -b</B> to generate
+the source package (if a <B>source</B> build has been requested with
+<B>--build</B> or equivalent options).
+<DT id="5"><B>5.</B><DD>
+It runs the <B>build</B> hook and calls <B>debian/rules</B> <I>build-target</I>,
+then runs the <B>binary</B> hook followed by <B>fakeroot debian/rules</B>
+<I>binary-target</I> (unless a source-only build has been requested with
+<B>--build=source</B> or equivalent options).
+Note that <I>build-target</I> and <I>binary-target</I> are either <B>build</B>
+and <B>binary</B> (default case, or if an <B>any</B> and <B>all</B> build
+has been requested with <B>--build</B> or equivalent options), or
+<B>build-arch</B> and <B>binary-arch</B> (if an <B>any</B> and not <B>all</B>
+build has been requested with <B>--build</B> or equivalent options), or
+<B>build-indep</B> and <B>binary-indep</B> (if an <B>all</B> and not <B>any</B>
+build has been requested with <B>--build</B> or equivalent options).
+<DT id="6"><B>6.</B><DD>
+It runs the <B>buildinfo</B>
+hook and calls <B>dpkg-genbuildinfo</B> to generate a <B>.buildinfo</B> file.
+Several <B>dpkg-buildpackage</B> options are forwarded to
+<B>dpkg-genbuildinfo</B>.
+<DT id="7"><B>7.</B><DD>
+It runs the <B>changes</B> hook and calls <B>dpkg-genchanges</B> to
+generate a <B>.changes</B> file.
+The name of the <B>.changes</B> file will depend on the type of build and
+will be as specific as necessary but not more;
+for a build that includes <B>any</B> the name will be
+<I>source-name</I><B>_</B><I>binary-version</I><B>_</B><I>arch</I><B>.changes</B>,
+or otherwise for a build that includes <B>all</B> the name will be
+<I>source-name</I><B>_</B><I>binary-version</I><B>_</B><B>all.changes</B>,
+or otherwise for a build that includes <B>source</B> the name will be
+<I>source-name</I><B>_</B><I>source-version</I><B>_</B><B>source.changes</B>.
+Many <B>dpkg-buildpackage</B> options are forwarded to
+<B>dpkg-genchanges</B>.
+<DT id="8"><B>8.</B><DD>
+It runs the <B>postclean</B> hook and if <B>-tc</B> or <B>--post-clean</B>
+is specified, it will call <B>fakeroot debian/rules clean</B> again.
+<DT id="9"><B>9.</B><DD>
+It calls <B>dpkg-source --after-build</B>.
+<DT id="10"><B>10.</B><DD>
+It runs the <B>check</B> hook and calls a package checker for the
+<B>.changes</B> file (if a command is specified in <B>DEB_CHECK_COMMAND</B> or
+with <B>--check-command</B>).
+<DT id="11"><B>11.</B><DD>
+It runs the <B>sign</B> hook and calls <B>gpg2</B> or <B>gpg</B> (as long as it
+is not an UNRELEASED build, or <B>--no-sign</B> is specified) to sign the
+<B>.dsc</B> file (if any, unless
+<B>-us</B> or <B>--unsigned-source</B> is specified), the <B>.buildinfo</B>
+file (unless <B>-ui</B>, <B>--unsigned-buildinfo</B>,
+<B>-uc</B> or <B>--unsigned-changes</B> is specified) and
+the <B>.changes</B> file (unless <B>-uc</B> or <B>--unsigned-changes</B>
+is specified).
+<DT id="12"><B>12.</B><DD>
+It runs the <B>done</B> hook.
+</DL>
+<A NAME="lbAE">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+All long options can be specified both on the command line and in the
+<B>dpkg-buildpackage</B> system and user configuration files.
+Each line in the configuration file is either an option (exactly the same
+as the command line option but without leading hyphens) or a comment (if
+it starts with a '<B>#</B>').
+<P>
+<DL COMPACT>
+<DT id="13"><B>--build=</B><I>type</I>
+
+<DD>
+Specifies the build <I>type</I> from a comma-separated list of components
+(since dpkg 1.18.5).
+Passed to <B>dpkg-genchanges</B>.
+<P>
+The allowed values are:
+<DL COMPACT><DT id="14"><DD>
+<DL COMPACT>
+<DT id="15"><B>source</B>
+
+<DD>
+Builds the source package.
+Note: when using this value standalone and if what you want is simply to
+(re-)build the source package from a clean source tree, using
+<B>dpkg-source</B> directly is always a better option as it does not
+require any build dependencies to be installed which are otherwise
+needed to be able to call the <B>clean</B> target.
+<DT id="16"><B>any</B>
+
+<DD>
+Builds the architecture specific binary packages.
+<DT id="17"><B>all</B>
+
+<DD>
+Builds the architecture independent binary packages.
+<DT id="18"><B>binary</B>
+
+<DD>
+Builds the architecture specific and independent binary packages.
+This is an alias for <B>any,all</B>.
+<DT id="19"><B>full</B>
+
+<DD>
+Builds everything.
+This is an alias for <B>source,any,all</B>, and the same as the default
+case when no build option is specified.
+</DL>
+</DL>
+
+<DT id="20"><B>-g</B>
+
+<DD>
+Equivalent to <B>--build=source,all</B> (since dpkg 1.17.11).
+<DT id="21"><B>-G</B>
+
+<DD>
+Equivalent to <B>--build=source,any</B> (since dpkg 1.17.11).
+<DT id="22"><B>-b</B>
+
+<DD>
+Equivalent to <B>--build=binary</B> or <B>--build=any,all</B>.
+<DT id="23"><B>-B</B>
+
+<DD>
+Equivalent to <B>--build=any</B>.
+<DT id="24"><B>-A</B>
+
+<DD>
+Equivalent to <B>--build=all</B>.
+<DT id="25"><B>-S</B>
+
+<DD>
+Equivalent to <B>--build=source</B>.
+<DT id="26"><B>-F</B>
+
+<DD>
+Equivalent to <B>--build=full</B>, <B>--build=source,binary</B> or
+<B>--build=source,any,all</B> (since dpkg 1.15.8).
+<DT id="27"><B>--target=</B><I>target</I>[,...]
+
+<DD>
+
+<B>--target </B><I>target</I>[,...]
+
+
+<B>-T</B>, <B>--rules-target=</B><I>target</I>[,...]
+
+Calls <B>debian/rules</B> <I>target</I> once per target specified, after
+having setup the build environment (except for calling
+<B>dpkg-source --before-build</B>), and stops the package build process
+here (since dpkg 1.15.0, long option since dpkg 1.18.8, multi-target
+support since dpkg 1.18.16).
+If <B>--as-root</B> is also given, then the command is executed
+as root (see <B>--root-command</B>).
+Note that known targets that are required to
+be run as root do not need this option (i.e. the <B>clean</B>, <B>binary</B>,
+<B>binary-arch</B> and <B>binary-indep</B> targets).
+<DT id="28"><B>--as-root</B>
+
+<DD>
+Only meaningful together with <B>--target</B> (since dpkg 1.15.0).
+Requires that the target be run with root rights.
+<DT id="29"><B>-si</B>
+
+<DD>
+
+<B>-sa</B>
+
+
+<B>-sd</B>
+
+
+<B>-v</B><I>version</I>
+
+
+<B>-C</B><I>changes-description</I>
+
+
+<B>-m</B>, <B>--release-by=</B><I>maintainer-address</I>
+
+
+<B>-e</B>, <B>--build-by=</B><I>maintainer-address</I>
+
+Passed unchanged to <B>dpkg-genchanges</B>. See its manual page.
+<DT id="30"><B>-a</B>, <B>--host-arch</B> <I>architecture</I>
+
+<DD>
+Specify the Debian architecture we build for (long option since dpkg 1.17.17).
+The architecture of the
+machine we build on is determined automatically, and is also the default
+for the host machine.
+<DT id="31"><B>-t</B>, <B>--host-type</B> <I>gnu-system-type</I>
+
+<DD>
+Specify the GNU system type we build for (long option since dpkg 1.17.17).
+It can be used in place
+of <B>--host-arch</B> or as a complement to override the default GNU system type
+of the host Debian architecture.
+<DT id="32"><B>--target-arch</B> <I>architecture</I>
+
+<DD>
+Specify the Debian architecture the binaries built will build for
+(since dpkg 1.17.17).
+The default value is the host machine.
+<DT id="33"><B>--target-type</B> <I>gnu-system-type</I>
+
+<DD>
+Specify the GNU system type the binaries built will build for
+(since dpkg 1.17.17).
+It can be
+used in place of <B>--target-arch</B> or as a complement to override the
+default GNU system type of the target Debian architecture.
+<DT id="34"><B>-P</B>, <B>--build-profiles=</B><I>profile</I>[<B>,</B>...]
+
+<DD>
+Specify the profile(s) we build, as a comma-separated list (since dpkg 1.17.2,
+long option since dpkg 1.18.8).
+The default
+behavior is to build for no specific profile. Also sets them (as a space
+separated list) as the <B>DEB_BUILD_PROFILES</B> environment variable which
+allows, for example, <B>debian/rules</B> files to use this information for
+conditional builds.
+<DT id="35"><B>-j</B>, <B>--jobs</B>[=<I>jobs</I>|<B>auto</B>]
+
+<DD>
+Number of jobs allowed to be run simultaneously, number of jobs matching
+the number of online processors if <B>auto</B> is specified
+(since dpkg 1.17.10), or unlimited number if <I>jobs</I> is not specified,
+equivalent to the
+<B><A HREF="/cgi-bin/man/man2html?1+make">make</A></B>(1)
+
+option of the same name (since dpkg 1.14.7, long option since dpkg 1.18.8).
+Will add itself to the <B>MAKEFLAGS</B>
+environment variable, which should cause all subsequent make
+invocations to inherit the option, thus forcing the parallel setting on
+the packaging (and possibly the upstream build system if that uses make)
+regardless of their support for parallel builds, which might cause build
+failures.
+Also adds <B>parallel=</B><I>jobs</I> or
+<B>parallel</B> to the <B>DEB_BUILD_OPTIONS</B> environment variable which
+allows debian/rules files to use this information for their own purposes.
+The <B>-j</B> value will override the <B>parallel=</B><I>jobs</I> or
+<B>parallel</B> option in the <B>DEB_BUILD_OPTIONS</B> environment variable.
+Note that the <B>auto</B> value will get replaced by the actual number of
+currently active processors, and as such will not get propagated to any
+child process. If the number of online processors cannot be inferred then
+the code will fallback to using serial execution (since dpkg 1.18.15),
+although this should only happen on exotic and unsupported systems.
+<DT id="36"><B>-J</B>, <B>--jobs-try</B>[=<I>jobs</I>|<B>auto</B>]
+
+<DD>
+This option (since dpkg 1.18.2, long option since dpkg 1.18.8) is equivalent
+to the <B>-j</B> option except that it does not set the <B>MAKEFLAGS</B>
+environment variable, and as such it is safer to use with any package
+including those that are not parallel-build safe.
+<P>
+<B>auto</B> is the default behavior (since dpkg 1.18.11). Setting the number
+of jobs to 1 will restore a serial behavior.
+<DT id="37"><B>-D</B>, <B>--check-builddeps</B>
+
+<DD>
+Check build dependencies and conflicts; abort if unsatisfied (long option
+since dpkg 1.18.8).
+This is the default behavior.
+<DT id="38"><B>-d</B>, <B>--no-check-builddeps</B>
+
+<DD>
+Do not check build dependencies and conflicts (long option since dpkg 1.18.8).
+<DT id="39"><B>--ignore-builtin-builddeps</B>
+
+<DD>
+Do not check built-in build dependencies and conflicts (since dpkg 1.18.2).
+These are the distribution specific implicit build dependencies usually
+required in a build environment, the so called Build-Essential package set.
+<DT id="40"><B>--rules-requires-root</B>
+
+<DD>
+Do not honor the <B>Rules-Requires-Root</B> field, falling back to its
+legacy default value (since dpkg 1.19.1).
+<DT id="41"><B>-nc</B>, <B>--no-pre-clean</B>
+
+<DD>
+Do not clean the source tree before building (long option since dpkg 1.18.8).
+Implies <B>-b</B> if nothing else has been selected among <B>-F</B>,
+<B>-g</B>, <B>-G</B>, <B>-B</B>, <B>-A</B> or <B>-S</B>.
+Implies <B>-d</B> with <B>-S</B> (since dpkg 1.18.0).
+<DT id="42"><B>--pre-clean</B>
+
+<DD>
+Clean the source tree before building (since dpkg 1.18.8).
+This is the default behavior.
+<DT id="43"><B>-tc</B>, <B>--post-clean</B>
+
+<DD>
+Clean the source tree (using
+<I>gain-root-command</I>
+
+<B>debian/rules clean</B>)
+
+after the package has been built (long option since dpkg 1.18.8).
+<DT id="44"><B>--no-post-clean</B>
+
+<DD>
+Do not clean the source tree after the package has been built
+(since dpkg 1.19.1).
+This is the default behavior.
+<DT id="45"><B>-r</B>, <B>--root-command=</B><I>gain-root-command</I>
+
+<DD>
+When
+<B>dpkg-buildpackage</B>
+
+needs to execute part of the build process as root, it prefixes the
+command it executes with
+<I>gain-root-command</I>
+
+if one has been specified (long option since dpkg 1.18.8).
+Otherwise, if none has been specified,
+<B>fakeroot</B> will be used by default, if the command is present.
+<I>gain-root-command</I>
+
+should start with the name of a program on the
+<B>PATH</B>
+
+and will get as arguments the name of the real command to run and the
+arguments it should take.
+<I>gain-root-command</I>
+
+can include parameters (they must be space-separated) but no shell
+metacharacters.
+<I>gain-root-command</I>
+
+might typically be
+<B>fakeroot</B>, <B>sudo</B>, <B>super</B> or <B>really</B>.
+
+<B>su</B>
+
+is not suitable, since it can only invoke the user's shell with
+<B>-c</B>
+
+instead of passing arguments individually to the command to be run.
+<DT id="46"><B>-R</B>, <B>--rules-file=</B><I>rules-file</I>
+
+<DD>
+Building a Debian package usually involves invoking
+<B>debian/rules</B>
+
+as a command with several standard parameters (since dpkg 1.14.17,
+long option since dpkg 1.18.8).
+With this option it's
+possible to use another program invocation to build the package (it can
+include space separated parameters).
+Alternatively it can be used to execute the standard rules file with
+another make program (for example by using
+<B>/usr/local/bin/make -f debian/rules</B>
+
+as <I>rules-file</I>).
+<DT id="47"><B>--check-command=</B><I>check-command</I>
+
+<DD>
+Command used to check the <B>.changes</B> file itself and any artifact built
+referenced in the file (since dpkg 1.17.6).
+The command should take the <B>.changes</B> pathname
+as an argument. This command will usually be <B>lintian</B>.
+<DT id="48"><B>--check-option=</B><I>opt</I>
+
+<DD>
+Pass option <I>opt</I> to the <I>check-command</I> specified with
+<B>DEB_CHECK_COMMAND</B> or <B>--check-command</B> (since dpkg 1.17.6).
+Can be used multiple times.
+<DT id="49"><B>--hook-</B><I>hook-name</I><B>=</B><I>hook-command</I>
+
+<DD>
+Set the specified shell code <I>hook-command</I> as the hook <I>hook-name</I>,
+which will run at the times specified in the run steps (since dpkg 1.17.6).
+The hooks will
+always be executed even if the following action is not performed (except
+for the <B>binary</B> hook).
+All the hooks will run in the unpacked source directory.
+<P>
+Note: Hooks can affect the build process, and cause build failures if
+their commands fail, so watch out for unintended consequences.
+<P>
+The current <I>hook-name</I> supported are:
+<P>
+<B>init preclean source build binary buildinfo changes postclean check sign done</B>
+
+<P>
+The <I>hook-command</I> supports the following substitution format string,
+which will get applied to it before execution:
+<P>
+<DL COMPACT><DT id="50"><DD>
+<DL COMPACT>
+<DT id="51"><B>%%</B>
+
+<DD>
+A single % character.
+<DT id="52"><B>%a</B>
+
+<DD>
+A boolean value (0 or 1), representing whether the following action is
+being performed.
+<DT id="53"><B>%p</B>
+
+<DD>
+The source package name.
+<DT id="54"><B>%v</B>
+
+<DD>
+The source package version.
+<DT id="55"><B>%s</B>
+
+<DD>
+The source package version (without the epoch).
+<DT id="56"><B>%u</B>
+
+<DD>
+The upstream version.
+</DL>
+</DL>
+
+<DT id="57"><B>--buildinfo-option=</B><I>opt</I>
+
+<DD>
+Pass option <I>opt</I> to <B>dpkg-genbuildinfo</B> (since dpkg 1.18.11).
+Can be used multiple times.
+<DT id="58"><B>-p</B>, <B>--sign-command=</B><I>sign-command</I>
+
+<DD>
+When <B>dpkg-buildpackage</B> needs to execute GPG to sign a source
+control (<B>.dsc</B>) file or a <B>.changes</B> file it will run
+<I>sign-command</I> (searching the <B>PATH</B> if necessary) instead of
+<B>gpg2</B> or <B>gpg</B> (long option since dpkg 1.18.8).
+<I>sign-command</I> will get all the arguments
+that <B>gpg2</B> or <B>gpg</B> would have gotten. <I>sign-command</I>
+should not contain spaces or any other shell metacharacters.
+<DT id="59"><B>-k</B>, <B>--sign-key=</B><I>key-id</I>
+
+<DD>
+Specify a key-ID to use when signing packages (long option since dpkg 1.18.8).
+<DT id="60"><B>-us</B>, <B>--unsigned-source</B>
+
+<DD>
+Do not sign the source package (long option since dpkg 1.18.8).
+<DT id="61"><B>-ui</B>, <B>--unsigned-buildinfo</B>
+
+<DD>
+Do not sign the <B>.buildinfo</B> file (since dpkg 1.18.19).
+<DT id="62"><B>-uc</B>, <B>--unsigned-changes</B>
+
+<DD>
+Do not sign the <B>.buildinfo</B> and <B>.changes</B> files
+(long option since dpkg 1.18.8).
+<DT id="63"><B>--no-sign</B>
+
+<DD>
+Do not sign any file, this includes the source package, the <B>.buildinfo</B>
+file and the <B>.changes</B> file (since dpkg 1.18.20).
+<DT id="64"><B>--force-sign</B>
+
+<DD>
+Force the signing of the resulting files (since dpkg 1.17.0), regardless of
+<B>-us</B>, <B>--unsigned-source</B>,
+<B>-ui</B>, <B>--unsigned-buildinfo</B>,
+<B>-uc</B>, <B>--unsigned-changes</B>
+or other internal heuristics.
+<DT id="65"><B>-sn</B>
+
+<DD>
+
+<B>-ss</B>
+
+
+<B>-sA</B>
+
+
+<B>-sk</B>
+
+
+<B>-su</B>
+
+
+<B>-sr</B>
+
+
+<B>-sK</B>
+
+
+<B>-sU</B>
+
+
+<B>-sR</B>
+
+
+<B>-i</B>, <B>--diff-ignore</B>[=<I>regex</I>]
+
+
+<B>-I</B>, <B>--tar-ignore</B>[=<I>pattern</I>]
+
+
+<B>-z</B>, <B>--compression-level=</B><I>level</I>
+
+
+<B>-Z</B>, <B>--compression=</B><I>compressor</I>
+
+Passed unchanged to <B>dpkg-source</B>. See its manual page.
+<DT id="66"><B>--source-option=</B><I>opt</I>
+
+<DD>
+Pass option <I>opt</I> to <B>dpkg-source</B> (since dpkg 1.15.6).
+Can be used multiple times.
+<DT id="67"><B>--changes-option=</B><I>opt</I>
+
+<DD>
+Pass option <I>opt</I> to <B>dpkg-genchanges</B> (since dpkg 1.15.6).
+Can be used multiple times.
+<DT id="68"><B>--admindir=</B><I>dir</I>
+
+<DD>
+
+<B>--admindir </B><I>dir</I>
+
+Change the location of the <B>dpkg</B> database (since dpkg 1.14.0).
+The default location is <I>/var/lib/dpkg</I>.
+<DT id="69"><B>-?</B>, <B>--help</B>
+
+<DD>
+Show the usage message and exit.
+<DT id="70"><B>--version</B>
+
+<DD>
+Show the version and exit.
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>ENVIRONMENT</H2>
+
+<A NAME="lbAG">&nbsp;</A>
+<H3>External environment</H3>
+
+<DL COMPACT>
+<DT id="71"><B>DEB_CHECK_COMMAND</B>
+
+<DD>
+If set, it will be used as the command to check the <B>.changes</B> file
+(since dpkg 1.17.6).
+Overridden by the <B>--check-command</B> option.
+<DT id="72"><B>DEB_SIGN_KEYID</B>
+
+<DD>
+If set, it will be used to sign the <B>.changes</B> and <B>.dsc</B> files
+(since dpkg 1.17.2).
+Overridden by the <B>--sign-key</B> option.
+<DT id="73"><B>DEB_BUILD_OPTIONS</B>
+
+<DD>
+If set, it will contain a space-separated list of options that might
+affect the build process in <I>debian/rules</I>, and the behavior of some
+dpkg commands.
+<P>
+With <B>nocheck</B> the <B>DEB_CHECK_COMMAND</B> variable will be ignored.
+With <B>parallel=</B><I>N</I> the parallel jobs will be set to <I>N</I>,
+overridden by the <B>--jobs-try</B> option.
+<DT id="74"><B>DEB_BUILD_PROFILES</B>
+
+<DD>
+If set, it will be used as the active build profile(s) for the package
+being built (since dpkg 1.17.2).
+It is a space separated list of profile names.
+Overridden by the <B>-P</B> option.
+<DT id="75"><B>DPKG_COLORS</B>
+
+<DD>
+Sets the color mode (since dpkg 1.18.5).
+The currently accepted values are: <B>auto</B> (default), <B>always</B> and
+<B>never</B>.
+<DT id="76"><B>DPKG_NLS</B>
+
+<DD>
+If set, it will be used to decide whether to activate Native Language Support,
+also known as internationalization (or i18n) support (since dpkg 1.19.0).
+The accepted values are: <B>0</B> and <B>1</B> (default).
+<P>
+</DL>
+<A NAME="lbAH">&nbsp;</A>
+<H3>Internal environment</H3>
+
+Even if <B>dpkg-buildpackage</B> exports some variables, <B>debian/rules</B>
+should not rely on their presence and should instead use the
+respective interface to retrieve the needed values, because that
+file is the main entry point to build packages and running it
+standalone should be supported.
+<P>
+<DL COMPACT>
+<DT id="77"><B>DEB_BUILD_*</B>
+
+<DD>
+
+<B>DEB_HOST_*</B>
+
+
+<B>DEB_TARGET_*</B>
+
+<B>dpkg-architecture</B> is called with the <B>-a</B> and <B>-t</B>
+parameters forwarded. Any variable that is output by its <B>-s</B>
+option is integrated in the build environment.
+<DT id="78"><B>DEB_RULES_REQUIRES_ROOT</B>
+
+<DD>
+This variable is set to the value obtained from the <B>Rules-Requires-Root</B>
+field or from the command-line.
+When set, it will be a valid value for the <B>Rules-Requires-Root</B> field.
+It is used to notify <B>debian/rules</B> whether the <B>rootless-builds.txt</B>
+specification is supported.
+<DT id="79"><B>DEB_GAIN_ROOT_CMD</B>
+
+<DD>
+This variable is set to <I>gain-root-command</I> when the field
+<B>Rules-Requires-Root</B> is set to a value different to <B>no</B> and
+<B>binary-targets</B>.
+<DT id="80"><B>SOURCE_DATE_EPOCH</B>
+
+<DD>
+This variable is set to the Unix timestamp since the epoch of the
+latest entry in <I>debian/changelog</I>, if it is not already defined.
+</DL>
+<A NAME="lbAI">&nbsp;</A>
+<H2>FILES</H2>
+
+<DL COMPACT>
+<DT id="81"><I>/etc/dpkg/buildpackage.conf</I>
+
+<DD>
+System wide configuration file
+<DT id="82"><I>$XDG_CONFIG_HOME/dpkg/buildpackage.conf</I> or
+
+<DD>
+
+<I>$HOME/.config/dpkg/buildpackage.conf</I>
+
+User configuration file.
+</DL>
+<A NAME="lbAJ">&nbsp;</A>
+<H2>NOTES</H2>
+
+<A NAME="lbAK">&nbsp;</A>
+<H3>Compiler flags are no longer exported</H3>
+
+Between dpkg 1.14.17 and 1.16.1, <B>dpkg-buildpackage</B>
+exported compiler flags (<B>CFLAGS</B>, <B>CXXFLAGS</B>, <B>FFLAGS</B>,
+<B>CPPFLAGS</B> and <B>LDFLAGS</B>) with values as returned
+by <B>dpkg-buildflags</B>. This is no longer the case.
+<A NAME="lbAL">&nbsp;</A>
+<H3>Default build targets</H3>
+
+<B>dpkg-buildpackage</B> is using the <B>build-arch</B> and
+<B>build-indep</B> targets since dpkg 1.16.2. Those targets are thus
+mandatory. But to avoid breakages of existing packages, and ease
+the transition, if the source package does not build both architecture
+independent and dependent binary packages (since dpkg 1.18.8) it will
+fallback to use the <B>build</B> target if <B>make -f debian/rules -qn</B>
+<I>build-target</I> returns 2 as exit code.
+<A NAME="lbAM">&nbsp;</A>
+<H2>BUGS</H2>
+
+It should be possible to specify spaces and shell metacharacters
+and initial arguments for
+<I>gain-root-command</I> and <I>sign-command</I>.
+
+<A NAME="lbAN">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+<B><A HREF="/cgi-bin/man/man2html?1+dpkg-source">dpkg-source</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?1+dpkg-architecture">dpkg-architecture</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?1+dpkg-buildflags">dpkg-buildflags</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?1+dpkg-genbuildinfo">dpkg-genbuildinfo</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?1+dpkg-genchanges">dpkg-genchanges</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?1+fakeroot">fakeroot</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?1+lintian">lintian</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?1+gpg2">gpg2</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?1+gpg">gpg</A></B>(1).
+
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="83"><A HREF="#lbAB">NAME</A><DD>
+<DT id="84"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="85"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="86"><A HREF="#lbAE">OPTIONS</A><DD>
+<DT id="87"><A HREF="#lbAF">ENVIRONMENT</A><DD>
+<DL>
+<DT id="88"><A HREF="#lbAG">External environment</A><DD>
+<DT id="89"><A HREF="#lbAH">Internal environment</A><DD>
+</DL>
+<DT id="90"><A HREF="#lbAI">FILES</A><DD>
+<DT id="91"><A HREF="#lbAJ">NOTES</A><DD>
+<DL>
+<DT id="92"><A HREF="#lbAK">Compiler flags are no longer exported</A><DD>
+<DT id="93"><A HREF="#lbAL">Default build targets</A><DD>
+</DL>
+<DT id="94"><A HREF="#lbAM">BUGS</A><DD>
+<DT id="95"><A HREF="#lbAN">SEE ALSO</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:11 GMT, March 31, 2021
+</BODY>
+</HTML>

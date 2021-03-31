@@ -1,0 +1,358 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SSH-COPY-ID</TITLE>
+</HEAD><BODY>
+<H1>SSH-COPY-ID</H1>
+Section: User Commands  (1)<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+<BR>BSD mandoc<BR>
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+
+
+<B>ssh-copy-id</B>
+
+ - use locally available keys to authorise logins on a remote machine
+
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<B></B>
+
+
+[-<B>f</B>
+
+]
+
+[-<B>n</B>
+
+]
+
+[-<B>i </B>[<I>identity_file</I>
+
+]
+
+
+
+]
+
+[-<B>p </B><I>port</I>
+
+
+
+]
+
+[-<B>o </B><I>ssh_option</I>
+
+
+
+]
+
+[<I>user </I><B>@ </B><I>hostname</I>
+
+
+
+
+
+
+
+]
+
+<BR><B></B>
+
+
+-<B>h | -
+
+</B>
+
+ 
+<BR>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<B></B>
+
+
+is a script that uses
+<A HREF="/cgi-bin/man/man2html?1+ssh">ssh</A>(1)
+
+
+to log into a remote machine (presumably using a login password,
+so password authentication should be enabled, unless you've done some
+clever use of multiple identities).  It assembles a list of one or more
+fingerprints (as described below) and tries to log in with each key, to
+see if any of them are already installed (of course, if you are not using
+ssh-agent1
+
+
+this may result in you being repeatedly prompted for pass-phrases).
+It then assembles a list of those that failed to log in, and using ssh,
+enables logins with those keys on the remote server.  By default it adds
+the keys by appending them to the remote user's
+~/.ssh/authorized_keys
+
+(creating the file, and directory, if necessary).  It is also capable
+of detecting if the remote system is a NetScreen, and using its
+`set'
+
+ssh pka-dsa key ...
+command instead.
+<P>
+
+The options are as follows:
+<DL COMPACT>
+<P>
+
+<DT id="1"><B>-i </B><I>identity_file</I>
+
+
+
+
+<DD>
+Use only the key(s) contained in
+<I>identity_file</I>
+
+(rather than looking for identities via
+ssh-add1
+
+
+or in the
+<B>default_ID_file )</B>
+
+ 
+If the filename does not end in
+.pub
+
+this is added.  If the filename is omitted, the 
+<B>default_ID_file</B>
+
+is used.
+<P>
+
+Note that this can be used to ensure that the keys copied have the
+comment one prefers and/or extra options applied, by ensuring that the
+key file has these set as preferred before the copy is attempted.
+<DT id="2"><B>-f</B>
+
+
+<DD>
+Forced mode: doesn't check if the keys are present on the remote server.
+This means that it does not need the private key.  Of course, this can result
+in more than one copy of the key being installed on the remote system.
+<DT id="3"><B>-n</B>
+
+
+<DD>
+do a dry-run.  Instead of installing keys on the remote system simply
+prints the key(s) that would have been installed.
+<DT id="4"><B>-h , -
+
+</B>
+
+
+<DD>
+ 
+Print Usage summary
+<DT id="5"><B>-p </B><I>port , -</I><B>o </B><I>ssh_option</I>
+
+
+
+
+
+
+
+
+<DD>
+These two options are simply passed through untouched, along with their
+argument, to allow one to set the port or other
+<A HREF="/cgi-bin/man/man2html?1+ssh">ssh</A>(1)
+
+
+options, respectively.
+<P>
+
+Rather than specifying these as command line options, it is often better to use (per-host) settings in
+<A HREF="/cgi-bin/man/man2html?1+ssh">ssh</A>(1)Ns's
+
+
+configuration file:
+ssh_config5.
+
+
+</DL>
+<P>
+
+<P>
+
+Default behaviour without
+-<B>i</B>
+
+ 
+is to check if
+`ssh-add'
+
+-L
+provides any output, and if so those keys are used.  Note that this results in
+the comment on the key being the filename that was given to
+ssh-add1
+
+
+when the key was loaded into your
+ssh-agent1
+
+
+rather than the comment contained in that file, which is a bit of a shame.
+Otherwise, if
+ssh-add1
+
+
+provides no keys contents of the 
+<B>default_ID_file</B>
+
+will be used.
+<P>
+
+The
+<B>default_ID_file</B>
+
+is the most recent file that matches:
+~/.ssh/id*.pub
+
+ 
+(excluding those that match
+~/.ssh/*-cert.pub
+
+ 
+so if you create a key that is not the one you want
+<B></B>
+
+
+to use, just use
+<A HREF="/cgi-bin/man/man2html?1+touch">touch</A>(1)
+
+
+on your preferred key's 
+.pub
+
+file to reinstate it as the most recent.
+<P>
+
+<A NAME="lbAE">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+If you have already installed keys from one system on a lot of remote
+hosts, and you then create a new key, on a new client machine, say,
+it can be difficult to keep track of which systems on which you've
+installed the new key.  One way of dealing with this is to load both
+the new key and old key(s) into your
+ssh-agent1.
+
+
+Load the new key first, without the
+-<B>c</B>
+
+option, then load one or more old keys into the agent, possibly by
+ssh-ing to the client machine that has that old key, using the
+-<B>A</B>
+
+option to allow agent forwarding:
+<P>
+
+
+
+
+
+
+
+<P>
+
+now, if the new key is installed on the server, you'll be allowed in
+unprompted, whereas if you only have the old key(s) enabled, you'll be
+asked for confirmation, which is your cue to log back out and run
+<P>
+
+
+<P>
+
+The reason you might want to specify the -i option in this case is to
+ensure that the comment on the installed key is the one from the
+.pub
+
+file, rather than just the filename that was loaded into your agent.
+It also ensures that only the id you intended is installed, rather than
+all the keys that you have in your
+ssh-agent1.
+
+
+Of course, you can specify another id, or use the contents of the
+ssh-agent1
+
+
+as you prefer.
+<P>
+
+Having mentioned
+ssh-add1Ns's
+
+
+-<B>c</B>
+
+option, you might consider using this whenever using agent forwarding
+to avoid your key being hijacked, but it is much better to instead use
+<A HREF="/cgi-bin/man/man2html?1+ssh">ssh</A>(1)Ns's
+
+
+<I>ProxyCommand</I>
+
+and 
+-<B>W</B>
+
+option,
+to bounce through remote servers while always doing direct end-to-end
+authentication. This way the middle hop(s) don't get access to your
+ssh-agent1.
+
+
+A web search for
+`ssh'
+
+proxycommand nc
+should prove enlightening (N.B. the modern approach is to use the
+-<B>W</B>
+
+option, rather than
+<A HREF="/cgi-bin/man/man2html?1+nc">nc</A>(1)).
+
+
+<A NAME="lbAF">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<A HREF="/cgi-bin/man/man2html?1+ssh">ssh</A>(1),
+
+
+ssh-agent1,
+
+
+<A HREF="/cgi-bin/man/man2html?8+sshd">sshd</A>(8)
+
+
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="6"><A HREF="#lbAB">NAME</A><DD>
+<DT id="7"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="8"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="9"><A HREF="#lbAE">EXAMPLES</A><DD>
+<DT id="10"><A HREF="#lbAF">SEE ALSO</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:27 GMT, March 31, 2021
+</BODY>
+</HTML>

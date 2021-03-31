@@ -1,0 +1,297 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SD_EVENT_ADD_TIME</TITLE>
+</HEAD><BODY>
+<H1>SD_EVENT_ADD_TIME</H1>
+Section: sd_event_add_time (3)<BR>Updated: <BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+sd_event_add_time, sd_event_source_get_time, sd_event_source_set_time, sd_event_source_get_time_accuracy, sd_event_source_set_time_accuracy, sd_event_source_get_time_clock, sd_event_time_handler_t - Add a timer event source to an event loop
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+<B>
+</B><PRE>
+#include &lt;<A HREF="file:///usr/include/systemd/sd-event.h">systemd/sd-event.h</A>&gt;
+</PRE>
+
+
+<P>
+<B>
+</B><PRE>
+typedef struct sd_event_source sd_event_source;
+</PRE>
+
+
+<DL COMPACT>
+<DT id="1">
+<B>typedef int (*sd_event_time_handler_t)(sd_event_source&nbsp;*</B><I>s</I><B>, uint64_t&nbsp;</B><I>usec</I><B>, void&nbsp;*</B><I>userdata</I><B>);</B>
+
+<DT id="2">
+<B>int sd_event_add_time(sd_event&nbsp;*</B><I>event</I><B>, sd_event_source&nbsp;**</B><I>source</I><B>, clockid_t&nbsp;</B><I>clock</I><B>, uint64_t&nbsp;</B><I>usec</I><B>, uint64_t&nbsp;</B><I>accuracy</I><B>, sd_event_time_handler_t&nbsp;</B><I>handler</I><B>, void&nbsp;*</B><I>userdata</I><B>);</B>
+
+<DT id="3">
+<B>int sd_event_source_get_time(sd_event_source&nbsp;*</B><I>source</I><B>, uint64_t&nbsp;*</B><I>usec</I><B>);</B>
+
+<DT id="4">
+<B>int sd_event_source_set_time(sd_event_source&nbsp;*</B><I>source</I><B>, uint64_t&nbsp;</B><I>usec</I><B>);</B>
+
+<DT id="5">
+<B>int sd_event_source_get_time_accuracy(sd_event_source&nbsp;*</B><I>source</I><B>, uint64_t&nbsp;*</B><I>usec</I><B>);</B>
+
+<DT id="6">
+<B>int sd_event_source_set_time_accuracy(sd_event_source&nbsp;*</B><I>source</I><B>, uint64_t&nbsp;</B><I>usec</I><B>);</B>
+
+<DT id="7">
+<B>int sd_event_source_get_time_clock(sd_event_source&nbsp;*</B><I>source</I><B>, clockid_t&nbsp;*</B><I>clock</I><B>);</B>
+
+</DL>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+<B>sd_event_add_time()</B>
+<DD>adds a new timer event source to an event loop. The event loop object is specified in the
+<I>event</I>
+parameter, the event source object is returned in the
+<I>source</I>
+parameter. The
+<I>clock</I>
+parameter takes a clock identifier, one of
+<B>CLOCK_REALTIME</B>,
+<B>CLOCK_MONOTONIC</B>,
+<B>CLOCK_BOOTTIME</B>,
+<B>CLOCK_REALTIME_ALARM</B>, or
+<B>CLOCK_BOOTTIME_ALARM</B>. See
+<B><A HREF="/cgi-bin/man/man2html?2+timerfd_create">timerfd_create</A></B>(2)
+for details regarding the various types of clocks. The
+<I>usec</I>
+parameter specifies the earliest time, in microseconds (&micro;s), relative to the clock's epoch, when the timer shall be triggered. If a time already in the past is specified (including
+<B>0</B>), this timer source &quot;fires&quot; immediately and is ready to be dispatched. If the parameter is specified as
+<B>UINT64_MAX</B>
+the timer event will never elapse, which may be used as an alternative to explicitly disabling a timer event source with
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_source_set_enabled">sd_event_source_set_enabled</A></B>(3). The
+<I>accuracy</I>
+parameter specifies an additional accuracy value in &micro;s specifying how much the timer event may be delayed. Use
+<B>0</B>
+to select the default accuracy (250ms). Use 1&micro;s for maximum accuracy. Consider specifying 60000000&micro;s (1min) or larger for long-running events that may be delayed substantially. Picking higher accuracy values allows the system to coalesce timer events more aggressively, improving power efficiency. The
+<I>handler</I>
+parameter shall reference a function to call when the timer elapses. The handler function will be passed the
+<I>userdata</I>
+pointer, which may be chosen freely by the caller. The handler is also passed the configured trigger time, even if it is actually called slightly later, subject to the specified accuracy value, the kernel timer slack (see
+<B><A HREF="/cgi-bin/man/man2html?2+prctl">prctl</A></B>(2)), and additional scheduling latencies. To query the actual time the handler was called use
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_now">sd_event_now</A></B>(3).
+<P>
+
+By default, the timer will elapse once (<B>SD_EVENT_ONESHOT</B>), but this may be changed with
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_source_set_enabled">sd_event_source_set_enabled</A></B>(3). If the handler function returns a negative error code, it will be disabled after the invocation, even if the
+<B>SD_EVENT_ON</B>
+mode was requested before. Note that a timer event set to
+<B>SD_EVENT_ON</B>
+will fire continuously unless its configured time is updated using
+<B>sd_event_source_set_time()</B>.
+<P>
+
+To destroy an event source object use
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_source_unref">sd_event_source_unref</A></B>(3), but note that the event source is only removed from the event loop when all references to the event source are dropped. To make sure an event source does not fire anymore, even if it is still referenced, disable the event source using
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_source_set_enabled">sd_event_source_set_enabled</A></B>(3)
+with
+<B>SD_EVENT_OFF</B>.
+<P>
+
+If the second parameter of
+<B>sd_event_add_time()</B>
+is
+<B>NULL</B>
+no reference to the event source object is returned. In this case the event source is considered &quot;floating&quot;, and will be destroyed implicitly when the event loop itself is destroyed.
+<P>
+
+If the
+<I>handler</I>
+to
+<B>sd_event_add_time()</B>
+is
+<B>NULL</B>, and the event source fires, this will be considered a request to exit the event loop. In this case, the
+<I>userdata</I>
+parameter, cast to an integer, is used for the exit code passed to
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_exit">sd_event_exit</A></B>(3).
+<P>
+
+Use
+<B>CLOCK_BOOTTIME_ALARM</B>
+and
+<B>CLOCK_REALTIME_ALARM</B>
+to define event sources that may wake up the system from suspend.
+<P>
+
+In order to set up relative timers (that is, relative to the current time), retrieve the current time via
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_now">sd_event_now</A></B>(3), add the desired timespan to it, and use the result as the
+<I>usec</I>
+parameter to
+<B>sd_event_add_time()</B>.
+<P>
+
+In order to set up repetitive timers (that is, timers that are triggered in regular intervals), set up the timer normally, for the first invocation. Each time the event handler is invoked, update the timer's trigger time with
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_source_set_time">sd_event_source_set_time</A></B>(3)
+for the next timer iteration, and reenable the timer using
+<B>sd_event_source_set_enabled()</B>. To calculate the next point in time to pass to
+<B>sd_event_source_set_time()</B>, either use as base the
+<I>usec</I>
+parameter passed to the timer callback, or the timestamp returned by
+<B>sd_event_now()</B>. In the former case timer events will be regular, while in the latter case the scheduling latency will keep accumulating on the timer.
+<P>
+
+<B>sd_event_source_get_time()</B>
+retrieves the configured time value of an event source created previously with
+<B>sd_event_add_time()</B>. It takes the event source object and a pointer to a variable to store the time in, relative to the selected clock's epoch, in &micro;s.
+<P>
+
+<B>sd_event_source_set_time()</B>
+changes the time of an event source created previously with
+<B>sd_event_add_time()</B>. It takes the event source object and a time relative to the selected clock's epoch, in &micro;s.
+<P>
+
+<B>sd_event_source_get_time_accuracy()</B>
+retrieves the configured accuracy value of an event source created previously with
+<B>sd_event_add_time()</B>. It takes the event source object and a pointer to a variable to store the accuracy in. The accuracy is specified in &micro;s.
+<P>
+
+<B>sd_event_source_set_time_accuracy()</B>
+changes the configured accuracy of a timer event source created previously with
+<B>sd_event_add_time()</B>. It takes the event source object and accuracy, in &micro;s.
+<P>
+
+<B>sd_event_source_get_time_clock()</B>
+retrieves the configured clock of an event source created previously with
+<B>sd_event_add_time()</B>. It takes the event source object and a pointer to a variable to store the clock identifier in.
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+<P>
+
+On success, these functions return 0 or a positive integer. On failure, they return a negative errno-style error code.
+<A NAME="lbAF">&nbsp;</A>
+<H3>Errors</H3>
+
+<P>
+
+Returned values may indicate the following problems:
+<P>
+
+<B>-ENOMEM</B>
+<DL COMPACT><DT id="8"><DD>
+Not enough memory to allocate an object.
+</DL>
+
+<P>
+
+<B>-EINVAL</B>
+<DL COMPACT><DT id="9"><DD>
+An invalid argument has been passed.
+</DL>
+
+<P>
+
+<B>-ESTALE</B>
+<DL COMPACT><DT id="10"><DD>
+The event loop is already terminated.
+</DL>
+
+<P>
+
+<B>-ECHILD</B>
+<DL COMPACT><DT id="11"><DD>
+The event loop has been created in a different process.
+</DL>
+
+<P>
+
+<B>-EOPNOTSUPP</B>
+<DL COMPACT><DT id="12"><DD>
+The selected clock is not supported by the event loop implementation.
+</DL>
+
+<P>
+
+<B>-EDOM</B>
+<DL COMPACT><DT id="13"><DD>
+The passed event source is not a timer event source.
+</DL>
+
+<A NAME="lbAG">&nbsp;</A>
+<H2>NOTES</H2>
+
+<P>
+
+These APIs are implemented as a shared library, which can be compiled and linked to with the
+<B>libsystemd</B>&nbsp;<B><A HREF="/cgi-bin/man/man2html?1+pkg-config">pkg-config</A></B>(1)
+file.
+<A NAME="lbAH">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?3+sd-event">sd-event</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_new">sd_event_new</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_now">sd_event_now</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_add_io">sd_event_add_io</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_add_signal">sd_event_add_signal</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_add_child">sd_event_add_child</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_add_inotify">sd_event_add_inotify</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_add_defer">sd_event_add_defer</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_source_set_enabled">sd_event_source_set_enabled</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_source_set_priority">sd_event_source_set_priority</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_source_set_userdata">sd_event_source_set_userdata</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_source_set_description">sd_event_source_set_description</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_source_set_floating">sd_event_source_set_floating</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?2+clock_gettime">clock_gettime</A></B>(2),
+<B><A HREF="/cgi-bin/man/man2html?2+timerfd_create">timerfd_create</A></B>(2),
+<B><A HREF="/cgi-bin/man/man2html?2+prctl">prctl</A></B>(2)
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="14"><A HREF="#lbAB">NAME</A><DD>
+<DT id="15"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="16"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="17"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DL>
+<DT id="18"><A HREF="#lbAF">Errors</A><DD>
+</DL>
+<DT id="19"><A HREF="#lbAG">NOTES</A><DD>
+<DT id="20"><A HREF="#lbAH">SEE ALSO</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:55 GMT, March 31, 2021
+</BODY>
+</HTML>

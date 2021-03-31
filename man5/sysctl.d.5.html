@@ -1,0 +1,338 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SYSCTL.D</TITLE>
+</HEAD><BODY>
+<H1>SYSCTL.D</H1>
+Section: sysctl.d (5)<BR>Updated: <BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+sysctl.d - Configure kernel parameters at boot
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+
+/etc/sysctl.d/*.conf
+<P>
+
+/run/sysctl.d/*.conf
+<P>
+
+/usr/lib/sysctl.d/*.conf
+<P>
+<PRE>
+key.name.under.proc.sys = some value
+key/name/under/proc/sys = some value
+key/middle.part.with.dots/foo = 123
+key.middle/part/with/dots.foo = 123
+-key.that.will.not.fail = value
+key.pattern.*.with.glob = whatever
+-key.pattern.excluded.with.glob
+key.pattern.overriden.with.glob = custom
+</PRE>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+At boot,
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-sysctl.service">systemd-sysctl.service</A></B>(8)
+reads configuration files from the above directories to configure
+<B><A HREF="/cgi-bin/man/man2html?8+sysctl">sysctl</A></B>(8)
+kernel parameters.
+<A NAME="lbAE">&nbsp;</A>
+<H2>CONFIGURATION FORMAT</H2>
+
+<P>
+
+The configuration files contain a list of variable assignments, separated by newlines. Empty lines and lines whose first non-whitespace character is
+&quot;#&quot;
+or
+&quot;;&quot;
+are ignored.
+<P>
+
+Note that either
+&quot;/&quot;
+or
+&quot;.&quot;
+may be used as separators within sysctl variable names. If the first separator is a slash, remaining slashes and dots are left intact. If the first separator is a dot, dots and slashes are interchanged.
+&quot;kernel.domainname=foo&quot;
+and
+&quot;kernel/domainname=foo&quot;
+are equivalent and will cause
+&quot;foo&quot;
+to be written to
+/proc/sys/kernel/domainname. Either
+&quot;net.ipv4.conf.enp3s0/200.forwarding&quot;
+or
+&quot;net/ipv4/conf/enp3s0.200/forwarding&quot;
+may be used to refer to
+/proc/sys/net/ipv4/conf/enp3s0.200/forwarding. A glob
+<B><A HREF="/cgi-bin/man/man2html?7+glob">glob</A></B>(7)
+pattern may be used to write the same value to all matching keys. Keys for which an explicit pattern exists will be excluded from any glob matching. In addition, a key may be explicitly excluded from being set by any matching glob patterns by specifying the key name prefixed with a
+&quot;-&quot;
+character and not followed by
+&quot;=&quot;, see SYNOPSIS.
+<P>
+
+Any access permission errors and attempts to write variables not present on the local system are logged, but do not cause the service to fail. Debug log level is used, which means that the message will not show up at all by default. Moreover, if a variable assignment is prefixed with a single
+&quot;-&quot;
+character, any failure to set the variable will be logged at debug level, but will not cause the service to fail. All other errors when setting variables are logged with higher priority and cause the service to return failure at the end (other variables are still processed).
+<P>
+
+The settings configured with
+sysctl.d
+files will be applied early on boot. The network interface-specific options will also be applied individually for each network interface as it shows up in the system. (More specifically,
+net.ipv4.conf.*,
+net.ipv6.conf.*,
+net.ipv4.neigh.*
+and
+net.ipv6.neigh.*).
+<P>
+
+Many sysctl parameters only become available when certain kernel modules are loaded. Modules are usually loaded on demand, e.g. when certain hardware is plugged in or network brought up. This means that
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-sysctl.service">systemd-sysctl.service</A></B>(8)
+which runs during early boot will not configure such parameters if they become available after it has run. To set such parameters, it is recommended to add an
+<B><A HREF="/cgi-bin/man/man2html?7+udev">udev</A></B>(7)
+rule to set those parameters when they become available. Alternatively, a slightly simpler and less efficient option is to add the module to
+<B><A HREF="/cgi-bin/man/man2html?5+modules-load.d">modules-load.d</A></B>(5), causing it to be loaded statically before sysctl settings are applied (see example below).
+<A NAME="lbAF">&nbsp;</A>
+<H2>CONFIGURATION DIRECTORIES AND PRECEDENCE</H2>
+
+<P>
+
+Configuration files are read from directories in
+/etc/,
+/run/,
+/usr/local/lib/, and
+/lib/, in order of precedence, as listed in the SYNOPSIS section above. Files must have the the
+&quot;.conf&quot;
+extension. Files in
+/etc/
+override files with the same name in
+/run/,
+/usr/local/lib/, and
+/lib/. Files in
+/run/
+override files with the same name under
+/usr/.
+<P>
+
+All configuration files are sorted by their filename in lexicographic order, regardless of which of the directories they reside in. If multiple files specify the same option, the entry in the file with the lexicographically latest name will take precedence. Thus, the configuration in a certain file may either be replaced completely (by placing a file with the same name in a directory with higher priority), or individual settings might be changed (by specifying additional settings in a file with a different name that is ordered later).
+<P>
+
+Packages should install their configuration files in
+/usr/lib/
+(distribution packages) or
+/usr/local/lib/
+(local installs). Files in
+/etc/
+are reserved for the local administrator, who may use this logic to override the configuration files installed by vendor packages. It is recommended to prefix all filenames with a two-digit number and a dash, to simplify the ordering of the files.
+<P>
+
+If the administrator wants to disable a configuration file supplied by the vendor, the recommended way is to place a symlink to
+/dev/null
+in the configuration directory in
+/etc/, with the same filename as the vendor configuration file. If the vendor configuration file is included in the initrd image, the image has to be regenerated.
+<A NAME="lbAG">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+<P>
+
+<B>Example&nbsp;1.&nbsp;Set kernel YP domain name</B>
+<P>
+
+/etc/sysctl.d/domain-name.conf:
+<P>
+<DL COMPACT><DT id="1"><DD>
+
+
+
+<PRE>
+kernel.domainname=example.com
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+<B>Example&nbsp;2.&nbsp;Apply settings available only when a certain module is loaded (method one)</B>
+<P>
+
+/etc/udev/rules.d/99-bridge.rules:
+<P>
+<DL COMPACT><DT id="2"><DD>
+
+
+
+<PRE>
+ACTION==&quot;add&quot;, SUBSYSTEM==&quot;module&quot;, KERNEL==&quot;br_netfilter&quot;, \
+      RUN+=&quot;/lib/systemd/systemd-sysctl --prefix=/net/bridge&quot;
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+/etc/sysctl.d/bridge.conf:
+<P>
+<DL COMPACT><DT id="3"><DD>
+
+
+
+<PRE>
+net.bridge.bridge-nf-call-ip6tables = 0
+net.bridge.bridge-nf-call-iptables = 0
+net.bridge.bridge-nf-call-arptables = 0
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+This method applies settings when the module is loaded. Please note that, unless the
+br_netfilter
+module is loaded, bridged packets will not be filtered by Netfilter (starting with kernel 3.18), so simply not loading the module is sufficient to avoid filtering.
+<P>
+
+<B>Example&nbsp;3.&nbsp;Apply settings available only when a certain module is loaded (method two)</B>
+<P>
+
+/etc/modules-load.d/bridge.conf:
+<P>
+<DL COMPACT><DT id="4"><DD>
+
+
+
+<PRE>
+br_netfilter
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+/etc/sysctl.d/bridge.conf:
+<P>
+<DL COMPACT><DT id="5"><DD>
+
+
+
+<PRE>
+net.bridge.bridge-nf-call-ip6tables = 0
+net.bridge.bridge-nf-call-iptables = 0
+net.bridge.bridge-nf-call-arptables = 0
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+This method forces the module to be always loaded. Please note that, unless the
+br_netfilter
+module is loaded, bridged packets will not be filtered with Netfilter (starting with kernel 3.18), so simply not loading the module is sufficient to avoid filtering.
+<P>
+
+<B>Example&nbsp;4.&nbsp;Set network routing properties for all interfaces</B>
+<P>
+
+/etc/systemd/20-rp_filter.conf:
+<P>
+<DL COMPACT><DT id="6"><DD>
+
+
+
+<PRE>
+net.ipv4.conf.default.rp_filter = 2
+net.ipv4.conf.*.rp_filter = 2
+-net.ipv4.conf.all.rp_filter
+net.ipv4.conf.hub0.rp_filter = 1
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+The
+<B>rp_filter</B>
+key will be set to &quot;2&quot; for all interfaces, except &quot;hub0&quot;. We set
+net.ipv4.conf.default.rp_filter
+first, so any interfaces which are added
+<I>later</I>
+will get this value (this also covers any interfaces detected while we're running). The glob matches any interfaces which were detected
+<I>earlier</I>. The glob will also match
+net.ipv4.conf.all.rp_filter, which we don't want to set at all, so it is explicitly excluded. And &quot;hub0&quot; is excluded from the glob because it has an explicit setting.
+<A NAME="lbAH">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-sysctl.service">systemd-sysctl.service</A></B>(8),
+<B><A HREF="/cgi-bin/man/man2html?1+systemd-delta">systemd-delta</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?8+sysctl">sysctl</A></B>(8),
+<B><A HREF="/cgi-bin/man/man2html?5+sysctl.conf">sysctl.conf</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?8+modprobe">modprobe</A></B>(8)
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="7"><A HREF="#lbAB">NAME</A><DD>
+<DT id="8"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="9"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="10"><A HREF="#lbAE">CONFIGURATION FORMAT</A><DD>
+<DT id="11"><A HREF="#lbAF">CONFIGURATION DIRECTORIES AND PRECEDENCE</A><DD>
+<DT id="12"><A HREF="#lbAG">EXAMPLES</A><DD>
+<DT id="13"><A HREF="#lbAH">SEE ALSO</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:06 GMT, March 31, 2021
+</BODY>
+</HTML>

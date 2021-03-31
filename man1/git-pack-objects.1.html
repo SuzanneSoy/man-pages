@@ -1,0 +1,475 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of GIT-PACK-OBJECTS</TITLE>
+</HEAD><BODY>
+<H1>GIT-PACK-OBJECTS</H1>
+Section: Git Manual (1)<BR>Updated: 03/04/2021<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+git-pack-objects - Create a packed archive of objects
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+<PRE>
+<I>git pack-objects</I> [-q | --progress | --all-progress] [--all-progress-implied]
+        [--no-reuse-delta] [--delta-base-offset] [--non-empty]
+        [--local] [--incremental] [--window=&lt;n&gt;] [--depth=&lt;n&gt;]
+        [--revs [--unpacked | --all]] [--keep-pack=&lt;pack-name&gt;]
+        [--stdout [--filter=&lt;filter-spec&gt;] | base-name]
+        [--shallow] [--keep-true-parents] [--sparse] &lt; object-list
+</PRE>
+
+<P>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+Reads list of objects from the standard input, and writes either one or more packed archives with the specified base-name to disk, or a packed archive to the standard output.
+<P>
+A packed archive is an efficient way to transfer a set of objects between two repositories as well as an access efficient archival format. In a packed archive, an object is either stored as a compressed whole or as a difference from some other object. The latter is often called a delta.
+<P>
+The packed archive format (.pack) is designed to be self-contained so that it can be unpacked without any further information. Therefore, each object that a delta depends upon must be present within the pack.
+<P>
+A pack index file (.idx) is generated for fast, random access to the objects in the pack. Placing both the index file (.idx) and the packed archive (.pack) in the pack/ subdirectory of $GIT_OBJECT_DIRECTORY (or any of the directories on $GIT_ALTERNATE_OBJECT_DIRECTORIES) enables Git to read from the pack archive.
+<P>
+The <I>git unpack-objects</I> command can read the packed archive and expand the objects contained in the pack into &quot;one-file one-object&quot; format; this is typically done by the smart-pull commands when a pack is created on-the-fly for efficient network transport by their peers.
+<A NAME="lbAE">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<P>
+
+base-name
+<DL COMPACT><DT id="1"><DD>
+Write into pairs of files (.pack and .idx), using &lt;base-name&gt; to determine the name of the created file. When this option is used, the two files in a pair are written in &lt;base-name&gt;-&lt;SHA-1&gt;.{pack,idx} files. &lt;SHA-1&gt; is a hash based on the pack content and is written to the standard output of the command.
+</DL>
+
+<P>
+
+--stdout
+<DL COMPACT><DT id="2"><DD>
+Write the pack contents (what would have been written to .pack file) out to the standard output.
+</DL>
+
+<P>
+
+--revs
+<DL COMPACT><DT id="3"><DD>
+Read the revision arguments from the standard input, instead of individual object names. The revision arguments are processed the same way as
+<I>git rev-list</I>
+with the
+<B>--objects</B>
+flag uses its
+<B>commit</B>
+arguments to build the list of objects it outputs. The objects on the resulting list are packed. Besides revisions,
+<B>--not</B>
+or
+<B>--shallow &lt;SHA-1&gt;</B>
+lines are also accepted.
+</DL>
+
+<P>
+
+--unpacked
+<DL COMPACT><DT id="4"><DD>
+This implies
+<B>--revs</B>. When processing the list of revision arguments read from the standard input, limit the objects packed to those that are not already packed.
+</DL>
+
+<P>
+
+--all
+<DL COMPACT><DT id="5"><DD>
+This implies
+<B>--revs</B>. In addition to the list of revision arguments read from the standard input, pretend as if all refs under
+<B>refs/</B>
+are specified to be included.
+</DL>
+
+<P>
+
+--include-tag
+<DL COMPACT><DT id="6"><DD>
+Include unasked-for annotated tags if the object they reference was included in the resulting packfile. This can be useful to send new tags to native Git clients.
+</DL>
+
+<P>
+
+--window=&lt;n&gt;, --depth=&lt;n&gt;
+<DL COMPACT><DT id="7"><DD>
+These two options affect how the objects contained in the pack are stored using delta compression. The objects are first internally sorted by type, size and optionally names and compared against the other objects within --window to see if using delta compression saves space. --depth limits the maximum delta depth; making it too deep affects the performance on the unpacker side, because delta data needs to be applied that many times to get to the necessary object.
+<P>
+The default value for --window is 10 and --depth is 50. The maximum depth is 4095.
+</DL>
+
+<P>
+
+--window-memory=&lt;n&gt;
+<DL COMPACT><DT id="8"><DD>
+This option provides an additional limit on top of
+<B>--window</B>; the window size will dynamically scale down so as to not take up more than
+<I>&lt;n&gt;</I>
+bytes in memory. This is useful in repositories with a mix of large and small objects to not run out of memory with a large window, but still be able to take advantage of the large window for the smaller objects. The size can be suffixed with &quot;k&quot;, &quot;m&quot;, or &quot;g&quot;.
+<B>--window-memory=0</B>
+makes memory usage unlimited. The default is taken from the
+<B>pack.windowMemory</B>
+configuration variable.
+</DL>
+
+<P>
+
+--max-pack-size=&lt;n&gt;
+<DL COMPACT><DT id="9"><DD>
+In unusual scenarios, you may not be able to create files larger than a certain size on your filesystem, and this option can be used to tell the command to split the output packfile into multiple independent packfiles, each not larger than the given size. The size can be suffixed with &quot;k&quot;, &quot;m&quot;, or &quot;g&quot;. The minimum size allowed is limited to 1 MiB. This option prevents the creation of a bitmap index. The default is unlimited, unless the config variable
+<B>pack.packSizeLimit</B>
+is set.
+</DL>
+
+<P>
+
+--honor-pack-keep
+<DL COMPACT><DT id="10"><DD>
+This flag causes an object already in a local pack that has a .keep file to be ignored, even if it would have otherwise been packed.
+</DL>
+
+<P>
+
+--keep-pack=&lt;pack-name&gt;
+<DL COMPACT><DT id="11"><DD>
+This flag causes an object already in the given pack to be ignored, even if it would have otherwise been packed.
+<B>&lt;pack-name&gt;</B>
+is the pack file name without leading directory (e.g.
+<B>pack-123.pack</B>). The option could be specified multiple times to keep multiple packs.
+</DL>
+
+<P>
+
+--incremental
+<DL COMPACT><DT id="12"><DD>
+This flag causes an object already in a pack to be ignored even if it would have otherwise been packed.
+</DL>
+
+<P>
+
+--local
+<DL COMPACT><DT id="13"><DD>
+This flag causes an object that is borrowed from an alternate object store to be ignored even if it would have otherwise been packed.
+</DL>
+
+<P>
+
+--non-empty
+<DL COMPACT><DT id="14"><DD>
+Only create a packed archive if it would contain at least one object.
+</DL>
+
+<P>
+
+--progress
+<DL COMPACT><DT id="15"><DD>
+Progress status is reported on the standard error stream by default when it is attached to a terminal, unless -q is specified. This flag forces progress status even if the standard error stream is not directed to a terminal.
+</DL>
+
+<P>
+
+--all-progress
+<DL COMPACT><DT id="16"><DD>
+When --stdout is specified then progress report is displayed during the object count and compression phases but inhibited during the write-out phase. The reason is that in some cases the output stream is directly linked to another command which may wish to display progress status of its own as it processes incoming pack data. This flag is like --progress except that it forces progress report for the write-out phase as well even if --stdout is used.
+</DL>
+
+<P>
+
+--all-progress-implied
+<DL COMPACT><DT id="17"><DD>
+This is used to imply --all-progress whenever progress display is activated. Unlike --all-progress this flag doesn't actually force any progress display by itself.
+</DL>
+
+<P>
+
+-q
+<DL COMPACT><DT id="18"><DD>
+This flag makes the command not to report its progress on the standard error stream.
+</DL>
+
+<P>
+
+--no-reuse-delta
+<DL COMPACT><DT id="19"><DD>
+When creating a packed archive in a repository that has existing packs, the command reuses existing deltas. This sometimes results in a slightly suboptimal pack. This flag tells the command not to reuse existing deltas but compute them from scratch.
+</DL>
+
+<P>
+
+--no-reuse-object
+<DL COMPACT><DT id="20"><DD>
+This flag tells the command not to reuse existing object data at all, including non deltified object, forcing recompression of everything. This implies --no-reuse-delta. Useful only in the obscure case where wholesale enforcement of a different compression level on the packed data is desired.
+</DL>
+
+<P>
+
+--compression=&lt;n&gt;
+<DL COMPACT><DT id="21"><DD>
+Specifies compression level for newly-compressed data in the generated pack. If not specified, pack compression level is determined first by pack.compression, then by core.compression, and defaults to -1, the zlib default, if neither is set. Add --no-reuse-object if you want to force a uniform compression level on all data no matter the source.
+</DL>
+
+<P>
+
+--sparse
+<DL COMPACT><DT id="22"><DD>
+Use the &quot;sparse&quot; algorithm to determine which objects to include in the pack, when combined with the &quot;--revs&quot; option. This algorithm only walks trees that appear in paths that introduce new objects. This can have significant performance benefits when computing a pack to send a small change. However, it is possible that extra objects are added to the pack-file if the included commits contain certain types of direct renames.
+</DL>
+
+<P>
+
+--thin
+<DL COMPACT><DT id="23"><DD>
+Create a &quot;thin&quot; pack by omitting the common objects between a sender and a receiver in order to reduce network transfer. This option only makes sense in conjunction with --stdout.
+<P>
+Note: A thin pack violates the packed archive format by omitting required objects and is thus unusable by Git without making it self-contained. Use
+<B>git index-pack --fix-thin</B>
+(see
+<B><A HREF="/cgi-bin/man/man2html?1+git-index-pack">git-index-pack</A></B>(1)) to restore the self-contained property.
+</DL>
+
+<P>
+
+--shallow
+<DL COMPACT><DT id="24"><DD>
+Optimize a pack that will be provided to a client with a shallow repository. This option, combined with --thin, can result in a smaller pack at the cost of speed.
+</DL>
+
+<P>
+
+--delta-base-offset
+<DL COMPACT><DT id="25"><DD>
+A packed archive can express the base object of a delta as either a 20-byte object name or as an offset in the stream, but ancient versions of Git don't understand the latter. By default,
+<I>git pack-objects</I>
+only uses the former format for better compatibility. This option allows the command to use the latter format for compactness. Depending on the average delta chain length, this option typically shrinks the resulting packfile by 3-5 per-cent.
+<P>
+Note: Porcelain commands such as
+<B>git gc</B>
+(see
+<B><A HREF="/cgi-bin/man/man2html?1+git-gc">git-gc</A></B>(1)),
+<B>git repack</B>
+(see
+<B><A HREF="/cgi-bin/man/man2html?1+git-repack">git-repack</A></B>(1)) pass this option by default in modern Git when they put objects in your repository into pack files. So does
+<B>git bundle</B>
+(see
+<B><A HREF="/cgi-bin/man/man2html?1+git-bundle">git-bundle</A></B>(1)) when it creates a bundle.
+</DL>
+
+<P>
+
+--threads=&lt;n&gt;
+<DL COMPACT><DT id="26"><DD>
+Specifies the number of threads to spawn when searching for best delta matches. This requires that pack-objects be compiled with pthreads otherwise this option is ignored with a warning. This is meant to reduce packing time on multiprocessor machines. The required amount of memory for the delta search window is however multiplied by the number of threads. Specifying 0 will cause Git to auto-detect the number of CPU's and set the number of threads accordingly.
+</DL>
+
+<P>
+
+--index-version=&lt;version&gt;[,&lt;offset&gt;]
+<DL COMPACT><DT id="27"><DD>
+This is intended to be used by the test suite only. It allows to force the version for the generated pack index, and to force 64-bit index entries on objects located above the given offset.
+</DL>
+
+<P>
+
+--keep-true-parents
+<DL COMPACT><DT id="28"><DD>
+With this option, parents that are hidden by grafts are packed nevertheless.
+</DL>
+
+<P>
+
+--filter=&lt;filter-spec&gt;
+<DL COMPACT><DT id="29"><DD>
+Requires
+<B>--stdout</B>. Omits certain objects (usually blobs) from the resulting packfile. See
+<B><A HREF="/cgi-bin/man/man2html?1+git-rev-list">git-rev-list</A></B>(1)
+for valid
+<B>&lt;filter-spec&gt;</B>
+forms.
+</DL>
+
+<P>
+
+--no-filter
+<DL COMPACT><DT id="30"><DD>
+Turns off any previous
+<B>--filter=</B>
+argument.
+</DL>
+
+<P>
+
+--missing=&lt;missing-action&gt;
+<DL COMPACT><DT id="31"><DD>
+A debug option to help with future &quot;partial clone&quot; development. This option specifies how missing objects are handled.
+<P>
+The form
+<I>--missing=error</I>
+requests that pack-objects stop with an error if a missing object is encountered. This is the default action.
+<P>
+The form
+<I>--missing=allow-any</I>
+will allow object traversal to continue if a missing object is encountered. Missing objects will silently be omitted from the results.
+<P>
+The form
+<I>--missing=allow-promisor</I>
+is like
+<I>allow-any</I>, but will only allow object traversal to continue for EXPECTED promisor missing objects. Unexpected missing object will raise an error.
+</DL>
+
+<P>
+
+--exclude-promisor-objects
+<DL COMPACT><DT id="32"><DD>
+Omit objects that are known to be in the promisor remote. (This option has the purpose of operating only on locally created objects, so that when we repack, we still maintain a distinction between locally created objects [without .promisor] and objects from the promisor remote [with .promisor].) This is used with partial clone.
+</DL>
+
+<P>
+
+--keep-unreachable
+<DL COMPACT><DT id="33"><DD>
+Objects unreachable from the refs in packs named with --unpacked= option are added to the resulting pack, in addition to the reachable objects that are not in packs marked with *.keep files. This implies
+<B>--revs</B>.
+</DL>
+
+<P>
+
+--pack-loose-unreachable
+<DL COMPACT><DT id="34"><DD>
+Pack unreachable loose objects (and their loose counterparts removed). This implies
+<B>--revs</B>.
+</DL>
+
+<P>
+
+--unpack-unreachable
+<DL COMPACT><DT id="35"><DD>
+Keep unreachable objects in loose form. This implies
+<B>--revs</B>.
+</DL>
+
+<P>
+
+--delta-islands
+<DL COMPACT><DT id="36"><DD>
+Restrict delta matches based on &quot;islands&quot;. See DELTA ISLANDS below.
+</DL>
+
+<A NAME="lbAF">&nbsp;</A>
+<H2>DELTA ISLANDS</H2>
+
+<P>
+When possible, <B>pack-objects</B> tries to reuse existing on-disk deltas to avoid having to search for new ones on the fly. This is an important optimization for serving fetches, because it means the server can avoid inflating most objects at all and just send the bytes directly from disk. This optimization can't work when an object is stored as a delta against a base which the receiver does not have (and which we are not already sending). In that case the server &quot;breaks&quot; the delta and has to find a new one, which has a high CPU cost. Therefore it's important for performance that the set of objects in on-disk delta relationships match what a client would fetch.
+<P>
+In a normal repository, this tends to work automatically. The objects are mostly reachable from the branches and tags, and that's what clients fetch. Any deltas we find on the server are likely to be between objects the client has or will have.
+<P>
+But in some repository setups, you may have several related but separate groups of ref tips, with clients tending to fetch those groups independently. For example, imagine that you are hosting several &quot;forks&quot; of a repository in a single shared object store, and letting clients view them as separate repositories through <B>GIT_NAMESPACE</B> or separate repos using the alternates mechanism. A naive repack may find that the optimal delta for an object is against a base that is only found in another fork. But when a client fetches, they will not have the base object, and we'll have to find a new delta on the fly.
+<P>
+A similar situation may exist if you have many refs outside of <B>refs/heads/</B> and <B>refs/tags/</B> that point to related objects (e.g., <B>refs/pull</B> or <B>refs/changes</B> used by some hosting providers). By default, clients fetch only heads and tags, and deltas against objects found only in those other groups cannot be sent as-is.
+<P>
+Delta islands solve this problem by allowing you to group your refs into distinct &quot;islands&quot;. Pack-objects computes which objects are reachable from which islands, and refuses to make a delta from an object <B>A</B> against a base which is not present in all of <B>A</B>'s islands. This results in slightly larger packs (because we miss some delta opportunities), but guarantees that a fetch of one island will not have to recompute deltas on the fly due to crossing island boundaries.
+<P>
+When repacking with delta islands the delta window tends to get clogged with candidates that are forbidden by the config. Repacking with a big --window helps (and doesn't take as long as it otherwise might because we can reject some object pairs based on islands before doing any computation on the content).
+<P>
+Islands are configured via the <B>pack.island</B> option, which can be specified multiple times. Each value is a left-anchored regular expressions matching refnames. For example:
+<P>
+<DL COMPACT><DT id="37"><DD>
+
+
+
+<PRE>
+[pack]
+island = refs/heads/
+island = refs/tags/
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+puts heads and tags into an island (whose name is the empty string; see below for more on naming). Any refs which do not match those regular expressions (e.g., <B>refs/pull/123</B>) is not in any island. Any object which is reachable only from <B>refs/pull/</B> (but not heads or tags) is therefore not a candidate to be used as a base for <B>refs/heads/</B>.
+<P>
+Refs are grouped into islands based on their &quot;names&quot;, and two regexes that produce the same name are considered to be in the same island. The names are computed from the regexes by concatenating any capture groups from the regex, with a <I>-</I> dash in between. (And if there are no capture groups, then the name is the empty string, as in the above example.) This allows you to create arbitrary numbers of islands. Only up to 14 such capture groups are supported though.
+<P>
+For example, imagine you store the refs for each fork in <B>refs/virtual/ID</B>, where <B>ID</B> is a numeric identifier. You might then configure:
+<P>
+<DL COMPACT><DT id="38"><DD>
+
+
+
+<PRE>
+[pack]
+island = refs/virtual/([0-9]+)/heads/
+island = refs/virtual/([0-9]+)/tags/
+island = refs/virtual/([0-9]+)/(pull)/
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+That puts the heads and tags for each fork in their own island (named &quot;1234&quot; or similar), and the pull refs for each go into their own &quot;1234-pull&quot;.
+<P>
+Note that we pick a single island for each regex to go into, using &quot;last one wins&quot; ordering (which allows repo-specific config to take precedence over user-wide config, and so forth).
+<A NAME="lbAG">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+<B><A HREF="/cgi-bin/man/man2html?1+git-rev-list">git-rev-list</A></B>(1) <B><A HREF="/cgi-bin/man/man2html?1+git-repack">git-repack</A></B>(1) <B><A HREF="/cgi-bin/man/man2html?1+git-prune-packed">git-prune-packed</A></B>(1)
+<A NAME="lbAH">&nbsp;</A>
+<H2>GIT</H2>
+
+<P>
+Part of the <B><A HREF="/cgi-bin/man/man2html?1+git">git</A></B>(1) suite
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="39"><A HREF="#lbAB">NAME</A><DD>
+<DT id="40"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="41"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="42"><A HREF="#lbAE">OPTIONS</A><DD>
+<DT id="43"><A HREF="#lbAF">DELTA ISLANDS</A><DD>
+<DT id="44"><A HREF="#lbAG">SEE ALSO</A><DD>
+<DT id="45"><A HREF="#lbAH">GIT</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:14 GMT, March 31, 2021
+</BODY>
+</HTML>

@@ -1,0 +1,341 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of APPARMOR</TITLE>
+</HEAD><BODY>
+<H1>APPARMOR</H1>
+Section: AppArmor (7)<BR>Updated: 2020-05-19<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+AppArmor - kernel enhancement to confine programs to a limited set of resources.
+<A NAME="lbAC">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+
+AppArmor is a kernel enhancement to confine programs to a limited set
+of resources. AppArmor's unique security model is to bind access control
+attributes to programs rather than to users.
+<P>
+
+AppArmor confinement is provided via <I>profiles</I> loaded into the kernel
+via <B><A HREF="/cgi-bin/man/man2html?8+apparmor_parser">apparmor_parser</A></B>(8), typically through the <I>/etc/init.d/apparmor</I>
+SysV initscript, which is used like this:
+<P>
+
+
+
+<PRE>
+        # /etc/init.d/apparmor start
+        # /etc/init.d/apparmor stop
+        # /etc/init.d/apparmor restart
+
+</PRE>
+
+
+<P>
+
+AppArmor can operate in two modes: <I>enforcement</I>, and <I>complain or learning</I>:
+<DL COMPACT>
+<DT id="1">&bull;<DD>
+<I>enforcement</I> -  Profiles loaded in enforcement mode will result 
+in enforcement of the policy defined in the profile as well as reporting 
+policy violation attempts to syslogd.
+<DT id="2">&bull;<DD>
+<I>complain</I> - Profiles loaded in  <TT>&quot;complain&quot;</TT> mode will not enforce policy.  
+Instead, it will report policy violation attempts. This mode is convenient for 
+developing profiles. To manage complain mode for individual profiles the 
+utilities <B><A HREF="/cgi-bin/man/man2html?8+aa-complain">aa-complain</A></B>(8) and <B><A HREF="/cgi-bin/man/man2html?8+aa-enforce">aa-enforce</A></B>(8) can be used. 
+These utilities take a program name as an argument.
+</DL>
+<P>
+
+Profiles are traditionally stored in files in <I>/etc/apparmor.d/</I>
+under filenames with the convention of replacing the <B>/</B> in pathnames
+with <B>.</B> (except for the root <B>/</B>) so profiles are easier to manage
+(e.g. the <I>/usr/sbin/nscd</I> profile would be named <I>usr.sbin.nscd</I>).
+<P>
+
+Profiles are applied to a process at <B><A HREF="/cgi-bin/man/man2html?3+exec">exec</A></B>(3) time (as seen through the
+<B><A HREF="/cgi-bin/man/man2html?2+execve">execve</A></B>(2) system call): once a profile is loaded for a program, that
+program will be confined on the next <B><A HREF="/cgi-bin/man/man2html?3+exec">exec</A></B>(3). If a process is already
+running under a profile, when one replaces that profile in the kernel,
+the updated profile is applied immediately to that process.
+On the other hand, a process that is already running unconfined cannot
+be confined.
+<P>
+
+AppArmor supports the Linux kernel's securityfs filesystem, and makes
+available the list of the profiles currently loaded; to mount the
+filesystem:
+<P>
+
+
+
+<PRE>
+        # mount -tsecurityfs securityfs /sys/kernel/security
+        $ cat /sys/kernel/security/apparmor/profiles
+        /usr/bin/mutt
+        /usr/bin/gpg
+           ...
+
+</PRE>
+
+
+<P>
+
+Normally, the initscript will mount securityfs if it has not already
+been done.
+<P>
+
+AppArmor also restricts what privileged operations a confined process
+may execute, even if the process is running as root. A confined process
+cannot call the following system calls:
+<P>
+
+
+
+<PRE>
+        <A HREF="/cgi-bin/man/man2html?2+create_module">create_module</A>(2) <A HREF="/cgi-bin/man/man2html?2+delete_module">delete_module</A>(2) <A HREF="/cgi-bin/man/man2html?2+init_module">init_module</A>(2) <A HREF="/cgi-bin/man/man2html?2+ioperm">ioperm</A>(2)
+        <A HREF="/cgi-bin/man/man2html?2+iopl">iopl</A>(2) <A HREF="/cgi-bin/man/man2html?2+ptrace">ptrace</A>(2) <A HREF="/cgi-bin/man/man2html?2+reboot">reboot</A>(2) <A HREF="/cgi-bin/man/man2html?2+setdomainname">setdomainname</A>(2)
+        <A HREF="/cgi-bin/man/man2html?2+sethostname">sethostname</A>(2) <A HREF="/cgi-bin/man/man2html?2+swapoff">swapoff</A>(2) <A HREF="/cgi-bin/man/man2html?2+swapon">swapon</A>(2) <A HREF="/cgi-bin/man/man2html?2+sysctl">sysctl</A>(2)
+
+</PRE>
+
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>ERRORS</H2>
+
+
+
+When a confined process tries to access a file it does not have permission
+to access, the kernel will report a message through audit, similar to:
+<P>
+
+
+
+<PRE>
+        audit(1386511672.612:238): apparmor=&quot;DENIED&quot; operation=&quot;exec&quot; 
+          parent=7589 profile=&quot;/tmp/sh&quot; name=&quot;/bin/uname&quot; pid=7605 
+          comm=&quot;sh&quot; requested_mask=&quot;x&quot; denied_mask=&quot;x&quot; fsuid=0 ouid=0
+
+        audit(1386511672.613:239): apparmor=&quot;DENIED&quot; operation=&quot;open&quot; 
+          parent=7589 profile=&quot;/tmp/sh&quot; name=&quot;/bin/uname&quot; pid=7605 
+          comm=&quot;sh&quot; requested_mask=&quot;r&quot; denied_mask=&quot;r&quot; fsuid=0 ouid=0
+
+        audit(1386511772.804:246): apparmor=&quot;DENIED&quot; operation=&quot;capable&quot;
+          parent=7246 profile=&quot;/tmp/sh&quot; pid=7589 comm=&quot;sh&quot; pid=7589 
+          comm=&quot;sh&quot; capability=2  capname=&quot;dac_override&quot;
+
+</PRE>
+
+
+<P>
+
+The permissions requested by the process are described in the operation=
+and denied_mask= (for files - capabilities etc. use a slightly different
+log format).
+The ``name'' and process id of the running program are reported,
+as well as the profile name including any ``hat'' that may be active, 
+separated by ``//''. (``Name''
+is in quotes, because the process name is limited to 15 bytes; it is the
+same as reported through the Berkeley process accounting.)
+<P>
+
+For confined processes running under a profile that has been loaded in 
+complain mode, enforcement will not take place and the log messages 
+reported to audit will be of the form:
+<P>
+
+
+
+<PRE>
+        audit(1386512577.017:275): apparmor=&quot;ALLOWED&quot; operation=&quot;open&quot;
+          parent=8012 profile=&quot;/usr/bin/du&quot; name=&quot;/etc/apparmor.d/tunables/&quot;
+          pid=8049 comm=&quot;du&quot; requested_mask=&quot;r&quot; denied_mask=&quot;r&quot; fsuid=1000 ouid=0
+
+        audit(1386512577.017:276): apparmor=&quot;ALLOWED&quot; operation=&quot;open&quot;
+          parent=8012 profile=&quot;/usr/bin/du&quot; name=&quot;/etc/apparmor.d/tunables/&quot;
+          pid=8049 comm=&quot;du&quot; requested_mask=&quot;r&quot; denied_mask=&quot;r&quot; fsuid=1000 ouid=0
+
+</PRE>
+
+
+<P>
+
+If the userland auditd is not running, the kernel will send audit events
+to klogd; klogd will send the messages to syslog, which will log the
+messages with the <FONT SIZE="-1">KERN</FONT> facility. Thus, <FONT SIZE="-1">REJECTING</FONT> and <FONT SIZE="-1">PERMITTING</FONT> messages
+may go to either <I>/var/log/audit/audit.log</I> or <I>/var/log/messages</I>,
+depending upon local configuration.
+<A NAME="lbAE">&nbsp;</A>
+<H2>DEBUGGING</H2>
+
+
+
+AppArmor provides a few facilities to log more information,
+which can help debugging profiles.
+<A NAME="lbAF">&nbsp;</A>
+<H3>Enable debug mode</H3>
+
+
+
+When debug mode is enabled, AppArmor will log a few extra messages to
+dmesg (not via the audit subsystem). For example, the logs will tell
+whether environment scrubbing has been applied.
+<P>
+
+To enable debug mode, run:
+<P>
+
+
+
+<PRE>
+        echo 1 &gt; /sys/module/apparmor/parameters/debug
+
+</PRE>
+
+
+<A NAME="lbAG">&nbsp;</A>
+<H3>Turn off deny audit quieting</H3>
+
+
+
+By default, operations that trigger <TT>&quot;deny&quot;</TT> rules are not logged.
+This is called <I>deny audit quieting</I>.
+<P>
+
+To turn off deny audit quieting, run:
+<P>
+
+
+
+<PRE>
+        echo -n noquiet &gt;/sys/module/apparmor/parameters/audit
+
+</PRE>
+
+
+<A NAME="lbAH">&nbsp;</A>
+<H3>Force audit mode</H3>
+
+
+
+AppArmor can log a message for every operation that triggers a rule
+configured in the policy. This is called <I>force audit mode</I>.
+<P>
+
+<B>Warning!</B> Force audit mode can be extremely noisy even for a single profile,
+let alone when enabled globally.
+<P>
+
+To set a specific profile in force audit mode, add the <TT>&quot;audit&quot;</TT> flag:
+<P>
+
+
+
+<PRE>
+        profile foo flags=(audit) { ... }
+
+</PRE>
+
+
+<P>
+
+To enable force audit mode globally, run:
+<P>
+
+
+
+<PRE>
+        echo -n all &gt; /sys/module/apparmor/parameters/audit
+
+</PRE>
+
+
+<P>
+
+If auditd is not running, to avoid losing too many of the extra log
+messages, you will likely have to turn off rate limiting by doing:
+<P>
+
+
+
+<PRE>
+        echo 0 &gt; /proc/sys/kernel/printk_ratelimit
+
+</PRE>
+
+
+<P>
+
+But even then the kernel ring buffer may overflow and you might
+lose messages.
+<P>
+
+Else, if auditd is running, see <B><A HREF="/cgi-bin/man/man2html?8+auditd">auditd</A></B>(8) and <B><A HREF="/cgi-bin/man/man2html?5+auditd.conf">auditd.conf</A></B>(5).
+<A NAME="lbAI">&nbsp;</A>
+<H2>FILES</H2>
+
+
+
+<DL COMPACT>
+<DT id="3"><I>/etc/init.d/apparmor</I><DD>
+
+
+
+<DT id="4"><I>/etc/apparmor.d/</I><DD>
+
+
+<DT id="5"><I>/var/lib/apparmor/</I><DD>
+
+
+<DT id="6"><I>/var/log/audit/audit.log</I><DD>
+
+
+<DT id="7"><I>/var/log/messages</I><DD>
+
+
+
+</DL>
+<A NAME="lbAJ">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+
+<B><A HREF="/cgi-bin/man/man2html?8+apparmor_parser">apparmor_parser</A></B>(8), <B><A HREF="/cgi-bin/man/man2html?2+aa_change_hat">aa_change_hat</A></B>(2), <B><A HREF="/cgi-bin/man/man2html?5+apparmor.d">apparmor.d</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?1+aa-autodep">aa-autodep</A></B>(1), <B><A HREF="/cgi-bin/man/man2html?1+clean">clean</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?8+auditd">auditd</A></B>(8),
+<B><A HREF="/cgi-bin/man/man2html?8+aa-unconfined">aa-unconfined</A></B>(8), <B><A HREF="/cgi-bin/man/man2html?1+aa-enforce">aa-enforce</A></B>(1), <B><A HREF="/cgi-bin/man/man2html?1+aa-complain">aa-complain</A></B>(1), and
+&lt;<A HREF="https://wiki.apparmor.net">https://wiki.apparmor.net</A>&gt;.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="8"><A HREF="#lbAB">NAME</A><DD>
+<DT id="9"><A HREF="#lbAC">DESCRIPTION</A><DD>
+<DT id="10"><A HREF="#lbAD">ERRORS</A><DD>
+<DT id="11"><A HREF="#lbAE">DEBUGGING</A><DD>
+<DL>
+<DT id="12"><A HREF="#lbAF">Enable debug mode</A><DD>
+<DT id="13"><A HREF="#lbAG">Turn off deny audit quieting</A><DD>
+<DT id="14"><A HREF="#lbAH">Force audit mode</A><DD>
+</DL>
+<DT id="15"><A HREF="#lbAI">FILES</A><DD>
+<DT id="16"><A HREF="#lbAJ">SEE ALSO</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:07 GMT, March 31, 2021
+</BODY>
+</HTML>

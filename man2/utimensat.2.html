@@ -1,0 +1,903 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of UTIMENSAT</TITLE>
+</HEAD><BODY>
+<H1>UTIMENSAT</H1>
+Section: Linux Programmer's Manual (2)<BR>Updated: 2017-09-15<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+utimensat, futimens - change file timestamps with nanosecond precision
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<PRE>
+<B>#include &lt;<A HREF="file:///usr/include/fcntl.h">fcntl.h</A>&gt;           /* Definition of AT_* constants */</B>
+<B>#include &lt;<A HREF="file:///usr/include/sys/stat.h">sys/stat.h</A>&gt;</B>
+
+<B>int utimensat(int </B><I>dirfd</I><B>, const char *</B><I>pathname</I><B>,</B>
+<B>              const struct timespec </B><I>times</I><B>[2], int </B><I>flags</I><B>);</B>
+
+<B>int futimens(int </B><I>fd</I><B>, const struct timespec </B><I>times</I><B>[2]);</B>
+</PRE>
+
+<P>
+
+
+Feature Test Macro Requirements for glibc (see
+<B><A HREF="/cgi-bin/man/man2html?7+feature_test_macros">feature_test_macros</A></B>(7)):
+
+
+<P>
+
+
+
+<B>utimensat</B>():
+
+<DL COMPACT><DT id="1"><DD>
+<DL COMPACT>
+<DT id="2">Since glibc 2.10:<DD>
+_POSIX_C_SOURCE&nbsp;&gt;=&nbsp;200809L
+<DT id="3">Before glibc 2.10:<DD>
+_ATFILE_SOURCE
+</DL>
+</DL>
+
+<P>
+
+<B>futimens</B>():
+
+<DL COMPACT><DT id="4"><DD>
+<DL COMPACT>
+<DT id="5">Since glibc 2.10:<DD>
+_POSIX_C_SOURCE&nbsp;&gt;=&nbsp;200809L
+<DT id="6">Before glibc 2.10:<DD>
+_GNU_SOURCE
+</DL>
+</DL>
+
+
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<B>utimensat</B>()
+
+and
+<B>futimens</B>()
+
+update the timestamps of a file with nanosecond precision.
+This contrasts with the historical
+<B><A HREF="/cgi-bin/man/man2html?2+utime">utime</A></B>(2)
+
+and
+<B><A HREF="/cgi-bin/man/man2html?2+utimes">utimes</A></B>(2),
+
+which permit only second and microsecond precision, respectively,
+when setting file timestamps.
+<P>
+
+With
+<B>utimensat</B>()
+
+the file is specified via the pathname given in
+<I>pathname</I>.
+
+With
+<B>futimens</B>()
+
+the file whose timestamps are to be updated is specified via
+an open file descriptor,
+<I>fd</I>.
+
+<P>
+
+For both calls, the new file timestamps are specified in the array
+<I>times</I>:
+
+<I>times</I>[0]
+
+specifies the new &quot;last access time&quot; (<I>atime</I>);
+<I>times</I>[1]
+
+specifies the new &quot;last modification time&quot; (<I>mtime</I>).
+Each of the elements of
+<I>times</I>
+
+specifies a time as the number of seconds and nanoseconds
+since the Epoch, 1970-01-01 00:00:00 +0000 (UTC).
+This information is conveyed in a structure of the following form:
+<P>
+
+
+
+struct timespec {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;time_t&nbsp;tv_sec;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;seconds&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;long&nbsp;&nbsp;&nbsp;tv_nsec;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;nanoseconds&nbsp;*/
+};
+
+
+<P>
+
+Updated file timestamps are set to the greatest value
+supported by the filesystem that is not greater than the specified time.
+<P>
+
+If the
+<I>tv_nsec</I>
+
+field of one of the
+<I>timespec</I>
+
+structures has the special value
+<B>UTIME_NOW</B>,
+
+then the corresponding file timestamp is set to the current time.
+If the
+<I>tv_nsec</I>
+
+field of one of the
+<I>timespec</I>
+
+structures has the special value
+<B>UTIME_OMIT</B>,
+
+then the corresponding file timestamp is left unchanged.
+In both of these cases, the value of the corresponding
+<I>tv_sec</I>
+
+
+field is ignored.
+<P>
+
+If
+<I>times</I>
+
+is NULL, then both timestamps are set to the current time.
+
+<A NAME="lbAE">&nbsp;</A>
+<H3>Permissions requirements</H3>
+
+To set both file timestamps to the current time (i.e.,
+<I>times</I>
+
+is NULL, or both
+<I>tv_nsec</I>
+
+fields specify
+<B>UTIME_NOW</B>),
+
+either:
+<DL COMPACT>
+<DT id="7">1.<DD>
+the caller must have write access to the file;
+
+
+
+
+<DT id="8">2.<DD>
+the caller's effective user ID must match the owner of the file; or
+<DT id="9">3.<DD>
+the caller must have appropriate privileges.
+</DL>
+<P>
+
+To make any change other than setting both timestamps to the
+current time (i.e.,
+<I>times</I>
+
+is not NULL, and neither
+<I>tv_nsec</I>
+
+field is
+<B>UTIME_NOW</B>
+
+
+
+and neither
+<I>tv_nsec</I>
+
+field is
+<B>UTIME_OMIT</B>),
+
+either condition 2 or 3 above must apply.
+<P>
+
+If both
+<I>tv_nsec</I>
+
+fields are specified as
+<B>UTIME_OMIT</B>,
+
+then no file ownership or permission checks are performed,
+and the file timestamps are not modified,
+but other error conditions may still be detected.
+
+
+<A NAME="lbAF">&nbsp;</A>
+<H3>utimensat() specifics</H3>
+
+If
+<I>pathname</I>
+
+is relative, then by default it is interpreted relative to the
+directory referred to by the open file descriptor,
+<I>dirfd</I>
+
+(rather than relative to the current working directory of
+the calling process, as is done by
+<B><A HREF="/cgi-bin/man/man2html?2+utimes">utimes</A></B>(2)
+
+for a relative pathname).
+See
+<B><A HREF="/cgi-bin/man/man2html?2+openat">openat</A></B>(2)
+
+for an explanation of why this can be useful.
+<P>
+
+If
+<I>pathname</I>
+
+is relative and
+<I>dirfd</I>
+
+is the special value
+<B>AT_FDCWD</B>,
+
+then
+<I>pathname</I>
+
+is interpreted relative to the current working
+directory of the calling process (like
+<B><A HREF="/cgi-bin/man/man2html?2+utimes">utimes</A></B>(2)).
+
+<P>
+
+If
+<I>pathname</I>
+
+is absolute, then
+<I>dirfd</I>
+
+is ignored.
+<P>
+
+The
+<I>flags</I>
+
+field is a bit mask that may be 0, or include the following constant,
+defined in
+<I>&lt;<A HREF="file:///usr/include/fcntl.h">fcntl.h</A>&gt;</I>:
+
+<DL COMPACT>
+<DT id="10"><B>AT_SYMLINK_NOFOLLOW</B>
+
+<DD>
+If
+<I>pathname</I>
+
+specifies a symbolic link, then update the timestamps of the link,
+rather than the file to which it refers.
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+On success,
+<B>utimensat</B>()
+
+and
+<B>futimens</B>()
+
+return 0.
+On error, -1 is returned and
+<I>errno</I>
+
+is set to indicate the error.
+<A NAME="lbAH">&nbsp;</A>
+<H2>ERRORS</H2>
+
+<DL COMPACT>
+<DT id="11"><B>EACCES</B>
+
+<DD>
+<I>times</I>
+
+is NULL,
+or both
+<I>tv_nsec</I>
+
+values are
+<B>UTIME_NOW</B>,
+
+and either:
+<DL COMPACT><DT id="12"><DD>
+<DL COMPACT>
+<DT id="13">*<DD>
+the effective user ID of the caller does not match
+the owner of the file,
+the caller does not have write access to the file,
+and the caller is not privileged
+(Linux: does not have either the
+<B>CAP_FOWNER</B>
+
+or the
+<B>CAP_DAC_OVERRIDE</B>
+
+capability); or,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<DT id="14">*<DD>
+the file is marked immutable (see
+<B><A HREF="/cgi-bin/man/man2html?1+chattr">chattr</A></B>(1)).
+
+
+</DL>
+</DL>
+
+<DT id="15"><B>EBADF</B>
+
+<DD>
+(<B>futimens</B>())
+
+<I>fd</I>
+
+is not a valid file descriptor.
+<DT id="16"><B>EBADF</B>
+
+<DD>
+(<B>utimensat</B>())
+
+<I>pathname</I>
+
+is a relative pathname, but
+<I>dirfd</I>
+
+is neither
+<B>AT_FDCWD</B>
+
+nor a valid file descriptor.
+<DT id="17"><B>EFAULT</B>
+
+<DD>
+<I>times</I>
+
+pointed to an invalid address; or,
+<I>dirfd</I>
+
+was
+<B>AT_FDCWD</B>,
+
+and
+<I>pathname</I>
+
+is NULL or an invalid address.
+<DT id="18"><B>EINVAL</B>
+
+<DD>
+Invalid value in
+<I>flags</I>.
+
+<DT id="19"><B>EINVAL</B>
+
+<DD>
+Invalid value in one of the
+<I>tv_nsec</I>
+
+fields (value outside range 0 to 999,999,999, and not
+<B>UTIME_NOW</B>
+
+or
+<B>UTIME_OMIT</B>);
+
+or an invalid value in one of the
+<I>tv_sec</I>
+
+fields.
+<DT id="20"><B>EINVAL</B>
+
+<DD>
+
+<I>pathname</I>
+
+is NULL,
+<I>dirfd</I>
+
+is not
+<B>AT_FDCWD</B>,
+
+and
+<I>flags</I>
+
+contains
+<B>AT_SYMLINK_NOFOLLOW</B>.
+
+<DT id="21"><B>ELOOP</B>
+
+<DD>
+(<B>utimensat</B>())
+
+Too many symbolic links were encountered in resolving
+<I>pathname</I>.
+
+<DT id="22"><B>ENAMETOOLONG</B>
+
+<DD>
+(<B>utimensat</B>())
+
+<I>pathname</I>
+
+is too long.
+<DT id="23"><B>ENOENT</B>
+
+<DD>
+(<B>utimensat</B>())
+
+A component of
+<I>pathname</I>
+
+does not refer to an existing directory or file,
+or
+<I>pathname</I>
+
+is an empty string.
+<DT id="24"><B>ENOTDIR</B>
+
+<DD>
+(<B>utimensat</B>())
+
+<I>pathname</I>
+
+is a relative pathname, but
+<I>dirfd</I>
+
+is neither
+<B>AT_FDCWD</B>
+
+nor a file descriptor referring to a directory;
+or, one of the prefix components of
+<I>pathname</I>
+
+is not a directory.
+<DT id="25"><B>EPERM</B>
+
+<DD>
+The caller attempted to change one or both timestamps to a value
+other than the current time,
+or to change one of the timestamps to the current time while
+leaving the other timestamp unchanged,
+(i.e.,
+<I>times</I>
+
+is not NULL, neither
+<I>tv_nsec</I>
+
+field is
+<B>UTIME_NOW</B>,
+
+and neither
+<I>tv_nsec</I>
+
+field is
+<B>UTIME_OMIT</B>)
+
+and either:
+<DL COMPACT><DT id="26"><DD>
+<DL COMPACT>
+<DT id="27">*<DD>
+the caller's effective user ID does not match the owner of file,
+and the caller is not privileged
+(Linux: does not have the
+<B>CAP_FOWNER</B>
+
+capability); or,
+<DT id="28">*<DD>
+
+
+
+
+the file is marked append-only or immutable (see
+<B><A HREF="/cgi-bin/man/man2html?1+chattr">chattr</A></B>(1)).
+
+
+
+
+
+
+
+</DL>
+</DL>
+
+<DT id="29"><B>EROFS</B>
+
+<DD>
+The file is on a read-only filesystem.
+<DT id="30"><B>ESRCH</B>
+
+<DD>
+(<B>utimensat</B>())
+
+Search permission is denied for one of the prefix components of
+<I>pathname</I>.
+
+</DL>
+<A NAME="lbAI">&nbsp;</A>
+<H2>VERSIONS</H2>
+
+<B>utimensat</B>()
+
+was added to Linux in kernel 2.6.22;
+glibc support was added with version 2.6.
+<P>
+
+Support for
+<B>futimens</B>()
+
+first appeared in glibc 2.6.
+<A NAME="lbAJ">&nbsp;</A>
+<H2>ATTRIBUTES</H2>
+
+For an explanation of the terms used in this section, see
+<B><A HREF="/cgi-bin/man/man2html?7+attributes">attributes</A></B>(7).
+
+<TABLE BORDER>
+<TR VALIGN=top><TD><B>Interface</B></TD><TD><B>Attribute</B></TD><TD><B>Value</B><BR></TD></TR>
+<TR VALIGN=top><TD>
+<B>utimensat</B>(),
+
+<B>futimens</B>()
+
+</TD><TD>Thread safety</TD><TD>MT-Safe<BR></TD></TR>
+</TABLE>
+
+<P>
+<A NAME="lbAK">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+<B>futimens</B>()
+
+and
+<B>utimensat</B>()
+
+are specified in POSIX.1-2008.
+<A NAME="lbAL">&nbsp;</A>
+<H2>NOTES</H2>
+
+<B>utimensat</B>()
+
+obsoletes
+<B><A HREF="/cgi-bin/man/man2html?2+futimesat">futimesat</A></B>(2).
+
+<P>
+
+On Linux, timestamps cannot be changed for a file marked immutable,
+and the only change permitted for files marked append-only is to
+set the timestamps to the current time.
+(This is consistent with the historical behavior of
+<B><A HREF="/cgi-bin/man/man2html?2+utime">utime</A></B>(2)
+
+and
+<B><A HREF="/cgi-bin/man/man2html?2+utimes">utimes</A></B>(2)
+
+on Linux.)
+<P>
+
+If both
+<I>tv_nsec</I>
+
+fields are specified as
+<B>UTIME_OMIT</B>,
+
+then the Linux implementation of
+<B>utimensat</B>()
+
+succeeds even if the file referred to by
+<I>dirfd</I>
+
+and
+<I>pathname</I>
+
+does not exist.
+<A NAME="lbAM">&nbsp;</A>
+<H3>C library/kernel ABI differences</H3>
+
+On Linux,
+<B>futimens</B>()
+
+is a library function implemented on top of the
+<B>utimensat</B>()
+
+system call.
+To support this, the Linux
+<B>utimensat</B>()
+
+system call implements a nonstandard feature: if
+<I>pathname</I>
+
+is NULL, then the call modifies the timestamps of
+the file referred to by the file descriptor
+<I>dirfd</I>
+
+(which may refer to any type of file).
+Using this feature, the call
+<I>futimens(fd,&nbsp;times)</I>
+
+is implemented as:
+<P>
+
+
+
+utimensat(fd, NULL, times, 0);
+
+
+<P>
+
+Note, however, that the glibc wrapper for
+<B>utimensat</B>()
+
+disallows passing NULL as the value for
+<I>pathname</I>:
+
+the wrapper function returns the error
+<I>EINVAL</I>
+
+in this case.
+<A NAME="lbAN">&nbsp;</A>
+<H2>BUGS</H2>
+
+Several bugs afflict
+<B>utimensat</B>()
+
+and
+<B>futimens</B>()
+
+on kernels before 2.6.26.
+These bugs are either nonconformances with the POSIX.1 draft specification
+or inconsistencies with historical Linux behavior.
+<DL COMPACT>
+<DT id="31">*<DD>
+POSIX.1 specifies that if one of the
+<I>tv_nsec</I>
+
+fields has the value
+<B>UTIME_NOW</B>
+
+or
+<B>UTIME_OMIT</B>,
+
+then the value of the corresponding
+<I>tv_sec</I>
+
+field should be ignored.
+Instead, the value of the
+<I>tv_sec</I>
+
+field is required to be 0 (or the error
+<B>EINVAL</B>
+
+results).
+<DT id="32">*<DD>
+Various bugs mean that for the purposes of permission checking,
+the case where both
+<I>tv_nsec</I>
+
+fields are set to
+<B>UTIME_NOW</B>
+
+isn't always treated the same as specifying
+<I>times</I>
+
+as NULL,
+and the case where one
+<I>tv_nsec</I>
+
+value is
+<B>UTIME_NOW</B>
+
+and the other is
+<B>UTIME_OMIT</B>
+
+isn't treated the same as specifying
+<I>times</I>
+
+as a pointer to an array of structures containing arbitrary time values.
+As a result, in some cases:
+a) file timestamps can be updated by a process that shouldn't have
+permission to perform updates;
+b) file timestamps can't be updated by a process that should have
+permission to perform updates; and
+c) the wrong
+<I>errno</I>
+
+value is returned in case of an error.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<DT id="33">*<DD>
+POSIX.1 says that a process that has <I>write access to the file</I>
+can make a call with
+<I>times</I>
+
+as NULL, or with
+<I>times</I>
+
+pointing to an array of structures in which both
+<I>tv_nsec</I>
+
+fields are
+<B>UTIME_NOW</B>,
+
+in order to update both timestamps to the current time.
+However,
+<B>futimens</B>()
+
+instead checks whether the
+<I>access mode of the file descriptor allows writing</I>.
+
+
+
+
+
+
+
+</DL>
+<A NAME="lbAO">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?1+chattr">chattr</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?1+touch">touch</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?2+futimesat">futimesat</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+openat">openat</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+stat">stat</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+utimes">utimes</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?3+futimes">futimes</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?7+inode">inode</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+path_resolution">path_resolution</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+symlink">symlink</A></B>(7)
+
+<A NAME="lbAP">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="34"><A HREF="#lbAB">NAME</A><DD>
+<DT id="35"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="36"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DL>
+<DT id="37"><A HREF="#lbAE">Permissions requirements</A><DD>
+<DT id="38"><A HREF="#lbAF">utimensat() specifics</A><DD>
+</DL>
+<DT id="39"><A HREF="#lbAG">RETURN VALUE</A><DD>
+<DT id="40"><A HREF="#lbAH">ERRORS</A><DD>
+<DT id="41"><A HREF="#lbAI">VERSIONS</A><DD>
+<DT id="42"><A HREF="#lbAJ">ATTRIBUTES</A><DD>
+<DT id="43"><A HREF="#lbAK">CONFORMING TO</A><DD>
+<DT id="44"><A HREF="#lbAL">NOTES</A><DD>
+<DL>
+<DT id="45"><A HREF="#lbAM">C library/kernel ABI differences</A><DD>
+</DL>
+<DT id="46"><A HREF="#lbAN">BUGS</A><DD>
+<DT id="47"><A HREF="#lbAO">SEE ALSO</A><DD>
+<DT id="48"><A HREF="#lbAP">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:35 GMT, March 31, 2021
+</BODY>
+</HTML>

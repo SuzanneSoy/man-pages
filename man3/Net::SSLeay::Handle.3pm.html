@@ -1,0 +1,381 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of Net::SSLeay::Handle</TITLE>
+</HEAD><BODY>
+<H1>Net::SSLeay::Handle</H1>
+Section: User Contributed Perl Documentation (3pm)<BR>Updated: 2020-01-15<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+Net::SSLeay::Handle - Perl module that lets SSL (HTTPS) sockets be
+handled as standard file handles.
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+
+
+
+
+<PRE>
+  use Net::SSLeay::Handle qw/shutdown/;
+  my ($host, $port) = (&quot;localhost&quot;, 443);
+
+  tie(*SSL, &quot;Net::SSLeay::Handle&quot;, $host, $port);
+
+  print SSL &quot;GET / HTTP/1.0\r\n&quot;;
+  shutdown(\*SSL, 1);
+  print while (&lt;SSL&gt;);
+  close SSL;
+
+</PRE>
+
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+
+Net::SSLeay::Handle allows you to request and receive <FONT SIZE="-1">HTTPS</FONT> web pages
+using ``old-fashion'' file handles as in:
+<P>
+
+
+
+<PRE>
+    print SSL &quot;GET / HTTP/1.0\r\n&quot;;
+
+</PRE>
+
+
+<P>
+
+and
+<P>
+
+
+
+<PRE>
+    print while (&lt;SSL&gt;);
+
+</PRE>
+
+
+<P>
+
+If you export the shutdown routine, then the only extra code that
+you need to add to your program is the tie function as in:
+<P>
+
+
+
+<PRE>
+    my $socket;
+    if ($scheme eq &quot;https&quot;) {
+        tie(*S2, &quot;Net::SSLeay::Handle&quot;, $host, $port);
+        $socket = \*S2;
+    else {
+        $socket = Net::SSLeay::Handle-&gt;make_socket($host, $port);
+    }
+    print $socket $request_headers;
+    ...
+
+</PRE>
+
+
+<A NAME="lbAE">&nbsp;</A>
+<H2>FUNCTIONS</H2>
+
+
+
+<DL COMPACT>
+<DT id="1">shutdown<DD>
+
+
+
+
+<PRE>
+  shutdown(\*SOCKET, $mode)
+
+</PRE>
+
+
+
+
+<P>
+
+
+Calls to the main <B>shutdown()</B> don't work with tied sockets created with this
+module.  This shutdown should be able to distinquish between tied and untied
+sockets and do the right thing.
+<DT id="2">debug<DD>
+
+
+
+
+<PRE>
+  my $debug = Net::SSLeay::Handle-&gt;debug()
+  Net::SSLeay::Handle-&gt;<A HREF="/cgi-bin/man/man2html?1+debug">debug</A>(1)
+
+</PRE>
+
+
+
+
+<P>
+
+
+Get/set debugging mode. Always returns the debug value before the function call.
+if an additional argument is given the debug option will be set to this value.
+<DT id="3">make_socket<DD>
+
+
+
+
+<PRE>
+  my $sock = Net::SSLeay::Handle-&gt;make_socket($host, $port);
+
+</PRE>
+
+
+
+
+<P>
+
+
+Creates a socket that is connected to <TT>$post</TT> using <TT>$port</TT>. It uses
+<TT>$Net::SSLeay::proxyhost</TT> and proxyport if set and authentificates itself against
+this proxy depending on <TT>$Net::SSLeay::proxyauth</TT>. It also turns autoflush on for
+the created socket.
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H3><FONT SIZE="-1">USING EXISTING SOCKETS</FONT></H3>
+
+
+
+One of the motivations for writing this module was to avoid
+duplicating socket creation code (which is mostly error handling).
+The calls to <B>tie()</B> above where it is passed a <TT>$host</TT> and <TT>$port</TT> is
+provided for convenience testing.  If you already have a socket
+connected to the right host and port, S1, then you can do something
+like:
+<P>
+
+
+
+<PRE>
+    my $socket \*S1;
+    if ($scheme eq &quot;https&quot;) {
+        tie(*S2, &quot;Net::SSLeay::Handle&quot;, $socket);
+        $socket = \*S2;
+    }
+    my $last_sel = select($socket); $| = 1; select($last_sel);
+    print $socket $request_headers;
+    ...
+
+</PRE>
+
+
+<P>
+
+Note: As far as I know you must be careful with the globs in the <B>tie()</B>
+function.  The first parameter must be a glob (*SOMETHING) and the
+last parameter must be a reference to a glob (\*SOMETHING_ELSE) or a
+scaler that was assigned to a reference to a glob (as in the example
+above)
+<P>
+
+Also, the two globs must be different.  When I tried to use the same
+glob, I got a core dump.
+<A NAME="lbAG">&nbsp;</A>
+<H3><FONT SIZE="-1">EXPORT</FONT></H3>
+
+
+
+None by default.
+<P>
+
+You can export the <B>shutdown()</B> function.
+<P>
+
+It is suggested that you do export <B>shutdown()</B> or use the fully
+qualified <B>Net::SSLeay::Handle::shutdown()</B> function to shutdown <FONT SIZE="-1">SSL</FONT>
+sockets.  It should be smart enough to distinguish between <FONT SIZE="-1">SSL</FONT> and
+non-SSL sockets and do the right thing.
+<A NAME="lbAH">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+
+
+
+
+<PRE>
+  use Net::SSLeay::Handle qw/shutdown/;
+  my ($host, $port) = (&quot;localhost&quot;, 443);
+
+  tie(*SSL, &quot;Net::SSLeay::Handle&quot;, $host, $port);
+
+  print SSL &quot;GET / HTTP/1.0\r\n&quot;;
+  shutdown(\*SSL, 1);
+  print while (&lt;SSL&gt;);
+  close SSL;
+
+</PRE>
+
+
+<A NAME="lbAI">&nbsp;</A>
+<H2>TODO</H2>
+
+
+
+Better error handling.  Callback routine?
+<A NAME="lbAJ">&nbsp;</A>
+<H2>CAVEATS</H2>
+
+
+
+Tying to a file handle is a little tricky (for me at least).
+<P>
+
+The first parameter to <B>tie()</B> must be a glob (*SOMETHING) and the last
+parameter must be a reference to a glob (\*SOMETHING_ELSE) or a scaler
+that was assigned to a reference to a glob ($s = \*SOMETHING_ELSE).
+Also, the two globs must be different.  When I tried to use the same
+glob, I got a core dump.
+<P>
+
+I was able to associate attributes to globs created by this module
+(like *SSL above) by making a hash of hashes keyed by the file head1.
+<A NAME="lbAK">&nbsp;</A>
+<H2>CHANGES</H2>
+
+
+
+Please see Net-SSLeay-Handle-0.50/Changes file.
+<A NAME="lbAL">&nbsp;</A>
+<H2>BUGS</H2>
+
+
+
+If you encounter a problem with this module that you believe is a bug,
+please report it in one of the following ways:
+<DL COMPACT>
+<DT id="4">&bull;<DD>
+create a new issue &lt;<A HREF="https://github.com/radiator-software/p5-net-ssleay/issues/new">https://github.com/radiator-software/p5-net-ssleay/issues/new</A>&gt;
+under the Net-SSLeay GitHub project at
+&lt;<A HREF="https://github.com/radiator-software/p5-net-ssleay">https://github.com/radiator-software/p5-net-ssleay</A>&gt;;
+<DT id="5">&bull;<DD>
+open a ticket &lt;<A HREF="https://rt.cpan.org/Ticket/Create.html?Queue=Net-SSLeay">https://rt.cpan.org/Ticket/Create.html?Queue=Net-SSLeay</A>&gt; using
+the <FONT SIZE="-1">CPAN RT</FONT> bug tracker's web interface at
+&lt;<A HREF="https://rt.cpan.org/Dist/Display.html?Queue=Net-SSLeay">https://rt.cpan.org/Dist/Display.html?Queue=Net-SSLeay</A>&gt;;
+<DT id="6">&bull;<DD>
+send an email to the <FONT SIZE="-1">CPAN RT</FONT> bug tracker at
+<A HREF="mailto:bug-Net-SSLeay@rt.cpan.org">bug-Net-SSLeay@rt.cpan.org</A> &lt;mailto:<A HREF="mailto:bug-Net-SSLeay@rt.cpan.org">bug-Net-SSLeay@rt.cpan.org</A>&gt;.
+</DL>
+<P>
+
+Please make sure your bug report includes the following information:
+<DL COMPACT>
+<DT id="7">&bull;<DD>
+the code you are trying to run;
+<DT id="8">&bull;<DD>
+your operating system name and version;
+<DT id="9">&bull;<DD>
+the output of <TT>&quot;perl -V&quot;</TT>;
+<DT id="10">&bull;<DD>
+the version of OpenSSL or LibreSSL you are using.
+</DL>
+<A NAME="lbAM">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+
+
+Originally written by Jim Bowlin.
+<P>
+
+Maintained by Sampo Kellomäki between July 2001 and August 2003.
+<P>
+
+Maintained by Florian Ragwitz between November 2005 and January 2010.
+<P>
+
+Maintained by Mike McCauley between November 2005 and June 2018.
+<P>
+
+Maintained by Chris Novakovic, Tuure Vartiainen and Heikki Vatiainen since June 2018.
+<A NAME="lbAN">&nbsp;</A>
+<H2>COPYRIGHT</H2>
+
+
+
+Copyright (c) 2001 Jim Bowlin &lt;<A HREF="mailto:jbowlin@linklint.org">jbowlin@linklint.org</A>&gt;
+<P>
+
+Copyright (c) 2001-2003 Sampo Kellomäki &lt;<A HREF="mailto:sampo@iki.fi">sampo@iki.fi</A>&gt;
+<P>
+
+Copyright (c) 2005-2010 Florian Ragwitz &lt;<A HREF="mailto:rafl@debian.org">rafl@debian.org</A>&gt;
+<P>
+
+Copyright (c) 2005-2018 Mike McCauley &lt;<A HREF="mailto:mikem@airspayce.com">mikem@airspayce.com</A>&gt;
+<P>
+
+Copyright (c) 2018- Chris Novakovic &lt;<A HREF="mailto:chris@chrisn.me.uk">chris@chrisn.me.uk</A>&gt;
+<P>
+
+Copyright (c) 2018- Tuure Vartiainen &lt;<A HREF="mailto:vartiait@radiatorsoftware.com">vartiait@radiatorsoftware.com</A>&gt;
+<P>
+
+Copyright (c) 2018- Heikki Vatiainen &lt;<A HREF="mailto:hvn@radiatorsoftware.com">hvn@radiatorsoftware.com</A>&gt;
+<P>
+
+All rights reserved.
+<A NAME="lbAO">&nbsp;</A>
+<H2>LICENSE</H2>
+
+
+
+This module is released under the terms of the Artistic License 2.0. For
+details, see the <TT>&quot;LICENSE&quot;</TT> file distributed with Net-SSLeay's source code.
+<A NAME="lbAP">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+
+Net::SSLeay, <B><A HREF="/cgi-bin/man/man2html?1+perl">perl</A></B>(1), <A HREF="http://openssl.org/">http://openssl.org/</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="11"><A HREF="#lbAB">NAME</A><DD>
+<DT id="12"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="13"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="14"><A HREF="#lbAE">FUNCTIONS</A><DD>
+<DL>
+<DT id="15"><A HREF="#lbAF"><FONT SIZE="-1">USING EXISTING SOCKETS</FONT></A><DD>
+<DT id="16"><A HREF="#lbAG"><FONT SIZE="-1">EXPORT</FONT></A><DD>
+</DL>
+<DT id="17"><A HREF="#lbAH">EXAMPLES</A><DD>
+<DT id="18"><A HREF="#lbAI">TODO</A><DD>
+<DT id="19"><A HREF="#lbAJ">CAVEATS</A><DD>
+<DT id="20"><A HREF="#lbAK">CHANGES</A><DD>
+<DT id="21"><A HREF="#lbAL">BUGS</A><DD>
+<DT id="22"><A HREF="#lbAM">AUTHOR</A><DD>
+<DT id="23"><A HREF="#lbAN">COPYRIGHT</A><DD>
+<DT id="24"><A HREF="#lbAO">LICENSE</A><DD>
+<DT id="25"><A HREF="#lbAP">SEE ALSO</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:49 GMT, March 31, 2021
+</BODY>
+</HTML>

@@ -1,0 +1,273 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of Glib::ParseXSDoc</TITLE>
+</HEAD><BODY>
+<H1>Glib::ParseXSDoc</H1>
+Section: User Contributed Perl Documentation (3pm)<BR>Updated: 2020-02-18<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+Glib::ParseXSDoc - Parse POD and XSub declarations from XS files.
+<A NAME="lbAC">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+
+This is the heart of an automatic <FONT SIZE="-1">API</FONT> reference documentation system for
+XS-based Perl modules.  <FONT SIZE="-1">FIXME</FONT> more info here!!
+<P>
+
+<FONT SIZE="-1">FIXME</FONT> document recognized <FONT SIZE="-1">POD</FONT> directives and the output data structures
+<A NAME="lbAD">&nbsp;</A>
+<H2>FUNCTIONS</H2>
+
+
+
+<DL COMPACT>
+<DT id="1">xsdocparse (@filenames)<DD>
+
+
+Parse xs files for xsub signatures and pod.  Writes to standard output a
+data structure suitable for eval'ing in another Perl script, describing
+all the stuff found.  The output contains three variables:
+<DL COMPACT><DT id="2"><DD>
+<DL COMPACT>
+<DT id="3">$xspods = <FONT SIZE="-1">ARRAYREF</FONT><DD>
+
+
+
+
+array of pods found in the verbatim C portion of the <FONT SIZE="-1">XS</FONT> file, listed in the
+order found.  These are assumed to pertain to the <FONT SIZE="-1">XS/C</FONT> api, not the Perl api.
+Any <TT>&quot;=for apidoc&quot;</TT> paragraphs following an <TT>&quot;=object&quot;</TT> paragraphs in the
+verbatim sections are stripped (as are the <TT>&quot;=object&quot;</TT> paragraphs), and will
+appear instead in <TT>&quot;$data-&gt;{$package}{pods}&quot;</TT>.
+<DT id="4">$data = <FONT SIZE="-1">HASHREF</FONT><DD>
+
+
+
+
+big hash keyed by package name (as found in the <FONT SIZE="-1">MODULE</FONT> line), containing under
+each key a hash with all the xsubs and pods in that package, in the order
+found.  Packages are consolidated across multiple files.
+</DL>
+</DL>
+
+<DL COMPACT><DT id="5"><DD>
+
+
+<P>
+
+
+<FONT SIZE="-1">FYI,</FONT> this creates a new parser and calls <TT>&quot;parse_file&quot;</TT> on it for each
+input filename; then calls <TT>&quot;swizzle_pods&quot;</TT> to ensure that any
+<TT>&quot;=for apidoc name&quot;</TT> pods are matched up with their target xsubs; and
+finally calls Data::Dumper to write the data to stdout.  So, if you want
+to get finer control over how the output is created, or keep all the data
+in-process, now you know how.  :-)
+</DL>
+
+</DL>
+<A NAME="lbAE">&nbsp;</A>
+<H2>METHODS</H2>
+
+
+
+<DL COMPACT>
+<DT id="6">$Glib::ParseXSDoc::verbose<DD>
+
+
+
+
+If true, this causes the parser to be verbose.
+<DT id="7">$parser = Glib::ParseXSDoc-&gt;new<DD>
+
+
+
+
+Create a new xsub parser.
+<DT id="8">string = $parser-&gt;package<DD>
+
+
+
+
+Get the current package name.  Falls back to the module name.  Will be undef
+if the parser hasn't reached the first <FONT SIZE="-1">MODULE</FONT> line.
+<DT id="9"><FONT SIZE="-1">HASHREF</FONT> = $parser-&gt;pkgdata<DD>
+
+
+
+
+The data hash corresponding to the current package, honoring the most recently
+encountered <TT>&quot;=for object&quot;</TT> directive.  Ensures that it exists.
+Returns a reference to the member of the main data structure, so modifications
+are permanent and useful.
+<DT id="10">$parser-&gt;parse_file (filename)<DD>
+
+
+
+
+Parse one xs file.  Stores all the collected data in <I></I>$parser<I></I>'s internal
+data structures.
+<DT id="11">$parser-&gt;swizzle_pods<DD>
+
+
+
+
+Match <TT>&quot;=for apidoc&quot;</TT> pods to xsubs.
+<DT id="12">$parser-&gt;preprocess_pods<DD>
+
+
+
+
+Honor the <TT>&quot;__hide__&quot;</TT> and <TT>&quot;__function__&quot;</TT> directives in <TT>&quot;=for apidoc&quot;</TT> lines.
+
+
+<P>
+
+
+We look for the strings anywhere, but you'll typically have it at the end of
+the line, e.g.:
+
+
+<P>
+
+
+
+
+<PRE>
+  =for apidoc symname __hide__        for detached blocks
+  =for apidoc __hide__                for attached blocks
+
+  =for apidoc symname __function__    for functions rather than methods
+  =for apidoc __function__            for functions rather than methods
+
+</PRE>
+
+
+<DT id="13">bool = $parser-&gt;is_module_line ($line)<DD>
+
+
+
+
+Analyze <I></I>$line<I></I> to see if it contains an <FONT SIZE="-1">XS MODULE</FONT> directive.  If so, returns
+true after setting the <I></I>$parser<I></I>'s <I>module</I>, <I>package</I>, and <I>prefix</I>
+accordingly.
+<DT id="14">$pod = $parser-&gt;slurp_pod_paragraph ($firstline, $term_regex=/^=cut\s*/)<DD>
+
+
+
+
+Slurp up <FONT SIZE="-1">POD</FONT> lines from <I></I>$filehandle<I></I> from here to the next
+<I></I>$term_regex<I></I> or <FONT SIZE="-1">EOF.</FONT>  Since you probably already read a
+line to determine that we needed to start a pod, you can pass
+that first line to be included.
+<DT id="15">$xsub = $parser-&gt;parse_xsub (\@lines)<DD>
+
+
+
+
+
+<DT id="16">$xsub = $parser-&gt;parse_xsub (@lines)<DD>
+
+
+
+
+
+Parse an xsub header, in the form of a list of lines,
+into a data structure describing the xsub.  That includes
+pulling out the argument types, aliases, and code type.
+
+
+<P>
+
+
+Without artificial intelligence, we cannot reliably 
+determine anything about the types or number of parameters
+returned from xsubs with <FONT SIZE="-1">PPCODE</FONT> bodies.
+
+
+<P>
+
+
+<FONT SIZE="-1">OUTLIST</FONT> parameters are pulled from the args list and put
+into an ``outlist'' key.  <FONT SIZE="-1">IN_OUTLIST</FONT> parameters are put into
+both.
+
+
+<P>
+
+
+Data type names are not mangled at all.
+
+
+<P>
+
+
+Note that the method can take either a list of lines or a reference to a
+list of lines.  The flat list form is provided for compatibility; the
+reference form is preferred, to avoid duplicating a potentially large list
+of strings.
+<DT id="17">$parser-&gt;clean_out_empty_pods<DD>
+
+
+
+
+Looks through the data member of the parser and removes any keys (and
+associated values) when no pod, enums, and xsubs exist for the package.
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+
+
+muppet &lt;scott at asofyet dot org&gt;
+<A NAME="lbAG">&nbsp;</A>
+<H2>COPYRIGHT AND LICENSE</H2>
+
+
+
+Copyright (C) 2003, 2004 by muppet
+<P>
+
+This library is free software; you can redistribute it and/or modify it under
+the terms of the <FONT SIZE="-1">GNU</FONT> Library General Public License as published by the Free
+Software Foundation; either version 2.1 of the License, or (at your option) any
+later version.
+<P>
+
+This library is distributed in the hope that it will be useful, but <FONT SIZE="-1">WITHOUT ANY
+WARRANTY</FONT>; without even the implied warranty of <FONT SIZE="-1">MERCHANTABILITY</FONT> or <FONT SIZE="-1">FITNESS FOR A
+PARTICULAR PURPOSE.</FONT>  See the <FONT SIZE="-1">GNU</FONT> Library General Public License for more
+details.
+<P>
+
+You should have received a copy of the <FONT SIZE="-1">GNU</FONT> Library General Public License along
+with this library; if not, write to the Free Software Foundation, Inc., 
+51 Franklin Street, Fifth Floor, Boston, <FONT SIZE="-1">MA 02110-1301 USA.</FONT>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="18"><A HREF="#lbAB">NAME</A><DD>
+<DT id="19"><A HREF="#lbAC">DESCRIPTION</A><DD>
+<DT id="20"><A HREF="#lbAD">FUNCTIONS</A><DD>
+<DT id="21"><A HREF="#lbAE">METHODS</A><DD>
+<DT id="22"><A HREF="#lbAF">AUTHOR</A><DD>
+<DT id="23"><A HREF="#lbAG">COPYRIGHT AND LICENSE</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:45 GMT, March 31, 2021
+</BODY>
+</HTML>

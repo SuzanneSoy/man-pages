@@ -1,0 +1,245 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of PIE</TITLE>
+</HEAD><BODY>
+<H1>PIE</H1>
+Section: Linux (8)<BR>Updated: 16 January 2014<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+PIE - Proportional Integral controller-Enhanced AQM algorithm
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<B>tc qdisc ... pie</B>
+
+[
+<B>limit</B>
+
+PACKETS ] [
+<B>target</B>
+
+TIME ] [
+<B>tupdate</B>
+
+TIME ] [
+<B>alpha</B>
+
+int ] [
+<B>beta</B>
+
+int ] [
+<B>ecn</B>
+
+|
+<B>noecn</B>
+
+] [
+<B>bytemode</B>
+
+|
+<B>nobytemode</B>
+
+] [
+<B>dq_rate_estimator</B>
+
+|
+<B>no_dq_rate_estimator</B>
+
+]
+<P>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+Proportional Integral controller-Enhanced (PIE) is a control theoretic active
+queue management scheme. It is based on the proportional integral controller but
+aims to control delay. The main design goals are
+<BR>&nbsp;o&nbsp;Low&nbsp;latency&nbsp;control
+<BR>&nbsp;o&nbsp;High&nbsp;link&nbsp;utilization
+<BR>&nbsp;o&nbsp;Simple&nbsp;implementation
+<BR>&nbsp;o&nbsp;Guaranteed&nbsp;stability&nbsp;and&nbsp;fast&nbsp;responsiveness
+<P>
+<A NAME="lbAE">&nbsp;</A>
+<H2>ALGORITHM</H2>
+
+PIE is designed to control delay effectively. First, an average dequeue rate is
+estimated based on the standing queue. The rate is used to calculate the current
+delay. Then, on a periodic basis, the delay is used to calculate the dropping
+probabilty. Finally, on arrival, a packet is dropped (or marked) based on this
+probability.
+<P>
+PIE makes adjustments to the probability based on the trend of the delay i.e.
+whether it is going up or down.The delay converges quickly to the target value
+specified.
+<P>
+alpha and beta are statically chosen parameters chosen to control the drop probability
+growth and are determined through control theoretic approaches. alpha determines how
+the deviation between the current and target latency changes probability. beta exerts
+additional adjustments depending on the latency trend.
+<P>
+The drop probabilty is used to mark packets in ecn mode. However, as in RED,
+beyond 10% packets are dropped based on this probability. The bytemode is used
+to drop packets proportional to the packet size.
+<P>
+Additional details can be found in the paper cited below.
+<P>
+<A NAME="lbAF">&nbsp;</A>
+<H2>PARAMETERS</H2>
+
+<A NAME="lbAG">&nbsp;</A>
+<H3>limit</H3>
+
+limit on the queue size in packets. Incoming packets are dropped when this limit
+is reached. Default is 1000 packets.
+<P>
+<A NAME="lbAH">&nbsp;</A>
+<H3>target</H3>
+
+is the expected queue delay. The default target delay is 15ms.
+<P>
+<A NAME="lbAI">&nbsp;</A>
+<H3>tupdate</H3>
+
+is the frequency at which the system drop probability is calculated. The default is 15ms.
+<P>
+<A NAME="lbAJ">&nbsp;</A>
+<H3>alpha</H3>
+
+<A NAME="lbAK">&nbsp;</A>
+<H3>beta</H3>
+
+alpha and beta are parameters chosen to control the drop probability. These
+should be in the range between 0 and 32.
+<P>
+<A NAME="lbAL">&nbsp;</A>
+<H3>ecn | noecn</H3>
+
+is used to mark packets instead of dropping.
+<B>ecn</B>
+
+to turn on ecn mode,
+<B>noecn</B>
+
+to turn off ecn mode. By default,
+<B>ecn</B>
+
+is turned off.
+<P>
+<A NAME="lbAM">&nbsp;</A>
+<H3>bytemode | nobytemode</H3>
+
+is used to scale drop probability proportional to packet size.
+<B>bytemode</B>
+
+to turn on bytemode,
+<B>nobytemode</B>
+
+to turn off bytemode. By default,
+<B>bytemode</B>
+
+is turned off.
+<P>
+<A NAME="lbAN">&nbsp;</A>
+<H3>dq_rate_estimator | no_dq_rate_estimator</H3>
+
+is used to calculate delay using Little's law.
+<B>dq_rate_estimator</B>
+
+to turn on dq_rate_estimator,
+<B>no_dq_rate_estimator</B>
+
+to turn off no_dq_rate_estimator. By default,
+<B>dq_rate_estimator</B>
+
+is turned off.
+<P>
+<A NAME="lbAO">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+<BR>&nbsp;#&nbsp;tc&nbsp;qdisc&nbsp;add&nbsp;dev&nbsp;eth0&nbsp;root&nbsp;pie
+<BR>&nbsp;#&nbsp;tc&nbsp;-s&nbsp;qdisc&nbsp;show
+<BR>&nbsp;&nbsp;&nbsp;qdisc&nbsp;pie&nbsp;8036:&nbsp;dev&nbsp;eth0&nbsp;root&nbsp;refcnt&nbsp;2&nbsp;limit&nbsp;1000p&nbsp;target&nbsp;15.0ms&nbsp;tupdate&nbsp;16.0ms&nbsp;alpha&nbsp;2&nbsp;beta&nbsp;20
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;Sent&nbsp;31216108&nbsp;bytes&nbsp;20800&nbsp;pkt&nbsp;(dropped&nbsp;80,&nbsp;overlimits&nbsp;0&nbsp;requeues&nbsp;0)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;backlog&nbsp;16654b&nbsp;11p&nbsp;requeues&nbsp;0
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;prob&nbsp;0.006161&nbsp;delay&nbsp;15666us
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pkts_in&nbsp;20811&nbsp;overlimit&nbsp;0&nbsp;dropped&nbsp;80&nbsp;maxq&nbsp;50&nbsp;ecn_mark&nbsp;0
+<P>
+<BR>&nbsp;#&nbsp;tc&nbsp;qdisc&nbsp;add&nbsp;dev&nbsp;eth0&nbsp;root&nbsp;pie&nbsp;dq_rate_estimator
+<BR>&nbsp;#&nbsp;tc&nbsp;-s&nbsp;qdisc&nbsp;show
+<BR>&nbsp;&nbsp;&nbsp;qdisc&nbsp;pie&nbsp;8036:&nbsp;dev&nbsp;eth0&nbsp;root&nbsp;refcnt&nbsp;2&nbsp;limit&nbsp;1000p&nbsp;target&nbsp;15.0ms&nbsp;tupdate&nbsp;16.0ms&nbsp;alpha&nbsp;2&nbsp;beta&nbsp;20
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;Sent&nbsp;63947420&nbsp;bytes&nbsp;42414&nbsp;pkt&nbsp;(dropped&nbsp;41,&nbsp;overlimits&nbsp;0&nbsp;requeues&nbsp;0)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;backlog&nbsp;271006b&nbsp;179p&nbsp;requeues&nbsp;0
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;prob&nbsp;0.000092&nbsp;delay&nbsp;22200us&nbsp;avg_dq_rate&nbsp;12145996
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pkts_in&nbsp;41&nbsp;overlimit&nbsp;343&nbsp;dropped&nbsp;0&nbsp;maxq&nbsp;50&nbsp;ecn_mark&nbsp;0
+<P>
+<BR>&nbsp;#&nbsp;tc&nbsp;qdisc&nbsp;add&nbsp;dev&nbsp;eth0&nbsp;root&nbsp;pie&nbsp;limit&nbsp;100&nbsp;target&nbsp;20ms&nbsp;tupdate&nbsp;30ms&nbsp;ecn
+<BR>&nbsp;#&nbsp;tc&nbsp;-s&nbsp;qdisc&nbsp;show
+<BR>&nbsp;&nbsp;&nbsp;qdisc&nbsp;pie&nbsp;8036:&nbsp;dev&nbsp;eth0&nbsp;root&nbsp;refcnt&nbsp;2&nbsp;limit&nbsp;100p&nbsp;target&nbsp;20.0ms&nbsp;tupdate&nbsp;32.0ms&nbsp;alpha&nbsp;2&nbsp;beta&nbsp;20&nbsp;ecn
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;Sent&nbsp;6591724&nbsp;bytes&nbsp;4442&nbsp;pkt&nbsp;(dropped&nbsp;27,&nbsp;overlimits&nbsp;0&nbsp;requeues&nbsp;0)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;backlog&nbsp;18168b&nbsp;12p&nbsp;requeues&nbsp;0
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;prob&nbsp;0.008845&nbsp;delay&nbsp;11348us
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pkts_in&nbsp;4454&nbsp;overlimit&nbsp;0&nbsp;dropped&nbsp;27&nbsp;maxq&nbsp;65&nbsp;ecn_mark&nbsp;0
+<P>
+<BR>&nbsp;#&nbsp;tc&nbsp;qdisc&nbsp;add&nbsp;dev&nbsp;eth0&nbsp;root&nbsp;pie&nbsp;limit&nbsp;100&nbsp;target&nbsp;50ms&nbsp;tupdate&nbsp;30ms&nbsp;bytemode
+<BR>&nbsp;#&nbsp;tc&nbsp;-s&nbsp;qdisc&nbsp;show
+<BR>&nbsp;&nbsp;&nbsp;qdisc&nbsp;pie&nbsp;8036:&nbsp;dev&nbsp;eth0&nbsp;root&nbsp;refcnt&nbsp;2&nbsp;limit&nbsp;100p&nbsp;target&nbsp;50.0ms&nbsp;tupdate&nbsp;32.0ms&nbsp;alpha&nbsp;2&nbsp;beta&nbsp;20&nbsp;bytemode
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;Sent&nbsp;1616274&nbsp;bytes&nbsp;1137&nbsp;pkt&nbsp;(dropped&nbsp;0,&nbsp;overlimits&nbsp;0&nbsp;requeues&nbsp;0)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;backlog&nbsp;13626b&nbsp;9p&nbsp;requeues&nbsp;0
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;prob&nbsp;0.000000&nbsp;delay&nbsp;0us
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pkts_in&nbsp;1146&nbsp;overlimit&nbsp;0&nbsp;dropped&nbsp;0&nbsp;maxq&nbsp;23&nbsp;ecn_mark&nbsp;0
+<P>
+<A NAME="lbAP">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?8+tc">tc</A></B>(8),
+
+<B><A HREF="/cgi-bin/man/man2html?8+tc-codel">tc-codel</A></B>(8)
+
+<B><A HREF="/cgi-bin/man/man2html?8+tc-red">tc-red</A></B>(8)
+
+<P>
+<A NAME="lbAQ">&nbsp;</A>
+<H2>SOURCES</H2>
+
+<BR>&nbsp;o&nbsp;RFC&nbsp;8033:&nbsp;<A HREF="https://tools.ietf.org/html/rfc8033">https://tools.ietf.org/html/rfc8033</A>
+<P>
+<A NAME="lbAR">&nbsp;</A>
+<H2>AUTHORS</H2>
+
+PIE was implemented by Vijay Subramanian and Mythili Prabhu, also the authors of
+this man page. Please report bugs and corrections to the Linux networking
+development mailing list at &lt;<A HREF="mailto:netdev@vger.kernel.org">netdev@vger.kernel.org</A>&gt;.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="1"><A HREF="#lbAB">NAME</A><DD>
+<DT id="2"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="3"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="4"><A HREF="#lbAE">ALGORITHM</A><DD>
+<DT id="5"><A HREF="#lbAF">PARAMETERS</A><DD>
+<DL>
+<DT id="6"><A HREF="#lbAG">limit</A><DD>
+<DT id="7"><A HREF="#lbAH">target</A><DD>
+<DT id="8"><A HREF="#lbAI">tupdate</A><DD>
+<DT id="9"><A HREF="#lbAJ">alpha</A><DD>
+<DT id="10"><A HREF="#lbAK">beta</A><DD>
+<DT id="11"><A HREF="#lbAL">ecn | noecn</A><DD>
+<DT id="12"><A HREF="#lbAM">bytemode | nobytemode</A><DD>
+<DT id="13"><A HREF="#lbAN">dq_rate_estimator | no_dq_rate_estimator</A><DD>
+</DL>
+<DT id="14"><A HREF="#lbAO">EXAMPLES</A><DD>
+<DT id="15"><A HREF="#lbAP">SEE ALSO</A><DD>
+<DT id="16"><A HREF="#lbAQ">SOURCES</A><DD>
+<DT id="17"><A HREF="#lbAR">AUTHORS</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:17 GMT, March 31, 2021
+</BODY>
+</HTML>

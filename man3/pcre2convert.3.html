@@ -1,0 +1,213 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of PCRE2CONVERT</TITLE>
+</HEAD><BODY>
+<H1>PCRE2CONVERT</H1>
+Section: C Library Functions (3)<BR>Updated: 28 June 2018<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+PCRE2 - Perl-compatible regular expressions (revised API)
+<A NAME="lbAC">&nbsp;</A>
+<H2>EXPERIMENTAL PATTERN CONVERSION FUNCTIONS</H2>
+
+
+<P>
+This document describes a set of functions that can be used to convert
+&quot;foreign&quot; patterns into PCRE2 regular expressions. This facility is currently
+experimental, and may be changed in future releases. Two kinds of pattern,
+globs and POSIX patterns, are supported.
+<A NAME="lbAD">&nbsp;</A>
+<H2>THE CONVERT CONTEXT</H2>
+
+
+<P>
+<PRE>
+<B>pcre2_convert_context *pcre2_convert_context_create(</B>
+<B>  pcre2_general_context *</B><I>gcontext</I>);
+
+<B>pcre2_convert_context *pcre2_convert_context_copy(</B>
+<B>  pcre2_convert_context *</B><I>cvcontext</I>);
+
+<B>void pcre2_convert_context_free(pcre2_convert_context *</B><I>cvcontext</I>);
+
+<B>int pcre2_set_glob_escape(pcre2_convert_context *</B><I>cvcontext</I>,
+<B>  uint32_t </B><I>escape_char</I>);
+
+<B>int pcre2_set_glob_separator(pcre2_convert_context *</B><I>cvcontext</I>,
+<B>  uint32_t </B><I>separator_char</I>);
+</PRE>
+
+<P>
+A convert context is used to hold parameters that affect the way that pattern
+conversion works. Like all PCRE2 contexts, you need to use a context only if
+you want to override the defaults. There are the usual create, copy, and free
+functions. If custom memory management functions are set in a general context
+that is passed to <B>pcre2_convert_context_create()</B>, they are used for all
+memory management within the conversion functions.
+<P>
+
+There are only two parameters in the convert context at present. Both apply
+only to glob conversions. The escape character defaults to grave accent under
+Windows, otherwise backslash. It can be set to zero, meaning no escape
+character, or to any punctuation character with a code point less than 256.
+The separator character defaults to backslash under Windows, otherwise forward
+slash. It can be set to forward slash, backslash, or dot.
+<P>
+
+The two setting functions return zero on success, or PCRE2_ERROR_BADDATA if
+their second argument is invalid.
+<A NAME="lbAE">&nbsp;</A>
+<H2>THE CONVERSION FUNCTION</H2>
+
+
+<P>
+<PRE>
+<B>int pcre2_pattern_convert(PCRE2_SPTR </B><I>pattern</I>, PCRE2_SIZE <I>length</I>,
+<B>  uint32_t </B><I>options</I>, PCRE2_UCHAR **<I>buffer</I>,
+<B>  PCRE2_SIZE *</B><I>blength</I>, pcre2_convert_context *<I>cvcontext</I>);
+
+<B>void pcre2_converted_pattern_free(PCRE2_UCHAR *</B><I>converted_pattern</I>);
+</PRE>
+
+<P>
+The first two arguments of <B>pcre2_pattern_convert()</B> define the foreign
+pattern that is to be converted. The length may be given as
+PCRE2_ZERO_TERMINATED. The <B>options</B> argument defines how the pattern is to
+be processed. If the input is UTF, the PCRE2_CONVERT_UTF option should be set.
+PCRE2_CONVERT_NO_UTF_CHECK may also be set if you are sure the input is valid.
+One or more of the glob options, or one of the following POSIX options must be
+set to define the type of conversion that is required:
+<P>
+<BR>&nbsp;&nbsp;PCRE2_CONVERT_GLOB
+<BR>&nbsp;&nbsp;PCRE2_CONVERT_GLOB_NO_WILD_SEPARATOR
+<BR>&nbsp;&nbsp;PCRE2_CONVERT_GLOB_NO_STARSTAR
+<BR>&nbsp;&nbsp;PCRE2_CONVERT_POSIX_BASIC
+<BR>&nbsp;&nbsp;PCRE2_CONVERT_POSIX_EXTENDED
+<P>
+Details of the conversions are given below. The <B>buffer</B> and <B>blength</B>
+arguments define how the output is handled:
+<P>
+
+If <B>buffer</B> is NULL, the function just returns the length of the converted
+pattern via <B>blength</B>. This is one less than the length of buffer needed,
+because a terminating zero is always added to the output.
+<P>
+
+If <B>buffer</B> points to a NULL pointer, an output buffer is obtained using
+the allocator in the context or <B>malloc()</B> if no context is supplied. A
+pointer to this buffer is placed in the variable to which <B>buffer</B> points.
+When no longer needed the output buffer must be freed by calling
+<B>pcre2_converted_pattern_free()</B>. If this function is called with a NULL
+argument, it returns immediately without doing anything.
+<P>
+
+If <B>buffer</B> points to a non-NULL pointer, <B>blength</B> must be set to the
+actual length of the buffer provided (in code units).
+<P>
+
+In all cases, after successful conversion, the variable pointed to by
+<B>blength</B> is updated to the length actually used (in code units), excluding
+the terminating zero that is always added.
+<P>
+
+If an error occurs, the length (via <B>blength</B>) is set to the offset
+within the input pattern where the error was detected. Only gross syntax errors
+are caught; there are plenty of errors that will get passed on for
+<B>pcre2_compile()</B> to discover.
+<P>
+
+The return from <B>pcre2_pattern_convert()</B> is zero on success or a non-zero
+PCRE2 error code. Note that PCRE2 error codes may be positive or negative:
+<B>pcre2_compile()</B> uses mostly positive codes and <B>pcre2_match()</B>
+negative ones; <B>pcre2_convert()</B> uses existing codes of both kinds. A
+textual error message can be obtained by calling
+<B>pcre2_get_error_message()</B>.
+<A NAME="lbAF">&nbsp;</A>
+<H2>CONVERTING GLOBS</H2>
+
+
+<P>
+Globs are used to match file names, and consequently have the concept of a
+&quot;path separator&quot;, which defaults to backslash under Windows and forward slash
+otherwise. If PCRE2_CONVERT_GLOB is set, the wildcards * and ? are not
+permitted to match separator characters, but the double-star (**) feature
+(which does match separators) is supported.
+<P>
+
+PCRE2_CONVERT_GLOB_NO_WILD_SEPARATOR matches globs with wildcards allowed to
+match separator characters. PCRE2_GLOB_NO_STARSTAR matches globs with the
+double-star feature disabled. These options may be given together.
+<A NAME="lbAG">&nbsp;</A>
+<H2>CONVERTING POSIX PATTERNS</H2>
+
+
+<P>
+POSIX defines two kinds of regular expression pattern: basic and extended.
+These can be processed by setting PCRE2_CONVERT_POSIX_BASIC or
+PCRE2_CONVERT_POSIX_EXTENDED, respectively.
+<P>
+
+In POSIX patterns, backslash is not special in a character class. Unmatched
+closing parentheses are treated as literals.
+<P>
+
+In basic patterns, ? + | {} and () must be escaped to be recognized
+as metacharacters outside a character class. If the first character in the
+pattern is * it is treated as a literal. ^ is a metacharacter only at the start
+of a branch.
+<P>
+
+In extended patterns, a backslash not in a character class always
+makes the next character literal, whatever it is. There are no backreferences.
+<P>
+
+Note: POSIX mandates that the longest possible match at the first matching
+position must be found. This is not what <B>pcre2_match()</B> does; it yields
+the first match that is found. An application can use <B>pcre2_dfa_match()</B>
+to find the longest match, but that does not support backreferences (but then
+neither do POSIX extended patterns).
+<A NAME="lbAH">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+
+<P>
+<PRE>
+Philip Hazel
+University Computing Service
+Cambridge, England.
+</PRE>
+
+<A NAME="lbAI">&nbsp;</A>
+<H2>REVISION</H2>
+
+
+<P>
+<PRE>
+Last updated: 28 June 2018
+Copyright (c) 1997-2018 University of Cambridge.
+</PRE>
+
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="1"><A HREF="#lbAB">NAME</A><DD>
+<DT id="2"><A HREF="#lbAC">EXPERIMENTAL PATTERN CONVERSION FUNCTIONS</A><DD>
+<DT id="3"><A HREF="#lbAD">THE CONVERT CONTEXT</A><DD>
+<DT id="4"><A HREF="#lbAE">THE CONVERSION FUNCTION</A><DD>
+<DT id="5"><A HREF="#lbAF">CONVERTING GLOBS</A><DD>
+<DT id="6"><A HREF="#lbAG">CONVERTING POSIX PATTERNS</A><DD>
+<DT id="7"><A HREF="#lbAH">AUTHOR</A><DD>
+<DT id="8"><A HREF="#lbAI">REVISION</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:49 GMT, March 31, 2021
+</BODY>
+</HTML>

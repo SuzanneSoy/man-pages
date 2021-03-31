@@ -1,0 +1,507 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SIGALTSTACK</TITLE>
+</HEAD><BODY>
+<H1>SIGALTSTACK</H1>
+Section: Linux Programmer's Manual (2)<BR>Updated: 2017-11-08<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+sigaltstack - set and/or get signal stack context
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<B>#include &lt;<A HREF="file:///usr/include/signal.h">signal.h</A>&gt;</B>
+
+<P>
+
+<B>int sigaltstack(const stack_t *</B><I>ss</I><B>, stack_t *</B><I>old_ss</I><B>);</B>
+
+<P>
+
+
+Feature Test Macro Requirements for glibc (see
+<B><A HREF="/cgi-bin/man/man2html?7+feature_test_macros">feature_test_macros</A></B>(7)):
+
+
+<P>
+
+<B>sigaltstack</B>():
+
+
+<DL COMPACT><DT id="1"><DD>
+
+_XOPEN_SOURCE&nbsp;&gt;=&nbsp;500
+
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;||&nbsp;/*&nbsp;Since&nbsp;glibc&nbsp;2.12:&nbsp;*/&nbsp;_POSIX_C_SOURCE&nbsp;&gt;=&nbsp;200809L
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;||&nbsp;/*&nbsp;Glibc&nbsp;versions&nbsp;&lt;=&nbsp;2.19:&nbsp;*/&nbsp;_BSD_SOURCE
+
+</DL>
+
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<B>sigaltstack</B>()
+
+allows a process to define a new alternate
+signal stack and/or retrieve the state of an existing
+alternate signal stack.
+An alternate signal stack is used during the
+execution of a signal handler if the establishment of that handler (see
+<B><A HREF="/cgi-bin/man/man2html?2+sigaction">sigaction</A></B>(2))
+
+requested it.
+<P>
+
+The normal sequence of events for using an alternate signal stack
+is the following:
+<DL COMPACT>
+<DT id="2">1.<DD>
+Allocate an area of memory to be used for the alternate
+signal stack.
+<DT id="3">2.<DD>
+Use
+<B>sigaltstack</B>()
+
+to inform the system of the existence and
+location of the alternate signal stack.
+<DT id="4">3.<DD>
+When establishing a signal handler using
+<B><A HREF="/cgi-bin/man/man2html?2+sigaction">sigaction</A></B>(2),
+
+inform the system that the signal handler should be executed
+on the alternate signal stack by
+specifying the <B>SA_ONSTACK</B> flag.
+</DL>
+<P>
+
+The <I>ss</I> argument is used to specify a new
+alternate signal stack, while the <I>old_ss</I> argument
+is used to retrieve information about the currently
+established signal stack.
+If we are interested in performing just one
+of these tasks, then the other argument can be specified as NULL.
+<P>
+
+The
+<I>stack_t</I>
+
+type used to type the arguments of this function is defined as follows:
+<P>
+
+
+
+typedef struct {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;void&nbsp;&nbsp;*ss_sp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Base&nbsp;address&nbsp;of&nbsp;stack&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;&nbsp;&nbsp;&nbsp;ss_flags;&nbsp;&nbsp;/*&nbsp;Flags&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;size_t&nbsp;ss_size;&nbsp;&nbsp;&nbsp;/*&nbsp;Number&nbsp;of&nbsp;bytes&nbsp;in&nbsp;stack&nbsp;*/
+} stack_t;
+
+
+<P>
+
+To establish a new alternate signal stack,
+the fields of this structure are set as follows:
+<DL COMPACT>
+<DT id="5"><I>ss.ss_flags</I>
+
+<DD>
+This field contains either 0, or the following flag:
+<DL COMPACT><DT id="6"><DD>
+<DL COMPACT>
+<DT id="7"><B>SS_AUTODISARM</B> (since Linux 4.7)
+
+<DD>
+
+
+Clear the alternate signal stack settings on entry to the signal handler.
+When the signal handler returns,
+the previous alternate signal stack settings are restored.
+<DT id="8"><DD>
+This flag was added in order make it safe
+to switch away from the signal handler with
+<B><A HREF="/cgi-bin/man/man2html?3+swapcontext">swapcontext</A></B>(3).
+
+Without this flag, a subsequently handled signal will corrupt
+the state of the switched-away signal handler.
+On kernels where this flag is not supported,
+<B>sigaltstack</B>()
+
+fails with the error
+<B>EINVAL</B>
+
+when this flag is supplied.
+</DL>
+</DL>
+
+<DT id="9"><I>ss.ss_sp</I>
+
+<DD>
+This field specifies the starting address of the stack.
+When a signal handler is invoked on the alternate stack,
+the kernel automatically aligns the address given in <I>ss.ss_sp</I>
+to a suitable address boundary for the underlying hardware architecture.
+<DT id="10"><I>ss.ss_size</I>
+
+<DD>
+This field specifies the size of the stack.
+The constant <B>SIGSTKSZ</B> is defined to be large enough
+to cover the usual size requirements for an alternate signal stack,
+and the constant <B>MINSIGSTKSZ</B> defines the minimum
+size required to execute a signal handler.
+</DL>
+<P>
+
+To disable an existing stack, specify <I>ss.ss_flags</I>
+as <B>SS_DISABLE</B>.
+In this case, the kernel ignores any other flags in
+<I>ss.ss_flags</I>
+
+and the remaining fields
+in <I>ss</I>.
+<P>
+
+If <I>old_ss</I> is not NULL, then it is used to return information about
+the alternate signal stack which was in effect prior to the
+call to
+<B>sigaltstack</B>().
+
+The <I>old_ss.ss_sp</I> and <I>old_ss.ss_size</I> fields return the starting
+address and size of that stack.
+The <I>old_ss.ss_flags</I> may return either of the following values:
+<DL COMPACT>
+<DT id="11"><B>SS_ONSTACK</B>
+
+<DD>
+The process is currently executing on the alternate signal stack.
+(Note that it is not possible
+to change the alternate signal stack if the process is
+currently executing on it.)
+<DT id="12"><B>SS_DISABLE</B>
+
+<DD>
+The alternate signal stack is currently disabled.
+<DT id="13"><DD>
+Alternatively, this value is returned if the process is currently
+executing on an alternate signal stack that was established using the
+<B>SS_AUTODISARM</B>
+
+flag.
+In this case, it is safe to switch away from the signal handler with
+<B><A HREF="/cgi-bin/man/man2html?3+swapcontext">swapcontext</A></B>(3).
+
+It is also possible to set up a different alternative signal stack
+using a further call to
+<B>sigaltstack</B>().
+
+
+
+
+
+
+<DT id="14"><B>SS_AUTODISARM</B>
+
+<DD>
+The alternate signal stack has been marked to be autodisarmed
+as described above.
+</DL>
+<P>
+
+By specifying
+<I>ss</I>
+
+as NULL, and
+<I>old_ss</I>
+
+as a non-NULL value, one can obtain the current settings for
+the alternate signal stack without changing them.
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+<B>sigaltstack</B>()
+
+returns 0 on success, or -1 on failure with
+<I>errno</I> set to indicate the error.
+<A NAME="lbAF">&nbsp;</A>
+<H2>ERRORS</H2>
+
+<DL COMPACT>
+<DT id="15"><B>EFAULT</B>
+
+<DD>
+Either <I>ss</I> or <I>old_ss</I> is not NULL and points to an area
+outside of the process's address space.
+<DT id="16"><B>EINVAL</B>
+
+<DD>
+<I>ss</I> is not NULL and the <I>ss_flags</I> field contains
+an invalid flag.
+<DT id="17"><B>ENOMEM</B>
+
+<DD>
+The specified size of the new alternate signal stack
+<I>ss.ss_size</I>
+
+was less than
+<B>MINSIGSTKSZ</B>.
+
+<DT id="18"><B>EPERM</B>
+
+<DD>
+An attempt was made to change the alternate signal stack while
+it was active (i.e., the process was already executing
+on the current alternate signal stack).
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H2>ATTRIBUTES</H2>
+
+For an explanation of the terms used in this section, see
+<B><A HREF="/cgi-bin/man/man2html?7+attributes">attributes</A></B>(7).
+
+<TABLE BORDER>
+<TR VALIGN=top><TD><B>Interface</B></TD><TD><B>Attribute</B></TD><TD><B>Value</B><BR></TD></TR>
+<TR VALIGN=top><TD>
+<B>sigaltstack</B>()
+
+</TD><TD>Thread safety</TD><TD>MT-Safe<BR></TD></TR>
+</TABLE>
+
+<A NAME="lbAH">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+POSIX.1-2001, POSIX.1-2008, SUSv2, SVr4.
+<P>
+
+The
+<B>SS_AUTODISARM</B>
+
+flag is a Linux extension.
+<A NAME="lbAI">&nbsp;</A>
+<H2>NOTES</H2>
+
+The most common usage of an alternate signal stack is to handle the
+<B>SIGSEGV</B>
+
+signal that is generated if the space available for the
+normal process stack is exhausted: in this case, a signal handler for
+<B>SIGSEGV</B>
+
+cannot be invoked on the process stack; if we wish to handle it,
+we must use an alternate signal stack.
+<P>
+
+Establishing an alternate signal stack is useful if a process
+expects that it may exhaust its standard stack.
+This may occur, for example, because the stack grows so large
+that it encounters the upwardly growing heap, or it reaches a
+limit established by a call to <B>setrlimit(RLIMIT_STACK, &amp;rlim)</B>.
+If the standard stack is exhausted, the kernel sends
+the process a <B>SIGSEGV</B> signal.
+In these circumstances the only way to catch this signal is
+on an alternate signal stack.
+<P>
+
+On most hardware architectures supported by Linux, stacks grow
+downward.
+<B>sigaltstack</B>()
+
+automatically takes account
+of the direction of stack growth.
+<P>
+
+Functions called from a signal handler executing on an alternate
+signal stack will also use the alternate signal stack.
+(This also applies to any handlers invoked for other signals while
+the process is executing on the alternate signal stack.)
+Unlike the standard stack, the system does not
+automatically extend the alternate signal stack.
+Exceeding the allocated size of the alternate signal stack will
+lead to unpredictable results.
+<P>
+
+A successful call to
+<B><A HREF="/cgi-bin/man/man2html?2+execve">execve</A></B>(2)
+
+removes any existing alternate
+signal stack.
+A child process created via
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2)
+
+inherits a copy of its parent's alternate signal stack settings.
+<P>
+
+<B>sigaltstack</B>()
+
+supersedes the older
+<B>sigstack</B>()
+
+call.
+For backward compatibility, glibc also provides
+<B>sigstack</B>().
+
+All new applications should be written using
+<B>sigaltstack</B>().
+
+<A NAME="lbAJ">&nbsp;</A>
+<H3>History</H3>
+
+4.2BSD had a
+<B>sigstack</B>()
+
+system call.
+It used a slightly
+different struct, and had the major disadvantage that the caller
+had to know the direction of stack growth.
+<A NAME="lbAK">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+The following code segment demonstrates the use of
+<B>sigaltstack</B>()
+
+(and
+<B><A HREF="/cgi-bin/man/man2html?2+sigaction">sigaction</A></B>(2))
+
+to install an alternate signal stack that is employed by a handler
+for the
+<B>SIGSEGV</B>
+
+signal:
+<P>
+
+
+
+stack_t ss;
+<P>
+ss.ss_sp = malloc(SIGSTKSZ);
+if (ss.ss_sp == NULL) {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;perror(&quot;malloc&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+}
+<P>
+ss.ss_size = SIGSTKSZ;
+ss.ss_flags = 0;
+if (sigaltstack(&amp;ss, NULL) == -1) {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;perror(&quot;sigaltstack&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+}
+<P>
+sa.sa_flags = SA_ONSTACK;
+sa.sa_handler = handler();      /* Address of a signal handler */
+sigemptyset(&amp;sa.sa_mask);
+if (sigaction(SIGSEGV, &amp;sa, NULL) == -1) {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;perror(&quot;sigaction&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+}
+
+
+<A NAME="lbAL">&nbsp;</A>
+<H2>BUGS</H2>
+
+In Linux 2.2 and earlier, the only flag that could be specified
+in
+<I>ss.sa_flags</I>
+
+was
+<B>SS_DISABLE</B>.
+
+In the lead up to the release of the Linux 2.4 kernel,
+
+
+
+
+
+a change was made to allow
+<B>sigaltstack</B>()
+
+to allow
+<I>ss.ss_flags==SS_ONSTACK</I>
+
+with the same meaning as
+<I>ss.ss_flags==0</I>
+
+(i.e., the inclusion of
+<B>SS_ONSTACK</B>
+
+in
+<I>ss.ss_flags</I>
+
+is a no-op).
+On other implementations, and according to POSIX.1,
+<B>SS_ONSTACK</B>
+
+appears only as a reported flag in
+<I>old_ss.ss_flags</I>.
+
+On Linux, there is no need ever to specify
+<B>SS_ONSTACK</B>
+
+in
+<I>ss.ss_flags</I>,
+
+and indeed doing so should be avoided on portability grounds:
+various other systems
+
+give an error if
+<B>SS_ONSTACK</B>
+
+is specified in
+<I>ss.ss_flags</I>.
+
+<A NAME="lbAM">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?2+execve">execve</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+setrlimit">setrlimit</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+sigaction">sigaction</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?3+siglongjmp">siglongjmp</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+sigsetjmp">sigsetjmp</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?7+signal">signal</A></B>(7)
+
+<A NAME="lbAN">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="19"><A HREF="#lbAB">NAME</A><DD>
+<DT id="20"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="21"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="22"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DT id="23"><A HREF="#lbAF">ERRORS</A><DD>
+<DT id="24"><A HREF="#lbAG">ATTRIBUTES</A><DD>
+<DT id="25"><A HREF="#lbAH">CONFORMING TO</A><DD>
+<DT id="26"><A HREF="#lbAI">NOTES</A><DD>
+<DL>
+<DT id="27"><A HREF="#lbAJ">History</A><DD>
+</DL>
+<DT id="28"><A HREF="#lbAK">EXAMPLE</A><DD>
+<DT id="29"><A HREF="#lbAL">BUGS</A><DD>
+<DT id="30"><A HREF="#lbAM">SEE ALSO</A><DD>
+<DT id="31"><A HREF="#lbAN">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:34 GMT, March 31, 2021
+</BODY>
+</HTML>

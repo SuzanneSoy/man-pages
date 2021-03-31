@@ -1,0 +1,198 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of dwz</TITLE>
+</HEAD><BODY>
+<H1>dwz</H1>
+Section: User Commands  (1)<BR>Updated: 15 June 2012<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+dwz - DWARF optimization and duplicate removal tool
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+dwz
+[OPTION...]&nbsp;[FILES]
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<B>dwz</B> is a program that attempts to optimize DWARF debugging information
+contained in ELF shared libraries and ELF executables for size, by
+replacing DWARF information representation with equivalent smaller
+representation where possible and by reducing the amount of duplication
+using techniques from DWARF standard appendix E - creating
+<I>DW_TAG_partial_unit</I>
+compilation units (CUs) for duplicated information and using
+<I>DW_TAG_imported_unit</I>
+to import it into each CU that needs it.
+<P>
+The tool handles DWARF 32-bit format debugging sections of versions
+2, 3 and 4 and GNU extensions on top of those, though using DWARF 4
+or worst case DWARF 3 is strongly recommended.
+<P>
+The tool has two main modes of operation, without the
+<I>-m</I> option it attempts to optimize DWARF debugging information in each
+given object (executable or shared library) individually, with the
+<I>-m</I> option it afterwards attempts to optimize even more by moving
+DWARF debugging information entries (DIEs), strings and macro descriptions
+duplicated in more than one object into a newly created ELF ET_REL
+object whose filename is given as
+<I>-m</I>
+option argument.  The debug sections in the executables and shared libraries
+specified on the command line are then modified again, referring to
+the entities in the newly created object.
+<A NAME="lbAE">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<DL COMPACT>
+<DT id="1"><B>-m&nbsp;FILE --multifile FILE</B>
+
+<DD>
+Multifile mode.
+After processing all named executables and shared libraries, attempt to
+create ELF object
+<I>FILE</I>
+and put debugging information duplicated in more than one object there,
+afterwards optimize each named executable or shared library even further
+if possible.
+<DT id="2"><B>-h&nbsp;--hardlink</B>
+
+<DD>
+Look for executables or shared libraries hardlinked together, instead
+of rewriting them individually rewrite just one of them and hardlink the
+rest to the first one again.
+<DT id="3"><B>-M NAME --multifile-name NAME</B>
+
+<DD>
+Specify the name of the common file that should be put into the
+<I>.gnu_debugaltlink</I> section alongside with its build ID.  By default
+<B>dwz</B> puts there the argument of the <B>-m</B> option.
+<DT id="4"><B>-r --relative</B>
+
+<DD>
+Specify that the name of the common file to be put into the
+<I>.gnu_debugaltlink</I>
+section is supposed to be relative path from the directory containing
+the executable or shared library to the file named in the argument
+of the <B>-m</B> option.  Either <B>-M</B> or <B>-r</B>
+option can be specified, but not both.
+<DT id="5"><B>-q --quiet</B>
+
+<DD>
+Silence up some of the most common messages.
+<DT id="6"><B>-o FILE --output FILE</B>
+
+<DD>
+This option instructs
+<B>dwz</B> not to overwrite the specified file, but instead store the new content
+into <B>FILE</B>.  Nothing is written if <B>dwz</B>
+exits with non-zero exit code.  Can be used only with a single executable
+or shared library (if there are no arguments at all,
+<I>a.out</I>
+is assumed).
+<DT id="7"><B>-l &lt;COUNT|none&gt; --low-mem-die-limit &lt;COUNT|none&gt;</B>
+
+<DD>
+Handle executables or shared libraries containing more than
+<I>COUNT</I> debugging information entries in their <I>.debug_info</I>
+section using a slower and more memory usage friendly mode and don't
+attempt to optimize that object in multifile mode.
+The default is 10 million DIEs.  There is a risk that for very large
+amounts of debugging information in a single shared library or executable
+there might not be enough memory (especially when <B>dwz</B>
+tool is 32-bit binary, it might run out of available virtual address
+space even sooner).  Specifying none as argument disables the limit.
+<DT id="8"><B>-L &lt;COUNT|none&gt; --max-die-limit &lt;COUNT|none&gt;</B>
+
+<DD>
+Don't attempt to optimize executables or shared libraries
+containing more than
+<I>COUNT</I> DIEs at all.  The default is 50 million DIEs.  Specifying none as
+argument disables the limit.
+<DT id="9"><B>-? --help</B>
+
+<DD>
+Print short help and exit.
+<DT id="10"><B>-v --version</B>
+
+<DD>
+Print version number and short licensing notice and exit.
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>ARGUMENTS</H2>
+
+Command-line arguments should be the executables, shared libraries
+or their stripped to file separate debug information objects.
+<A NAME="lbAG">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+<DL COMPACT><DT id="11"><DD>
+$ dwz -m .dwz/foobar-1.2.debug -rh \
+<BR>&nbsp;&nbsp;bin/foo.debug&nbsp;bin/foo2.debug&nbsp;foo/lib/libbar.so.debug
+</DL>
+
+will attempt to optimize debugging information in
+<I>bin/foo.debug</I>, <I>bin/foo2.debug</I> and
+<I>lib/libbar.so.debug</I> (by modifying the files in place) and
+when beneficial also will create <I>.dwz/foobar-1.2.debug</I> file.
+<I>.gnu_debugaltlink</I> section in the first two files will refer to
+<I>../.dwz/foobar-1.2.debug</I> and in the last file to
+<I>../../.dwz/foobar-1.2.debug</I>.  If e.g.
+<I>bin/foo.debug</I> and <I>bin/foo2.debug</I> were hardlinked
+together initially, they will be hardlinked again and for multifile
+optimizations considered just as a single file rather than two.
+<DL COMPACT><DT id="12"><DD>
+$ dwz -o foo.dwz foo
+</DL>
+
+will not modify <I>foo</I>
+but instead store the ELF object with optimized debugging information
+if successful into <I>foo.dwz</I>
+file it creates.
+<DL COMPACT><DT id="13"><DD>
+$ dwz *.debug foo/*.debug
+</DL>
+
+will attempt to optimize debugging information in *.debug and foo/*.debug
+files, optimizing each file individually in place.
+<DL COMPACT><DT id="14"><DD>
+$ dwz
+</DL>
+
+is equivalent to <I>dwz a.out</I> command.
+<A NAME="lbAH">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="http://dwarfstd.org/doc/DWARF4.pdf">http://dwarfstd.org/doc/DWARF4.pdf</A></B>
+
+,
+<B><A HREF="/cgi-bin/man/man2html?1+gdb">gdb</A></B>(1).
+
+<A NAME="lbAI">&nbsp;</A>
+<H2>AUTHORS</H2>
+
+Jakub Jelinek &lt;<A HREF="mailto:jakub@redhat.com">jakub@redhat.com</A>&gt;.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="15"><A HREF="#lbAB">NAME</A><DD>
+<DT id="16"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="17"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="18"><A HREF="#lbAE">OPTIONS</A><DD>
+<DT id="19"><A HREF="#lbAF">ARGUMENTS</A><DD>
+<DT id="20"><A HREF="#lbAG">EXAMPLES</A><DD>
+<DT id="21"><A HREF="#lbAH">SEE ALSO</A><DD>
+<DT id="22"><A HREF="#lbAI">AUTHORS</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:11 GMT, March 31, 2021
+</BODY>
+</HTML>

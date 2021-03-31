@@ -1,0 +1,437 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of Net::DBus</TITLE>
+</HEAD><BODY>
+<H1>Net::DBus</H1>
+Section: User Contributed Perl Documentation (3pm)<BR>Updated: 2019-12-26<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+Net::DBus - Perl extension for the DBus message system
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+
+
+
+
+<PRE>
+  ####### Attaching to the bus ###########
+
+  use Net::DBus;
+
+  # Find the most appropriate bus
+  my $bus = Net::DBus-&gt;find;
+
+  # ... or explicitly go for the session bus
+  my $bus = Net::DBus-&gt;session;
+
+  # .... or explicitly go for the system bus
+  my $bus = Net::DBus-&gt;system
+
+
+  ######## Accessing remote services #########
+
+  # Get a handle to the HAL service
+  my $hal = $bus-&gt;get_service(&quot;org.freedesktop.Hal&quot;);
+
+  # Get the device manager
+  my $manager = $hal-&gt;get_object(&quot;/org/freedesktop/Hal/Manager&quot;,
+                                 &quot;org.freedesktop.Hal.Manager&quot;);
+
+  # List devices
+  foreach my $dev (@{$manager-&gt;GetAllDevices}) {
+      print $dev, &quot;\n&quot;;
+  }
+
+
+  ######### Providing services ##############
+
+  # Register a service known as 'org.example.Jukebox'
+  my $service = $bus-&gt;export_service(&quot;org.example.Jukebox&quot;);
+
+</PRE>
+
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+
+Net::DBus provides a Perl <FONT SIZE="-1">API</FONT> for the DBus message system.
+The DBus Perl interface is currently operating against
+the 0.32 development version of DBus, but should work with
+later versions too, providing the <FONT SIZE="-1">API</FONT> changes have not been
+too drastic.
+<P>
+
+Users of this package are either typically, service providers
+in which case the Net::DBus::Service and Net::DBus::Object
+modules are of most relevance, or are client consumers, in which
+case Net::DBus::RemoteService and Net::DBus::RemoteObject
+are of most relevance.
+<A NAME="lbAE">&nbsp;</A>
+<H2>METHODS</H2>
+
+
+
+<DL COMPACT>
+<DT id="1">my $bus = Net::DBus-&gt;find(%params);<DD>
+
+
+
+
+Search for the most appropriate bus to connect to and
+return a connection to it. The heuristic used for the
+search is
+
+
+<P>
+
+
+
+
+<PRE>
+  - If DBUS_STARTER_BUS_TYPE is set to 'session' attach
+    to the session bus
+
+  - Else If DBUS_STARTER_BUS_TYPE is set to 'system' attach
+    to the system bus
+
+  - Else If DBUS_SESSION_BUS_ADDRESS is set attach to the
+    session bus
+
+  - Else attach to the system bus
+
+</PRE>
+
+
+
+
+<P>
+
+
+The optional <TT>&quot;params&quot;</TT> hash can contain be used to specify
+connection options. The only support option at this time
+is <TT>&quot;nomainloop&quot;</TT> which prevents the bus from being automatically
+attached to the main Net::DBus::Reactor event loop.
+<DT id="2">my $bus = Net::DBus-&gt;system(%params);<DD>
+
+
+
+
+Return a handle for the system message bus. Note that the
+system message bus is locked down by default, so unless appropriate
+access control rules are added in /etc/dbus/system.d/, an application
+may access services, but won't be able to export services.
+
+
+<P>
+
+
+The optional <TT>&quot;params&quot;</TT> hash can be used to specify the following options:
+<DL COMPACT><DT id="3"><DD>
+<DL COMPACT>
+<DT id="4">nomainloop<DD>
+
+
+If true, prevents the bus from being automatically attached to the main
+Net::DBus::Reactor event loop.
+<DT id="5">private<DD>
+
+
+If true, the socket opened is private; any existing socket will be ignored and
+any future attempts to open the same bus will return a different existing socket
+or open a fresh one.
+</DL>
+</DL>
+
+<DL COMPACT><DT id="6"><DD>
+</DL>
+
+<DT id="7">my $bus = Net::DBus-&gt;session(%params);<DD>
+
+
+
+
+Return a handle for the session message bus.
+
+
+<P>
+
+
+The optional <TT>&quot;params&quot;</TT> hash can be used to specify the following options:
+<DL COMPACT><DT id="8"><DD>
+<DL COMPACT>
+<DT id="9">nomainloop<DD>
+
+
+If true, prevents the bus from being automatically attached to the main
+Net::DBus::Reactor event loop.
+<DT id="10">private<DD>
+
+
+If true, the socket opened is private; any existing socket will be ignored and
+any future attempts to open the same bus will return a different existing socket
+or open a fresh one.
+</DL>
+</DL>
+
+<DL COMPACT><DT id="11"><DD>
+</DL>
+
+<DT id="12">my $bus = Net::DBus-&gt;test(%params);<DD>
+
+
+
+
+Returns a handle for a virtual bus for use in unit tests. This bus does
+not make any network connections, but rather has an in-memory message
+pipeline. Consult Net::DBus::Test::MockConnection for further details
+of how to use this special bus.
+<DT id="13">my $bus = Net::DBus-&gt;new($address, %params);<DD>
+
+
+
+
+Return a connection to a specific message bus.  The <TT>$address</TT>
+parameter must contain the address of the message bus to connect
+to. An example address for a session bus might look like
+<TT>&quot;unix:abstract=/tmp/dbus-PBFyyuUiVb,guid=191e0a43c3efc222e0818be556d67500&quot;</TT>,
+while one for a system bus would look like <TT>&quot;unix:/var/run/dbus/system_bus_socket&quot;</TT>.
+The optional <TT>&quot;params&quot;</TT> hash can contain be used to specify
+connection options. The only support option at this time
+is <TT>&quot;nomainloop&quot;</TT> which prevents the bus from being automatically
+attached to the main Net::DBus::Reactor event loop.
+<DT id="14">my $connection = $bus-&gt;get_connection;<DD>
+
+
+
+
+Return a handle to the underlying, low level connection object
+associated with this bus. The returned object will be an instance
+of the Net::DBus::Binding::Bus class. This method is not intended
+for use by (most!) application developers, so if you don't understand
+what this is for, then you don't need to be calling it!
+<DT id="15">my $service = $bus-&gt;get_service($name);<DD>
+
+
+
+
+Retrieves a handle for the remote service identified by the
+service name <TT>$name</TT>. The returned object will be an instance
+of the Net::DBus::RemoteService class.
+<DT id="16">my $service = $bus-&gt;export_service($name);<DD>
+
+
+
+
+Registers a service with the bus, returning a handle to
+the service. The returned object is an instance of the
+Net::DBus::Service class.
+
+
+<P>
+
+
+When <TT>$name</TT> is not specified or is <TT>&quot;undef&quot;</TT> then returned
+handle to the service is identified only by the unique name
+of client's connection to the bus.
+<DT id="17">my $object = $bus-&gt;get_bus_object;<DD>
+
+
+
+
+Retrieves a handle to the bus object, <TT>&quot;/org/freedesktop/DBus&quot;</TT>,
+provided by the service <TT>&quot;org.freedesktop.DBus&quot;</TT>. The returned
+object is an instance of Net::DBus::RemoteObject
+<DT id="18">my $name = $bus-&gt;get_unique_name;<DD>
+
+
+
+
+Retrieves the unique name of this client's connection to
+the bus.
+<DT id="19">my $name = $bus-&gt;get_service_owner($service);<DD>
+
+
+
+
+Retrieves the unique name of the client on the bus owning
+the service named by the <TT>$service</TT> parameter.
+<DT id="20">my $timeout = $bus-&gt;timeout(60 * 1000);<DD>
+
+
+
+
+Sets or retrieves the timeout value which will be used for DBus
+requests belongs to this bus connection. The timeout should be
+specified in milliseconds, with the default value being 60 seconds.
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>DATA TYPING METHODS</H2>
+
+
+
+These methods are not usually used, since most services provide introspection
+data to inform clients of their data typing requirements. If introspection data
+is incomplete, however, it may be necessary for a client to mark values with
+specific data types. In such a case, the following methods can be used. They
+are not, however, exported by default so must be requested at import time by
+specifying 'use Net::DBus qw(:typing)'
+<DL COMPACT>
+<DT id="21">$typed_value = dbus_int16($value);<DD>
+
+
+
+
+Mark a value as being a signed, 16-bit integer.
+<DT id="22">$typed_value = dbus_uint16($value);<DD>
+
+
+
+
+Mark a value as being an unsigned, 16-bit integer.
+<DT id="23">$typed_value = dbus_int32($value);<DD>
+
+
+
+
+Mark a value as being a signed, 32-bit integer.
+<DT id="24">$typed_value = dbus_uint32($value);<DD>
+
+
+
+
+Mark a value as being an unsigned, 32-bit integer.
+<DT id="25">$typed_value = dbus_int64($value);<DD>
+
+
+
+
+Mark a value as being an unsigned, 64-bit integer.
+<DT id="26">$typed_value = dbus_uint64($value);<DD>
+
+
+
+
+Mark a value as being an unsigned, 64-bit integer.
+<DT id="27">$typed_value = dbus_double($value);<DD>
+
+
+
+
+Mark a value as being a double precision <FONT SIZE="-1">IEEE</FONT> floating point.
+<DT id="28">$typed_value = dbus_byte($value);<DD>
+
+
+
+
+Mark a value as being an unsigned, byte.
+<DT id="29">$typed_value = dbus_string($value);<DD>
+
+
+
+
+Mark a value as being a <FONT SIZE="-1">UTF-8</FONT> string. This is not usually required
+since 'string' is the default data type for any Perl scalar value.
+<DT id="30">$typed_value = dbus_signature($value);<DD>
+
+
+
+
+Mark a value as being a <FONT SIZE="-1">UTF-8</FONT> string, whose contents is a valid
+type signature
+<DT id="31">$typed_value = dbus_object_path($value);<DD>
+
+
+
+
+Mark a value as being a <FONT SIZE="-1">UTF-8</FONT> string, whose contents is a valid
+object path.
+<DT id="32">$typed_value = dbus_boolean($value);<DD>
+
+
+
+
+Mark a value as being an boolean
+<DT id="33">$typed_value = dbus_array($value);<DD>
+
+
+
+
+Mark a value as being an array
+<DT id="34">$typed_value = dbus_struct($value);<DD>
+
+
+
+
+Mark a value as being a structure
+<DT id="35">$typed_value = dbus_dict($value);<DD>
+
+
+
+
+Mark a value as being a dictionary
+<DT id="36">$typed_value = dbus_variant($value);<DD>
+
+
+
+
+Mark a value as being a variant
+<DT id="37">$typed_value = dbus_unix_fd($value);<DD>
+
+
+
+
+Mark a value as being a unix file descriptor
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+
+Net::DBus, Net::DBus::RemoteService, Net::DBus::Service,
+Net::DBus::RemoteObject, Net::DBus::Object,
+Net::DBus::Exporter, Net::DBus::Dumper, Net::DBus::Reactor,
+<TT>&quot;<A HREF="/cgi-bin/man/man2html?1+dbus-monitor">dbus-monitor</A>(1)&quot;</TT>, <TT>&quot;<A HREF="/cgi-bin/man/man2html?1+dbus-daemon-1">dbus-daemon-1</A>(1)&quot;</TT>, <TT>&quot;<A HREF="/cgi-bin/man/man2html?1+dbus-send">dbus-send</A>(1)&quot;</TT>, &lt;<A HREF="http://dbus.freedesktop.org">http://dbus.freedesktop.org</A>&gt;,
+<A NAME="lbAH">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+
+
+Daniel Berrange &lt;<A HREF="mailto:dan@berrange.com">dan@berrange.com</A>&gt;
+<A NAME="lbAI">&nbsp;</A>
+<H2>COPYRIGHT</H2>
+
+
+
+Copyright 2004-2011 by Daniel Berrange
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="38"><A HREF="#lbAB">NAME</A><DD>
+<DT id="39"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="40"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="41"><A HREF="#lbAE">METHODS</A><DD>
+<DT id="42"><A HREF="#lbAF">DATA TYPING METHODS</A><DD>
+<DT id="43"><A HREF="#lbAG">SEE ALSO</A><DD>
+<DT id="44"><A HREF="#lbAH">AUTHOR</A><DD>
+<DT id="45"><A HREF="#lbAI">COPYRIGHT</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:48 GMT, March 31, 2021
+</BODY>
+</HTML>

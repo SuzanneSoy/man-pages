@@ -1,0 +1,320 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SYSTEMD-SOCKET-PROXYD</TITLE>
+</HEAD><BODY>
+<H1>SYSTEMD-SOCKET-PROXYD</H1>
+Section: systemd-socket-proxyd (8)<BR>Updated: <BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+systemd-socket-proxyd - Bidirectionally proxy local sockets to another (possibly remote) socket.
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<DL COMPACT>
+<DT id="1">
+<B>systemd-socket-proxyd</B> [<I>OPTIONS</I>...] <I>HOST</I>:<I>PORT</I>
+<DT id="2">
+<B>systemd-socket-proxyd</B> [<I>OPTIONS</I>...] <I>UNIX-DOMAIN-SOCKET-PATH</I>
+</DL>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+<B>systemd-socket-proxyd</B>
+<DD>is a generic socket-activated network socket forwarder proxy daemon for IPv4, IPv6 and UNIX stream sockets. It may be used to bi-directionally forward traffic from a local listening socket to a local or remote destination socket.
+<P>
+
+One use of this tool is to provide socket activation support for services that do not natively support socket activation. On behalf of the service to activate, the proxy inherits the socket from systemd, accepts each client connection, opens a connection to a configured server for each client, and then bidirectionally forwards data between the two.
+<P>
+
+This utility's behavior is similar to
+<B><A HREF="/cgi-bin/man/man2html?1+socat">socat</A></B>(1). The main differences for
+<B>systemd-socket-proxyd</B>
+are support for socket activation with
+&quot;Accept=no&quot;
+and an event-driven design that scales better with the number of connections.
+<A NAME="lbAE">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<P>
+
+The following options are understood:
+<P>
+
+<B>-h</B>, <B>--help</B>
+<DL COMPACT><DT id="3"><DD>
+Print a short help text and exit.
+</DL>
+
+<P>
+
+<B>--version</B>
+<DL COMPACT><DT id="4"><DD>
+Print a short version string and exit.
+</DL>
+
+<P>
+
+<B>--connections-max=</B>, <B>-c</B>
+<DL COMPACT><DT id="5"><DD>
+Sets the maximum number of simultaneous connections, defaults to 256. If the limit of concurrent connections is reached further connections will be refused.
+</DL>
+
+<A NAME="lbAF">&nbsp;</A>
+<H2>EXIT STATUS</H2>
+
+<P>
+
+On success, 0 is returned, a non-zero failure code otherwise.
+<A NAME="lbAG">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+<A NAME="lbAH">&nbsp;</A>
+<H3>Simple Example</H3>
+
+<P>
+
+Use two services with a dependency and no namespace isolation.
+<P>
+
+<B>Example&nbsp;1.&nbsp;proxy-to-nginx.socket</B>
+<P>
+<DL COMPACT><DT id="6"><DD>
+
+
+
+<PRE>
+[Socket]
+ListenStream=80
+
+[Install]
+WantedBy=sockets.target
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+<B>Example&nbsp;2.&nbsp;proxy-to-nginx.service</B>
+<P>
+<DL COMPACT><DT id="7"><DD>
+
+
+
+<PRE>
+[Unit]
+Requires=nginx.service
+After=nginx.service
+Requires=proxy-to-nginx.socket
+After=proxy-to-nginx.socket
+
+[Service]
+ExecStart=/lib/systemd/systemd-socket-proxyd /run/nginx/socket
+PrivateTmp=yes
+PrivateNetwork=yes
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+<B>Example&nbsp;3.&nbsp;nginx.conf</B>
+<P>
+<DL COMPACT><DT id="8"><DD>
+
+
+
+<PRE>
+[...]
+server {
+    listen       unix:/run/nginx/socket;
+    [...]
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+<B>Example&nbsp;4.&nbsp;Enabling the proxy</B>
+<P>
+<DL COMPACT><DT id="9"><DD>
+
+
+
+<PRE>
+# systemctl enable --now proxy-to-nginx.socket
+$ curl <A HREF="http://localhost:80/">http://localhost:80/</A>
+</PRE>
+
+</DL>
+
+
+
+
+<A NAME="lbAI">&nbsp;</A>
+<H3>Namespace Example</H3>
+
+<P>
+
+Similar as above, but runs the socket proxy and the main service in the same private namespace, assuming that
+nginx.service
+has
+<I>PrivateTmp=</I>
+and
+<I>PrivateNetwork=</I>
+set, too.
+<P>
+
+<B>Example&nbsp;5.&nbsp;proxy-to-nginx.socket</B>
+<P>
+<DL COMPACT><DT id="10"><DD>
+
+
+
+<PRE>
+[Socket]
+ListenStream=80
+
+[Install]
+WantedBy=sockets.target
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+<B>Example&nbsp;6.&nbsp;proxy-to-nginx.service</B>
+<P>
+<DL COMPACT><DT id="11"><DD>
+
+
+
+<PRE>
+[Unit]
+Requires=nginx.service
+After=nginx.service
+Requires=proxy-to-nginx.socket
+After=proxy-to-nginx.socket
+JoinsNamespaceOf=nginx.service
+
+[Service]
+ExecStart=/lib/systemd/systemd-socket-proxyd 127.0.0.1:8080
+PrivateTmp=yes
+PrivateNetwork=yes
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+<B>Example&nbsp;7.&nbsp;nginx.conf</B>
+<P>
+<DL COMPACT><DT id="12"><DD>
+
+
+
+<PRE>
+[...]
+server {
+    listen       8080;
+    [...]
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+<B>Example&nbsp;8.&nbsp;Enabling the proxy</B>
+<P>
+<DL COMPACT><DT id="13"><DD>
+
+
+
+<PRE>
+# systemctl enable --now proxy-to-nginx.socket
+$ curl <A HREF="http://localhost:80/">http://localhost:80/</A>
+</PRE>
+
+</DL>
+
+
+
+
+<A NAME="lbAJ">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.socket">systemd.socket</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.service">systemd.service</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?1+systemctl">systemctl</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?1+socat">socat</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?1+nginx">nginx</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?1+curl">curl</A></B>(1)
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="14"><A HREF="#lbAB">NAME</A><DD>
+<DT id="15"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="16"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="17"><A HREF="#lbAE">OPTIONS</A><DD>
+<DT id="18"><A HREF="#lbAF">EXIT STATUS</A><DD>
+<DT id="19"><A HREF="#lbAG">EXAMPLES</A><DD>
+<DL>
+<DT id="20"><A HREF="#lbAH">Simple Example</A><DD>
+<DT id="21"><A HREF="#lbAI">Namespace Example</A><DD>
+</DL>
+<DT id="22"><A HREF="#lbAJ">SEE ALSO</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:17 GMT, March 31, 2021
+</BODY>
+</HTML>

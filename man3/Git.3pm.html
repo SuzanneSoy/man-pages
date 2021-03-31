@@ -1,0 +1,939 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of Git</TITLE>
+</HEAD><BODY>
+<H1>Git</H1>
+Section: User Contributed Perl Documentation (3)<BR>Updated: 2021-03-04<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+Git - Perl interface to the Git version control system
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+
+
+
+
+<PRE>
+  use Git;
+
+  my $version = Git::command_oneline('version');
+
+  git_cmd_try { Git::command_noisy('update-server-info') }
+              '%s failed w/ code %d';
+
+  my $repo = Git-&gt;repository (Directory =&gt; '/srv/git/cogito.git');
+
+
+  my @revs = $repo-&gt;command('rev-list', '--since=last monday', '--all');
+
+  my ($fh, $c) = $repo-&gt;command_output_pipe('rev-list', '--since=last monday', '--all');
+  my $lastrev = &lt;$fh&gt;; chomp $lastrev;
+  $repo-&gt;command_close_pipe($fh, $c);
+
+  my $lastrev = $repo-&gt;command_oneline( [ 'rev-list', '--all' ],
+                                        STDERR =&gt; 0 );
+
+  my $sha1 = $repo-&gt;hash_and_insert_object('file.txt');
+  my $tempfile = tempfile();
+  my $size = $repo-&gt;cat_blob($sha1, $tempfile);
+
+</PRE>
+
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+
+This module provides Perl scripts easy way to interface the Git version control
+system. The modules have an easy and well-tested way to call arbitrary Git
+commands; in the future, the interface will also provide specialized methods
+for doing easily operations which are not totally trivial to do over
+the generic command interface.
+<P>
+
+While some commands can be executed outside of any context (e.g. 'version'
+or 'init'), most operations require a repository context, which in practice
+means getting an instance of the Git object using the <B>repository()</B> constructor.
+(In the future, we will also get a <B>new_repository()</B> constructor.) All commands
+called as methods of the object are then executed in the context of the
+repository.
+<P>
+
+Part of the ``repository state'' is also information about path to the attached
+working copy (unless you work with a bare repository). You can also navigate
+inside of the working copy using the <TT>&quot;wc_chdir()&quot;</TT> method. (Note that
+the repository object is self-contained and will not change working directory
+of your process.)
+<P>
+
+<FONT SIZE="-1">TODO:</FONT> In the future, we might also do
+<P>
+
+
+
+<PRE>
+        my $remoterepo = $repo-&gt;remote_repository (Name =&gt; 'cogito', Branch =&gt; 'master');
+        $remoterepo ||= Git-&gt;remote_repository ('<A HREF="http://git.or.cz/cogito.git/');">http://git.or.cz/cogito.git/');</A>
+        my @refs = $remoterepo-&gt;refs();
+
+</PRE>
+
+
+<P>
+
+Currently, the module merely wraps calls to external Git tools. In the future,
+it will provide a much faster way to interact with Git by linking directly
+to libgit. This should be completely opaque to the user, though (performance
+increase notwithstanding).
+<A NAME="lbAE">&nbsp;</A>
+<H2>CONSTRUCTORS</H2>
+
+
+
+<DL COMPACT>
+<DT id="1">repository ( <FONT SIZE="-1">OPTIONS</FONT> )<DD>
+
+
+
+<DT id="2">repository ( <FONT SIZE="-1">DIRECTORY</FONT> )<DD>
+
+
+<DT id="3">repository ()<DD>
+
+
+
+Construct a new repository object.
+<TT>&quot;OPTIONS&quot;</TT> are passed in a hash like fashion, using key and value pairs.
+Possible options are:
+
+
+<P>
+
+
+<B>Repository</B> - Path to the Git repository.
+
+
+<P>
+
+
+<B>WorkingCopy</B> - Path to the associated working copy; not strictly required
+as many commands will happily crunch on a bare repository.
+
+
+<P>
+
+
+<B>WorkingSubdir</B> - Subdirectory in the working copy to work inside.
+Just left undefined if you do not want to limit the scope of operations.
+
+
+<P>
+
+
+<B>Directory</B> - Path to the Git working directory in its usual setup.
+The <TT>&quot;.git&quot;</TT> directory is searched in the directory and all the parent
+directories; if found, <TT>&quot;WorkingCopy&quot;</TT> is set to the directory containing
+it and <TT>&quot;Repository&quot;</TT> to the <TT>&quot;.git&quot;</TT> directory itself. If no <TT>&quot;.git&quot;</TT>
+directory was found, the <TT>&quot;Directory&quot;</TT> is assumed to be a bare repository,
+<TT>&quot;Repository&quot;</TT> is set to point at it and <TT>&quot;WorkingCopy&quot;</TT> is left undefined.
+If the <TT>$GIT_DIR</TT> environment variable is set, things behave as expected
+as well.
+
+
+<P>
+
+
+You should not use both <TT>&quot;Directory&quot;</TT> and either of <TT>&quot;Repository&quot;</TT> and
+<TT>&quot;WorkingCopy&quot;</TT> - the results of that are undefined.
+
+
+<P>
+
+
+Alternatively, a directory path may be passed as a single scalar argument
+to the constructor; it is equivalent to setting only the <TT>&quot;Directory&quot;</TT> option
+field.
+
+
+<P>
+
+
+Calling the constructor with no options whatsoever is equivalent to
+calling it with <TT>&quot;Directory =&gt; '.'&quot;</TT>. In general, if you are building
+a standard porcelain command, simply doing <TT>&quot;Git-&gt;repository()&quot;</TT> should
+do the right thing and setup the object to reflect exactly where the user
+is right now.
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>METHODS</H2>
+
+
+
+<DL COMPACT>
+<DT id="4">command ( <FONT SIZE="-1">COMMAND</FONT> [, <FONT SIZE="-1">ARGUMENTS...</FONT> ] )<DD>
+
+
+
+<DT id="5">command ( [ <FONT SIZE="-1">COMMAND, ARGUMENTS...</FONT> ], { Opt =&gt; Val ... } )<DD>
+
+
+
+Execute the given Git <TT>&quot;COMMAND&quot;</TT> (specify it without the 'git-'
+prefix), optionally with the specified extra <TT>&quot;ARGUMENTS&quot;</TT>.
+
+
+<P>
+
+
+The second more elaborate form can be used if you want to further adjust
+the command execution. Currently, only one option is supported:
+
+
+<P>
+
+
+<B></B><FONT SIZE="-1"><B>STDERR</B></FONT><B></B> - How to deal with the command's error output. By default (<TT>&quot;undef&quot;</TT>)
+it is delivered to the caller's <TT>&quot;STDERR&quot;</TT>. A false value (0 or '') will cause
+it to be thrown away. If you want to process it, you can get it in a filehandle
+you specify, but you must be extremely careful; if the error output is not
+very short and you want to read it in the same process as where you called
+<TT>&quot;command()&quot;</TT>, you are set up for a nice deadlock!
+
+
+<P>
+
+
+The method can be called without any instance or on a specified Git repository
+(in that case the command will be run in the repository context).
+
+
+<P>
+
+
+In scalar context, it returns all the command output in a single string
+(verbatim).
+
+
+<P>
+
+
+In array context, it returns an array containing lines printed to the
+command's stdout (without trailing newlines).
+
+
+<P>
+
+
+In both cases, the command's stdin and stderr are the same as the caller's.
+<DT id="6">command_oneline ( <FONT SIZE="-1">COMMAND</FONT> [, <FONT SIZE="-1">ARGUMENTS...</FONT> ] )<DD>
+
+
+
+<DT id="7">command_oneline ( [ <FONT SIZE="-1">COMMAND, ARGUMENTS...</FONT> ], { Opt =&gt; Val ... } )<DD>
+
+
+
+Execute the given <TT>&quot;COMMAND&quot;</TT> in the same way as <B>command()</B>
+does but always return a scalar string containing the first line
+of the command's standard output.
+<DT id="8">command_output_pipe ( <FONT SIZE="-1">COMMAND</FONT> [, <FONT SIZE="-1">ARGUMENTS...</FONT> ] )<DD>
+
+
+
+<DT id="9">command_output_pipe ( [ <FONT SIZE="-1">COMMAND, ARGUMENTS...</FONT> ], { Opt =&gt; Val ... } )<DD>
+
+
+
+Execute the given <TT>&quot;COMMAND&quot;</TT> in the same way as <B>command()</B>
+does but return a pipe filehandle from which the command output can be
+read.
+
+
+<P>
+
+
+The function can return <TT>&quot;($pipe, $ctx)&quot;</TT> in array context.
+See <TT>&quot;command_close_pipe()&quot;</TT> for details.
+<DT id="10">command_input_pipe ( <FONT SIZE="-1">COMMAND</FONT> [, <FONT SIZE="-1">ARGUMENTS...</FONT> ] )<DD>
+
+
+
+<DT id="11">command_input_pipe ( [ <FONT SIZE="-1">COMMAND, ARGUMENTS...</FONT> ], { Opt =&gt; Val ... } )<DD>
+
+
+
+Execute the given <TT>&quot;COMMAND&quot;</TT> in the same way as <B>command_output_pipe()</B>
+does but return an input pipe filehandle instead; the command output
+is not captured.
+
+
+<P>
+
+
+The function can return <TT>&quot;($pipe, $ctx)&quot;</TT> in array context.
+See <TT>&quot;command_close_pipe()&quot;</TT> for details.
+<DT id="12">command_close_pipe ( <FONT SIZE="-1">PIPE</FONT> [, <FONT SIZE="-1">CTX</FONT> ] )<DD>
+
+
+Close the <TT>&quot;PIPE&quot;</TT> as returned from <TT>&quot;command_*_pipe()&quot;</TT>, checking
+whether the command finished successfully. The optional <TT>&quot;CTX&quot;</TT> argument
+is required if you want to see the command name in the error message,
+and it is the second value returned by <TT>&quot;command_*_pipe()&quot;</TT> when
+called in array context. The call idiom is:
+
+
+<P>
+
+
+
+
+<PRE>
+        my ($fh, $ctx) = $r-&gt;command_output_pipe('status');
+        while (&lt;$fh&gt;) { ... }
+        $r-&gt;command_close_pipe($fh, $ctx);
+
+</PRE>
+
+
+
+
+<P>
+
+
+Note that you should not rely on whatever actually is in <TT>&quot;CTX&quot;</TT>;
+currently it is simply the command name but in future the context might
+have more complicated structure.
+<DT id="13">command_bidi_pipe ( <FONT SIZE="-1">COMMAND</FONT> [, <FONT SIZE="-1">ARGUMENTS...</FONT> ] )<DD>
+
+
+Execute the given <TT>&quot;COMMAND&quot;</TT> in the same way as <B>command_output_pipe()</B>
+does but return both an input pipe filehandle and an output pipe filehandle.
+
+
+<P>
+
+
+The function will return <TT>&quot;($pid, $pipe_in, $pipe_out, $ctx)&quot;</TT>.
+See <TT>&quot;command_close_bidi_pipe()&quot;</TT> for details.
+<DT id="14">command_close_bidi_pipe ( <FONT SIZE="-1">PID, PIPE_IN, PIPE_OUT</FONT> [, <FONT SIZE="-1">CTX</FONT>] )<DD>
+
+
+Close the <TT>&quot;PIPE_IN&quot;</TT> and <TT>&quot;PIPE_OUT&quot;</TT> as returned from <TT>&quot;command_bidi_pipe()&quot;</TT>,
+checking whether the command finished successfully. The optional <TT>&quot;CTX&quot;</TT>
+argument is required if you want to see the command name in the error message,
+and it is the fourth value returned by <TT>&quot;command_bidi_pipe()&quot;</TT>.  The call idiom
+is:
+
+
+<P>
+
+
+
+
+<PRE>
+        my ($pid, $in, $out, $ctx) = $r-&gt;command_bidi_pipe('cat-file --batch-check');
+        print $out &quot;000000000\n&quot;;
+        while (&lt;$in&gt;) { ... }
+        $r-&gt;command_close_bidi_pipe($pid, $in, $out, $ctx);
+
+</PRE>
+
+
+
+
+<P>
+
+
+Note that you should not rely on whatever actually is in <TT>&quot;CTX&quot;</TT>;
+currently it is simply the command name but in future the context might
+have more complicated structure.
+
+
+<P>
+
+
+<TT>&quot;PIPE_IN&quot;</TT> and <TT>&quot;PIPE_OUT&quot;</TT> may be <TT>&quot;undef&quot;</TT> if they have been closed prior to
+calling this function.  This may be useful in a query-response type of
+commands where caller first writes a query and later reads response, eg:
+
+
+<P>
+
+
+
+
+<PRE>
+        my ($pid, $in, $out, $ctx) = $r-&gt;command_bidi_pipe('cat-file --batch-check');
+        print $out &quot;000000000\n&quot;;
+        close $out;
+        while (&lt;$in&gt;) { ... }
+        $r-&gt;command_close_bidi_pipe($pid, $in, undef, $ctx);
+
+</PRE>
+
+
+
+
+<P>
+
+
+This idiom may prevent potential dead locks caused by data sent to the output
+pipe not being flushed and thus not reaching the executed command.
+<DT id="15">command_noisy ( <FONT SIZE="-1">COMMAND</FONT> [, <FONT SIZE="-1">ARGUMENTS...</FONT> ] )<DD>
+
+
+Execute the given <TT>&quot;COMMAND&quot;</TT> in the same way as <B>command()</B> does but do not
+capture the command output - the standard output is not redirected and goes
+to the standard output of the caller application.
+
+
+<P>
+
+
+While the method is called <B>command_noisy()</B>, you might want to as well use
+it for the most silent Git commands which you know will never pollute your
+stdout but you want to avoid the overhead of the pipe setup when calling them.
+
+
+<P>
+
+
+The function returns only after the command has finished running.
+<DT id="16">version ()<DD>
+
+
+Return the Git version in use.
+<DT id="17">exec_path ()<DD>
+
+
+Return path to the Git sub-command executables (the same as
+<TT>&quot;git --exec-path&quot;</TT>). Useful mostly only internally.
+<DT id="18">html_path ()<DD>
+
+
+Return path to the Git html documentation (the same as
+<TT>&quot;git --html-path&quot;</TT>). Useful mostly only internally.
+<DT id="19">get_tz_offset ( <FONT SIZE="-1">TIME</FONT> )<DD>
+
+
+Return the time zone offset from <FONT SIZE="-1">GMT</FONT> in the form +/-HHMM where <FONT SIZE="-1">HH</FONT> is
+the number of hours from <FONT SIZE="-1">GMT</FONT> and <FONT SIZE="-1">MM</FONT> is the number of minutes.  This is
+the equivalent of what strftime(``%z'', ...) would provide on a <FONT SIZE="-1">GNU</FONT>
+platform.
+
+
+<P>
+
+
+If <FONT SIZE="-1">TIME</FONT> is not supplied, the current local time is used.
+<DT id="20">get_record ( <FONT SIZE="-1">FILEHANDLE, INPUT_RECORD_SEPARATOR</FONT> )<DD>
+
+
+Read one record from <FONT SIZE="-1">FILEHANDLE</FONT> delimited by <FONT SIZE="-1">INPUT_RECORD_SEPARATOR,</FONT>
+removing any trailing <FONT SIZE="-1">INPUT_RECORD_SEPARATOR.</FONT>
+<DT id="21">prompt ( <FONT SIZE="-1">PROMPT , ISPASSWORD</FONT>  )<DD>
+
+
+Query user <TT>&quot;PROMPT&quot;</TT> and return answer from user.
+
+
+<P>
+
+
+Honours <FONT SIZE="-1">GIT_ASKPASS</FONT> and <FONT SIZE="-1">SSH_ASKPASS</FONT> environment variables for querying
+the user. If no *_ASKPASS variable is set or an error occurred,
+the terminal is tried as a fallback.
+If <TT>&quot;ISPASSWORD&quot;</TT> is set and true, the terminal disables echo.
+<DT id="22">repo_path ()<DD>
+
+
+Return path to the git repository. Must be called on a repository instance.
+<DT id="23">wc_path ()<DD>
+
+
+Return path to the working copy. Must be called on a repository instance.
+<DT id="24">wc_subdir ()<DD>
+
+
+Return path to the subdirectory inside of a working copy. Must be called
+on a repository instance.
+<DT id="25">wc_chdir ( <FONT SIZE="-1">SUBDIR</FONT> )<DD>
+
+
+Change the working copy subdirectory to work within. The <TT>&quot;SUBDIR&quot;</TT> is
+relative to the working copy root directory (not the current subdirectory).
+Must be called on a repository instance attached to a working copy
+and the directory must exist.
+<DT id="26">config ( <FONT SIZE="-1">VARIABLE</FONT> )<DD>
+
+
+Retrieve the configuration <TT>&quot;VARIABLE&quot;</TT> in the same manner as <TT>&quot;config&quot;</TT>
+does. In scalar context requires the variable to be set only one time
+(exception is thrown otherwise), in array context returns allows the
+variable to be set multiple times and returns all the values.
+<DT id="27">config_bool ( <FONT SIZE="-1">VARIABLE</FONT> )<DD>
+
+
+Retrieve the bool configuration <TT>&quot;VARIABLE&quot;</TT>. The return value
+is usable as a boolean in perl (and <TT>&quot;undef&quot;</TT> if it's not defined,
+of course).
+<DT id="28">config_path ( <FONT SIZE="-1">VARIABLE</FONT> )<DD>
+
+
+Retrieve the path configuration <TT>&quot;VARIABLE&quot;</TT>. The return value
+is an expanded path or <TT>&quot;undef&quot;</TT> if it's not defined.
+<DT id="29">config_int ( <FONT SIZE="-1">VARIABLE</FONT> )<DD>
+
+
+Retrieve the integer configuration <TT>&quot;VARIABLE&quot;</TT>. The return value
+is simple decimal number.  An optional value suffix of 'k', 'm',
+or 'g' in the config file will cause the value to be multiplied
+by 1024, 1048576 (1024^2), or 1073741824 (1024^3) prior to output.
+It would return <TT>&quot;undef&quot;</TT> if configuration variable is not defined.
+<DT id="30">get_colorbool ( <FONT SIZE="-1">NAME</FONT> )<DD>
+
+
+Finds if color should be used for NAMEd operation from the configuration,
+and returns boolean (true for ``use color'', false for ``do not use color'').
+<DT id="31">get_color ( <FONT SIZE="-1">SLOT, COLOR</FONT> )<DD>
+
+
+Finds color for <FONT SIZE="-1">SLOT</FONT> from the configuration, while defaulting to <FONT SIZE="-1">COLOR,</FONT>
+and returns the <FONT SIZE="-1">ANSI</FONT> color escape sequence:
+
+
+<P>
+
+
+
+
+<PRE>
+        print $repo-&gt;get_color(&quot;color.interactive.prompt&quot;, &quot;underline blue white&quot;);
+        print &quot;some text&quot;;
+        print $repo-&gt;get_color(&quot;&quot;, &quot;normal&quot;);
+
+</PRE>
+
+
+<DT id="32">remote_refs ( <FONT SIZE="-1">REPOSITORY</FONT> [, <FONT SIZE="-1">GROUPS</FONT> [, <FONT SIZE="-1">REFGLOBS</FONT> ] ] )<DD>
+
+
+This function returns a hashref of refs stored in a given remote repository.
+The hash is in the format <TT>&quot;refname =\&quot;</TT> hash&gt;. For tags, the <TT>&quot;refname&quot;</TT> entry
+contains the tag object while a <TT>&quot;refname^{}&quot;</TT> entry gives the tagged objects.
+
+
+<P>
+
+
+<TT>&quot;REPOSITORY&quot;</TT> has the same meaning as the appropriate <TT>&quot;git-ls-remote&quot;</TT>
+argument; either a <FONT SIZE="-1">URL</FONT> or a remote name (if called on a repository instance).
+<TT>&quot;GROUPS&quot;</TT> is an optional arrayref that can contain 'tags' to return all the
+tags and/or 'heads' to return all the heads. <TT>&quot;REFGLOB&quot;</TT> is an optional array
+of strings containing a shell-like glob to further limit the refs returned in
+the hash; the meaning is again the same as the appropriate <TT>&quot;git-ls-remote&quot;</TT>
+argument.
+
+
+<P>
+
+
+This function may or may not be called on a repository instance. In the former
+case, remote names as defined in the repository are recognized as repository
+specifiers.
+<DT id="33">ident ( <FONT SIZE="-1">TYPE</FONT> | <FONT SIZE="-1">IDENTSTR</FONT> )<DD>
+
+
+
+<DT id="34">ident_person ( <FONT SIZE="-1">TYPE</FONT> | <FONT SIZE="-1">IDENTSTR</FONT> | <FONT SIZE="-1">IDENTARRAY</FONT> )<DD>
+
+
+
+This suite of functions retrieves and parses ident information, as stored
+in the commit and tag objects or produced by <TT>&quot;var GIT_type_IDENT&quot;</TT> (thus
+<TT>&quot;TYPE&quot;</TT> can be either <I>author</I> or <I>committer</I>; case is insignificant).
+
+
+<P>
+
+
+The <TT>&quot;ident&quot;</TT> method retrieves the ident information from <TT>&quot;git var&quot;</TT>
+and either returns it as a scalar string or as an array with the fields parsed.
+Alternatively, it can take a prepared ident string (e.g. from the commit
+object) and just parse it.
+
+
+<P>
+
+
+<TT>&quot;ident_person&quot;</TT> returns the person part of the ident - name and email;
+it can take the same arguments as <TT>&quot;ident&quot;</TT> or the array returned by <TT>&quot;ident&quot;</TT>.
+
+
+<P>
+
+
+The synopsis is like:
+
+
+<P>
+
+
+
+
+<PRE>
+        my ($name, $email, $time_tz) = ident('author');
+        &quot;$name &lt;$email&gt;&quot; eq ident_person('author');
+        &quot;$name &lt;$email&gt;&quot; eq ident_person($name);
+        $time_tz =~ /^\d+ [+-]\d{4}$/;
+
+</PRE>
+
+
+<DT id="35">hash_object ( <FONT SIZE="-1">TYPE, FILENAME</FONT> )<DD>
+
+
+Compute the <FONT SIZE="-1">SHA1</FONT> object id of the given <TT>&quot;FILENAME&quot;</TT> considering it is
+of the <TT>&quot;TYPE&quot;</TT> object type (<TT>&quot;blob&quot;</TT>, <TT>&quot;commit&quot;</TT>, <TT>&quot;tree&quot;</TT>).
+
+
+<P>
+
+
+The method can be called without any instance or on a specified Git repository,
+it makes zero difference.
+
+
+<P>
+
+
+The function returns the <FONT SIZE="-1">SHA1</FONT> hash.
+<DT id="36">hash_and_insert_object ( <FONT SIZE="-1">FILENAME</FONT> )<DD>
+
+
+Compute the <FONT SIZE="-1">SHA1</FONT> object id of the given <TT>&quot;FILENAME&quot;</TT> and add the object to the
+object database.
+
+
+<P>
+
+
+The function returns the <FONT SIZE="-1">SHA1</FONT> hash.
+<DT id="37">cat_blob ( <FONT SIZE="-1">SHA1, FILEHANDLE</FONT> )<DD>
+
+
+Prints the contents of the blob identified by <TT>&quot;SHA1&quot;</TT> to <TT>&quot;FILEHANDLE&quot;</TT> and
+returns the number of bytes printed.
+<DT id="38">credential_read( <FONT SIZE="-1">FILEHANDLE</FONT> )<DD>
+
+
+Reads credential key-value pairs from <TT>&quot;FILEHANDLE&quot;</TT>.  Reading stops at <FONT SIZE="-1">EOF</FONT> or
+when an empty line is encountered.  Each line must be of the form <TT>&quot;key=value&quot;</TT>
+with a non-empty key.  Function returns hash with all read values.  Any white
+space (other than new-line character) is preserved.
+<DT id="39">credential_write( <FONT SIZE="-1">FILEHANDLE, CREDENTIAL_HASHREF</FONT> )<DD>
+
+
+Writes credential key-value pairs from hash referenced by
+<TT>&quot;CREDENTIAL_HASHREF&quot;</TT> to <TT>&quot;FILEHANDLE&quot;</TT>.  Keys and values cannot contain
+new-lines or <FONT SIZE="-1">NUL</FONT> bytes characters, and key cannot contain equal signs nor be
+empty (if they do Error::Simple is thrown).  Any white space is preserved.  If
+value for a key is <TT>&quot;undef&quot;</TT>, it will be skipped.
+
+
+<P>
+
+
+If <TT>'url'</TT> key exists it will be written first.  (All the other key-value
+pairs are written in sorted order but you should not depend on that).  Once
+all lines are written, an empty line is printed.
+<DT id="40">credential( <FONT SIZE="-1">CREDENTIAL_HASHREF</FONT> [, <FONT SIZE="-1">OPERATION</FONT> ] )<DD>
+
+
+
+<DT id="41">credential( <FONT SIZE="-1">CREDENTIAL_HASHREF, CODE</FONT> )<DD>
+
+
+
+Executes <TT>&quot;git credential&quot;</TT> for a given set of credentials and specified
+operation.  In both forms <TT>&quot;CREDENTIAL_HASHREF&quot;</TT> needs to be a reference to
+a hash which stores credentials.  Under certain conditions the hash can
+change.
+
+
+<P>
+
+
+In the first form, <TT>&quot;OPERATION&quot;</TT> can be <TT>'fill'</TT>, <TT>'approve'</TT> or <TT>'reject'</TT>,
+and function will execute corresponding <TT>&quot;git credential&quot;</TT> sub-command.  If
+it's omitted <TT>'fill'</TT> is assumed.  In case of <TT>'fill'</TT> the values stored in
+<TT>&quot;CREDENTIAL_HASHREF&quot;</TT> will be changed to the ones returned by the <TT>&quot;git
+credential fill&quot;</TT> command.  The usual usage would look something like:
+
+
+<P>
+
+
+
+
+<PRE>
+        my %cred = (
+                'protocol' =&gt; 'https',
+                'host' =&gt; 'example.com',
+                'username' =&gt; 'bob'
+        );
+        Git::credential \%cred;
+        if (try_to_authenticate($cred{'username'}, $cred{'password'})) {
+                Git::credential \%cred, 'approve';
+                ... do more stuff ...
+        } else {
+                Git::credential \%cred, 'reject';
+        }
+
+</PRE>
+
+
+
+
+<P>
+
+
+In the second form, <TT>&quot;CODE&quot;</TT> needs to be a reference to a subroutine.  The
+function will execute <TT>&quot;git credential fill&quot;</TT> to fill the provided credential
+hash, then call <TT>&quot;CODE&quot;</TT> with <TT>&quot;CREDENTIAL_HASHREF&quot;</TT> as the sole argument.  If
+<TT>&quot;CODE&quot;</TT>'s return value is defined, the function will execute <TT>&quot;git credential
+approve&quot;</TT> (if return value yields true) or <TT>&quot;git credential reject&quot;</TT> (if return
+value is false).  If the return value is undef, nothing at all is executed;
+this is useful, for example, if the credential could neither be verified nor
+rejected due to an unrelated network error.  The return value is the same as
+what <TT>&quot;CODE&quot;</TT> returns.  With this form, the usage might look as follows:
+
+
+<P>
+
+
+
+
+<PRE>
+        if (Git::credential {
+                'protocol' =&gt; 'https',
+                'host' =&gt; 'example.com',
+                'username' =&gt; 'bob'
+        }, sub {
+                my $cred = shift;
+                return !!try_to_authenticate($cred-&gt;{'username'},
+                                             $cred-&gt;{'password'});
+        }) {
+                ... do more stuff ...
+        }
+
+</PRE>
+
+
+<DT id="42">temp_acquire ( <FONT SIZE="-1">NAME</FONT> )<DD>
+
+
+Attempts to retrieve the temporary file mapped to the string <TT>&quot;NAME&quot;</TT>. If an
+associated temp file has not been created this session or was closed, it is
+created, cached, and set for autoflush and binmode.
+
+
+<P>
+
+
+Internally locks the file mapped to <TT>&quot;NAME&quot;</TT>. This lock must be released with
+<TT>&quot;temp_release()&quot;</TT> when the temp file is no longer needed. Subsequent attempts
+to retrieve temporary files mapped to the same <TT>&quot;NAME&quot;</TT> while still locked will
+cause an error. This locking mechanism provides a weak guarantee and is not
+threadsafe. It does provide some error checking to help prevent temp file refs
+writing over one another.
+
+
+<P>
+
+
+In general, the File::Handle returned should not be closed by consumers as
+it defeats the purpose of this caching mechanism. If you need to close the temp
+file handle, then you should use File::Temp or another temp file faculty
+directly. If a handle is closed and then requested again, then a warning will
+issue.
+<DT id="43">temp_is_locked ( <FONT SIZE="-1">NAME</FONT> )<DD>
+
+
+Returns true if the internal lock created by a previous <TT>&quot;temp_acquire()&quot;</TT>
+call with <TT>&quot;NAME&quot;</TT> is still in effect.
+
+
+<P>
+
+
+When temp_acquire is called on a <TT>&quot;NAME&quot;</TT>, it internally locks the temporary
+file mapped to <TT>&quot;NAME&quot;</TT>.  That lock will not be released until <TT>&quot;temp_release()&quot;</TT>
+is called with either the original <TT>&quot;NAME&quot;</TT> or the File::Handle that was
+returned from the original call to temp_acquire.
+
+
+<P>
+
+
+Subsequent attempts to call <TT>&quot;temp_acquire()&quot;</TT> with the same <TT>&quot;NAME&quot;</TT> will fail
+unless there has been an intervening <TT>&quot;temp_release()&quot;</TT> call for that <TT>&quot;NAME&quot;</TT>
+(or its corresponding File::Handle that was returned by the original
+<TT>&quot;temp_acquire()&quot;</TT> call).
+
+
+<P>
+
+
+If true is returned by <TT>&quot;temp_is_locked()&quot;</TT> for a <TT>&quot;NAME&quot;</TT>, an attempt to
+<TT>&quot;temp_acquire()&quot;</TT> the same <TT>&quot;NAME&quot;</TT> will cause an error unless
+<TT>&quot;temp_release&quot;</TT> is first called on that <TT>&quot;NAME&quot;</TT> (or its corresponding
+File::Handle that was returned by the original <TT>&quot;temp_acquire()&quot;</TT> call).
+<DT id="44">temp_release ( <FONT SIZE="-1">NAME</FONT> )<DD>
+
+
+
+<DT id="45">temp_release ( <FONT SIZE="-1">FILEHANDLE</FONT> )<DD>
+
+
+
+Releases a lock acquired through <TT>&quot;temp_acquire()&quot;</TT>. Can be called either with
+the <TT>&quot;NAME&quot;</TT> mapping used when acquiring the temp file or with the <TT>&quot;FILEHANDLE&quot;</TT>
+referencing a locked temp file.
+
+
+<P>
+
+
+Warns if an attempt is made to release a file that is not locked.
+
+
+<P>
+
+
+The temp file will be truncated before being released. This can help to reduce
+disk I/O where the system is smart enough to detect the truncation while data
+is in the output buffers. Beware that after the temp file is released and
+truncated, any operations on that file may fail miserably until it is
+re-acquired. All contents are lost between each release and acquire mapped to
+the same string.
+<DT id="46">temp_reset ( <FONT SIZE="-1">FILEHANDLE</FONT> )<DD>
+
+
+Truncates and resets the position of the <TT>&quot;FILEHANDLE&quot;</TT>.
+<DT id="47">temp_path ( <FONT SIZE="-1">NAME</FONT> )<DD>
+
+
+
+<DT id="48">temp_path ( <FONT SIZE="-1">FILEHANDLE</FONT> )<DD>
+
+
+
+Returns the filename associated with the given tempfile.
+<DT id="49">prefix_lines ( <FONT SIZE="-1">PREFIX, STRING</FONT> [, <FONT SIZE="-1">STRING...</FONT> ])<DD>
+
+
+Prefixes lines in <TT>&quot;STRING&quot;</TT> with <TT>&quot;PREFIX&quot;</TT>.
+<DT id="50">unquote_path ( <FONT SIZE="-1">PATH</FONT> )<DD>
+
+
+Unquote a quoted path containing c-escapes as returned by ls-files etc.
+when not using -z or when parsing the output of diff -u.
+<DT id="51">get_comment_line_char ( )<DD>
+
+
+Gets the core.commentchar configuration value.
+The value falls-back to '#' if core.commentchar is set to 'auto'.
+<DT id="52">comment_lines ( <FONT SIZE="-1">STRING</FONT> [, <FONT SIZE="-1">STRING...</FONT> ])<DD>
+
+
+Comments lines following core.commentchar configuration.
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H2>ERROR HANDLING</H2>
+
+
+
+All functions are supposed to throw Perl exceptions in case of errors.
+See the Error module on how to catch those. Most exceptions are mere
+Error::Simple instances.
+<P>
+
+However, the <TT>&quot;command()&quot;</TT>, <TT>&quot;command_oneline()&quot;</TT> and <TT>&quot;command_noisy()&quot;</TT>
+functions suite can throw <TT>&quot;Git::Error::Command&quot;</TT> exceptions as well: those are
+thrown when the external command returns an error code and contain the error
+code as well as access to the captured command's output. The exception class
+provides the usual <TT>&quot;stringify&quot;</TT> and <TT>&quot;value&quot;</TT> (command's exit code) methods and
+in addition also a <TT>&quot;cmd_output&quot;</TT> method that returns either an array or a
+string with the captured command output (depending on the original function
+call context; <TT>&quot;command_noisy()&quot;</TT> returns <TT>&quot;undef&quot;</TT>) and $&lt;cmdline&gt; which
+returns the command and its arguments (but without proper quoting).
+<P>
+
+Note that the <TT>&quot;command_*_pipe()&quot;</TT> functions cannot throw this exception since
+it has no idea whether the command failed or not. You will only find out
+at the time you <TT>&quot;close&quot;</TT> the pipe; if you want to have that automated,
+use <TT>&quot;command_close_pipe()&quot;</TT>, which can throw the exception.
+<DL COMPACT>
+<DT id="53">git_cmd_try { <FONT SIZE="-1">CODE</FONT> } <FONT SIZE="-1">ERRMSG</FONT><DD>
+
+
+This magical statement will automatically catch any <TT>&quot;Git::Error::Command&quot;</TT>
+exceptions thrown by <TT>&quot;CODE&quot;</TT> and make your program die with <TT>&quot;ERRMSG&quot;</TT>
+on its lips; the message will have <TT>%s</TT> substituted for the command line
+and <TT>%d</TT> for the exit status. This statement is useful mostly for producing
+more user-friendly error messages.
+
+
+<P>
+
+
+In case of no exception caught the statement returns <TT>&quot;CODE&quot;</TT>'s return value.
+
+
+<P>
+
+
+Note that this is the only auto-exported function.
+</DL>
+<A NAME="lbAH">&nbsp;</A>
+<H2>COPYRIGHT</H2>
+
+
+
+Copyright 2006 by Petr Baudis &lt;<A HREF="mailto:pasky@suse.cz">pasky@suse.cz</A>&gt;.
+<P>
+
+This module is free software; it may be used, copied, modified
+and distributed under the terms of the <FONT SIZE="-1">GNU</FONT> General Public Licence,
+either version 2, or (at your option) any later version.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="54"><A HREF="#lbAB">NAME</A><DD>
+<DT id="55"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="56"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="57"><A HREF="#lbAE">CONSTRUCTORS</A><DD>
+<DT id="58"><A HREF="#lbAF">METHODS</A><DD>
+<DT id="59"><A HREF="#lbAG">ERROR HANDLING</A><DD>
+<DT id="60"><A HREF="#lbAH">COPYRIGHT</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:44 GMT, March 31, 2021
+</BODY>
+</HTML>

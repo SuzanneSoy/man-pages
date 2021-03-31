@@ -1,0 +1,658 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of dpkg-gensymbols</TITLE>
+</HEAD><BODY>
+<H1>dpkg-gensymbols</H1>
+Section: dpkg suite (1)<BR>Updated: 2020-03-23<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+dpkg-gensymbols - generate symbols files (shared library dependency information)
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<B>dpkg-gensymbols</B>
+
+[<I>option</I>...]
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<B>dpkg-gensymbols</B>
+
+scans a temporary build tree (debian/tmp by default) looking for libraries
+and generates a <I>symbols</I> file describing them. This file, if
+non-empty, is then installed in the DEBIAN subdirectory of the build tree
+so that it ends up included in the control information of the package.
+<P>
+
+When generating those files, it uses as input some symbols files
+provided by the maintainer. It looks for the following files (and uses the
+first that is found):
+<DL COMPACT>
+<DT id="1">&bull;<DD>
+debian/<I>package</I>.symbols.<I>arch</I>
+<DT id="2">&bull;<DD>
+debian/symbols.<I>arch</I>
+<DT id="3">&bull;<DD>
+debian/<I>package</I>.symbols
+<DT id="4">&bull;<DD>
+debian/symbols
+</DL>
+<P>
+
+The main interest of those files is to provide the minimal version
+associated to each symbol provided by the libraries. Usually it
+corresponds to the first version of that package that provided the symbol,
+but it can be manually incremented by the maintainer if the ABI of the
+symbol is extended without breaking backwards compatibility. It's the
+responsibility of the maintainer to keep those files up-to-date and
+accurate, but <B>dpkg-gensymbols</B> helps with that.
+<P>
+
+When the generated symbols files differ from the maintainer supplied
+one, <B>dpkg-gensymbols</B> will print a diff between the two versions.
+Furthermore if the difference is too significant, it will even fail (you
+can customize how much difference you can tolerate, see the <B>-c</B>
+option).
+<A NAME="lbAE">&nbsp;</A>
+<H2>MAINTAINING SYMBOLS FILES</H2>
+
+The symbols files are really useful only if they reflect the evolution of
+the package through several releases. Thus the maintainer has to update
+them every time that a new symbol is added so that its associated minimal
+version matches reality.
+The diffs contained in the build logs can be used as a starting point,
+but the maintainer, additionally, has to make sure that the behaviour
+of those symbols has not changed in a way that would make anything
+using those symbols and linking against the new version, stop working
+with the old version.
+In most cases, the diff applies directly to the
+debian/<I>package</I>.symbols file. That said, further tweaks are usually
+needed: it's recommended for example to drop the Debian revision
+from the minimal version so that backports with a lower version number
+but the same upstream version still satisfy the generated dependencies.
+If the Debian revision can't be dropped because the symbol really got
+added by the Debian specific change, then one should suffix the version
+with '<B>~</B>'.
+<P>
+
+Before applying any patch to the symbols file, the maintainer should
+double-check that it's sane. Public symbols are not supposed to disappear,
+so the patch should ideally only add new lines.
+<P>
+
+Note that you can put comments in symbols files: any line with '#' as
+the first character is a comment except if it starts with '#include'
+(see section <B>Using includes</B>).
+Lines starting with '#MISSING:' are special comments documenting
+symbols that have disappeared.
+<P>
+
+Do not forget to check if old symbol versions need to be increased.
+There is no way <B>dpkg-gensymbols</B> can warn about this. Blindly
+applying the diff or assuming there is nothing to change if there is
+no diff, without checking for such changes, can lead to packages with
+loose dependencies that claim they can work with older packages they
+cannot work with. This will introduce hard to find bugs with (partial)
+upgrades.
+<A NAME="lbAF">&nbsp;</A>
+<H3>Using #PACKAGE# substitution</H3>
+
+<P>
+
+In some rare cases, the name of the library varies between architectures.
+To avoid hardcoding the name of the package in the symbols file, you can
+use the marker <I>#PACKAGE#</I>. It will be replaced by the real package
+name during installation of the symbols files. Contrary to the
+<I>#MINVER#</I> marker, <I>#PACKAGE#</I> will never appear in a symbols file
+inside a binary package.
+<A NAME="lbAG">&nbsp;</A>
+<H3>Using symbol tags</H3>
+
+<P>
+
+Symbol tagging is useful for marking symbols that are special in some way.  Any
+symbol can have an arbitrary number of tags associated with it. While all tags are
+parsed and stored, only some of them are understood by
+<B>dpkg-gensymbols</B> and trigger special handling of the symbols. See
+subsection <B>Standard symbol tags</B> for reference of these tags.
+<P>
+
+Tag specification comes right before the symbol name (no whitespace is allowed
+in between). It always starts with an opening bracket <B>(</B>, ends with a
+closing bracket <B>)</B> and must contain at least one tag. Multiple tags are
+separated by the <B>|</B> character. Each tag can optionally have a value which
+is separated form the tag name by the <B>=</B> character. Tag names and values
+can be arbitrary strings except they cannot contain any of the special <B>)</B>
+<B>|</B> <B>=</B> characters. Symbol names following a tag specification can
+optionally be quoted with either <B>'</B> or <B>&quot;</B> characters to allow
+whitespaces in them. However, if there are no tags specified for the symbol,
+quotes are treated as part of the symbol name which continues up until the
+first space.
+<P>
+
+<BR>&nbsp;(tag1=i&nbsp;am&nbsp;marked|tag&nbsp;name&nbsp;with&nbsp;space)&quot;tagged&nbsp;quoted&nbsp;symbol&quot;@Base&nbsp;1.0
+<BR>&nbsp;(optional)<A HREF="mailto:tagged_unquoted_symbol@Base">tagged_unquoted_symbol@Base</A>&nbsp;1.0&nbsp;1
+<BR>&nbsp;<A HREF="mailto:untagged_symbol@Base">untagged_symbol@Base</A>&nbsp;1.0
+<P>
+
+The first symbol in the example is named <I>tagged quoted symbol</I> and has two
+tags: <I>tag1</I> with value <I>i am marked</I> and <I>tag name with space</I>
+that has no value. The second symbol named <I>tagged_unquoted_symbol</I> is
+only tagged with the tag named <I>optional</I>. The last symbol is an
+example of the normal untagged symbol.
+<P>
+
+Since symbol tags are an extension of the <B><A HREF="/cgi-bin/man/man2html?5+deb-symbols">deb-symbols</A></B>(5) format, they
+can only be part of the symbols files used in source packages (those files
+should then be seen as templates used to build the symbols files that are
+embedded in binary packages). When
+<B>dpkg-gensymbols</B> is called without the <B>-t</B> option, it will
+output symbols files compatible to the <B><A HREF="/cgi-bin/man/man2html?5+deb-symbols">deb-symbols</A></B>(5) format:
+it fully processes symbols according to the requirements of their standard tags
+and strips all tags from the output. On the contrary, in template mode
+(<B>-t</B>) all symbols and their tags (both standard and unknown ones)
+are kept in the output and are written in their original form as they were
+loaded.
+<A NAME="lbAH">&nbsp;</A>
+<H3>Standard symbol tags</H3>
+
+<DL COMPACT>
+<DT id="5"><B>optional</B>
+
+<DD>
+A symbol marked as optional can disappear from the library at any time and that
+will never cause <B>dpkg-gensymbols</B> to fail. However, disappeared optional
+symbols will continuously appear as MISSING in the diff in each new package
+revision.  This behaviour serves as a reminder for the maintainer that such a
+symbol needs to be removed from the symbol file or readded to the library. When
+the optional symbol, which was previously declared as MISSING, suddenly
+reappears in the next revision, it will be upgraded back to the "existing"
+status with its minimum version unchanged.
+<P>
+This tag is useful for symbols which are private where their disappearance do
+not cause ABI breakage. For example, most of C++ template instantiations fall
+into this category. Like any other tag, this one may also have an arbitrary
+value: it could be used to indicate why the symbol is considered optional.
+<DT id="6"><B>arch=</B><I>architecture-list</I>
+
+<DD>
+
+<B>arch-bits=</B><I>architecture-bits</I>
+
+
+<B>arch-endian=</B><I>architecture-endianness</I>
+
+These tags allow one to restrict the set of architectures where the symbol
+is supposed to exist. The <B>arch-bits</B> and <B>arch-endian</B> tags
+are supported since dpkg 1.18.0. When the symbols list is updated with
+the symbols
+discovered in the library, all arch-specific symbols which do not concern
+the current host architecture are treated as if they did not exist. If an
+arch-specific symbol matching the current host architecture does not exist
+in the library, normal procedures for missing symbols apply and it may
+cause <B>dpkg-gensymbols</B> to fail. On the other hand, if the
+arch-specific symbol is found when it was not supposed to exist (because
+the current host architecture is not listed in the tag or does not match
+the endianness and bits), it is made arch neutral (i.e. the arch, arch-bits
+and arch-endian tags are dropped and the symbol will appear in the diff due
+to this change), but it is not considered as new.
+<P>
+When operating in the default non-template mode, among arch-specific symbols
+only those that match the current host architecture are written to the
+symbols file. On the contrary, all arch-specific symbols (including those
+from foreign arches) are always written to the symbol file when operating
+in template mode.
+<P>
+The format of <I>architecture-list</I> is the same as the one used in the
+<B>Build-Depends</B> field of <I>debian/control</I> (except the enclosing
+square brackets []). For example, the first symbol from the list below
+will be considered only on alpha, any-amd64 and ia64 architectures,
+the second only on linux architectures, while the third one anywhere
+except on armel.
+<P>
+<BR>&nbsp;(arch=alpha&nbsp;any-amd64&nbsp;ia64)<A HREF="mailto:64bit_specific_symbol@Base">64bit_specific_symbol@Base</A>&nbsp;1.0
+<BR>&nbsp;(arch=linux-any)<A HREF="mailto:linux_specific_symbol@Base">linux_specific_symbol@Base</A>&nbsp;1.0
+<BR>&nbsp;(arch=!armel)<A HREF="mailto:symbol_armel_does_not_have@Base">symbol_armel_does_not_have@Base</A>&nbsp;1.0
+<P>
+The <I>architecture-bits</I> is either <B>32</B> or <B>64</B>.
+<P>
+<BR>&nbsp;(arch-bits=32)<A HREF="mailto:32bit_specific_symbol@Base">32bit_specific_symbol@Base</A>&nbsp;1.0
+<BR>&nbsp;(arch-bits=64)<A HREF="mailto:64bit_specific_symbol@Base">64bit_specific_symbol@Base</A>&nbsp;1.0
+<P>
+The <I>architecture-endianness</I> is either <B>little</B> or <B>big</B>.
+<P>
+<BR>&nbsp;(arch-endian=little)<A HREF="mailto:little_endian_specific_symbol@Base">little_endian_specific_symbol@Base</A>&nbsp;1.0
+<BR>&nbsp;(arch-endian=big)<A HREF="mailto:big_endian_specific_symbol@Base">big_endian_specific_symbol@Base</A>&nbsp;1.0
+<P>
+Multiple restrictions can be chained.
+<P>
+<BR>&nbsp;(arch-bits=32|arch-endian=little)<A HREF="mailto:32bit_le_symbol@Base">32bit_le_symbol@Base</A>&nbsp;1.0
+<DT id="7"><B>ignore-blacklist</B>
+
+<DD>
+dpkg-gensymbols has an internal blacklist of symbols that should not
+appear in symbols files as they are usually only side-effects of
+implementation details of the toolchain. If for some reason, you really
+want one of those symbols to be included in the symbols file, you should
+tag the symbol with <B>ignore-blacklist</B>. It can be necessary for
+some low level toolchain libraries like libgcc.
+<DT id="8"><B>c++</B>
+
+<DD>
+Denotes <I>c++</I> symbol pattern. See <B>Using symbol patterns</B> subsection
+below.
+<DT id="9"><B>symver</B>
+
+<DD>
+Denotes <I>symver</I> (symbol version) symbol pattern. See <B>Using symbol
+patterns</B> subsection below.
+<DT id="10"><B>regex</B>
+
+<DD>
+Denotes <I>regex</I> symbol pattern. See <B>Using symbol patterns</B> subsection
+below.
+</DL>
+<A NAME="lbAI">&nbsp;</A>
+<H3>Using symbol patterns</H3>
+
+<P>
+
+Unlike a standard symbol specification, a pattern may cover multiple real
+symbols from the library. <B>dpkg-gensymbols</B> will attempt to match each
+pattern against each real symbol that does <I>not</I> have a specific symbol
+counterpart defined in the symbol file. Whenever the first matching pattern is
+found, all its tags and properties will be used as a basis specification of the
+symbol. If none of the patterns matches, the symbol will be considered as new.
+<P>
+A pattern is considered lost if it does not match any symbol in the library. By
+default this will trigger a <B>dpkg-gensymbols</B> failure under <B>-c1</B> or
+higher level. However, if the failure is undesired, the pattern may be marked
+with the <I>optional</I> tag. Then if the pattern does not match anything, it
+will only appear in the diff as MISSING. Moreover, like any symbol, the pattern
+may be limited to the specific architectures with the <I>arch</I> tag. Please
+refer to <B>Standard symbol tags</B> subsection above for more information.
+<P>
+Patterns are an extension of the <B><A HREF="/cgi-bin/man/man2html?5+deb-symbols">deb-symbols</A></B>(5) format hence they are
+only valid in symbol file templates. Pattern specification syntax is not any
+different from the one of a specific symbol. However, symbol name part of the
+specification serves as an expression to be matched against <I><A HREF="mailto:name@version">name@version</A></I>
+of the real symbol. In order to distinguish among different pattern types, a
+pattern will typically be tagged with a special tag.
+<P>
+At the moment, <B>dpkg-gensymbols</B> supports three basic pattern types:
+<DL COMPACT>
+<DT id="11"><B>c++</B>
+
+<DD>
+This pattern is denoted by the <I>c++</I> tag. It matches only C++ symbols by
+their demangled symbol name (as emitted by <B>c++<A HREF="/cgi-bin/man/man2html?1+filt">filt</A></B>(1) utility). This
+pattern is very handy for matching symbols which mangled names might vary
+across different architectures while their demangled names remain the same. One
+group of such symbols is <I>non-virtual thunks</I> which have architecture
+specific offsets embedded in their mangled names. A common instance of this
+case is a virtual destructor which under diamond inheritance needs a
+non-virtual thunk symbol. For example, even if <A HREF="mailto:_ZThn8_N3NSB6ClassDD1Ev@Base">_ZThn8_N3NSB6ClassDD1Ev@Base</A> on
+32bit architectures will probably be <A HREF="mailto:_ZThn16_N3NSB6ClassDD1Ev@Base">_ZThn16_N3NSB6ClassDD1Ev@Base</A> on 64bit
+ones, it can be matched with a single <I>c++</I> pattern:
+<P>
+libdummy.so.1 libdummy1 #MINVER#
+<BR>&nbsp;[...]
+<BR>&nbsp;(c++)&quot;non-virtual&nbsp;thunk&nbsp;to&nbsp;NSB::ClassD::~ClassD()@Base&quot;&nbsp;1.0
+<BR>&nbsp;[...]
+<P>
+The demangled name above can be obtained by executing the following command:
+<P>
+<BR>&nbsp;$&nbsp;echo&nbsp;'<A HREF="mailto:_ZThn8_N3NSB6ClassDD1Ev@Base">_ZThn8_N3NSB6ClassDD1Ev@Base</A>'&nbsp;|&nbsp;c++filt
+<P>
+Please note that while mangled name is unique in the library by definition,
+this is not necessarily true for demangled names. A couple of distinct real
+symbols may have the same demangled name. For example, that's the case with
+non-virtual thunk symbols in complex inheritance configurations or with most
+constructors and destructors (since g++ typically generates two real symbols
+for them). However, as these collisions happen on the ABI level, they should
+not degrade quality of the symbol file.
+<DT id="12"><B>symver</B>
+
+<DD>
+This pattern is denoted by the <I>symver</I> tag. Well maintained libraries have
+versioned symbols where each version corresponds to the upstream version where
+the symbol got added. If that's the case, you can use a <I>symver</I> pattern to
+match any symbol associated to the specific version. For example:
+<P>
+libc.so.6 libc6 #MINVER#
+<BR>&nbsp;(symver)GLIBC_2.0&nbsp;2.0
+<BR>&nbsp;[...]
+<BR>&nbsp;(symver)GLIBC_2.7&nbsp;2.7
+<BR>&nbsp;<A HREF="mailto:access@GLIBC_2.0">access@GLIBC_2.0</A>&nbsp;2.2
+<P>
+All symbols associated with versions GLIBC_2.0 and GLIBC_2.7 will lead to
+minimal version of 2.0 and 2.7 respectively with the exception of the symbol
+<A HREF="mailto:access@GLIBC_2.0">access@GLIBC_2.0</A>. The latter will lead to a minimal dependency on libc6 version
+2.2 despite being in the scope of the &quot;(symver)GLIBC_2.0&quot; pattern because
+specific symbols take precedence over patterns.
+<P>
+Please note that while old style wildcard patterns (denoted by &quot;*@version&quot; in
+the symbol name field) are still supported, they have been deprecated by new
+style syntax &quot;(symver|optional)version&quot;. For example, &quot;*@GLIBC_2.0 2.0&quot; should
+be written as &quot;(symver|optional)GLIBC_2.0 2.0&quot; if the same behaviour is needed.
+<DT id="13"><B>regex</B>
+
+<DD>
+Regular expression patterns are denoted by the <I>regex</I> tag. They match by
+the perl regular expression specified in the symbol name field. A regular
+expression is matched as it is, therefore do not forget to start it with the
+<I>^</I> character or it may match any part of the real symbol
+<I><A HREF="mailto:name@version">name@version</A></I> string. For example:
+<P>
+libdummy.so.1 libdummy1 #MINVER#
+<BR>&nbsp;(regex)&quot;^mystack_.*@Base$&quot;&nbsp;1.0
+<BR>&nbsp;(regex|optional)&quot;private&quot;&nbsp;1.0
+<P>
+Symbols like &quot;<A HREF="mailto:mystack_new@Base">mystack_new@Base</A>&quot;, &quot;<A HREF="mailto:mystack_push@Base">mystack_push@Base</A>&quot;, &quot;<A HREF="mailto:mystack_pop@Base">mystack_pop@Base</A>&quot; etc.
+will be matched by the first pattern while e.g. &quot;<A HREF="mailto:ng_mystack_new@Base">ng_mystack_new@Base</A>&quot; won't.
+The second pattern will match all symbols having the string &quot;private&quot; in their
+names and matches will inherit <I>optional</I> tag from the pattern.
+</DL>
+<P>
+
+Basic patterns listed above can be combined where it makes sense. In that case,
+they are processed in the order in which the tags are specified. For example,
+both
+<P>
+<BR>&nbsp;(c++|regex)&quot;^NSA::ClassA::Private::privmethod\d\(int\)@Base&quot;&nbsp;1.0
+<BR>&nbsp;(regex|c++)N3NSA6ClassA7Private11privmethod\<A HREF="mailto:dEi@Base">dEi@Base</A>&nbsp;1.0
+<P>
+will match symbols &quot;<A HREF="mailto:_ZN3NSA6ClassA7Private11privmethod1Ei@Base">_ZN3NSA6ClassA7Private11privmethod1Ei@Base</A>&quot; and
+&quot;<A HREF="mailto:_ZN3NSA6ClassA7Private11privmethod2Ei@Base">_ZN3NSA6ClassA7Private11privmethod2Ei@Base</A>&quot;. When matching the first pattern,
+the raw symbol is first demangled as C++ symbol, then the demangled name is
+matched against the regular expression. On the other hand, when matching the
+second pattern, regular expression is matched against the raw symbol name, then
+the symbol is tested if it is C++ one by attempting to demangle it. A failure
+of any basic pattern will result in the failure of the whole pattern.
+Therefore, for example, &quot;__N3NSA6ClassA7Private11privmethod\<A HREF="mailto:dEi@Base">dEi@Base</A>&quot; will not
+match either of the patterns because it is not a valid C++ symbol.
+<P>
+In general, all patterns are divided into two groups: aliases (basic <I>c++</I>
+and <I>symver</I>) and generic patterns (<I>regex</I>, all combinations of
+multiple basic patterns). Matching of basic alias-based patterns is fast (<A HREF="/cgi-bin/man/man2html?1+O">O</A>(1))
+while generic patterns are O(N) (N - generic pattern count) for each symbol.
+Therefore, it is recommended not to overuse generic patterns.
+<P>
+When multiple patterns match the same real symbol, aliases (first <I>c++</I>,
+then <I>symver</I>) are preferred over generic patterns. Generic patterns are
+matched in the order they are found in the symbol file template until the first
+success.  Please note, however, that manual reordering of template file entries
+is not recommended because <B>dpkg-gensymbols</B> generates diffs based on the
+alphanumerical order of their names.
+<A NAME="lbAJ">&nbsp;</A>
+<H3>Using includes</H3>
+
+<P>
+
+When the set of exported symbols differ between architectures, it may become
+inefficient to use a single symbol file. In those cases, an include directive
+may prove to be useful in a couple of ways:
+<DL COMPACT>
+<DT id="14">&bull;<DD>
+You can factorize the common part in some external file
+and include that file in your <I>package</I>.symbols.<I>arch</I> file by
+using an include directive like this:
+<P>
+#include &quot;<I>packages</I>.symbols.common&quot;
+<DT id="15">&bull;<DD>
+The include directive may also be tagged like any symbol:
+<P>
+(tag|...|tagN)#include &quot;file-to-include&quot;
+<P>
+As a result, all symbols included from <I>file-to-include</I> will be considered
+to be tagged with <I>tag</I> ... <I>tagN</I> by default. You can use this feature
+to create a common <I>package</I>.symbols file which includes architecture
+specific symbol files:
+<P>
+<BR>&nbsp;&nbsp;<A HREF="mailto:common_symbol1@Base">common_symbol1@Base</A>&nbsp;1.0
+<BR>&nbsp;(arch=amd64&nbsp;ia64&nbsp;alpha)#include&nbsp;&quot;package.symbols.64bit&quot;
+<BR>&nbsp;(arch=!amd64&nbsp;!ia64&nbsp;!alpha)#include&nbsp;&quot;package.symbols.32bit&quot;
+<BR>&nbsp;&nbsp;<A HREF="mailto:common_symbol2@Base">common_symbol2@Base</A>&nbsp;1.0
+</DL>
+<P>
+
+The symbols files are read line by line, and include directives are processed
+as soon as they are encountered. This means that the content of the included
+file can override any content that appeared before the include directive and
+that any content after the directive can override anything contained in the
+included file. Any symbol (or even another #include directive) in the included
+file can specify additional tags or override values of the inherited tags in
+its tag specification. However, there is no way for the symbol to remove
+any of the inherited tags.
+<P>
+
+An included file can repeat the header line containing the SONAME of the
+library. In that case, it overrides any header line previously read.
+However, in general it's best to avoid duplicating header lines. One way
+to do it is the following:
+<P>
+
+#include &quot;libsomething1.symbols.common&quot;
+<BR>&nbsp;<A HREF="mailto:arch_specific_symbol@Base">arch_specific_symbol@Base</A>&nbsp;1.0
+<A NAME="lbAK">&nbsp;</A>
+<H3>Good library management</H3>
+
+<P>
+
+A well-maintained library has the following features:
+<DL COMPACT>
+<DT id="16">&bull;<DD>
+its API is stable (public symbols are never dropped, only new public
+symbols are added) and changes in incompatible ways only when the SONAME
+changes;
+<DT id="17">&bull;<DD>
+ideally, it uses symbol versioning to achieve ABI stability despite
+internal changes and API extension;
+<DT id="18">&bull;<DD>
+it doesn't export private symbols (such symbols can be tagged optional as
+workaround).
+</DL>
+<P>
+
+While maintaining the symbols file, it's easy to notice appearance and
+disappearance of symbols. But it's more difficult to catch incompatible
+API and ABI change. Thus the maintainer should read thoroughly the
+upstream changelog looking for cases where the rules of good library
+management have been broken. If potential problems are discovered,
+the upstream author should be notified as an upstream fix is always better
+than a Debian specific work-around.
+<A NAME="lbAL">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<DL COMPACT>
+<DT id="19"><B>-P</B><I>package-build-dir</I>
+
+<DD>
+Scan <I>package-build-dir</I> instead of debian/tmp.
+<DT id="20"><B>-p</B><I>package</I>
+
+<DD>
+Define the package name. Required if more than one binary package is listed in
+debian/control (or if there's no debian/control file).
+<DT id="21"><B>-v</B><I>version</I>
+
+<DD>
+Define the package version. Defaults to the version extracted from
+debian/changelog. Required if called outside of a source package tree.
+<DT id="22"><B>-e</B><I>library-file</I>
+
+<DD>
+Only analyze libraries explicitly listed instead of finding all public
+libraries. You can use shell patterns used for pathname expansions (see
+the <B>File::Glob</B>(3perl) manual page for details) in <I>library-file</I>
+to match multiple libraries with a single argument (otherwise you need
+multiple <B>-e</B>).
+<DT id="23"><B>-l</B><I>directory</I>
+
+<DD>
+Prepend
+<I>directory</I>
+
+to the list of directories to search for private shared libraries
+(since dpkg 1.19.1). This option can be used multiple times.
+<P>
+Note: Use this option instead of setting <B>LD_LIBRARY_PATH</B>,
+as that environment variable is used to control the run-time linker
+and abusing it to set the shared library paths at build-time can be
+problematic when cross-compiling for example.
+<DT id="24"><B>-I</B><I>filename</I>
+
+<DD>
+Use <I>filename</I> as reference file to generate the symbols file
+that is integrated in the package itself.
+<DT id="25"><B>-O</B>[<I>filename</I>]
+
+<DD>
+Print the generated symbols file to standard output or to <I>filename</I>
+if specified, rather than to
+<B>debian/tmp/DEBIAN/symbols</B>
+
+(or
+<I>package-build-dir</I><B>/DEBIAN/symbols</B>
+
+if
+<B>-P</B>
+
+was used). If <I>filename</I> is pre-existing, its contents are used as
+basis for the generated symbols file.
+You can use this feature to update a symbols file so that it matches a
+newer upstream version of your library.
+<DT id="26"><B>-t</B>
+
+<DD>
+Write the symbol file in template mode rather than the format compatible with
+<B><A HREF="/cgi-bin/man/man2html?5+deb-symbols">deb-symbols</A></B>(5). The main difference is that in the template mode symbol
+names and tags are written in their original form contrary to the
+post-processed symbol names with tags stripped in the compatibility mode.
+Moreover, some symbols might be omitted when writing a standard
+<B><A HREF="/cgi-bin/man/man2html?5+deb-symbols">deb-symbols</A></B>(5) file (according to the tag processing rules) while all
+symbols are always written to the symbol file template.
+<DT id="27"><B>-c</B><I>[0-4]</I>
+
+<DD>
+Define the checks to do when comparing the generated symbols file with the
+template file used as starting point. By default the level is 1. Increasing
+levels do more checks and include all checks of lower levels. Level 0 never
+fails. Level 1 fails if some symbols have disappeared. Level 2 fails if some
+new symbols have been introduced. Level 3 fails if some libraries have
+disappeared. Level 4 fails if some libraries have been introduced.
+<P>
+This value can be overridden by the environment variable
+<B>DPKG_GENSYMBOLS_CHECK_LEVEL</B>.
+
+<DT id="28"><B>-q</B>
+
+<DD>
+Keep quiet and never generate a diff between generated symbols file and the
+template file used as starting point or show any warnings about new/lost
+libraries or new/lost symbols. This option only disables informational output
+but not the checks themselves (see <B>-c</B> option).
+<DT id="29"><B>-a</B><I>arch</I>
+
+<DD>
+Assume <I>arch</I> as host architecture when processing symbol files. Use this
+option to generate a symbol file or diff for any architecture provided its
+binaries are already available.
+<DT id="30"><B>-d</B>
+
+<DD>
+Enable debug mode. Numerous messages are displayed to explain what
+<B>dpkg-gensymbols</B>
+
+does.
+<DT id="31"><B>-V</B>
+
+<DD>
+Enable verbose mode. The generated symbols file contains deprecated
+symbols as comments. Furthermore in template mode, pattern symbols
+are followed by comments listing real symbols that have matched the
+pattern.
+<DT id="32"><B>-?</B>, <B>--help</B>
+
+<DD>
+Show the usage message and exit.
+<DT id="33"><B>--version</B>
+
+<DD>
+Show the version and exit.
+</DL>
+<A NAME="lbAM">&nbsp;</A>
+<H2>ENVIRONMENT</H2>
+
+<DL COMPACT>
+<DT id="34"><B>DPKG_GENSYMBOLS_CHECK_LEVEL</B>
+
+<DD>
+Overrides the command check level, even if the <B>-c</B> command-line
+argument was given (note that this goes against the common convention
+of command-line arguments having precedence over environment variables).
+<DT id="35"><B>DPKG_COLORS</B>
+
+<DD>
+Sets the color mode (since dpkg 1.18.5).
+The currently accepted values are: <B>auto</B> (default), <B>always</B> and
+<B>never</B>.
+<DT id="36"><B>DPKG_NLS</B>
+
+<DD>
+If set, it will be used to decide whether to activate Native Language Support,
+also known as internationalization (or i18n) support (since dpkg 1.19.0).
+The accepted values are: <B>0</B> and <B>1</B> (default).
+</DL>
+<A NAME="lbAN">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="https://people.redhat.com/drepper/symbol-versioning">https://people.redhat.com/drepper/symbol-versioning</A></B>
+
+<BR>
+
+<B><A HREF="https://people.redhat.com/drepper/goodpractice.pdf">https://people.redhat.com/drepper/goodpractice.pdf</A></B>
+
+<BR>
+
+<B><A HREF="https://people.redhat.com/drepper/dsohowto.pdf">https://people.redhat.com/drepper/dsohowto.pdf</A></B>
+
+<BR>
+
+<B><A HREF="/cgi-bin/man/man2html?5+deb-symbols">deb-symbols</A></B>(5),
+
+<B><A HREF="/cgi-bin/man/man2html?1+dpkg-shlibdeps">dpkg-shlibdeps</A></B>(1).
+
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="37"><A HREF="#lbAB">NAME</A><DD>
+<DT id="38"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="39"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="40"><A HREF="#lbAE">MAINTAINING SYMBOLS FILES</A><DD>
+<DL>
+<DT id="41"><A HREF="#lbAF">Using #PACKAGE# substitution</A><DD>
+<DT id="42"><A HREF="#lbAG">Using symbol tags</A><DD>
+<DT id="43"><A HREF="#lbAH">Standard symbol tags</A><DD>
+<DT id="44"><A HREF="#lbAI">Using symbol patterns</A><DD>
+<DT id="45"><A HREF="#lbAJ">Using includes</A><DD>
+<DT id="46"><A HREF="#lbAK">Good library management</A><DD>
+</DL>
+<DT id="47"><A HREF="#lbAL">OPTIONS</A><DD>
+<DT id="48"><A HREF="#lbAM">ENVIRONMENT</A><DD>
+<DT id="49"><A HREF="#lbAN">SEE ALSO</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:11 GMT, March 31, 2021
+</BODY>
+</HTML>

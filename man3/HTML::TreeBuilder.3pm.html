@@ -1,0 +1,986 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of HTML::TreeBuilder</TITLE>
+</HEAD><BODY>
+<H1>HTML::TreeBuilder</H1>
+Section: User Contributed Perl Documentation (3pm)<BR>Updated: 2019-01-13<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+HTML::TreeBuilder - Parser that builds a HTML syntax tree
+<A NAME="lbAC">&nbsp;</A>
+<H2>VERSION</H2>
+
+
+
+This document describes version 5.07 of
+HTML::TreeBuilder, released August 31, 2017
+as part of HTML-Tree.
+<A NAME="lbAD">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+
+
+
+
+<PRE>
+  use HTML::TreeBuilder 5 -weak; # Ensure weak references in use
+
+  foreach my $file_name (@ARGV) {
+    my $tree = HTML::TreeBuilder-&gt;new; # empty tree
+    $tree-&gt;parse_file($file_name);
+    print &quot;Hey, here's a dump of the parse tree of $file_name:\n&quot;;
+    $tree-&gt;dump; # a method we inherit from HTML::Element
+    print &quot;And here it is, bizarrely rerendered as HTML:\n&quot;,
+      $tree-&gt;as_HTML, &quot;\n&quot;;
+
+    # Now that we're done with it, we must destroy it.
+    # $tree = $tree-&gt;delete; # Not required with weak references
+  }
+
+</PRE>
+
+
+<A NAME="lbAE">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+
+(This class is part of the HTML::Tree dist.)
+<P>
+
+This class is for <FONT SIZE="-1">HTML</FONT> syntax trees that get built out of <FONT SIZE="-1">HTML</FONT>
+source.  The way to use it is to:
+<P>
+
+1. start a new (empty) HTML::TreeBuilder object,
+<P>
+
+2. then use one of the methods from HTML::Parser (presumably with
+<TT>&quot;$tree-&gt;parse_file($filename)&quot;</TT> for files, or with
+<TT>&quot;$tree-&gt;parse($document_content)&quot;</TT> and <TT>&quot;$tree-&gt;eof&quot;</TT> if you've got
+the content in a string) to parse the <FONT SIZE="-1">HTML</FONT>
+document into the tree <TT>$tree</TT>.
+<P>
+
+(You can combine steps 1 and 2 with the ``new_from_file'' or
+``new_from_content'' methods.)
+<P>
+
+2b. call <TT>&quot;$root-&gt;elementify()&quot;</TT> if you want.
+<P>
+
+3. do whatever you need to do with the syntax tree, presumably
+involving traversing it looking for some bit of information in it,
+<P>
+
+4. previous versions of HTML::TreeBuilder required you to call
+<TT>&quot;$tree-&gt;delete()&quot;</TT> to erase the contents of the tree from memory
+when you're done with the tree.  This is not normally required anymore.
+See ``Weak References'' in HTML::Element for details.
+<A NAME="lbAF">&nbsp;</A>
+<H2>ATTRIBUTES</H2>
+
+
+
+Most of the following attributes native to HTML::TreeBuilder control how
+parsing takes place; they should be set <I>before</I> you try parsing into
+the given object.  You can set the attributes by passing a <FONT SIZE="-1">TRUE</FONT> or
+<FONT SIZE="-1">FALSE</FONT> value as argument.  E.g., <TT>&quot;$root-&gt;implicit_tags&quot;</TT> returns
+the current setting for the <TT>&quot;implicit_tags&quot;</TT> option,
+<TT>&quot;$root-&gt;<A HREF="/cgi-bin/man/man2html?1+implicit_tags">implicit_tags</A>(1)&quot;</TT> turns that option on,
+and <TT>&quot;$root-&gt;implicit_tags(0)&quot;</TT> turns it off.
+<A NAME="lbAG">&nbsp;</A>
+<H3>implicit_tags</H3>
+
+
+
+Setting this attribute to true will instruct the parser to try to
+deduce implicit elements and implicit end tags.  If it is false you
+get a parse tree that just reflects the text as it stands, which is
+unlikely to be useful for anything but quick and dirty parsing.
+(In fact, I'd be curious to hear from anyone who finds it useful to
+have <TT>&quot;implicit_tags&quot;</TT> set to false.)
+Default is true.
+<P>
+
+Implicit elements have the ``implicit'' in HTML::Element attribute set.
+<A NAME="lbAH">&nbsp;</A>
+<H3>implicit_body_p_tag</H3>
+
+
+
+This controls an aspect of implicit element behavior, if <TT>&quot;implicit_tags&quot;</TT>
+is on:  If a text element (<FONT SIZE="-1">PCDATA</FONT>) or a phrasal element (such as
+<TT>&quot;&lt;em&gt;&quot;</TT>) is to be inserted under <TT>&quot;&lt;body&gt;&quot;</TT>, two things
+can happen: if <TT>&quot;implicit_body_p_tag&quot;</TT> is true, it's placed under a new,
+implicit <TT>&quot;&lt;p&gt;&quot;</TT> tag.  (Past DTDs suggested this was the only
+correct behavior, and this is how past versions of this module
+behaved.)  But if <TT>&quot;implicit_body_p_tag&quot;</TT> is false, nothing is implicated
+--- the <FONT SIZE="-1">PCDATA</FONT> or phrasal element is simply placed under
+<TT>&quot;&lt;body&gt;&quot;</TT>.  Default is false.
+<A NAME="lbAI">&nbsp;</A>
+<H3>no_expand_entities</H3>
+
+
+
+This attribute controls whether entities are decoded during the initial
+parse of the source. Enable this if you don't want entities decoded to
+their character value. e.g. '&amp;amp;' is decoded to '&amp;' by default, but
+will be unchanged if this is enabled.
+Default is false (entities will be decoded.)
+<A NAME="lbAJ">&nbsp;</A>
+<H3>ignore_unknown</H3>
+
+
+
+This attribute controls whether unknown tags should be represented as
+elements in the parse tree, or whether they should be ignored.
+Default is true (to ignore unknown tags.)
+<A NAME="lbAK">&nbsp;</A>
+<H3>ignore_text</H3>
+
+
+
+Do not represent the text content of elements.  This saves space if
+all you want is to examine the structure of the document.  Default is
+false.
+<A NAME="lbAL">&nbsp;</A>
+<H3>ignore_ignorable_whitespace</H3>
+
+
+
+If set to true, TreeBuilder will try to avoid
+creating ignorable whitespace text nodes in the tree.  Default is
+true.  (In fact, I'd be interested in hearing if there's ever a case
+where you need this off, or where leaving it on leads to incorrect
+behavior.)
+<A NAME="lbAM">&nbsp;</A>
+<H3>no_space_compacting</H3>
+
+
+
+This determines whether TreeBuilder compacts all whitespace strings
+in the document (well, outside of <FONT SIZE="-1">PRE</FONT> or <FONT SIZE="-1">TEXTAREA</FONT> elements), or
+leaves them alone.  Normally (default, value of 0), each string of
+contiguous whitespace in the document is turned into a single space.
+But that's not done if <TT>&quot;no_space_compacting&quot;</TT> is set to 1.
+<P>
+
+Setting <TT>&quot;no_space_compacting&quot;</TT> to 1 might be useful if you want
+to read in a tree just to make some minor changes to it before
+writing it back out.
+<P>
+
+This method is experimental.  If you use it, be sure to report
+any problems you might have with it.
+<A NAME="lbAN">&nbsp;</A>
+<H3>p_strict</H3>
+
+
+
+If set to true (and it defaults to false), TreeBuilder will take a
+narrower than normal view of what can be under a <TT>&quot;&lt;p&gt;&quot;</TT> element; if it sees
+a non-phrasal element about to be inserted under a <TT>&quot;&lt;p&gt;&quot;</TT>, it will
+close that <TT>&quot;&lt;p&gt;&quot;</TT>.  Otherwise it will close <TT>&quot;&lt;p&gt;&quot;</TT> elements only for
+other <TT>&quot;&lt;p&gt;&quot;</TT>'s, headings, and <TT>&quot;&lt;form&gt;&quot;</TT> (although the latter may be
+removed in future versions).
+<P>
+
+For example, when going thru this snippet of code,
+<P>
+
+
+
+<PRE>
+  &lt;p&gt;stuff
+  &lt;ul&gt;
+
+</PRE>
+
+
+<P>
+
+TreeBuilder will normally (with <TT>&quot;p_strict&quot;</TT> false) put the <TT>&quot;&lt;ul&gt;&quot;</TT> element
+under the <TT>&quot;&lt;p&gt;&quot;</TT> element.  However, with <TT>&quot;p_strict&quot;</TT> set to true, it will
+close the <TT>&quot;&lt;p&gt;&quot;</TT> first.
+<P>
+
+In theory, there should be strictness options like this for other/all
+elements besides just <TT>&quot;&lt;p&gt;&quot;</TT>; but I treat this as a special case simply
+because of the fact that <TT>&quot;&lt;p&gt;&quot;</TT> occurs so frequently and its end-tag is
+omitted so often; and also because application of strictness rules
+at parse-time across all elements often makes tiny errors in <FONT SIZE="-1">HTML</FONT>
+coding produce drastically bad parse-trees, in my experience.
+<P>
+
+If you find that you wish you had an option like this to enforce
+content-models on all elements, then I suggest that what you want is
+content-model checking as a stage after TreeBuilder has finished
+parsing.
+<A NAME="lbAO">&nbsp;</A>
+<H3>store_comments</H3>
+
+
+
+This determines whether TreeBuilder will normally store comments found
+while parsing content into <TT>$root</TT>.  Currently, this is off by default.
+<A NAME="lbAP">&nbsp;</A>
+<H3>store_declarations</H3>
+
+
+
+This determines whether TreeBuilder will normally store markup
+declarations found while parsing content into <TT>$root</TT>.  This is on
+by default.
+<A NAME="lbAQ">&nbsp;</A>
+<H3>store_pis</H3>
+
+
+
+This determines whether TreeBuilder will normally store processing
+instructions found while parsing content into <TT>$root</TT> --- assuming a
+recent version of HTML::Parser (old versions won't parse PIs
+correctly).  Currently, this is off (false) by default.
+<P>
+
+It is somewhat of a known bug (to be fixed one of these days, if
+anyone needs it?) that PIs in the preamble (before the <TT>&quot;&lt;html&gt;&quot;</TT>
+start-tag) end up actually <I>under</I> the <TT>&quot;&lt;html&gt;&quot;</TT> element.
+<A NAME="lbAR">&nbsp;</A>
+<H3>warn</H3>
+
+
+
+This determines whether syntax errors during parsing should generate
+warnings, emitted via Perl's <TT>&quot;warn&quot;</TT> function.
+<P>
+
+This is off (false) by default.
+<A NAME="lbAS">&nbsp;</A>
+<H2>METHODS</H2>
+
+
+
+Objects of this class inherit the methods of both HTML::Parser and
+HTML::Element.  The methods inherited from HTML::Parser are used for
+building the <FONT SIZE="-1">HTML</FONT> tree, and the methods inherited from HTML::Element
+are what you use to scrutinize the tree.  Besides this
+(HTML::TreeBuilder) documentation, you must also carefully read the
+HTML::Element documentation, and also skim the HTML::Parser
+documentation --- probably only its parse and parse_file methods are of
+interest.
+<A NAME="lbAT">&nbsp;</A>
+<H3>new_from_file</H3>
+
+
+
+
+
+<PRE>
+  $root = HTML::TreeBuilder-&gt;new_from_file($filename_or_filehandle);
+
+</PRE>
+
+
+<P>
+
+This ``shortcut'' constructor merely combines constructing a new object
+(with the ``new'' method, below), and calling <TT>&quot;$new-&gt;parse_file(...)&quot;</TT> on
+it.  Returns the new object.  Note that this provides no way of
+setting any parse options like <TT>&quot;store_comments&quot;</TT> (for that, call <TT>&quot;new&quot;</TT>, and
+then set options, before calling <TT>&quot;parse_file&quot;</TT>).  See the notes (below)
+on parameters to ``parse_file''.
+<P>
+
+If HTML::TreeBuilder is unable to read the file, then <TT>&quot;new_from_file&quot;</TT>
+dies.  The error can also be found in <TT>$!</TT>.  (This behavior is new in
+HTML-Tree 5. Previous versions returned a tree with only implicit elements.)
+<A NAME="lbAU">&nbsp;</A>
+<H3>new_from_content</H3>
+
+
+
+
+
+<PRE>
+  $root = HTML::TreeBuilder-&gt;new_from_content(...);
+
+</PRE>
+
+
+<P>
+
+This ``shortcut'' constructor merely combines constructing a new object
+(with the ``new'' method, below), and calling <TT>&quot;for(...){$new-&gt;parse($_)}&quot;</TT>
+and <TT>&quot;$new-&gt;eof&quot;</TT> on it.  Returns the new object.  Note that this provides
+no way of setting any parse options like <TT>&quot;store_comments&quot;</TT> (for that,
+call <TT>&quot;new&quot;</TT>, and then set options, before calling <TT>&quot;parse&quot;</TT>).  Example
+usages: <TT>&quot;HTML::TreeBuilder-&gt;new_from_content(@lines)&quot;</TT>, or
+<TT>&quot;HTML::TreeBuilder-&gt;new_from_content($content)&quot;</TT>.
+<A NAME="lbAV">&nbsp;</A>
+<H3>new_from_url</H3>
+
+
+
+
+
+<PRE>
+  $root = HTML::TreeBuilder-&gt;new_from_url($url)
+
+</PRE>
+
+
+<P>
+
+This ``shortcut'' constructor combines constructing a new object (with
+the ``new'' method, below), loading LWP::UserAgent, fetching the
+specified <FONT SIZE="-1">URL,</FONT> and calling <TT>&quot;$new-&gt;parse( $response-&gt;decoded_content)&quot;</TT>
+and <TT>&quot;$new-&gt;eof&quot;</TT> on it.
+Returns the new object.  Note that this provides no way of setting any
+parse options like <TT>&quot;store_comments&quot;</TT>.
+<P>
+
+If <FONT SIZE="-1">LWP</FONT> is unable to fetch the <FONT SIZE="-1">URL,</FONT> or the response is not <FONT SIZE="-1">HTML</FONT> (as
+determined by ``content_is_html'' in HTTP::Headers), then <TT>&quot;new_from_url&quot;</TT>
+dies, and the HTTP::Response object is found in
+<TT>$HTML::TreeBuilder::lwp_response</TT>.
+<P>
+
+You must have installed LWP::UserAgent for this method to work.  <FONT SIZE="-1">LWP</FONT>
+is not installed automatically, because it's a large set of modules
+and you might not need it.
+<A NAME="lbAW">&nbsp;</A>
+<H3>new</H3>
+
+
+
+
+
+<PRE>
+  $root = HTML::TreeBuilder-&gt;new();
+
+</PRE>
+
+
+<P>
+
+This creates a new HTML::TreeBuilder object.  This method takes no
+attributes.
+<A NAME="lbAX">&nbsp;</A>
+<H3>parse_file</H3>
+
+
+
+
+
+<PRE>
+ $root-&gt;parse_file(...)
+
+</PRE>
+
+
+<P>
+
+[An important method inherited from HTML::Parser, which
+see.  Current versions of HTML::Parser can take a filespec, or a
+filehandle object, like *FOO, or some object from class IO::Handle,
+IO::File, IO::Socket) or the like.
+I think you should check that a given file exists <I>before</I> calling
+<TT>&quot;$root-&gt;parse_file($filespec)&quot;</TT>.]
+<P>
+
+When you pass a filename to <TT>&quot;parse_file&quot;</TT>, HTML::Parser opens it in
+binary mode, which means it's interpreted as Latin-1 (<FONT SIZE="-1">ISO-8859-1</FONT>).  If
+the file is in another encoding, like <FONT SIZE="-1">UTF-8</FONT> or <FONT SIZE="-1">UTF-16,</FONT> this will not
+do the right thing.
+<P>
+
+One solution is to open the file yourself using the proper
+<TT>&quot;:encoding&quot;</TT> layer, and pass the filehandle to <TT>&quot;parse_file&quot;</TT>.  You can
+automate this process by using ``html_file'' in <FONT SIZE="-1">IO::HTML</FONT>, which will use
+the <FONT SIZE="-1">HTML5</FONT> encoding sniffing algorithm to automatically determine the
+proper <TT>&quot;:encoding&quot;</TT> layer and apply it.
+<P>
+
+In the next major release of HTML-Tree, I plan to have it use <FONT SIZE="-1">IO::HTML</FONT>
+automatically.  If you really want your file opened in binary mode,
+you should open it yourself and pass the filehandle to <TT>&quot;parse_file&quot;</TT>.
+<P>
+
+The return value is <TT>&quot;undef&quot;</TT> if there's an error opening the file.  In
+that case, the error will be in <TT>$!</TT>.
+<A NAME="lbAY">&nbsp;</A>
+<H3>parse</H3>
+
+
+
+
+
+<PRE>
+  $root-&gt;parse(...)
+
+</PRE>
+
+
+<P>
+
+[A important method inherited from HTML::Parser, which
+see.  See the note below for <TT>&quot;$root-&gt;eof()&quot;</TT>.]
+<A NAME="lbAZ">&nbsp;</A>
+<H3>eof</H3>
+
+
+
+
+
+<PRE>
+  $root-&gt;eof();
+
+</PRE>
+
+
+<P>
+
+This signals that you're finished parsing content into this tree; this
+runs various kinds of crucial cleanup on the tree.  This is called
+<I>for you</I> when you call <TT>&quot;$root-&gt;parse_file(...)&quot;</TT>, but not when
+you call <TT>&quot;$root-&gt;parse(...)&quot;</TT>.  So if you call
+<TT>&quot;$root-&gt;parse(...)&quot;</TT>, then you <I>must</I> call <TT>&quot;$root-&gt;eof()&quot;</TT>
+once you've finished feeding all the chunks to <TT>&quot;parse(...)&quot;</TT>, and
+before you actually start doing anything else with the tree in <TT>$root</TT>.
+<A NAME="lbBA">&nbsp;</A>
+<H3>parse_content</H3>
+
+
+
+
+
+<PRE>
+  $root-&gt;parse_content(...);
+
+</PRE>
+
+
+<P>
+
+Basically a handy alias for <TT>&quot;$root-&gt;parse(...); $root-&gt;eof&quot;</TT>.
+Takes the exact same arguments as <TT>&quot;$root-&gt;parse()&quot;</TT>.
+<A NAME="lbBB">&nbsp;</A>
+<H3>delete</H3>
+
+
+
+
+
+<PRE>
+  $root-&gt;delete();
+
+</PRE>
+
+
+<P>
+
+[A previously important method inherited from HTML::Element,
+which see.]
+<A NAME="lbBC">&nbsp;</A>
+<H3>elementify</H3>
+
+
+
+
+
+<PRE>
+  $root-&gt;elementify();
+
+</PRE>
+
+
+<P>
+
+This changes the class of the object in <TT>$root</TT> from
+HTML::TreeBuilder to the class used for all the rest of the elements
+in that tree (generally HTML::Element).  Returns <TT>$root</TT>.
+<P>
+
+For most purposes, this is unnecessary, but if you call this after
+(after!!)
+you've finished building a tree, then it keeps you from accidentally
+trying to call anything but HTML::Element methods on it.  (I.e., if
+you accidentally call <TT>&quot;$root-&gt;parse_file(...)&quot;</TT> on the
+already-complete and elementified tree, then instead of charging ahead
+and <I>wreaking havoc</I>, it'll throw a fatal error --- since <TT>$root</TT> is
+now an object just of class HTML::Element which has no <TT>&quot;parse_file&quot;</TT>
+method.
+<P>
+
+Note that <TT>&quot;elementify&quot;</TT> currently deletes all the private attributes of
+<TT>$root</TT> except for ``_tag'', ``_parent'', ``_content'', ``_pos'', and
+``_implicit''.  If anyone requests that I change this to leave in yet
+more private attributes, I might do so, in future versions.
+<A NAME="lbBD">&nbsp;</A>
+<H3>guts</H3>
+
+
+
+
+
+<PRE>
+ @nodes = $root-&gt;guts();
+ $parent_for_nodes = $root-&gt;guts();
+
+</PRE>
+
+
+<P>
+
+In list context (as in the first case), this method returns the topmost
+non-implicit nodes in a tree.  This is useful when you're parsing <FONT SIZE="-1">HTML</FONT>
+code that you know doesn't expect an <FONT SIZE="-1">HTML</FONT> document, but instead just
+a fragment of an <FONT SIZE="-1">HTML</FONT> document.  For example, if you wanted the parse
+tree for a file consisting of just this:
+<P>
+
+
+
+<PRE>
+  &lt;li&gt;I like pie!
+
+</PRE>
+
+
+<P>
+
+Then you would get that with <TT>&quot;@nodes = $root-&gt;guts();&quot;</TT>.
+It so happens that in this case, <TT>@nodes</TT> will contain just one
+element object, representing the <TT>&quot;&lt;li&gt;&quot;</TT> node (with ``I like pie!'' being
+its text child node).  However, consider if you were parsing this:
+<P>
+
+
+
+<PRE>
+  &lt;hr&gt;Hooboy!&lt;hr&gt;
+
+</PRE>
+
+
+<P>
+
+In that case, <TT>&quot;$root-&gt;guts()&quot;</TT> would return three items:
+an element object for the first <TT>&quot;&lt;hr&gt;&quot;</TT>, a text string ``Hooboy!'', and
+another <TT>&quot;&lt;hr&gt;&quot;</TT> element object.
+<P>
+
+For cases where you want definitely one element (so you can treat it as
+a ``document fragment'', roughly speaking), call <TT>&quot;guts()&quot;</TT> in scalar
+context, as in <TT>&quot;$parent_for_nodes = $root-&gt;guts()&quot;</TT>. That works like
+<TT>&quot;guts()&quot;</TT> in list context; in fact, <TT>&quot;guts()&quot;</TT> in list context would
+have returned exactly one value, and if it would have been an object (as
+opposed to a text string), then that's what <TT>&quot;guts&quot;</TT> in scalar context
+will return.  Otherwise, if <TT>&quot;guts()&quot;</TT> in list context would have returned
+no values at all, then <TT>&quot;guts()&quot;</TT> in scalar context returns undef.  In
+all other cases, <TT>&quot;guts()&quot;</TT> in scalar context returns an implicit <TT>&quot;&lt;div&gt;&quot;</TT>
+element node, with children consisting of whatever nodes <TT>&quot;guts()&quot;</TT>
+in list context would have returned.  Note that that may detach those
+nodes from <TT>$root</TT>'s tree.
+<A NAME="lbBE">&nbsp;</A>
+<H3>disembowel</H3>
+
+
+
+
+
+<PRE>
+  @nodes = $root-&gt;disembowel();
+  $parent_for_nodes = $root-&gt;disembowel();
+
+</PRE>
+
+
+<P>
+
+The <TT>&quot;disembowel()&quot;</TT> method works just like the <TT>&quot;guts()&quot;</TT> method, except
+that disembowel definitively destroys the tree above the nodes that
+are returned.  Usually when you want the guts from a tree, you're just
+going to toss out the rest of the tree anyway, so this saves you the
+bother.  (Remember, ``disembowel'' means ``remove the guts from''.)
+<A NAME="lbBF">&nbsp;</A>
+<H2>INTERNAL METHODS</H2>
+
+
+
+You should not need to call any of the following methods directly.
+<A NAME="lbBG">&nbsp;</A>
+<H3>element_class</H3>
+
+
+
+
+
+<PRE>
+  $classname = $h-&gt;element_class;
+
+</PRE>
+
+
+<P>
+
+This method returns the class which will be used for new elements.  It
+defaults to HTML::Element, but can be overridden by subclassing or esoteric
+means best left to those will will read the source and then not complain when
+those esoteric means change.  (Just subclass.)
+<A NAME="lbBH">&nbsp;</A>
+<H3>comment</H3>
+
+
+
+Accept a ``here's a comment'' signal from HTML::Parser.
+<A NAME="lbBI">&nbsp;</A>
+<H3>declaration</H3>
+
+
+
+Accept a ``here's a markup declaration'' signal from HTML::Parser.
+<A NAME="lbBJ">&nbsp;</A>
+<H3>done</H3>
+
+
+
+<FONT SIZE="-1">TODO:</FONT> document
+<A NAME="lbBK">&nbsp;</A>
+<H3>end</H3>
+
+
+
+Either: Accept an end-tag signal from HTML::Parser
+Or: Method for closing currently open elements in some fairly complex
+way, as used by other methods in this class.
+<P>
+
+<FONT SIZE="-1">TODO:</FONT> Why is this hidden?
+<A NAME="lbBL">&nbsp;</A>
+<H3>process</H3>
+
+
+
+Accept a ``here's a <FONT SIZE="-1">PI''</FONT> signal from HTML::Parser.
+<A NAME="lbBM">&nbsp;</A>
+<H3>start</H3>
+
+
+
+Accept a signal from HTML::Parser for start-tags.
+<P>
+
+<FONT SIZE="-1">TODO:</FONT> Why is this hidden?
+<A NAME="lbBN">&nbsp;</A>
+<H3>stunt</H3>
+
+
+
+<FONT SIZE="-1">TODO:</FONT> document
+<A NAME="lbBO">&nbsp;</A>
+<H3>stunted</H3>
+
+
+
+<FONT SIZE="-1">TODO:</FONT> document
+<A NAME="lbBP">&nbsp;</A>
+<H3>text</H3>
+
+
+
+Accept a ``here's a text token'' signal from HTML::Parser.
+<P>
+
+<FONT SIZE="-1">TODO:</FONT> Why is this hidden?
+<A NAME="lbBQ">&nbsp;</A>
+<H3>tighten_up</H3>
+
+
+
+Legacy
+<P>
+
+Redirects to ``delete_ignorable_whitespace'' in HTML::Element.
+<A NAME="lbBR">&nbsp;</A>
+<H3>warning</H3>
+
+
+
+Wrapper for CORE::warn
+<P>
+
+<FONT SIZE="-1">TODO:</FONT> why not just use carp?
+<A NAME="lbBS">&nbsp;</A>
+<H2>SUBROUTINES</H2>
+
+
+
+<A NAME="lbBT">&nbsp;</A>
+<H3><FONT SIZE="-1">DEBUG</FONT></H3>
+
+
+
+Are we in Debug mode?  This is a constant subroutine, to allow
+compile-time optimizations.  To control debug mode, set
+<TT>$HTML::TreeBuilder::DEBUG</TT> <I>before</I> loading HTML::TreeBuilder.
+<A NAME="lbBU">&nbsp;</A>
+<H2>HTML AND ITS DISCONTENTS</H2>
+
+
+
+<FONT SIZE="-1">HTML</FONT> is rather harder to parse than people who write it generally
+suspect.
+<P>
+
+Here's the problem: <FONT SIZE="-1">HTML</FONT> is a kind of <FONT SIZE="-1">SGML</FONT> that permits ``minimization''
+and ``implication''.  In short, this means that you don't have to close
+every tag you open (because the opening of a subsequent tag may
+implicitly close it), and if you use a tag that can't occur in the
+context you seem to using it in, under certain conditions the parser
+will be able to realize you mean to leave the current context and
+enter the new one, that being the only one that your code could
+correctly be interpreted in.
+<P>
+
+Now, this would all work flawlessly and unproblematically if: 1) all
+the rules that both prescribe and describe <FONT SIZE="-1">HTML</FONT> were (and had been)
+clearly set out, and 2) everyone was aware of these rules and wrote
+their code in compliance to them.
+<P>
+
+However, it didn't happen that way, and so most <FONT SIZE="-1">HTML</FONT> pages are
+difficult if not impossible to correctly parse with nearly any set of
+straightforward <FONT SIZE="-1">SGML</FONT> rules.  That's why the internals of
+HTML::TreeBuilder consist of lots and lots of special cases --- instead
+of being just a generic <FONT SIZE="-1">SGML</FONT> parser with <FONT SIZE="-1">HTML DTD</FONT> rules plugged in.
+<A NAME="lbBV">&nbsp;</A>
+<H2>TRANSLATIONS?</H2>
+
+
+
+The techniques that HTML::TreeBuilder uses to perform what I consider
+very robust parses on everyday code are not things that can work only
+in Perl.  To date, the algorithms at the center of HTML::TreeBuilder
+have been implemented only in Perl, as far as I know; and I don't
+foresee getting around to implementing them in any other language any
+time soon.
+<P>
+
+If, however, anyone is looking for a semester project for an applied
+programming class (or if they merely enjoy <I>extra-curricular</I>
+masochism), they might do well to see about choosing as a topic the
+implementation/adaptation of these routines to any other interesting
+programming language that you feel currently suffers from a lack of
+robust HTML-parsing.  I welcome correspondence on this subject, and
+point out that one can learn a great deal about languages by trying to
+translate between them, and then comparing the result.
+<P>
+
+The HTML::TreeBuilder source may seem long and complex, but it is
+rather well commented, and symbol names are generally
+self-explanatory.  (You are encouraged to read the Mozilla <FONT SIZE="-1">HTML</FONT> parser
+source for comparison.)  Some of the complexity comes from little-used
+features, and some of it comes from having the <FONT SIZE="-1">HTML</FONT> tokenizer
+(HTML::Parser) being a separate module, requiring somewhat of a
+different interface than you'd find in a combined tokenizer and
+tree-builder.  But most of the length of the source comes from the fact
+that it's essentially a long list of special cases, with lots and lots
+of sanity-checking, and sanity-recovery --- because, as Roseanne
+Rosannadanna once said, &quot;it's always <I>something</I>&quot;.
+<P>
+
+Users looking to compare several <FONT SIZE="-1">HTML</FONT> parsers should look at the
+source for Raggett's Tidy
+(<TT>&quot;&lt;<A HREF="http://www.w3.org/People/Raggett/tidy/">http://www.w3.org/People/Raggett/tidy/</A>&gt;&quot;</TT>),
+Mozilla
+(<TT>&quot;&lt;<A HREF="http://www.mozilla.org/">http://www.mozilla.org/</A>&gt;&quot;</TT>),
+and possibly root around the browsers section of Yahoo
+to find the various open-source ones
+(<TT>&quot;&lt;<A HREF="http://dir.yahoo.com/Computers_and_Internet/Software/Internet/World_Wide_Web/Browsers/">http://dir.yahoo.com/Computers_and_Internet/Software/Internet/World_Wide_Web/Browsers/</A>&gt;&quot;</TT>).
+<A NAME="lbBW">&nbsp;</A>
+<H2>BUGS</H2>
+
+
+
+* Framesets seem to work correctly now.  Email me if you get a strange
+parse from a document with framesets.
+<P>
+
+* Really bad <FONT SIZE="-1">HTML</FONT> code will, often as not, make for a somewhat
+objectionable parse tree.  Regrettable, but unavoidably true.
+<P>
+
+* If you're running with <TT>&quot;implicit_tags&quot;</TT> off (God help you!), consider
+that <TT>&quot;$tree-&gt;content_list&quot;</TT> probably contains the tree or grove from the
+parse, and not <TT>$tree</TT> itself (which will, oddly enough, be an implicit
+<TT>&quot;&lt;html&gt;&quot;</TT> element).  This seems counter-intuitive and problematic; but
+seeing as how almost no <FONT SIZE="-1">HTML</FONT> ever parses correctly with <TT>&quot;implicit_tags&quot;</TT>
+off, this interface oddity seems the least of your problems.
+<A NAME="lbBX">&nbsp;</A>
+<H2>BUG REPORTS</H2>
+
+
+
+When a document parses in a way different from how you think it
+should, I ask that you report this to me as a bug.  The first thing
+you should do is copy the document, trim out as much of it as you can
+while still producing the bug in question, and <I>then</I> email me that
+mini-document <I>and</I> the code you're using to parse it, to the HTML::Tree
+bug queue at <TT>&quot;&lt;bug-html-tree&nbsp;at&nbsp;rt.cpan.org&gt;&quot;</TT>.
+<P>
+
+Include a note as to how it
+parses (presumably including its <TT>&quot;$tree-&gt;dump&quot;</TT> output), and then a
+<I>careful and clear</I> explanation of where you think the parser is
+going astray, and how you would prefer that it work instead.
+<A NAME="lbBY">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+
+For more information about the HTML-Tree distribution: HTML::Tree.
+<P>
+
+Modules used by HTML::TreeBuilder:
+HTML::Parser, HTML::Element, HTML::Tagset.
+<P>
+
+For converting between XML::DOM::Node, HTML::Element, and
+XML::Element trees: HTML::DOMbo.
+<P>
+
+For opening a <FONT SIZE="-1">HTML</FONT> file with automatic charset detection: <FONT SIZE="-1">IO::HTML</FONT>.
+<A NAME="lbBZ">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+
+
+Current maintainers:
+<DL COMPACT>
+<DT id="1">&bull;<DD>
+Christopher J. Madsen <TT>&quot;&lt;perl&nbsp;AT&nbsp;cjmweb.net&gt;&quot;</TT>
+<DT id="2">&bull;<DD>
+Jeff Fearn <TT>&quot;&lt;jfearn&nbsp;AT&nbsp;cpan.org&gt;&quot;</TT>
+</DL>
+<P>
+
+Original HTML-Tree author:
+<DL COMPACT>
+<DT id="3">&bull;<DD>
+Gisle Aas
+</DL>
+<P>
+
+Former maintainers:
+<DL COMPACT>
+<DT id="4">&bull;<DD>
+Sean M. Burke
+<DT id="5">&bull;<DD>
+Andy Lester
+<DT id="6">&bull;<DD>
+Pete Krawczyk <TT>&quot;&lt;petek&nbsp;AT&nbsp;cpan.org&gt;&quot;</TT>
+</DL>
+<P>
+
+You can follow or contribute to HTML-Tree's development at
+&lt;<A HREF="https://github.com/kentfredric/HTML-Tree">https://github.com/kentfredric/HTML-Tree</A>&gt;.
+<A NAME="lbCA">&nbsp;</A>
+<H2>COPYRIGHT AND LICENSE</H2>
+
+
+
+Copyright 1995-1998 Gisle Aas, 1999-2004 Sean M. Burke,
+2005 Andy Lester, 2006 Pete Krawczyk, 2010 Jeff Fearn,
+2012 Christopher J. Madsen.
+<P>
+
+This library is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself.
+<P>
+
+The programs in this library are distributed in the hope that they
+will be useful, but without any warranty; without even the implied
+warranty of merchantability or fitness for a particular purpose.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="7"><A HREF="#lbAB">NAME</A><DD>
+<DT id="8"><A HREF="#lbAC">VERSION</A><DD>
+<DT id="9"><A HREF="#lbAD">SYNOPSIS</A><DD>
+<DT id="10"><A HREF="#lbAE">DESCRIPTION</A><DD>
+<DT id="11"><A HREF="#lbAF">ATTRIBUTES</A><DD>
+<DL>
+<DT id="12"><A HREF="#lbAG">implicit_tags</A><DD>
+<DT id="13"><A HREF="#lbAH">implicit_body_p_tag</A><DD>
+<DT id="14"><A HREF="#lbAI">no_expand_entities</A><DD>
+<DT id="15"><A HREF="#lbAJ">ignore_unknown</A><DD>
+<DT id="16"><A HREF="#lbAK">ignore_text</A><DD>
+<DT id="17"><A HREF="#lbAL">ignore_ignorable_whitespace</A><DD>
+<DT id="18"><A HREF="#lbAM">no_space_compacting</A><DD>
+<DT id="19"><A HREF="#lbAN">p_strict</A><DD>
+<DT id="20"><A HREF="#lbAO">store_comments</A><DD>
+<DT id="21"><A HREF="#lbAP">store_declarations</A><DD>
+<DT id="22"><A HREF="#lbAQ">store_pis</A><DD>
+<DT id="23"><A HREF="#lbAR">warn</A><DD>
+</DL>
+<DT id="24"><A HREF="#lbAS">METHODS</A><DD>
+<DL>
+<DT id="25"><A HREF="#lbAT">new_from_file</A><DD>
+<DT id="26"><A HREF="#lbAU">new_from_content</A><DD>
+<DT id="27"><A HREF="#lbAV">new_from_url</A><DD>
+<DT id="28"><A HREF="#lbAW">new</A><DD>
+<DT id="29"><A HREF="#lbAX">parse_file</A><DD>
+<DT id="30"><A HREF="#lbAY">parse</A><DD>
+<DT id="31"><A HREF="#lbAZ">eof</A><DD>
+<DT id="32"><A HREF="#lbBA">parse_content</A><DD>
+<DT id="33"><A HREF="#lbBB">delete</A><DD>
+<DT id="34"><A HREF="#lbBC">elementify</A><DD>
+<DT id="35"><A HREF="#lbBD">guts</A><DD>
+<DT id="36"><A HREF="#lbBE">disembowel</A><DD>
+</DL>
+<DT id="37"><A HREF="#lbBF">INTERNAL METHODS</A><DD>
+<DL>
+<DT id="38"><A HREF="#lbBG">element_class</A><DD>
+<DT id="39"><A HREF="#lbBH">comment</A><DD>
+<DT id="40"><A HREF="#lbBI">declaration</A><DD>
+<DT id="41"><A HREF="#lbBJ">done</A><DD>
+<DT id="42"><A HREF="#lbBK">end</A><DD>
+<DT id="43"><A HREF="#lbBL">process</A><DD>
+<DT id="44"><A HREF="#lbBM">start</A><DD>
+<DT id="45"><A HREF="#lbBN">stunt</A><DD>
+<DT id="46"><A HREF="#lbBO">stunted</A><DD>
+<DT id="47"><A HREF="#lbBP">text</A><DD>
+<DT id="48"><A HREF="#lbBQ">tighten_up</A><DD>
+<DT id="49"><A HREF="#lbBR">warning</A><DD>
+</DL>
+<DT id="50"><A HREF="#lbBS">SUBROUTINES</A><DD>
+<DL>
+<DT id="51"><A HREF="#lbBT"><FONT SIZE="-1">DEBUG</FONT></A><DD>
+</DL>
+<DT id="52"><A HREF="#lbBU">HTML AND ITS DISCONTENTS</A><DD>
+<DT id="53"><A HREF="#lbBV">TRANSLATIONS?</A><DD>
+<DT id="54"><A HREF="#lbBW">BUGS</A><DD>
+<DT id="55"><A HREF="#lbBX">BUG REPORTS</A><DD>
+<DT id="56"><A HREF="#lbBY">SEE ALSO</A><DD>
+<DT id="57"><A HREF="#lbBZ">AUTHOR</A><DD>
+<DT id="58"><A HREF="#lbCA">COPYRIGHT AND LICENSE</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:45 GMT, March 31, 2021
+</BODY>
+</HTML>

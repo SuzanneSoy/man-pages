@@ -1,0 +1,229 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of MACHINE-ID</TITLE>
+</HEAD><BODY>
+<H1>MACHINE-ID</H1>
+Section: machine-id (5)<BR>Updated: <BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+machine-id - Local machine ID configuration file
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+
+/etc/machine-id
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+The
+/etc/machine-id
+file contains the unique machine ID of the local system that is set during installation or boot. The machine ID is a single newline-terminated, hexadecimal, 32-character, lowercase ID. When decoded from hexadecimal, this corresponds to a 16-byte/128-bit value. This ID may not be all zeros.
+<P>
+
+The machine ID is usually generated from a random source during system installation or first boot and stays constant for all subsequent boots. Optionally, for stateless systems, it is generated during runtime during early boot if necessary.
+<P>
+
+The machine ID may be set, for example when network booting, with the
+<I>systemd.machine_id=</I>
+kernel command line parameter or by passing the option
+<B>--machine-id=</B>
+to systemd. An ID is specified in this manner has higher priority and will be used instead of the ID stored in
+/etc/machine-id.
+<P>
+
+The machine ID does not change based on local or network configuration or when hardware is replaced. Due to this and its greater length, it is a more useful replacement for the
+<B><A HREF="/cgi-bin/man/man2html?3+gethostid">gethostid</A></B>(3)
+call that POSIX specifies.
+<P>
+
+This machine ID adheres to the same format and logic as the D-Bus machine ID.
+<P>
+
+This ID uniquely identifies the host. It should be considered &quot;confidential&quot;, and must not be exposed in untrusted environments, in particular on the network. If a stable unique identifier that is tied to the machine is needed for some application, the machine ID or any part of it must not be used directly. Instead the machine ID should be hashed with a cryptographic, keyed hash function, using a fixed, application-specific key. That way the ID will be properly unique, and derived in a constant way from the machine ID but there will be no way to retrieve the original machine ID from the application-specific one. The
+<B><A HREF="/cgi-bin/man/man2html?3+sd_id128_get_machine_app_specific">sd_id128_get_machine_app_specific</A></B>(3)
+API provides an implementation of such an algorithm.
+<A NAME="lbAE">&nbsp;</A>
+<H2>INITIALIZATION</H2>
+
+<P>
+
+Each machine should have a non-empty ID in normal operation. The ID of each machine should be unique. To achieve those objectives,
+/etc/machine-id
+can be initialized in a few different ways.
+<P>
+
+For normal operating system installations, where a custom image is created for a specific machine,
+/etc/machine-id
+should be populated during installation.
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?1+systemd-machine-id-setup">systemd-machine-id-setup</A></B>(1)
+may be used by installer tools to initialize the machine ID at install time, but
+/etc/machine-id
+may also be written using any other means.
+<P>
+
+For operating system images which are created once and used on multiple machines, for example for containers or in the cloud,
+/etc/machine-id
+should be an empty file in the generic file system image. An ID will be generated during boot and saved to this file if possible. Having an empty file in place is useful because it allows a temporary file to be bind-mounted over the real file, in case the image is used read-only.
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?1+systemd-firstboot">systemd-firstboot</A></B>(1)
+may be used to initialize
+/etc/machine-id
+on mounted (but not booted) system images.
+<P>
+
+When a machine is booted with
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1)
+the ID of the machine will be established. If
+<I>systemd.machine_id=</I>
+or
+<B>--machine-id=</B>
+options (see first section) are specified, this value will be used. Otherwise, the value in
+/etc/machine-id
+will be used. If this file is empty or missing,
+systemd
+will attempt to use the D-Bus machine ID from
+/var/lib/dbus/machine-id, the value of the kernel command line option
+<I>container_uuid</I>, the KVM DMI
+product_uuid
+or the devicetree
+vm,uuid
+(on KVM systems), and finally a randomly generated UUID.
+<P>
+
+After the machine ID is established,
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1)
+will attempt to save it to
+/etc/machine-id. If this fails, it will attempt to bind-mount a temporary file over
+/etc/machine-id. It is an error if the file system is read-only and does not contain a (possibly empty)
+/etc/machine-id
+file.
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-machine-id-commit.service">systemd-machine-id-commit.service</A></B>(8)
+will attempt to write the machine ID to the file system if
+/etc/machine-id
+or
+/etc
+are read-only during early boot but become writable later on.
+<A NAME="lbAF">&nbsp;</A>
+<H2>RELATION TO OSF UUIDS</H2>
+
+<P>
+
+Note that the machine ID historically is not an OSF UUID as defined by
+m[blue]<B>RFC 4122</B>m[]<FONT SIZE="-2">[1]</FONT>, nor a Microsoft GUID; however, starting with systemd v30, newly generated machine IDs do qualify as v4 UUIDs.
+<P>
+
+In order to maintain compatibility with existing installations, an application requiring a UUID should decode the machine ID, and then apply the following operations to turn it into a valid OSF v4 UUID. With
+&quot;id&quot;
+being an unsigned character array:
+<P>
+<DL COMPACT><DT id="1"><DD>
+
+
+
+<PRE>
+/* Set UUID version to 4 --- truly random generation */
+id[6] = (id[6] &amp; 0x0F) | 0x40;
+/* Set the UUID variant to DCE */
+id[8] = (id[8] &amp; 0x3F) | 0x80;
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+(This code is inspired by
+&quot;generate_random_uuid()&quot;
+of
+drivers/char/random.c
+from the Linux kernel sources.)
+<A NAME="lbAG">&nbsp;</A>
+<H2>HISTORY</H2>
+
+<P>
+
+The simple configuration file format of
+/etc/machine-id
+originates in the
+/var/lib/dbus/machine-id
+file introduced by D-Bus. In fact, this latter file might be a symlink to
+/etc/machine-id.
+<A NAME="lbAH">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?1+systemd-machine-id-setup">systemd-machine-id-setup</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?3+gethostid">gethostid</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?5+hostname">hostname</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?5+machine-info">machine-info</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?5+os-release">os-release</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?3+sd-id128">sd-id128</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_id128_get_machine">sd_id128_get_machine</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?1+systemd-firstboot">systemd-firstboot</A></B>(1)
+<A NAME="lbAI">&nbsp;</A>
+<H2>NOTES</H2>
+
+<DL COMPACT>
+<DT id="2"> 1.<DD>
+RFC 4122
+<DL COMPACT><DT id="3"><DD>
+<A HREF="https://tools.ietf.org/html/rfc4122">https://tools.ietf.org/html/rfc4122</A>
+</DL>
+
+<P>
+</DL>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="4"><A HREF="#lbAB">NAME</A><DD>
+<DT id="5"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="6"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="7"><A HREF="#lbAE">INITIALIZATION</A><DD>
+<DT id="8"><A HREF="#lbAF">RELATION TO OSF UUIDS</A><DD>
+<DT id="9"><A HREF="#lbAG">HISTORY</A><DD>
+<DT id="10"><A HREF="#lbAH">SEE ALSO</A><DD>
+<DT id="11"><A HREF="#lbAI">NOTES</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:03 GMT, March 31, 2021
+</BODY>
+</HTML>

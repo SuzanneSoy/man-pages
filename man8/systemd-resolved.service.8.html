@@ -1,0 +1,460 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SYSTEMD-RESOLVED.SERVICE</TITLE>
+</HEAD><BODY>
+<H1>SYSTEMD-RESOLVED.SERVICE</H1>
+Section: systemd-resolved.service (8)<BR>Updated: <BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+systemd-resolved.service, systemd-resolved - Network Name Resolution manager
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+
+systemd-resolved.service
+<P>
+
+/lib/systemd/systemd-resolved
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+<B>systemd-resolved</B>
+is a system service that provides network name resolution to local applications. It implements a caching and validating DNS/DNSSEC stub resolver, as well as an LLMNR and MulticastDNS resolver and responder. Local applications may submit network name resolution requests via three interfaces:
+<P>
+<DL COMPACT><DT id="1"><DD>
+&bull;
+
+
+The native, fully-featured API
+<B>systemd-resolved</B>
+exposes on the bus. See the
+m[blue]<B>API Documentation</B>m[]<FONT SIZE="-2">[1]</FONT>
+for details. Usage of this API is generally recommended to clients as it is asynchronous and fully featured (for example, properly returns DNSSEC validation status and interface scope for addresses as necessary for supporting link-local networking).
+</DL>
+
+<P>
+<DL COMPACT><DT id="2"><DD>
+&bull;
+
+
+The glibc
+<B><A HREF="/cgi-bin/man/man2html?3+getaddrinfo">getaddrinfo</A></B>(3)
+API as defined by
+m[blue]<B>RFC3493</B>m[]<FONT SIZE="-2">[2]</FONT>
+and its related resolver functions, including
+<B><A HREF="/cgi-bin/man/man2html?3+gethostbyname">gethostbyname</A></B>(3). This API is widely supported, including beyond the Linux platform. In its current form it does not expose DNSSEC validation status information however, and is synchronous only. This API is backed by the glibc Name Service Switch (<B><A HREF="/cgi-bin/man/man2html?5+nss">nss</A></B>(5)). Usage of the glibc NSS module
+<B><A HREF="/cgi-bin/man/man2html?8+nss-resolve">nss-resolve</A></B>(8)
+is required in order to allow glibc's NSS resolver functions to resolve host names via
+<B>systemd-resolved</B>.
+</DL>
+
+<P>
+<DL COMPACT><DT id="3"><DD>
+&bull;
+
+
+Additionally,
+<B>systemd-resolved</B>
+provides a local DNS stub listener on IP address 127.0.0.53 on the local loopback interface. Programs issuing DNS requests directly, bypassing any local API may be directed to this stub, in order to connect them to
+<B>systemd-resolved</B>. Note however that it is strongly recommended that local programs use the glibc NSS or bus APIs instead (as described above), as various network resolution concepts (such as link-local addressing, or LLMNR Unicode domains) cannot be mapped to the unicast DNS protocol.
+</DL>
+
+<P>
+
+The DNS servers contacted are determined from the global settings in
+/etc/systemd/resolved.conf, the per-link static settings in
+/etc/systemd/network/*.network
+files (in case
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-networkd.service">systemd-networkd.service</A></B>(8)
+is used), the per-link dynamic settings received over DHCP, user request made via
+<B><A HREF="/cgi-bin/man/man2html?1+resolvectl">resolvectl</A></B>(1), and any DNS server information made available by other system services. See
+<B><A HREF="/cgi-bin/man/man2html?5+resolved.conf">resolved.conf</A></B>(5)
+and
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.network">systemd.network</A></B>(5)
+for details about systemd's own configuration files for DNS servers. To improve compatibility,
+/etc/resolv.conf
+is read in order to discover configured system DNS servers, but only if it is not a symlink to
+/run/systemd/resolve/stub-resolv.conf,
+/usr/lib/systemd/resolv.conf
+or
+/run/systemd/resolve/resolv.conf
+(see below).
+<A NAME="lbAE">&nbsp;</A>
+<H2>SYNTHETIC RECORDS</H2>
+
+<P>
+
+<B>systemd-resolved</B>
+synthesizes DNS resource records (RRs) for the following cases:
+<P>
+<DL COMPACT><DT id="4"><DD>
+&bull;
+
+
+The local, configured hostname is resolved to all locally configured IP addresses ordered by their scope, or --- if none are configured --- the IPv4 address 127.0.0.2 (which is on the local loopback) and the IPv6 address ::1 (which is the local host).
+</DL>
+
+<P>
+<DL COMPACT><DT id="5"><DD>
+&bull;
+
+
+The hostnames
+&quot;localhost&quot;
+and
+&quot;localhost.localdomain&quot;
+(as well as any hostname ending in
+&quot;.localhost&quot;
+or
+&quot;.localhost.localdomain&quot;) are resolved to the IP addresses 127.0.0.1 and ::1.
+</DL>
+
+<P>
+<DL COMPACT><DT id="6"><DD>
+&bull;
+
+
+The hostname
+&quot;_gateway&quot;
+is resolved to all current default routing gateway addresses, ordered by their metric. This assigns a stable hostname to the current gateway, useful for referencing it independently of the current network configuration state.
+</DL>
+
+<P>
+<DL COMPACT><DT id="7"><DD>
+&bull;
+
+
+The mappings defined in
+/etc/hosts
+are resolved to their configured addresses and back, but they will not affect lookups for non-address types (like MX).
+</DL>
+
+<A NAME="lbAF">&nbsp;</A>
+<H2>PROTOCOLS AND ROUTING</H2>
+
+<P>
+
+Lookup requests are routed to the available DNS servers, LLMNR and MulticastDNS interfaces according to the following rules:
+<P>
+<DL COMPACT><DT id="8"><DD>
+&bull;
+
+
+Lookups for the special hostname
+&quot;localhost&quot;
+are never routed to the network. (A few other, special domains are handled the same way.)
+</DL>
+
+<P>
+<DL COMPACT><DT id="9"><DD>
+&bull;
+
+
+Single-label names are routed to all local interfaces capable of IP multicasting, using the LLMNR protocol. Lookups for IPv4 addresses are only sent via LLMNR on IPv4, and lookups for IPv6 addresses are only sent via LLMNR on IPv6. Lookups for the locally configured host name and the
+&quot;_gateway&quot;
+host name are never routed to LLMNR.
+</DL>
+
+<P>
+<DL COMPACT><DT id="10"><DD>
+&bull;
+
+
+Multi-label names with the domain suffix
+&quot;.local&quot;
+are routed to all local interfaces capable of IP multicasting, using the MulticastDNS protocol. As with LLMNR IPv4 address lookups are sent via IPv4 and IPv6 address lookups are sent via IPv6.
+</DL>
+
+<P>
+<DL COMPACT><DT id="11"><DD>
+&bull;
+
+
+Other multi-label names are routed to all local interfaces that have a DNS server configured, plus the globally configured DNS server if there is one. Address lookups from the link-local address range are never routed to DNS. Note that by default lookups for domains with the
+&quot;.local&quot;
+suffix are not routed to DNS servers, unless the domain is specified explicitly as routing or search domain for the DNS server and interface. This means that on networks where the
+&quot;.local&quot;
+domain is defined in a site-specific DNS server, explicit search or routing domains need to be configured to make lookups within this DNS domain work. Note that today it's generally recommended to avoid defining
+&quot;.local&quot;
+in a DNS server, as
+m[blue]<B>RFC6762</B>m[]<FONT SIZE="-2">[3]</FONT>
+reserves this domain for exclusive MulticastDNS use.
+</DL>
+
+<P>
+
+If lookups are routed to multiple interfaces, the first successful response is returned (thus effectively merging the lookup zones on all matching interfaces). If the lookup failed on all interfaces, the last failing response is returned.
+<P>
+
+Routing of lookups may be influenced by configuring per-interface domain names and other settings. See
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.network">systemd.network</A></B>(5)
+and
+<B><A HREF="/cgi-bin/man/man2html?1+resolvectl">resolvectl</A></B>(1)
+for details. The following query routing logic applies for unicast DNS traffic:
+<P>
+<DL COMPACT><DT id="12"><DD>
+&bull;
+
+
+If a name to look up matches (that is: is equal to or has as suffix) any of the configured search or route-only domains of any link (or the globally configured DNS settings), the &quot;best matching&quot; search/route-only domain is determined: the matching one with the most labels. The query is then sent to all DNS servers of any links or the globally configured DNS servers associated with this &quot;best matching&quot; search/route-only domain. (Note that more than one link might have this same &quot;best matching&quot; search/route-only domain configured, in which case the query is sent to all of them in parallel).
+</DL>
+
+<P>
+<DL COMPACT><DT id="13"><DD>
+&bull;
+
+
+If a query does not match any configured search/route-only domain (neither per-link nor global), it is sent to all DNS servers that are configured on links with the &quot;DNS default route&quot; option set, as well as the globally configured DNS server.
+</DL>
+
+<P>
+<DL COMPACT><DT id="14"><DD>
+&bull;
+
+
+If there is no link configured as &quot;DNS default route&quot; and no global DNS server configured, the compiled-in fallback DNS server is used.
+</DL>
+
+<P>
+<DL COMPACT><DT id="15"><DD>
+&bull;
+
+
+Otherwise the query is failed as no suitable DNS servers could be determined.
+</DL>
+
+<P>
+
+The &quot;DNS default route&quot; option is a boolean setting configurable with
+<B>resolvectl</B>
+or in
+.network
+files. If not set, it is implicitly determined based on the configured DNS domains for a link: if there's any route-only domain (not matching
+&quot;~.&quot;) it defaults to false, otherwise to true.
+<P>
+
+Effectively this means: in order to preferably route all DNS queries not explicitly matched by search/route-only domain configuration to a specific link, configure a
+&quot;~.&quot;
+route-only domain on it. This will ensure that other links will not be considered for the queries (unless they too carry such a route-only domain). In order to route all such DNS queries to a specific link only in case no other link is preferable, then set the &quot;DNS default route&quot; option for the link to true, and do not configure a
+&quot;~.&quot;
+route-only domain on it. Finally, in order to ensure that a specific link never receives any DNS traffic not matching any of its configured search/route-only domains, set the &quot;DNS default route&quot; option for it to false.
+<P>
+
+See the
+m[blue]<B>resolved D-Bus API Documentation</B>m[]<FONT SIZE="-2">[1]</FONT>
+for information about the APIs
+systemd-resolved
+provides.
+<A NAME="lbAG">&nbsp;</A>
+<H2>/ETC/RESOLV.CONF</H2>
+
+<P>
+
+Four modes of handling
+/etc/resolv.conf
+(see
+<B><A HREF="/cgi-bin/man/man2html?5+resolv.conf">resolv.conf</A></B>(5)) are supported:
+<P>
+<DL COMPACT><DT id="16"><DD>
+&bull;
+
+
+<B>systemd-resolved</B>
+maintains the
+/run/systemd/resolve/stub-resolv.conf
+file for compatibility with traditional Linux programs. This file may be symlinked from
+/etc/resolv.conf. This file lists the 127.0.0.53 DNS stub (see above) as the only DNS server. It also contains a list of search domains that are in use by systemd-resolved. The list of search domains is always kept up-to-date. Note that
+/run/systemd/resolve/stub-resolv.conf
+should not be used directly by applications, but only through a symlink from
+/etc/resolv.conf. This file may be symlinked from
+/etc/resolv.conf
+in order to connect all local clients that bypass local DNS APIs to
+<B>systemd-resolved</B>
+with correct search domains settings. This mode of operation is recommended.
+</DL>
+
+<P>
+<DL COMPACT><DT id="17"><DD>
+&bull;
+
+
+A static file
+/usr/lib/systemd/resolv.conf
+is provided that lists the 127.0.0.53 DNS stub (see above) as only DNS server. This file may be symlinked from
+/etc/resolv.conf
+in order to connect all local clients that bypass local DNS APIs to
+<B>systemd-resolved</B>. This file does not contain any search domains.
+</DL>
+
+<P>
+<DL COMPACT><DT id="18"><DD>
+&bull;
+
+
+<B>systemd-resolved</B>
+maintains the
+/run/systemd/resolve/resolv.conf
+file for compatibility with traditional Linux programs. This file may be symlinked from
+/etc/resolv.conf
+and is always kept up-to-date, containing information about all known DNS servers. Note the file format's limitations: it does not know a concept of per-interface DNS servers and hence only contains system-wide DNS server definitions. Note that
+/run/systemd/resolve/resolv.conf
+should not be used directly by applications, but only through a symlink from
+/etc/resolv.conf. If this mode of operation is used local clients that bypass any local DNS API will also bypass
+<B>systemd-resolved</B>
+and will talk directly to the known DNS servers.
+</DL>
+
+<P>
+<DL COMPACT><DT id="19"><DD>
+&bull;
+
+
+Alternatively,
+/etc/resolv.conf
+may be managed by other packages, in which case
+<B>systemd-resolved</B>
+will read it for DNS configuration data. In this mode of operation
+<B>systemd-resolved</B>
+is consumer rather than provider of this configuration file.
+</DL>
+
+<P>
+
+Note that the selected mode of operation for this file is detected fully automatically, depending on whether
+/etc/resolv.conf
+is a symlink to
+/run/systemd/resolve/resolv.conf
+or lists 127.0.0.53 as DNS server.
+<A NAME="lbAH">&nbsp;</A>
+<H2>SIGNALS</H2>
+
+<P>
+
+<B>SIGUSR1</B>
+<DL COMPACT><DT id="20"><DD>
+Upon reception of the
+<B>SIGUSR1</B>
+process signal
+<B>systemd-resolved</B>
+will dump the contents of all DNS resource record caches it maintains, as well as all feature level information it learnt about configured DNS servers into the system logs.
+</DL>
+
+<P>
+
+<B>SIGUSR2</B>
+<DL COMPACT><DT id="21"><DD>
+Upon reception of the
+<B>SIGUSR2</B>
+process signal
+<B>systemd-resolved</B>
+will flush all caches it maintains. Note that it should normally not be necessary to request this explicitly - except for debugging purposes - as
+<B>systemd-resolved</B>
+flushes the caches automatically anyway any time the host's network configuration changes. Sending this signal to
+<B>systemd-resolved</B>
+is equivalent to the
+<B>resolvectl flush-caches</B>
+command, however the latter is recommended since it operates in a synchronous way.
+</DL>
+
+<P>
+
+<B>SIGRTMIN+1</B>
+<DL COMPACT><DT id="22"><DD>
+Upon reception of the
+<B>SIGRTMIN+1</B>
+process signal
+<B>systemd-resolved</B>
+will forget everything it learnt about the configured DNS servers. Specifically any information about server feature support is flushed out, and the server feature probing logic is restarted on the next request, starting with the most fully featured level. Note that it should normally not be necessary to request this explicitly - except for debugging purposes - as
+<B>systemd-resolved</B>
+automatically forgets learnt information any time the DNS server configuration changes. Sending this signal to
+<B>systemd-resolved</B>
+is equivalent to the
+<B>resolvectl reset-server-features</B>
+command, however the latter is recommended since it operates in a synchronous way.
+</DL>
+
+<A NAME="lbAI">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?5+resolved.conf">resolved.conf</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?5+dnssec-trust-anchors.d">dnssec-trust-anchors.d</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?8+nss-resolve">nss-resolve</A></B>(8),
+<B><A HREF="/cgi-bin/man/man2html?1+resolvectl">resolvectl</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?5+resolv.conf">resolv.conf</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?5+hosts">hosts</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.network">systemd.network</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-networkd.service">systemd-networkd.service</A></B>(8)
+<A NAME="lbAJ">&nbsp;</A>
+<H2>NOTES</H2>
+
+<DL COMPACT>
+<DT id="23"> 1.<DD>
+API Documentation
+<DL COMPACT><DT id="24"><DD>
+<A HREF="https://www.freedesktop.org/wiki/Software/systemd/resolved">https://www.freedesktop.org/wiki/Software/systemd/resolved</A>
+</DL>
+
+<DT id="25"> 2.<DD>
+RFC3493
+<DL COMPACT><DT id="26"><DD>
+<A HREF="https://tools.ietf.org/html/rfc3493">https://tools.ietf.org/html/rfc3493</A>
+</DL>
+
+<DT id="27"> 3.<DD>
+RFC6762
+<DL COMPACT><DT id="28"><DD>
+<A HREF="https://tools.ietf.org/html/rfc6762">https://tools.ietf.org/html/rfc6762</A>
+</DL>
+
+<P>
+</DL>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="29"><A HREF="#lbAB">NAME</A><DD>
+<DT id="30"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="31"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="32"><A HREF="#lbAE">SYNTHETIC RECORDS</A><DD>
+<DT id="33"><A HREF="#lbAF">PROTOCOLS AND ROUTING</A><DD>
+<DT id="34"><A HREF="#lbAG">/ETC/RESOLV.CONF</A><DD>
+<DT id="35"><A HREF="#lbAH">SIGNALS</A><DD>
+<DT id="36"><A HREF="#lbAI">SEE ALSO</A><DD>
+<DT id="37"><A HREF="#lbAJ">NOTES</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:16 GMT, March 31, 2021
+</BODY>
+</HTML>

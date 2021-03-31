@@ -1,0 +1,484 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of IOCTL_NS</TITLE>
+</HEAD><BODY>
+<H1>IOCTL_NS</H1>
+Section: Linux Programmer's Manual (2)<BR>Updated: 2019-03-06<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+ioctl_ns - ioctl() operations for Linux namespaces
+<A NAME="lbAC">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+
+<A NAME="lbAD">&nbsp;</A>
+<H3>Discovering namespace relationships</H3>
+
+The following
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+operations are provided to allow discovery of namespace relationships (see
+<B><A HREF="/cgi-bin/man/man2html?7+user_namespaces">user_namespaces</A></B>(7)
+
+and
+<B><A HREF="/cgi-bin/man/man2html?7+pid_namespaces">pid_namespaces</A></B>(7)).
+
+The form of the calls is:
+<P>
+
+
+
+new_fd = ioctl(fd, request);
+
+
+<P>
+
+In each case,
+<I>fd</I>
+
+refers to a
+<I>/proc/[pid]/ns/*</I>
+
+file.
+Both operations return a new file descriptor on success.
+<DL COMPACT>
+<DT id="1"><B>NS_GET_USERNS</B> (since Linux 4.9)
+
+<DD>
+
+
+Returns a file descriptor that refers to the owning user namespace
+for the namespace referred to by
+<I>fd</I>.
+
+<DT id="2"><B>NS_GET_PARENT</B> (since Linux 4.9)
+
+<DD>
+
+Returns a file descriptor that refers to the parent namespace of
+the namespace referred to by
+<I>fd</I>.
+
+This operation is valid only for hierarchical namespaces
+(i.e., PID and user namespaces).
+For user namespaces,
+<B>NS_GET_PARENT</B>
+
+is synonymous with
+<B>NS_GET_USERNS</B>.
+
+</DL>
+<P>
+
+The new file descriptor returned by these operations is opened with the
+<B>O_RDONLY</B>
+
+and
+<B>O_CLOEXEC</B>
+
+(close-on-exec; see
+<B><A HREF="/cgi-bin/man/man2html?2+fcntl">fcntl</A></B>(2))
+
+flags.
+<P>
+
+By applying
+<B><A HREF="/cgi-bin/man/man2html?2+fstat">fstat</A></B>(2)
+
+to the returned file descriptor, one obtains a
+<I>stat</I>
+
+structure whose
+<I>st_dev</I>
+
+(resident device) and
+<I>st_ino</I>
+
+(inode number) fields together identify the owning/parent namespace.
+This inode number can be matched with the inode number of another
+<I>/proc/[pid]/ns/{pid,user}</I>
+
+file to determine whether that is the owning/parent namespace.
+<P>
+
+Either of these
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+operations can fail with the following errors:
+<DL COMPACT>
+<DT id="3"><B>EPERM</B>
+
+<DD>
+The requested namespace is outside of the caller's namespace scope.
+This error can occur if, for example, the owning user namespace is an
+ancestor of the caller's current user namespace.
+It can also occur on attempts to obtain the parent of the initial
+user or PID namespace.
+<DT id="4"><B>ENOTTY</B>
+
+<DD>
+The operation is not supported by this kernel version.
+</DL>
+<P>
+
+Additionally, the
+<B>NS_GET_PARENT</B>
+
+operation can fail with the following error:
+<DL COMPACT>
+<DT id="5"><B>EINVAL</B>
+
+<DD>
+<I>fd</I>
+
+refers to a nonhierarchical namespace.
+</DL>
+<P>
+
+See the EXAMPLE section for an example of the use of these operations.
+
+
+<A NAME="lbAE">&nbsp;</A>
+<H3>Discovering the namespace type</H3>
+
+The
+<B>NS_GET_NSTYPE</B>
+
+
+operation (available since Linux 4.11) can be used to discover
+the type of namespace referred to by the file descriptor
+<I>fd</I>:
+
+<P>
+
+
+
+nstype = ioctl(fd, NS_GET_NSTYPE);
+
+
+<P>
+
+<I>fd</I>
+
+refers to a
+<I>/proc/[pid]/ns/*</I>
+
+file.
+<P>
+
+The return value is one of the
+<B>CLONE_NEW*</B>
+
+values that can be specified to
+<B><A HREF="/cgi-bin/man/man2html?2+clone">clone</A></B>(2)
+
+or
+<B><A HREF="/cgi-bin/man/man2html?2+unshare">unshare</A></B>(2)
+
+in order to create a namespace.
+
+
+<A NAME="lbAF">&nbsp;</A>
+<H3>Discovering the owner of a user namespace</H3>
+
+The
+<B>NS_GET_OWNER_UID</B>
+
+
+operation (available since Linux 4.11) can be used to discover
+the owner user ID of a user namespace (i.e., the effective user ID
+of the process that created the user namespace).
+The form of the call is:
+<P>
+
+
+
+uid_t uid;
+ioctl(fd, NS_GET_OWNER_UID, &amp;uid);
+
+
+<P>
+
+<I>fd</I>
+
+refers to a
+<I>/proc/[pid]/ns/user</I>
+
+file.
+<P>
+
+The owner user ID is returned in the
+<I>uid_t</I>
+
+pointed to by the third argument.
+<P>
+
+This operation can fail with the following error:
+<DL COMPACT>
+<DT id="6"><B>EINVAL</B>
+
+<DD>
+<I>fd</I>
+
+does not refer to a user namespace.
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H2>ERRORS</H2>
+
+Any of the above
+<B>ioctl</B>()
+
+operations can return the following errors:
+<DL COMPACT>
+<DT id="7"><B>ENOTTY</B>
+
+<DD>
+<I>fd</I>
+
+does not refer to a
+<I>/proc/[pid]/ns/*</I>
+
+file.
+</DL>
+<A NAME="lbAH">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+Namespaces and the operations described on this page are a Linux-specific.
+<A NAME="lbAI">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+The example shown below uses the
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+operations described above to perform simple
+discovery of namespace relationships.
+The following shell sessions show various examples of the use
+of this program.
+<P>
+
+Trying to get the parent of the initial user namespace fails,
+since it has no parent:
+<P>
+
+
+
+$ <B>./ns_show /proc/self/ns/user p</B>
+The parent namespace is outside your namespace scope
+
+
+<P>
+
+Create a process running
+<B><A HREF="/cgi-bin/man/man2html?1+sleep">sleep</A></B>(1)
+
+that resides in new user and UTS namespaces,
+and show that the new UTS namespace is associated with the new user namespace:
+<P>
+
+
+
+$ <B>unshare -Uu sleep 1000 &amp;</B>
+[1] 23235
+$ <B>./ns_show /proc/23235/ns/uts u</B>
+Device/Inode of owning user namespace is: [0,3] / 4026532448
+$ <B>readlink /proc/23235/ns/user </B>
+user:[4026532448]
+
+
+<P>
+
+Then show that the parent of the new user namespace in the preceding
+example is the initial user namespace:
+<P>
+
+
+
+$ <B>readlink /proc/self/ns/user</B>
+user:[4026531837]
+$ <B>./ns_show /proc/23235/ns/user p</B>
+Device/Inode of parent namespace is: [0,3] / 4026531837
+
+
+<P>
+
+Start a shell in a new user namespace, and show that from within
+this shell, the parent user namespace can't be discovered.
+Similarly, the UTS namespace
+(which is associated with the initial user namespace)
+can't be discovered.
+<P>
+
+
+
+$ <B>PS1=&quot;sh2$ &quot; unshare -U bash</B>
+sh2$ <B>./ns_show /proc/self/ns/user p</B>
+The parent namespace is outside your namespace scope
+sh2$ <B>./ns_show /proc/self/ns/uts u</B>
+The owning user namespace is outside your namespace scope
+
+
+<A NAME="lbAJ">&nbsp;</A>
+<H3>Program source</H3>
+
+
+
+/* ns_show.c
+<P>
+<BR>&nbsp;&nbsp;&nbsp;Licensed&nbsp;under&nbsp;the&nbsp;GNU&nbsp;General&nbsp;Public&nbsp;License&nbsp;v2&nbsp;or&nbsp;later.
+*/
+#include &lt;<A HREF="file:///usr/include/stdlib.h">stdlib.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/unistd.h">unistd.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/fcntl.h">fcntl.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/string.h">string.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/sys/stat.h">sys/stat.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/sys/ioctl.h">sys/ioctl.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/errno.h">errno.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/sys/sysmacros.h">sys/sysmacros.h</A>&gt;
+<P>
+#ifndef NS_GET_USERNS
+#define NSIO    0xb7
+#define NS_GET_USERNS   _IO(NSIO, 0x1)
+#define NS_GET_PARENT   _IO(NSIO, 0x2)
+#endif
+<P>
+int
+main(int argc, char *argv[])
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;fd,&nbsp;userns_fd,&nbsp;parent_fd;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;stat&nbsp;sb;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(argc&nbsp;&lt;&nbsp;2)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;Usage:&nbsp;%s&nbsp;/proc/[pid]/ns/[file]&nbsp;[p|u]\n&quot;,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;argv[0]);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;\nDisplay&nbsp;the&nbsp;result&nbsp;of&nbsp;one&nbsp;or&nbsp;both&nbsp;&quot;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;of&nbsp;NS_GET_USERNS&nbsp;(u)&nbsp;or&nbsp;NS_GET_PARENT&nbsp;(p)\n&quot;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;for&nbsp;the&nbsp;specified&nbsp;/proc/[pid]/ns/[file].&nbsp;If&nbsp;neither&nbsp;&quot;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;'p'&nbsp;nor&nbsp;'u'&nbsp;is&nbsp;specified,\n&quot;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;NS_GET_USERNS&nbsp;is&nbsp;the&nbsp;default.\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Obtain&nbsp;a&nbsp;file&nbsp;descriptor&nbsp;for&nbsp;the&nbsp;'ns'&nbsp;file&nbsp;specified
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;in&nbsp;argv[1]&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fd&nbsp;=&nbsp;open(argv[1],&nbsp;O_RDONLY);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(fd&nbsp;==&nbsp;-1)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;perror(&quot;open&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Obtain&nbsp;a&nbsp;file&nbsp;descriptor&nbsp;for&nbsp;the&nbsp;owning&nbsp;user&nbsp;namespace&nbsp;and
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;then&nbsp;obtain&nbsp;and&nbsp;display&nbsp;the&nbsp;inode&nbsp;number&nbsp;of&nbsp;that&nbsp;namespace&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(argc&nbsp;&lt;&nbsp;3&nbsp;||&nbsp;strchr(argv[2],&nbsp;'u'))&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;userns_fd&nbsp;=&nbsp;ioctl(fd,&nbsp;NS_GET_USERNS);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(userns_fd&nbsp;==&nbsp;-1)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(errno&nbsp;==&nbsp;EPERM)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;The&nbsp;owning&nbsp;user&nbsp;namespace&nbsp;is&nbsp;outside&nbsp;&quot;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;your&nbsp;namespace&nbsp;scope\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;else
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;perror(&quot;ioctl-NS_GET_USERNS&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(fstat(userns_fd,&nbsp;&amp;sb)&nbsp;==&nbsp;-1)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;perror(&quot;fstat-userns&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;Device/Inode&nbsp;of&nbsp;owning&nbsp;user&nbsp;namespace&nbsp;is:&nbsp;&quot;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;[%lx,%lx]&nbsp;/&nbsp;%ld\n&quot;,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(long)&nbsp;major(sb.st_dev),&nbsp;(long)&nbsp;minor(sb.st_dev),
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(long)&nbsp;sb.st_ino);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;close(userns_fd);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Obtain&nbsp;a&nbsp;file&nbsp;descriptor&nbsp;for&nbsp;the&nbsp;parent&nbsp;namespace&nbsp;and
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;then&nbsp;obtain&nbsp;and&nbsp;display&nbsp;the&nbsp;inode&nbsp;number&nbsp;of&nbsp;that&nbsp;namespace&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(argc&nbsp;&gt;&nbsp;2&nbsp;&amp;&amp;&nbsp;strchr(argv[2],&nbsp;'p'))&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;parent_fd&nbsp;=&nbsp;ioctl(fd,&nbsp;NS_GET_PARENT);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(parent_fd&nbsp;==&nbsp;-1)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(errno&nbsp;==&nbsp;EINVAL)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;Can'&nbsp;get&nbsp;parent&nbsp;namespace&nbsp;of&nbsp;a&nbsp;&quot;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;nonhierarchical&nbsp;namespace\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;else&nbsp;if&nbsp;(errno&nbsp;==&nbsp;EPERM)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;The&nbsp;parent&nbsp;namespace&nbsp;is&nbsp;outside&nbsp;&quot;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;your&nbsp;namespace&nbsp;scope\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;else
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;perror(&quot;ioctl-NS_GET_PARENT&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(fstat(parent_fd,&nbsp;&amp;sb)&nbsp;==&nbsp;-1)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;perror(&quot;fstat-parentns&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;Device/Inode&nbsp;of&nbsp;parent&nbsp;namespace&nbsp;is:&nbsp;[%lx,%lx]&nbsp;/&nbsp;%ld\n&quot;,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(long)&nbsp;major(sb.st_dev),&nbsp;(long)&nbsp;minor(sb.st_dev),
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(long)&nbsp;sb.st_ino);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;close(parent_fd);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_SUCCESS);
+}
+
+<A NAME="lbAK">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?2+fstat">fstat</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?5+proc">proc</A></B>(5),
+
+<B><A HREF="/cgi-bin/man/man2html?7+namespaces">namespaces</A></B>(7)
+
+<A NAME="lbAL">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="8"><A HREF="#lbAB">NAME</A><DD>
+<DT id="9"><A HREF="#lbAC">DESCRIPTION</A><DD>
+<DL>
+<DT id="10"><A HREF="#lbAD">Discovering namespace relationships</A><DD>
+<DT id="11"><A HREF="#lbAE">Discovering the namespace type</A><DD>
+<DT id="12"><A HREF="#lbAF">Discovering the owner of a user namespace</A><DD>
+</DL>
+<DT id="13"><A HREF="#lbAG">ERRORS</A><DD>
+<DT id="14"><A HREF="#lbAH">CONFORMING TO</A><DD>
+<DT id="15"><A HREF="#lbAI">EXAMPLE</A><DD>
+<DL>
+<DT id="16"><A HREF="#lbAJ">Program source</A><DD>
+</DL>
+<DT id="17"><A HREF="#lbAK">SEE ALSO</A><DD>
+<DT id="18"><A HREF="#lbAL">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:33 GMT, March 31, 2021
+</BODY>
+</HTML>

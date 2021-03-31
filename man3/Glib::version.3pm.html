@@ -1,0 +1,333 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of Glib::version</TITLE>
+</HEAD><BODY>
+<H1>Glib::version</H1>
+Section: User Contributed Perl Documentation (3pm)<BR>Updated: 2020-02-18<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+Glib::version -  Library Versioning Utilities
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+
+
+
+
+<PRE>
+  # require at least version 1.021 of the Glib module
+  use Glib '1.021';
+
+  # g_set_application_name() was introduced in GLib 2.2.0, and
+  # first supported by version 1.040 of the Glib Perl module.
+  if ($Glib::VERSION &gt;= 1.040 and Glib-&gt;CHECK_VERSION (2,2,0)) {
+     Glib::set_application_name ('My Cool Program');
+  }
+
+</PRE>
+
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+
+Both the Glib module and the GLib C library are works-in-progress, and 
+their interfaces grow over time.  As more features are added to each, 
+and your code uses those new features, you will introduce 
+version-specific dependencies, and naturally, you'll want to be able to 
+code around them.  Enter the versioning <FONT SIZE="-1">API.</FONT>
+<P>
+
+For simple Perl modules, a single version number is sufficient; 
+however, Glib is a binding to another software library, and this 
+introduces some complexity.  We have three versions that fully specify 
+the <FONT SIZE="-1">API</FONT> available to you.
+<DL COMPACT>
+<DT id="1">Perl Bindings Version<DD>
+
+
+Perl modules use a version number, and Glib is no exception.  
+<I></I>$Glib::VERSION<I></I> is the version of the current Glib module.  By ad hoc 
+convention, gtk2-perl modules generally use version numbers in the form 
+x.yyz, where even yy values denote stable releases and z is a 
+patchlevel.
+
+
+<P>
+
+
+
+
+<PRE>
+   $Glib::VERSION
+   use Glib 1.040; # require at least version 1.040
+
+</PRE>
+
+
+<DT id="2">Compile-time (&quot;Bound&quot;) Library Version<DD>
+
+
+
+
+This is the version of the GLib C library that was available when the 
+Perl module was compiled and installed.  These version constants are 
+equivalent to the version macros provided in the GLib C headers.  GLib 
+uses a major.minor.micro convention, where even minor versions are 
+stable.  (gtk2-perl does not officially support unstable versions.)
+
+
+<P>
+
+
+
+
+<PRE>
+   Glib::MAJOR_VERSION
+   Glib::MINOR_VERSION
+   Glib::MICRO_VERSION
+   Glib-&gt;CHECK_VERSION($maj,$min,$mic)
+
+</PRE>
+
+
+<DT id="3">Run-time (&quot;Linked&quot;) Library Version<DD>
+
+
+
+
+This is the version of the GLib C library that is available at run 
+time; it may be newer than the compile-time version, but should never 
+be older.  These are equivalent to the version variables exported by 
+the GLib C library.
+
+
+<P>
+
+
+
+
+<PRE>
+   Glib::major_version
+   Glib::minor_version
+   Glib::micro_version
+
+</PRE>
+
+
+</DL>
+<A NAME="lbAE">&nbsp;</A>
+<H3>Which one do I use when?</H3>
+
+
+
+Where do you use which version?  It depends entirely on what you're 
+doing.  Let's explain by example:
+<DL COMPACT>
+<DT id="4">o Use the Perl module version for bindings support issues<DD>
+
+
+You need to register a new enum for use as the type of an object 
+property.  This is something you can do with all versions of the 
+underlying C library, but which wasn't supported in the Glib Perl 
+module until <TT>$Glib::VERSION</TT> &gt;= 1.040.
+<DT id="5">o Use the bound version for library features<DD>
+
+
+You want to call Glib::set_application_name to set a human-readable name
+for your application (which is used by various parts of Gtk2 and Gnome2).
+<B>g_set_application_name()</B> (the underlying C function) was added in version
+2.2.0 of glib, and support for it was introduced into the Glib Perl module
+in Glib version 1.040.  However, you can build the Perl module against any
+stable 2.x.x version of glib, so you might not have that function available
+even if your Glib module is new enough!
+<BR>&nbsp;&nbsp;Thus,&nbsp;you&nbsp;need&nbsp;to&nbsp;check&nbsp;two&nbsp;things&nbsp;to&nbsp;see&nbsp;if&nbsp;the&nbsp;this&nbsp;function&nbsp;is&nbsp;
+available:
+
+
+<P>
+
+
+
+
+<PRE>
+   if ($Glib::VERSION &gt;= 1.040 &amp;&amp; Glib-&gt;CHECK_VERSION (2,2,0)) {
+       # it's available, and we can call it!
+       Glib::set_application_name ('My Cool Application');
+   }
+
+</PRE>
+
+
+
+
+<P>
+
+
+Now what happens if you installed the Perl module when your system had 
+glib 2.0.6, and you upgraded glib to 2.4.1?  Wouldn't <B>g_set_application_name()</B> 
+be available?  Well, it's there, under the hood, but the bindings were 
+compiled when it wasn't there, so you won't be able to call it! 
+That's why we check the ``bound'' or compile-time version.  By the way, to 
+enable support for the new function, you'd need to reinstall (or upgrade)
+the Perl module.
+<DT id="6">o Use the linked version for runtime work-arounds<DD>
+
+
+Suppose there's a function whose <FONT SIZE="-1">API</FONT> did not change, but whose 
+implementation had a bug in one version that was fixed in another 
+version.  To determine whether you need to apply a workaround, you 
+would check the version that is actually being used at runtime.
+
+
+<P>
+
+
+
+
+<PRE>
+   if (Glib::major_version == 2 &amp;&amp;
+       Glib::minor_version == 2 &amp;&amp;
+       Glib::micro_version == 1) {
+      # work around bug that exists only in glib 2.2.1.
+   }
+
+</PRE>
+
+
+
+
+<P>
+
+
+In practice, such situations are very rare.
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>METHODS</H2>
+
+
+
+<A NAME="lbAG">&nbsp;</A>
+<H3>boolean = Glib-&gt;<B></B><FONT SIZE="-1"><B>CHECK_VERSION</B></FONT><B></B> ($required_major, $required_minor, $required_micro)</H3>
+
+
+
+
+
+<DL COMPACT>
+<DT id="7">&bull;<DD>
+<TT>$required_major</TT> (integer)
+<DT id="8">&bull;<DD>
+<TT>$required_minor</TT> (integer)
+<DT id="9">&bull;<DD>
+<TT>$required_micro</TT> (integer)
+</DL>
+<P>
+
+Provides a mechanism for checking the version information that Glib was
+compiled against. Essentially equvilent to the macro <FONT SIZE="-1">GLIB_CHECK_VERSION.</FONT>
+<A NAME="lbAH">&nbsp;</A>
+<H3>(<FONT SIZE="-1">MAJOR, MINOR, MICRO</FONT>) = Glib-&gt;<B></B><FONT SIZE="-1"><B>GET_VERSION_INFO</B></FONT><B></B></H3>
+
+
+
+Shorthand to fetch as a list the glib version for which Glib was compiled.
+See <TT>&quot;Glib::MAJOR_VERSION&quot;</TT>, etc.
+<A NAME="lbAI">&nbsp;</A>
+<H3>integer = Glib::MAJOR_VERSION</H3>
+
+
+
+Provides access to the version information that Glib was compiled against.
+Essentially equivalent to the #define's <FONT SIZE="-1">GLIB_MAJOR_VERSION.</FONT>
+<A NAME="lbAJ">&nbsp;</A>
+<H3>integer = Glib::MICRO_VERSION</H3>
+
+
+
+Provides access to the version information that Glib was compiled against.
+Essentially equivalent to the #define's <FONT SIZE="-1">GLIB_MICRO_VERSION.</FONT>
+<A NAME="lbAK">&nbsp;</A>
+<H3>integer = Glib::MINOR_VERSION</H3>
+
+
+
+Provides access to the version information that Glib was compiled against.
+Essentially equivalent to the #define's <FONT SIZE="-1">GLIB_MINOR_VERSION.</FONT>
+<A NAME="lbAL">&nbsp;</A>
+<H3>integer = Glib::major_version</H3>
+
+
+
+Provides access to the version information that Glib is linked against.
+Essentially equivalent to the global variable glib_major_version.
+<A NAME="lbAM">&nbsp;</A>
+<H3>integer = Glib::micro_version</H3>
+
+
+
+Provides access to the version information that Glib is linked against.
+Essentially equivalent to the global variable glib_micro_version.
+<A NAME="lbAN">&nbsp;</A>
+<H3>integer = Glib::minor_version</H3>
+
+
+
+Provides access to the version information that Glib is linked against.
+Essentially equivalent to the global variable glib_minor_version.
+<A NAME="lbAO">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+
+Glib
+<A NAME="lbAP">&nbsp;</A>
+<H2>COPYRIGHT</H2>
+
+
+
+Copyright (C) 2003-2011 by the gtk2-perl team.
+<P>
+
+This software is licensed under the <FONT SIZE="-1">LGPL.</FONT>  See Glib for a full notice.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="10"><A HREF="#lbAB">NAME</A><DD>
+<DT id="11"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="12"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DL>
+<DT id="13"><A HREF="#lbAE">Which one do I use when?</A><DD>
+</DL>
+<DT id="14"><A HREF="#lbAF">METHODS</A><DD>
+<DL>
+<DT id="15"><A HREF="#lbAG">boolean = Glib-&gt;<B></B><FONT SIZE="-1"><B>CHECK_VERSION</B></FONT><B></B> ($required_major, $required_minor, $required_micro)</A><DD>
+<DT id="16"><A HREF="#lbAH">(<FONT SIZE="-1">MAJOR, MINOR, MICRO</FONT>) = Glib-&gt;<B></B><FONT SIZE="-1"><B>GET_VERSION_INFO</B></FONT><B></B></A><DD>
+<DT id="17"><A HREF="#lbAI">integer = Glib::MAJOR_VERSION</A><DD>
+<DT id="18"><A HREF="#lbAJ">integer = Glib::MICRO_VERSION</A><DD>
+<DT id="19"><A HREF="#lbAK">integer = Glib::MINOR_VERSION</A><DD>
+<DT id="20"><A HREF="#lbAL">integer = Glib::major_version</A><DD>
+<DT id="21"><A HREF="#lbAM">integer = Glib::micro_version</A><DD>
+<DT id="22"><A HREF="#lbAN">integer = Glib::minor_version</A><DD>
+</DL>
+<DT id="23"><A HREF="#lbAO">SEE ALSO</A><DD>
+<DT id="24"><A HREF="#lbAP">COPYRIGHT</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:45 GMT, March 31, 2021
+</BODY>
+</HTML>

@@ -1,0 +1,404 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SD_JOURNAL_GET_FD</TITLE>
+</HEAD><BODY>
+<H1>SD_JOURNAL_GET_FD</H1>
+Section: sd_journal_get_fd (3)<BR>Updated: <BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+sd_journal_get_fd, sd_journal_get_events, sd_journal_get_timeout, sd_journal_process, sd_journal_wait, sd_journal_reliable_fd, SD_JOURNAL_NOP, SD_JOURNAL_APPEND, SD_JOURNAL_INVALIDATE - Journal change notification interface
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+<B>
+</B><PRE>
+#include &lt;<A HREF="file:///usr/include/systemd/sd-journal.h">systemd/sd-journal.h</A>&gt;
+</PRE>
+
+
+<DL COMPACT>
+<DT id="1">
+<B>int sd_journal_get_fd(sd_journal&nbsp;*</B><I>j</I><B>);</B>
+
+<DT id="2">
+<B>int sd_journal_get_events(sd_journal&nbsp;*</B><I>j</I><B>);</B>
+
+<DT id="3">
+<B>int sd_journal_get_timeout(sd_journal&nbsp;*</B><I>j</I><B>, uint64_t&nbsp;*</B><I>timeout_usec</I><B>);</B>
+
+<DT id="4">
+<B>int sd_journal_process(sd_journal&nbsp;*</B><I>j</I><B>);</B>
+
+<DT id="5">
+<B>int sd_journal_wait(sd_journal&nbsp;*</B><I>j</I><B>, uint64_t&nbsp;</B><I>timeout_usec</I><B>);</B>
+
+<DT id="6">
+<B>int sd_journal_reliable_fd(sd_journal&nbsp;*</B><I>j</I><B>);</B>
+
+</DL>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+<B>sd_journal_get_fd()</B>
+<DD>returns a file descriptor that may be asynchronously polled in an external event loop and is signaled as soon as the journal changes, because new entries or files were added, rotation took place, or files have been deleted, and similar. The file descriptor is suitable for usage in
+<B><A HREF="/cgi-bin/man/man2html?2+poll">poll</A></B>(2). Use
+<B>sd_journal_get_events()</B>
+for an events mask to watch for. The call takes one argument: the journal context object. Note that not all file systems are capable of generating the necessary events for wakeups from this file descriptor for changes to be noticed immediately. In particular network files systems do not generate suitable file change events in all cases. Cases like this can be detected with
+<B>sd_journal_reliable_fd()</B>, below.
+<B>sd_journal_get_timeout()</B>
+will ensure in these cases that wake-ups happen frequently enough for changes to be noticed, although with a certain latency.
+<P>
+
+<B>sd_journal_get_events()</B>
+will return the
+<B>poll()</B>
+mask to wait for. This function will return a combination of
+<B>POLLIN</B>
+and
+<B>POLLOUT</B>
+and similar to fill into the
+&quot;.events&quot;
+field of
+<I>struct pollfd</I>.
+<P>
+
+<B>sd_journal_get_timeout()</B>
+will return a timeout value for usage in
+<B>poll()</B>. This returns a value in microseconds since the epoch of
+<B>CLOCK_MONOTONIC</B>
+for timing out
+<B>poll()</B>
+in
+<I>timeout_usec</I>. See
+<B><A HREF="/cgi-bin/man/man2html?2+clock_gettime">clock_gettime</A></B>(2)
+for details about
+<B>CLOCK_MONOTONIC</B>. If there is no timeout to wait for, this will fill in
+<B>(uint64_t) -1</B>
+instead. Note that
+<B>poll()</B>
+takes a relative timeout in milliseconds rather than an absolute timeout in microseconds. To convert the absolute 'us' timeout into relative 'ms', use code like the following:
+<P>
+<DL COMPACT><DT id="7"><DD>
+
+
+
+<PRE>
+uint64_t t;
+int msec;
+sd_journal_get_timeout(m, &amp;t);
+if (t == (uint64_t) -1)
+  msec = -1;
+else {
+  struct timespec ts;
+  uint64_t n;
+  clock_gettime(CLOCK_MONOTONIC, &amp;ts);
+  n = (uint64_t) ts.tv_sec * 1000000 + ts.tv_nsec / 1000;
+  msec = t &gt; n ? (int) ((t - n + 999) / 1000) : 0;
+}
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+The code above does not do any error checking for brevity's sake. The calculated
+<I>msec</I>
+integer can be passed directly as
+<B>poll()</B>'s timeout parameter.
+<P>
+
+After each
+<B>poll()</B>
+wake-up
+<B>sd_journal_process()</B>
+needs to be called to process events. This call will also indicate what kind of change has been detected (see below; note that spurious wake-ups are possible).
+<P>
+
+A synchronous alternative for using
+<B>sd_journal_get_fd()</B>,
+<B>sd_journal_get_events()</B>,
+<B>sd_journal_get_timeout()</B>
+and
+<B>sd_journal_process()</B>
+is
+<B>sd_journal_wait()</B>. It will synchronously wait until the journal gets changed. The maximum time this call sleeps may be controlled with the
+<I>timeout_usec</I>
+parameter. Pass
+<B>(uint64_t) -1</B>
+to wait indefinitely. Internally this call simply combines
+<B>sd_journal_get_fd()</B>,
+<B>sd_journal_get_events()</B>,
+<B>sd_journal_get_timeout()</B>,
+<B>poll()</B>
+and
+<B>sd_journal_process()</B>
+into one.
+<P>
+
+<B>sd_journal_reliable_fd()</B>
+may be used to check whether the wakeup events from the file descriptor returned by
+<B>sd_journal_get_fd()</B>
+are known to be immediately triggered. On certain file systems where file change events from the OS are not available (such as NFS) changes need to be polled for repeatedly, and hence are detected only with a certain latency. This call will return a positive value if the journal changes are detected immediately and zero when they need to be polled for and hence might be noticed only with a certain latency. Note that there is usually no need to invoke this function directly as
+<B>sd_journal_get_timeout()</B>
+on these file systems will ask for timeouts explicitly anyway.
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+<P>
+
+<B>sd_journal_get_fd()</B>
+returns a valid file descriptor on success or a negative errno-style error code.
+<P>
+
+<B>sd_journal_get_events()</B>
+returns a combination of
+<B>POLLIN</B>,
+<B>POLLOUT</B>
+and suchlike on success or a negative errno-style error code.
+<P>
+
+<B>sd_journal_reliable_fd()</B>
+returns a positive integer if the file descriptor returned by
+<B>sd_journal_get_fd()</B>
+will generate wake-ups immediately for all journal changes. Returns 0 if there might be a latency involved.
+<P>
+
+<B>sd_journal_process()</B>
+and
+<B>sd_journal_wait()</B>
+return a negative errno-style error code, or one of
+<B>SD_JOURNAL_NOP</B>,
+<B>SD_JOURNAL_APPEND</B>
+or
+<B>SD_JOURNAL_INVALIDATE</B>
+on success:
+<P>
+<DL COMPACT><DT id="8"><DD>
+&bull;
+
+
+If
+<B>SD_JOURNAL_NOP</B>
+is returned, the journal did not change since the last invocation.
+</DL>
+
+<P>
+<DL COMPACT><DT id="9"><DD>
+&bull;
+
+
+If
+<B>SD_JOURNAL_APPEND</B>
+is returned, new entries have been appended to the end of the journal. In this case it is sufficient to simply continue reading at the previous end location of the journal, to read the newly added entries.
+</DL>
+
+<P>
+<DL COMPACT><DT id="10"><DD>
+&bull;
+
+
+If
+<B>SD_JOURNAL_INVALIDATE</B>, journal files were added to or removed from the set of journal files watched (e.g. due to rotation or vacuuming), and thus entries might have appeared or disappeared at arbitrary places in the log stream, possibly before or after the previous end of the log stream. If
+<B>SD_JOURNAL_INVALIDATE</B>
+is returned, live-view UIs that want to reflect on screen the precise state of the log data on disk should probably refresh their entire display (relative to the cursor of the log entry on the top of the screen). Programs only interested in a strictly sequential stream of log data may treat
+<B>SD_JOURNAL_INVALIDATE</B>
+the same way as
+<B>SD_JOURNAL_APPEND</B>, thus ignoring any changes to the log view earlier than the old end of the log stream.
+</DL>
+
+<A NAME="lbAF">&nbsp;</A>
+<H2>SIGNAL SAFETY</H2>
+
+<P>
+
+In general,
+<B>sd_journal_get_fd()</B>,
+<B>sd_journal_get_events()</B>, and
+<B>sd_journal_get_timeout()</B>
+are
+<I>not</I>
+&quot;async signal safe&quot; in the meaning of
+<B><A HREF="/cgi-bin/man/man2html?7+signal-safety">signal-safety</A></B>(7). Nevertheless, only the first call to any of those three functions performs unsafe operations, so subsequent calls
+<I>are</I>
+safe.
+<P>
+
+<B>sd_journal_process()</B>
+and
+<B>sd_journal_wait()</B>
+are not safe.
+<B>sd_journal_reliable_fd()</B>
+is safe.
+<A NAME="lbAG">&nbsp;</A>
+<H2>NOTES</H2>
+
+<P>
+
+All functions listed here are thread-agnostic and only a single specific thread may operate on a given object during its entire lifetime. It's safe to allocate multiple independent objects and use each from a specific thread in parallel. However, it's not safe to allocate such an object in one thread, and operate or free it from any other, even if locking is used to ensure these threads don't operate on it at the very same time.
+<P>
+
+These APIs are implemented as a shared library, which can be compiled and linked to with the
+<B>libsystemd</B>&nbsp;<B><A HREF="/cgi-bin/man/man2html?1+pkg-config">pkg-config</A></B>(1)
+file.
+<A NAME="lbAH">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+<P>
+
+Iterating through the journal, in a live view tracking all changes:
+<P>
+<DL COMPACT><DT id="11"><DD>
+
+
+
+<PRE>
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/string.h">string.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/systemd/sd-journal.h">systemd/sd-journal.h</A>&gt;
+
+int main(int argc, char *argv[]) {
+  int r;
+  sd_journal *j;
+  r = sd_journal_open(&amp;j, SD_JOURNAL_LOCAL_ONLY);
+  if (r &lt; 0) {
+    fprintf(stderr, &quot;Failed to open journal: %s\n&quot;, strerror(-r));
+    return 1;
+  }
+  for (;;)  {
+    const void *d;
+    size_t l;
+    r = sd_journal_next(j);
+    if (r &lt; 0) {
+      fprintf(stderr, &quot;Failed to iterate to next entry: %s\n&quot;, strerror(-r));
+      break;
+    }
+    if (r == 0) {
+      /* Reached the end, let's wait for changes, and try again */
+      r = sd_journal_wait(j, (uint64_t) -1);
+      if (r &lt; 0) {
+        fprintf(stderr, &quot;Failed to wait for changes: %s\n&quot;, strerror(-r));
+        break;
+      }
+      continue;
+    }
+    r = sd_journal_get_data(j, &quot;MESSAGE&quot;, &amp;d, &amp;l);
+    if (r &lt; 0) {
+      fprintf(stderr, &quot;Failed to read message field: %s\n&quot;, strerror(-r));
+      continue;
+    }
+    printf(&quot;%.*s\n&quot;, (int) l, (const char*) d);
+  }
+  sd_journal_close(j);
+  return 0;
+}
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+Waiting with
+<B>poll()</B>
+(this example lacks all error checking for the sake of simplicity):
+<P>
+<DL COMPACT><DT id="12"><DD>
+
+
+
+<PRE>
+#include &lt;<A HREF="file:///usr/include/poll.h">poll.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/time.h">time.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/systemd/sd-journal.h">systemd/sd-journal.h</A>&gt;
+
+int wait_for_changes(sd_journal *j) {
+  uint64_t t;
+  int msec;
+  struct pollfd pollfd;
+
+  sd_journal_get_timeout(j, &amp;t);
+  if (t == (uint64_t) -1)
+    msec = -1;
+  else {
+    struct timespec ts;
+    uint64_t n;
+    clock_gettime(CLOCK_MONOTONIC, &amp;ts);
+    n = (uint64_t) ts.tv_sec * 1000000 + ts.tv_nsec / 1000;
+    msec = t &gt; n ? (int) ((t - n + 999) / 1000) : 0;
+  }
+
+  pollfd.fd = sd_journal_get_fd(j);
+  pollfd.events = sd_journal_get_events(j);
+  poll(&amp;pollfd, 1, msec);
+  return sd_journal_process(j);
+}
+</PRE>
+
+</DL>
+
+
+
+
+<A NAME="lbAI">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?3+sd-journal">sd-journal</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_journal_open">sd_journal_open</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_journal_next">sd_journal_next</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?2+poll">poll</A></B>(2),
+<B><A HREF="/cgi-bin/man/man2html?2+clock_gettime">clock_gettime</A></B>(2)
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="13"><A HREF="#lbAB">NAME</A><DD>
+<DT id="14"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="15"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="16"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DT id="17"><A HREF="#lbAF">SIGNAL SAFETY</A><DD>
+<DT id="18"><A HREF="#lbAG">NOTES</A><DD>
+<DT id="19"><A HREF="#lbAH">EXAMPLES</A><DD>
+<DT id="20"><A HREF="#lbAI">SEE ALSO</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:55 GMT, March 31, 2021
+</BODY>
+</HTML>

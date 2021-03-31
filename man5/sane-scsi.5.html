@@ -1,0 +1,446 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of sane-scsi</TITLE>
+</HEAD><BODY>
+<H1>sane-scsi</H1>
+Section: SANE Scanner Access Now Easy (5)<BR>Updated: 14 Jul 2008<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="ixAAB"></A>
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+sane-scsi - SCSI adapter tips for scanners
+<A NAME="lbAC">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+This manual page contains various operating-system specific tips and
+tricks on how to get scanners with a SCSI interface working.
+<A NAME="lbAD">&nbsp;</A>
+<H2>GENERAL INFO</H2>
+
+For scanners with a SCSI interface, it may be necessary to edit the
+appropriate backend configuration file before using SANE for the first
+time.  For most systems, the configuration file should list the name
+of the generic SCSI device that the scanner is connected to (e.g., under
+Linux,
+<B>/dev/sg4</B>
+
+or
+<B>/dev/sge</B>
+
+is such a generic SCSI device).  It is customary to create a symlink
+from
+<B>/dev/scanner</B>
+
+to the generic SCSI device that the scanner is connected to.  In this
+case, the configuration file simply lists the line
+<B>/dev/scanner</B>.
+
+For a detailed description of each backend's configuration file,
+please refer to the relevant backend manual page (e.g.,
+<B><A HREF="/cgi-bin/man/man2html?5+sane-epson">sane-epson</A></B>(5)
+
+for Epson scanners,
+<B><A HREF="/cgi-bin/man/man2html?5+sane-hp">sane-hp</A></B>(5)
+
+for HP scanners, etc.).
+<P>
+
+For some operating systems (e.g. Linux and OS/2), there is an alternate way of
+specifying scanner devices.  This alternate way allows one to identify scanners by
+the SCSI vendor and model string and/or by the SCSI device address (consisting
+of bus number, channel number, id, and logical unit number).  The syntax for
+specifying a scanner in this way is:
+<P>
+
+<DL COMPACT><DT id="1"><DD>
+scsi
+<I>VENDOR MODEL TYPE BUS CHANNEL ID LUN</I>
+
+</DL>
+
+<P>
+
+where
+<I>VENDOR</I>
+
+is the SCSI vendor string,
+<I>MODEL</I>
+
+is the SCSI model string,
+<I>TYPE</I>
+
+is type SCSI device type string,
+<I>BUS</I>
+
+is the SCSI bus number (named &quot;host&quot; in /proc/scsi/scsi),
+<I>CHANNEL</I>
+
+is the SCSI channel number,
+<I>ID</I>
+
+is the SCSI id, and
+<I>LUN</I>
+
+is the logical unit number of the scanner device.  The first two fields are
+strings which must be enclosed in double-quotes if they contain any
+whitespace.  The remaining four fields are non-negative integer numbers.  The
+correct values for these fields can be found by using operating system
+specific tools, e.g. for Linux by looking at the output of the command &quot;cat
+/proc/scsi/scsi&quot;.  To simplify configuration, a field's value can be replaced
+with an asterisk symbol (``*'').  An asterisk has the effect that any value is
+allowed for that particular field.  This can have the effect that a single
+scsi-line matches multiple devices.  When this happens, each matching device
+will be probed by the backend one by one and registered if the backend thinks
+it is a compatible device.  For example, the line
+<P>
+
+<DL COMPACT><DT id="2"><DD>
+scsi MUSTEK MFS-06000CX Scanner 0 00 03 00
+</DL>
+
+<P>
+
+would attach the Mustek SCSI scanner with the following /proc/scsi/scsi entry:
+<P>
+
+<DL COMPACT><DT id="3"><DD>
+
+<PRE>
+Host: scsi0 Channel: 00 Id: 03 Lun: 00
+  Vendor: MUSTEK   Model: MFS-06000CX Rev: 4.04
+  Type:   Scanner  ANSI SCSI revision: 0
+</PRE>
+
+
+</DL>
+
+<P>
+
+Usually it's sufficient to use vendor and model strings only or even only the
+vendor string. The following example
+<P>
+
+<DL COMPACT><DT id="4"><DD>
+scsi MUSTEK * * * * * *
+</DL>
+
+<P>
+
+would have the effect that all SCSI devices in the system with a
+vendor string of MUSTEK would be probed and recognized by the backend.
+<P>
+
+If the remainder of a scsi-string consists of asterisks only, the
+asterisks can be omitted.  For example, the following line is
+equivalent to the one specified previously:
+<P>
+
+<DL COMPACT><DT id="5"><DD>
+scsi MUSTEK
+</DL>
+
+<P>
+
+On some platforms (e.g., OpenStep), SANE device names take a special
+form.  This is explained below in the relevant platform-specific section.
+<P>
+
+When using a SCSI scanner, ensure that the access permission for the
+generic SCSI device is set appropriately.  We recommend to add a group
+&quot;scanner&quot; to /etc/group which contains all users that should have
+access to the scanner.  The permission of the device should then be
+set to allow group read and write access.  For example, if the scanner
+is at generic SCSI device
+<B>/dev/sg0</B>,
+
+then the following two commands would set the permission correctly:
+<P>
+
+<DL COMPACT><DT id="6"><DD>
+$ chgrp scanner /dev/sg0
+<BR>
+
+$ chmod 660 /dev/sg0
+<BR>
+
+</DL>
+
+<P>
+
+When your system uses the device filesystem (devfs), you have to edit
+<B>/etc/devfs/perms.</B>
+
+There you should search the line
+<P>
+
+<DL COMPACT><DT id="7"><DD>
+REGISTER ^sg[^/]* PERMISSIONS root.root 0600
+</DL>
+
+<P>
+
+and add a new line (eg. for changing permissions of sg4):
+<P>
+
+<DL COMPACT><DT id="8"><DD>
+REGISTER ^sg4 PERMISSIONS root.scanner 0660
+</DL>
+
+<P>
+
+<A NAME="lbAE">&nbsp;</A>
+<H2>FREEBSD INFO</H2>
+
+Auto-configuration using the &quot;scsi *&quot; lines in the config files only works if
+the user running the frontend has read/write access to /dev/xpt0. Instead, you
+can also set a link
+<I>/dev/scanner</I>
+
+to the appropriate /dev/uk device.
+<DL COMPACT><DT id="9"><DD>
+<DL COMPACT>
+<DT id="10">Adaptec AHA1542CF<DD>
+Reported to work fine under FreeBSD 2.2.2R with the
+<B>aha</B>
+
+driver.
+<DT id="11">Adaptec 2940<DD>
+Reported to work fine under FreeBSD 2.2.2.
+<DT id="12">Adaptec 1522<DD>
+The scanner probes ok but any attempt to
+access it
+<I>hangs</I>
+
+the entire system. It looks like something is disabling interrupts and
+then not re-enabling them, so it looks like a bug in the FreeBSD
+<B>aic</B>
+
+driver.
+<DT id="13">Adaptec 1505<DD>
+Works on FreeBSD 2.2.5R and 3.0 using the
+<B>aic</B>
+
+driver, provided that Plug-and-Play support is disabled on the card.
+If there are no
+<I>uk</I>
+
+devices, just do a ``sh MAKEDEV uk0'' in the
+<B>/dev</B>
+
+directory. The scanner should then be accessible as
+<B>/dev/uk0 if it was probed</B>
+
+during boot.
+<DT id="14">Tekram DC390<DD>
+Reported to work fine under FreeBSD 2.2.2R with the
+<B>amd</B>
+
+driver.
+</DL>
+</DL>
+
+<P>
+<A NAME="lbAF">&nbsp;</A>
+<H2>LINUX INFO</H2>
+
+First, make sure your kernel has SCSI generic support enabled.  In
+``make xconfig'', this shows up under ``SCSI support-&gt;SCSI generic
+support''.
+<P>
+
+<P>
+To keep scanning times to a minimum, it is strongly recommended to use a large
+buffer size for the generic SCSI driver. From SG driver version 2.0 on, the
+maximum buffer size can be changed at program run time, and there is no restriction in size. This driver version is part of the Linux kernels from
+version 2.2.7 on. If the new SG driver is available some backends
+(e.g. sane-umax, sane-mustek, sane-sharp) automatically request larger scsi
+buffers. If a backend does not automatically request a larger scsi buffer, set
+the environment variable
+<B>SANE_SG_BUFFERSIZE</B>
+
+to the desired buffer size in bytes. It is not recommended to use more
+than 1 MB, because for large values the probability increases that the
+SG driver cannot allocate the necessary buffer(s). For ISA cards, even
+1 MB might be a too large value. For a detailed discussion of memory
+issues of the SG driver, see <A HREF="http://www.torque.net/sg.">http://www.torque.net/sg.</A>
+<P>
+
+For Linux kernels before version 2.2.7 the size of the buffer is only 32KB.
+This works, but for many cheaper scanners this causes scanning to be slower by
+about a factor of four than when using a size of 127KB.  Linux defines the
+size of this buffer by macro
+<B>SG_BIG_BUFF</B>
+
+in header file
+<I>/usr/include/scsi/sg.h</I>.
+
+Unless a system is seriously short on memory, it is recommended to increase
+this value to the maximum legal value of 128*1024-512=130560 bytes.  After
+changing this value, it is necessary to recompile both the kernel (or the SCSI
+generic module) and the SCSI backends. Keep in mind that this is only
+necessary with older Linux kernels.
+<P>
+<P>
+
+A common issue with SCSI scanners is what to do when you booted
+the system while the scanner was turned off?  In such a case, the
+scanner won't be recognized by the kernel and SANE won't be able
+to access it.  Fortunately, Linux provides a simple mechanism to
+probe a SCSI device on demand.  Suppose you have a scanner connected
+to SCSI bus 2 and the scanner has a SCSI id of 5.  When the system
+is up and running and the scanner is turned on, you can issue
+the command:
+<P>
+
+<DL COMPACT><DT id="15"><DD>
+echo &quot;scsi add-single-device 2 0 5 0&quot; &gt; /proc/scsi/scsi
+</DL>
+
+<P>
+
+and the kernel will probe and recognize your scanner (this needs to be
+done as root).  It's also possible to dynamically remove a SCSI device
+by using the ``remove-single-device'' command.  For details, please
+refer to to the SCSI-2.4-HOWTO.
+<P>
+
+Scanners are known to work with the following SCSI adapters under Linux. This
+list isn't complete, usually any SCSI adapter supported by Linux should work.
+<P>
+
+<DL COMPACT><DT id="16"><DD>
+<DL COMPACT>
+<DT id="17">Acard/Advance SCSI adapters<DD>
+Some old versions of the kernel driver (atp870u.c) cut the inquiry information.
+Therefore the scanner couldn't be detected correctly. Use a current kernel.
+<DT id="18">Adaptec AHA-1505/AHA-1542/AHA-2940<DD>
+Reported to work fine with Linux since v2.0. If you encounter kernel freezes
+or other unexpected behaviour get the latest Linux kernel (2.2.17 seems to
+work) or reduce SCSI buffer size to 32 kB.
+<DT id="19">ASUS SC200<DD>
+Reported to work fine with Linux v2.0.
+<DT id="20">BusLogic BT958<DD>
+To configure the BusLogic card, you may need to follow
+these instructions (contributed by Jeremy &lt;<A HREF="mailto:jeremy@xxedgexx.com">jeremy@xxedgexx.com</A>&gt;):
+During boot, when your BusLogic adapter is being initialized, press
+Ctrl-B to enter your BusLogic adapter setup.  Choose the address which
+your BusLogic containing your scanner is located. Choose ``SCSI Device
+Configuration''.  Choose ``Scan SCSI Bus''.  Choose whatever SCSI id
+that contains your scanner and then choose ``View/Modify SCSI
+configuration''.  Change ``Negotiation'' to ``async'' and change
+``Disconnect'' to ``off''. Press Esc, save, and Esc again until you
+are asked to reboot.
+<DT id="21">NCR/Symbios 53c400/53c400a or Domex DTC3181E/L/LE (DTCT436/436P) ISA SCSI card<DD>
+This card is supplied by Mustek (and other vendors). It's supported since
+Linux 2.2.  The SCSI cards are supported by the module g_NCR5380.  It's
+necessary to tell the kernel the io port and type of card.  Example for a
+53c400a: ``modprobe g_NCR5380 ncr_addr=0x280 ncr_53c400a=1''.  Once the kernel
+detects the card, it should work all right.  However, while it should work, do
+not expect good performance out of this card---it has no interrupt line and
+therefore while a scan is in progress, the system becomes almost unusable.
+You may change the values of the USLEEP macros in drivers/scsi/g_NCR5380.c.
+Some documentation is in this file and NCR5380.c.
+<DT id="22">NCR/Symbios 810<DD>
+For some scanners it may be necessary to disable disconnect/reconnect. To
+achieve this use the option ncr53c8xx=&quot;disc:n&quot;. Some people reported that
+their scanner only worked with the 53c7,8xx driver, not the ncr53c8xx. Try
+both if you have trouble.
+<BR>
+
+For Linux kernels before 2.0.33 it may be necessary to increase the SCSI
+timeout. The default timeout for the Linux kernels before 2.0.33 is 10
+seconds, which is way too low when scanning large area.  If you get messages
+of the form ``restart (ncr dead ?)'' in your /var/log/messages file or on the
+system console, it's an indication that the timeout is too short.  In this
+case, find the line ``if (np-&gt;latetime&gt;10)'' in file ncr53c8xx.c (normally in
+directory /usr/src/linux/drivers/scsi) and change the constant 10 to, say, 60
+(one minute).  Then rebuild the kernel/module and try again.
+<DT id="23">Tekram DC315<DD>
+The driver can be downloaded from <A HREF="http://www.garloff.de/kurt/linux/dc395/.">http://www.garloff.de/kurt/linux/dc395/.</A>
+For some older scanners it may be necessary to disable all the more advanced
+features by using e.g. modprobe dc395x_trm dc395x_trm=7,5,1,32.
+<DT id="24">Tekram DC390<DD>
+Version 1.11 of the Tekram driver seems to work fine mostly, except
+that the scan does not terminate properly (it causes a SCSI timeout
+after 10 minutes).  The generic AM53C974 also seems to work fine
+and does not suffer from the timeout problems.
+<P>
+</DL>
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H2>SOLARIS, OPENSTEP AND NEXTSTEP INFO</H2>
+
+Under Solaris, OpenStep and NeXTStep, the generic SCSI device name
+refers to a SCSI bus, not to an individual device.  For example,
+<B>/dev/sg0</B>
+
+refers to the first SCSI bus.  To tell SANE which device to use,
+append the character 'a'+target-id to the special device name.  For
+example, the SCSI device connected to the first SCSI controller
+and with target-id 0 would be called
+<B>/dev/sg0a</B>,
+
+and the device with target-id 1 on that same bus would be
+called
+<B>/dev/sg0b,</B>
+
+and so on.
+<A NAME="lbAH">&nbsp;</A>
+<H2>ENVIRONMENT</H2>
+
+<DL COMPACT>
+<DT id="25"><B>SANE_DEBUG_SANEI_SCSI</B>
+
+<DD>
+If the library was compiled with debug support enabled, this environment
+variable controls the debug level for the generic SCSI I/O subsystem.  E.g., a
+value of 128 requests all debug output to be printed by the backend. A value
+of 255 also prints kernel messages from the SCSI subsystem (where available).
+Smaller levels reduce verbosity.
+<DT id="26"><B>SANE_SCSICMD_TIMEOUT</B>
+
+<DD>
+sets the timeout value for SCSI commands in seconds. Overriding the default
+value of 120 seconds should only be necessary for very slow scanners.
+<P>
+</DL>
+<A NAME="lbAI">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?7+sane">sane</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?1+sane-find-scanner">sane-find-scanner</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?5+sane-backendname">sane-backendname</A></B>(5),
+
+<B><A HREF="/cgi-bin/man/man2html?5+sane-usb">sane-usb</A></B>(5)
+
+<P>
+<A NAME="lbAJ">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+David Mosberger
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="27"><A HREF="#lbAB">NAME</A><DD>
+<DT id="28"><A HREF="#lbAC">DESCRIPTION</A><DD>
+<DT id="29"><A HREF="#lbAD">GENERAL INFO</A><DD>
+<DT id="30"><A HREF="#lbAE">FREEBSD INFO</A><DD>
+<DT id="31"><A HREF="#lbAF">LINUX INFO</A><DD>
+<DT id="32"><A HREF="#lbAG">SOLARIS, OPENSTEP AND NEXTSTEP INFO</A><DD>
+<DT id="33"><A HREF="#lbAH">ENVIRONMENT</A><DD>
+<DT id="34"><A HREF="#lbAI">SEE ALSO</A><DD>
+<DT id="35"><A HREF="#lbAJ">AUTHOR</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:05 GMT, March 31, 2021
+</BODY>
+</HTML>

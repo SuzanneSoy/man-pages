@@ -1,0 +1,501 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of ExtUtils::Depends</TITLE>
+</HEAD><BODY>
+<H1>ExtUtils::Depends</H1>
+Section: User Contributed Perl Documentation (3pm)<BR>Updated: 2019-08-24<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+ExtUtils::Depends - Easily build XS extensions that depend on XS extensions
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+
+
+
+
+<PRE>
+        use ExtUtils::Depends;
+        $package = new ExtUtils::Depends ('pkg::name', 'base::package')
+        # set the flags and libraries to compile and link the module
+        $package-&gt;set_inc(&quot;-I/opt/blahblah&quot;);
+        $package-&gt;set_libs(&quot;-lmylib&quot;);
+        # add a .c and an .xs file to compile
+        $package-&gt;add_c('code.c');
+        $package-&gt;add_xs('module-code.xs');
+        # add the typemaps to use
+        $package-&gt;add_typemaps(&quot;typemap&quot;);
+        # install some extra data files and headers
+        $package-&gt;install (qw/foo.h data.txt/);
+        # save the info
+        $package-&gt;save_config('Files.pm');
+
+        WriteMakefile(
+                'NAME' =&gt; 'Mymodule',
+                $package-&gt;get_makefile_vars()
+        );
+
+</PRE>
+
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+
+This module tries to make it easy to build Perl extensions that use
+functions and typemaps provided by other perl extensions. This means
+that a perl extension is treated like a shared library that provides
+also a C and an <FONT SIZE="-1">XS</FONT> interface besides the perl one.
+<P>
+
+This works as long as the base extension is loaded with the <FONT SIZE="-1">RTLD_GLOBAL</FONT>
+flag (usually done with a
+<P>
+
+
+
+<PRE>
+        sub dl_load_flags {0x01}
+
+</PRE>
+
+
+<P>
+
+in the main .pm file) if you need to use functions defined in the module.
+<P>
+
+The basic scheme of operation is to collect information about a module
+in the instance, and then store that data in the Perl library where it
+may be retrieved later.  The object can also reformat this information
+into the data structures required by ExtUtils::MakeMaker's WriteMakefile
+function.
+<P>
+
+For information on how to make your module fit into this scheme, see
+``hashref = ExtUtils::Depends::load (name)''.
+<P>
+
+When creating a new Depends object, you give it a name, which is the name
+of the module you are building.   You can also specify the names of modules
+on which this module depends.  These dependencies will be loaded
+automatically, and their typemaps, header files, etc merged with your new
+object's stuff.  When you store the data for your object, the list of
+dependencies are stored with it, so that another module depending on your
+needn't know on exactly which modules yours depends.
+<P>
+
+For example:
+<P>
+
+
+
+<PRE>
+  Gtk2 depends on Glib
+
+  Gnome2::Canvas depends on Gtk2
+
+  ExtUtils::Depends-&gt;new ('Gnome2::Canvas', 'Gtk2');
+     this command automatically brings in all the stuff needed
+     for Glib, since Gtk2 depends on it.
+
+</PRE>
+
+
+<P>
+
+When the configuration information is saved, it also includes a class
+method called <TT>&quot;Inline&quot;</TT>, inheritable by your module. This allows you in
+your module to simply say at the top:
+<P>
+
+
+
+<PRE>
+  package Mymod;
+  use parent 'Mymod::Install::Files'; # to inherit 'Inline' method
+
+</PRE>
+
+
+<P>
+
+And users of <TT>&quot;Mymod&quot;</TT> who want to write inline code (using Inline)
+will simply be able to write:
+<P>
+
+
+
+<PRE>
+  use Inline with =&gt; 'Mymod';
+
+</PRE>
+
+
+<P>
+
+And all the necessary header files, defines, and libraries will be added
+for them.
+<P>
+
+The <TT>&quot;Mymod::Install::Files&quot;</TT> will also implement a <TT>&quot;deps&quot;</TT> method,
+which will return a list of any modules that <TT>&quot;Mymod&quot;</TT> depends on -
+you will not normally need to use this:
+<P>
+
+
+
+<PRE>
+  require Mymod::Install::Files;
+  @deps = Mymod::Install::Files-&gt;deps;
+
+</PRE>
+
+
+<A NAME="lbAE">&nbsp;</A>
+<H2>METHODS</H2>
+
+
+
+<DL COMPACT>
+<DT id="1">$object = ExtUtils::Depends-&gt;new($name, @deps)<DD>
+
+
+
+
+Create a new depends object named <I></I>$name<I></I>.  Any modules listed in <I></I>@deps<I></I>
+(which may be empty) are added as dependencies and their dependency
+information is loaded.  An exception is raised if any dependency information
+cannot be loaded.
+<DT id="2">$depends-&gt;add_deps (@deps)<DD>
+
+
+
+
+Add modules listed in <I></I>@deps<I></I> as dependencies.
+<DT id="3">(hashes) = $depends-&gt;get_deps<DD>
+
+
+
+
+Fetch information on the dependencies of <I></I>$depends<I></I> as a hash of hashes,
+which are dependency information indexed by module name.  See <TT>&quot;load&quot;</TT>.
+<DT id="4">$depends-&gt;set_inc (@newinc)<DD>
+
+
+
+
+Add strings to the includes or cflags variables.
+<DT id="5">$depends-&gt;set_libs (@newlibs)<DD>
+
+
+
+
+Add strings to the libs (linker flags) variable.
+<DT id="6">$depends-&gt;add_pm (%pm_files)<DD>
+
+
+
+
+Add files to the hash to be passed through ExtUtils::WriteMakefile's
+<FONT SIZE="-1">PM</FONT> key.
+<DT id="7">$depends-&gt;add_xs (@xs_files)<DD>
+
+
+
+
+Add xs files to be compiled.
+<DT id="8">$depends-&gt;add_c (@c_files)<DD>
+
+
+
+
+Add C files to be compiled.
+<DT id="9">$depends-&gt;add_typemaps (@typemaps)<DD>
+
+
+
+
+Add typemap files to be used and installed.
+<DT id="10">$depends-&gt;add_headers (list)<DD>
+
+
+
+
+No-op, for backward compatibility.
+<DT id="11">$depends-&gt;install (@files)<DD>
+
+
+
+
+Install <I></I>@files<I></I> to the data directory for <I></I>$depends<I></I>.
+
+
+<P>
+
+
+This actually works by adding them to the hash of pm files that gets
+passed through WriteMakefile's <FONT SIZE="-1">PM</FONT> key.
+<DT id="12">$depends-&gt;save_config ($filename)<DD>
+
+
+
+
+Save the important information from <I></I>$depends<I></I> to <I></I>$filename<I></I>, and
+set it up to be installed as <I>name</I>::Install::Files.
+
+
+<P>
+
+
+Note: the actual value of <I></I>$filename<I></I> is unimportant so long as it
+doesn't clash with any other local files. It will be installed as
+<I>name</I>::Install::Files.
+<DT id="13">hash = $depends-&gt;get_makefile_vars<DD>
+
+
+
+
+Return the information in <I></I>$depends<I></I> in a format digestible by
+WriteMakefile.
+
+
+<P>
+
+
+This sets at least the following keys:
+
+
+<P>
+
+
+
+
+<PRE>
+        INC
+        LIBS
+        TYPEMAPS
+        PM
+
+</PRE>
+
+
+
+
+<P>
+
+
+And these if there is data to fill them:
+
+
+<P>
+
+
+
+
+<PRE>
+        clean
+        OBJECT
+        XS
+
+</PRE>
+
+
+<DT id="14">hashref = ExtUtils::Depends::load (name)<DD>
+
+
+Load and return dependency information for <I>name</I>.  Croaks if no such
+information can be found.  The information is returned as an anonymous
+hash containing these keys:
+<DL COMPACT><DT id="15"><DD>
+<DL COMPACT>
+<DT id="16">instpath<DD>
+
+
+The absolute path to the data install directory for this module.
+<DT id="17">typemaps<DD>
+
+
+List of absolute pathnames for this module's typemap files.
+<DT id="18">inc<DD>
+
+
+<FONT SIZE="-1">CFLAGS</FONT> string for this module.
+<DT id="19">libs<DD>
+
+
+<FONT SIZE="-1">LIBS</FONT> string for this module.
+<DT id="20">deps<DD>
+
+
+List of modules on which this one depends.  This key will not exist when
+loading files created by old versions of ExtUtils::Depends.
+</DL>
+</DL>
+
+<DL COMPACT><DT id="21"><DD>
+
+
+<P>
+
+
+If you want to make module <I>name</I> support this, you must provide
+a module <I>name</I>::Install::Files, which on loading will implement the
+following class methods:
+
+
+<P>
+
+
+
+
+<PRE>
+  $hashref = name::Install::Files-&gt;Inline('C');
+  # hash to contain any necessary TYPEMAPS (array-ref), LIBS, INC
+  @deps = name::Install::Files-&gt;deps;
+  # any modules on which &quot;name&quot; depends
+
+</PRE>
+
+
+
+
+<P>
+
+
+An easy way to achieve this is to use the method
+``$depends-&gt;save_config ($filename)'', but your package may have
+different facilities already.
+</DL>
+
+<DT id="22">$depends-&gt;load_deps<DD>
+
+
+
+
+Load <I></I>$depends<I></I> dependencies, by calling <TT>&quot;load&quot;</TT> on each dependency module.
+This is usually done for you, and should only be needed if you want to call
+<TT>&quot;get_deps&quot;</TT> after calling <TT>&quot;add_deps&quot;</TT> manually.
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>SUPPORT</H2>
+
+
+
+<A NAME="lbAG">&nbsp;</A>
+<H3>Bugs/Feature Requests</H3>
+
+
+
+Version 0.2 discards some of the more esoteric features provided by the
+older versions.  As they were completely undocumented, and this module
+has yet to reach 1.0, this may not exactly be a bug.
+<P>
+
+This module is tightly coupled to the ExtUtils::MakeMaker architecture.
+<P>
+
+You can submit new bugs/feature requests by using one of two bug trackers
+(below).
+<DL COMPACT>
+<DT id="23"><FONT SIZE="-1">CPAN</FONT> Request Tracker<DD>
+
+
+You can submit bugs/feature requests via the web by going to
+&lt;<A HREF="https://rt.cpan.org/Public/Bug/Report.html?Queue=ExtUtils-Depends">https://rt.cpan.org/Public/Bug/Report.html?Queue=ExtUtils-Depends</A>&gt; (requires
+<FONT SIZE="-1">PAUSE ID</FONT> or Bitcard), or by sending an e-mail to
+``bug-ExtUtils-Depends at rt.cpan.org''.
+<DT id="24">Gnome.org Bugzilla<DD>
+
+
+Report bugs/feature requests to the 'gnome-perl' product (requires login)
+&lt;<A HREF="http://bugzilla.gnome.org/enter_bug.cgi?product=gnome-perl">http://bugzilla.gnome.org/enter_bug.cgi?product=gnome-perl</A>&gt;
+</DL>
+<P>
+
+Patches that implement new features with test cases, and/or test cases that
+exercise existing bugs are always welcome.
+<P>
+
+The Gtk-Perl mailing list is at ``gtk-perl-list at gnome dot org''.
+<A NAME="lbAH">&nbsp;</A>
+<H3>Source Code</H3>
+
+
+
+The source code to ExtUtils::Depends is available at the Gnome.org Git repo
+(&lt;<A HREF="https://git.gnome.org/browse/perl-ExtUtils-Depends/">https://git.gnome.org/browse/perl-ExtUtils-Depends/</A>&gt;).  Create your own
+copy of the Git repo with:
+<P>
+
+
+
+<PRE>
+  git clone <A HREF="git://git.gnome.org/perl-ExtUtils-Depends">git://git.gnome.org/perl-ExtUtils-Depends</A> (Git protocol)
+  git clone <A HREF="https://git.gnome.org/browse/perl-ExtUtils-Depends/">https://git.gnome.org/browse/perl-ExtUtils-Depends/</A> (HTTPS)
+
+</PRE>
+
+
+<A NAME="lbAI">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+
+ExtUtils::MakeMaker.
+<A NAME="lbAJ">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+
+
+Paolo Molaro &lt;lupus at debian dot org&gt; wrote the original version for
+Gtk-Perl.  muppet &lt;scott at asofyet dot org&gt; rewrote the innards for
+version 0.2, borrowing liberally from Paolo's code.
+<A NAME="lbAK">&nbsp;</A>
+<H2>MAINTAINER</H2>
+
+
+
+The Gtk2 project, &lt;<A HREF="http://gtk2-perl.sf.net">http://gtk2-perl.sf.net</A>&gt;/``gtk-perl-list at gnome dot org''.
+<A NAME="lbAL">&nbsp;</A>
+<H2>LICENSE</H2>
+
+
+
+This library is free software; you may redistribute it and/or modify it
+under the same terms as Perl itself.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="25"><A HREF="#lbAB">NAME</A><DD>
+<DT id="26"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="27"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="28"><A HREF="#lbAE">METHODS</A><DD>
+<DT id="29"><A HREF="#lbAF">SUPPORT</A><DD>
+<DL>
+<DT id="30"><A HREF="#lbAG">Bugs/Feature Requests</A><DD>
+<DT id="31"><A HREF="#lbAH">Source Code</A><DD>
+</DL>
+<DT id="32"><A HREF="#lbAI">SEE ALSO</A><DD>
+<DT id="33"><A HREF="#lbAJ">AUTHOR</A><DD>
+<DT id="34"><A HREF="#lbAK">MAINTAINER</A><DD>
+<DT id="35"><A HREF="#lbAL">LICENSE</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:40 GMT, March 31, 2021
+</BODY>
+</HTML>

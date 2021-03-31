@@ -1,0 +1,384 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of MOVE_PAGES</TITLE>
+</HEAD><BODY>
+<H1>MOVE_PAGES</H1>
+Section: Linux Programmer's Manual (2)<BR>Updated: 2020-02-09<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+move_pages - move individual pages of a process to another node
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<PRE>
+<B>#include &lt;<A HREF="file:///usr/include/numaif.h">numaif.h</A>&gt;</B>
+
+<B>long move_pages(int </B><I>pid</I><B>, unsigned long count, void **</B><I>pages</I><B>,</B>
+<B>                const int *</B><I>nodes</I><B>, int *</B><I>status</I><B>, int </B><I>flags</I><B>);</B>
+</PRE>
+
+<P>
+
+Link with <I>-lnuma</I>.
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<B>move_pages</B>()
+
+moves the specified
+<I>pages</I>
+
+of the process
+<I>pid</I>
+
+to the memory nodes specified by
+<I>nodes</I>.
+
+The result of the move is reflected in
+<I>status</I>.
+
+The
+<I>flags</I>
+
+indicate constraints on the pages to be moved.
+<P>
+
+<I>pid</I>
+
+is the ID of the process in which pages are to be moved.
+If
+<I>pid</I>
+
+is 0, then
+<B>move_pages</B>()
+
+moves pages of the calling process.
+<P>
+
+To move pages in another process requires the following privileges:
+<DL COMPACT>
+<DT id="1">*<DD>
+In kernels up to and including Linux 4.12:
+the caller must be privileged
+(<B>CAP_SYS_NICE</B>)
+
+or the real or effective user ID of the calling process must match the
+real or saved-set user ID of the target process.
+<DT id="2">*<DD>
+The older rules allowed the caller to discover various
+virtual address choices made by the kernel that could lead
+to the defeat of address-space-layout randomization
+for a process owned by the same UID as the caller,
+the rules were changed starting with Linux 4.13.
+Since Linux 4.13,
+
+permission is governed by a ptrace access mode
+<B>PTRACE_MODE_READ_REALCREDS</B>
+
+check with respect to the target process; see
+<B><A HREF="/cgi-bin/man/man2html?2+ptrace">ptrace</A></B>(2).
+
+</DL>
+<P>
+
+<I>count</I>
+
+is the number of pages to move.
+It defines the size of the three arrays
+<I>pages</I>,
+
+<I>nodes</I>,
+
+and
+<I>status</I>.
+
+<P>
+
+<I>pages</I>
+
+is an array of pointers to the pages that should be moved.
+These are pointers that should be aligned to page boundaries.
+
+
+Addresses are specified as seen by the process specified by
+<I>pid</I>.
+
+<P>
+
+<I>nodes</I>
+
+is an array of integers that specify the desired location for each page.
+Each element in the array is a node number.
+<I>nodes</I>
+
+can also be NULL, in which case
+<B>move_pages</B>()
+
+does not move any pages but instead will return the node
+where each page currently resides, in the
+<I>status</I>
+
+array.
+Obtaining the status of each page may be necessary to determine
+pages that need to be moved.
+<P>
+
+<I>status</I>
+
+is an array of integers that return the status of each page.
+The array contains valid values only if
+<B>move_pages</B>()
+
+did not return an error.
+<P>
+
+<I>flags</I>
+
+specify what types of pages to move.
+<B>MPOL_MF_MOVE</B>
+
+means that only pages that are in exclusive use by the process
+are to be moved.
+<B>MPOL_MF_MOVE_ALL</B>
+
+means that pages shared between multiple processes can also be moved.
+The process must be privileged
+(<B>CAP_SYS_NICE</B>)
+
+to use
+<B>MPOL_MF_MOVE_ALL</B>.
+
+<A NAME="lbAE">&nbsp;</A>
+<H3>Page states in the status array</H3>
+
+The following values can be returned in each element of the
+<I>status</I>
+
+array.
+<DL COMPACT>
+<DT id="3"><B>0..MAX_NUMNODES</B>
+
+<DD>
+Identifies the node on which the page resides.
+<DT id="4"><B>-EACCES</B>
+
+<DD>
+The page is mapped by multiple processes and can be moved only if
+<B>MPOL_MF_MOVE_ALL</B>
+
+is specified.
+<DT id="5"><B>-EBUSY</B>
+
+<DD>
+The page is currently busy and cannot be moved.
+Try again later.
+This occurs if a page is undergoing I/O or another kernel subsystem
+is holding a reference to the page.
+<DT id="6"><B>-EFAULT</B>
+
+<DD>
+This is a zero page or the memory area is not mapped by the process.
+<DT id="7"><B>-EIO</B>
+
+<DD>
+Unable to write back a page.
+The page has to be written back
+in order to move it since the page is dirty and the filesystem
+does not provide a migration function that would allow the move
+of dirty pages.
+<DT id="8"><B>-EINVAL</B>
+
+<DD>
+A dirty page cannot be moved.
+The filesystem does not
+provide a migration function and has no ability to write back pages.
+<DT id="9"><B>-ENOENT</B>
+
+<DD>
+The page is not present.
+<DT id="10"><B>-ENOMEM</B>
+
+<DD>
+Unable to allocate memory on target node.
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+On success
+<B>move_pages</B>()
+
+returns zero.
+
+
+On error, it returns -1, and sets
+<I>errno</I>
+
+to indicate the error.
+<A NAME="lbAG">&nbsp;</A>
+<H2>ERRORS</H2>
+
+<DL COMPACT>
+<DT id="11"><B>E2BIG</B>
+
+<DD>
+Too many pages to move.
+Since Linux 2.6.29,
+
+the kernel no longer generates this error.
+<DT id="12"><B>EACCES</B>
+
+<DD>
+
+
+One of the target nodes is not allowed by the current cpuset.
+<DT id="13"><B>EFAULT</B>
+
+<DD>
+Parameter array could not be accessed.
+<DT id="14"><B>EINVAL</B>
+
+<DD>
+Flags other than
+<B>MPOL_MF_MOVE</B>
+
+and
+<B>MPOL_MF_MOVE_ALL</B>
+
+was specified or an attempt was made to migrate pages of a kernel thread.
+<DT id="15"><B>ENODEV</B>
+
+<DD>
+One of the target nodes is not online.
+<DT id="16"><B>EPERM</B>
+
+<DD>
+The caller specified
+<B>MPOL_MF_MOVE_ALL</B>
+
+without sufficient privileges
+(<B>CAP_SYS_NICE</B>).
+
+Or, the caller attempted to move pages of a process belonging
+to another user but did not have privilege to do so
+(<B>CAP_SYS_NICE</B>).
+
+<DT id="17"><B>ESRCH</B>
+
+<DD>
+Process does not exist.
+</DL>
+<A NAME="lbAH">&nbsp;</A>
+<H2>VERSIONS</H2>
+
+<B>move_pages</B>()
+
+first appeared on Linux in version 2.6.18.
+<A NAME="lbAI">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+This system call is Linux-specific.
+<A NAME="lbAJ">&nbsp;</A>
+<H2>NOTES</H2>
+
+For information on library support, see
+<B><A HREF="/cgi-bin/man/man2html?7+numa">numa</A></B>(7).
+
+<P>
+
+Use
+<B><A HREF="/cgi-bin/man/man2html?2+get_mempolicy">get_mempolicy</A></B>(2)
+
+with the
+<B>MPOL_F_MEMS_ALLOWED</B>
+
+flag to obtain the set of nodes that are allowed by
+
+
+the current cpuset.
+Note that this information is subject to change at any
+time by manual or automatic reconfiguration of the cpuset.
+<P>
+
+Use of this function may result in pages whose location
+(node) violates the memory policy established for the
+specified addresses (See
+<B><A HREF="/cgi-bin/man/man2html?2+mbind">mbind</A></B>(2))
+
+and/or the specified process (See
+<B><A HREF="/cgi-bin/man/man2html?2+set_mempolicy">set_mempolicy</A></B>(2)).
+
+That is, memory policy does not constrain the destination
+nodes used by
+<B>move_pages</B>().
+
+<P>
+
+The
+<I>&lt;<A HREF="file:///usr/include/numaif.h">numaif.h</A>&gt;</I>
+
+header is not included with glibc, but requires installing
+<I>libnuma-devel</I>
+
+or a similar package.
+<A NAME="lbAK">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?2+get_mempolicy">get_mempolicy</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+mbind">mbind</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+set_mempolicy">set_mempolicy</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?3+numa">numa</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?5+numa_maps">numa_maps</A></B>(5),
+
+<B><A HREF="/cgi-bin/man/man2html?7+cpuset">cpuset</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+numa">numa</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?8+migratepages">migratepages</A></B>(8),
+
+<B><A HREF="/cgi-bin/man/man2html?8+numastat">numastat</A></B>(8)
+
+<A NAME="lbAL">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="18"><A HREF="#lbAB">NAME</A><DD>
+<DT id="19"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="20"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DL>
+<DT id="21"><A HREF="#lbAE">Page states in the status array</A><DD>
+</DL>
+<DT id="22"><A HREF="#lbAF">RETURN VALUE</A><DD>
+<DT id="23"><A HREF="#lbAG">ERRORS</A><DD>
+<DT id="24"><A HREF="#lbAH">VERSIONS</A><DD>
+<DT id="25"><A HREF="#lbAI">CONFORMING TO</A><DD>
+<DT id="26"><A HREF="#lbAJ">NOTES</A><DD>
+<DT id="27"><A HREF="#lbAK">SEE ALSO</A><DD>
+<DT id="28"><A HREF="#lbAL">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:33 GMT, March 31, 2021
+</BODY>
+</HTML>

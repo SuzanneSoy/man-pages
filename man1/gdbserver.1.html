@@ -1,0 +1,443 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of GDBSERVER</TITLE>
+</HEAD><BODY>
+<H1>GDBSERVER</H1>
+Section: GNU Development Tools (1)<BR>Updated: 2020-08-04<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+gdbserver - Remote Server for the GNU Debugger
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+
+
+gdbserver <I>comm</I> <I>prog</I> [<I>args</I>...]
+<P>
+
+gdbserver --attach <I>comm</I> <I>pid</I>
+<P>
+
+gdbserver --multi <I>comm</I>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+
+<B>gdbserver</B> is a program that allows you to run <FONT SIZE="-1">GDB</FONT> on a different machine
+than the one which is running the program being debugged.
+<P>
+
+Usage (server (target) side):
+<P>
+
+First, you need to have a copy of the program you want to debug put onto
+the target system.  The program can be stripped to save space if needed, as
+<B>gdbserver</B> doesn't care about symbols.  All symbol handling is taken care of by
+the <FONT SIZE="-1">GDB</FONT> running on the host system.
+<P>
+
+To use the server, you log on to the target system, and run the <B>gdbserver</B>
+program.  You must tell it (a) how to communicate with <FONT SIZE="-1">GDB,</FONT> (b) the name of
+your program, and (c) its arguments.  The general syntax is:
+<P>
+
+
+
+<PRE>
+        target&gt; gdbserver &lt;comm&gt; &lt;program&gt; [&lt;args&gt; ...]
+
+</PRE>
+
+
+<P>
+
+For example, using a serial port, you might say:
+<P>
+
+
+
+<PRE>
+        target&gt; gdbserver /dev/com1 emacs foo.txt
+
+</PRE>
+
+
+<P>
+
+This tells <B>gdbserver</B> to debug emacs with an argument of foo.txt, and
+to communicate with <FONT SIZE="-1">GDB</FONT> via <I>/dev/com1</I>.  <B>gdbserver</B> now
+waits patiently for the host <FONT SIZE="-1">GDB</FONT> to communicate with it.
+<P>
+
+To use a <FONT SIZE="-1">TCP</FONT> connection, you could say:
+<P>
+
+
+
+<PRE>
+        target&gt; gdbserver host:2345 emacs foo.txt
+
+</PRE>
+
+
+<P>
+
+This says pretty much the same thing as the last example, except that we are
+going to communicate with the <TT>&quot;host&quot;</TT> <FONT SIZE="-1">GDB</FONT> via <FONT SIZE="-1">TCP.</FONT>  The <TT>&quot;host:2345&quot;</TT> argument means
+that we are expecting to see a <FONT SIZE="-1">TCP</FONT> connection from <TT>&quot;host&quot;</TT> to local <FONT SIZE="-1">TCP</FONT> port
+2345.  (Currently, the <TT>&quot;host&quot;</TT> part is ignored.)  You can choose any number you
+want for the port number as long as it does not conflict with any existing <FONT SIZE="-1">TCP</FONT>
+ports on the target system.  This same port number must be used in the host
+GDBs <TT>&quot;target remote&quot;</TT> command, which will be described shortly.  Note that if
+you chose a port number that conflicts with another service, <B>gdbserver</B> will
+print an error message and exit.
+<P>
+
+<B>gdbserver</B> can also attach to running programs.
+This is accomplished via the <B>--attach</B> argument.  The syntax is:
+<P>
+
+
+
+<PRE>
+        target&gt; gdbserver --attach &lt;comm&gt; &lt;pid&gt;
+
+</PRE>
+
+
+<P>
+
+<I>pid</I> is the process <FONT SIZE="-1">ID</FONT> of a currently running process.  It isn't
+necessary to point <B>gdbserver</B> at a binary for the running process.
+<P>
+
+To start <TT>&quot;gdbserver&quot;</TT> without supplying an initial command to run
+or process <FONT SIZE="-1">ID</FONT> to attach, use the <B>--multi</B> command line option.
+In such case you should connect using <TT>&quot;target extended-remote&quot;</TT> to start
+the program you want to debug.
+<P>
+
+
+
+<PRE>
+        target&gt; gdbserver --multi &lt;comm&gt;
+
+</PRE>
+
+
+<P>
+
+Usage (host side):
+<P>
+
+You need an unstripped copy of the target program on your host system, since
+<FONT SIZE="-1">GDB</FONT> needs to examine its symbol tables and such.  Start up <FONT SIZE="-1">GDB</FONT> as you normally
+would, with the target program as the first argument.  (You may need to use the
+<B>--baud</B> option if the serial line is running at anything except 9600 baud.)
+That is <TT>&quot;gdb TARGET-PROG&quot;</TT>, or <TT>&quot;gdb --baud BAUD TARGET-PROG&quot;</TT>.  After that, the only
+new command you need to know about is <TT>&quot;target remote&quot;</TT>
+(or <TT>&quot;target extended-remote&quot;</TT>).  Its argument is either
+a device name (usually a serial device, like <I>/dev/ttyb</I>), or a <TT>&quot;HOST:PORT&quot;</TT>
+descriptor.  For example:
+<P>
+
+
+
+<PRE>
+        (gdb) target remote /dev/ttyb
+
+</PRE>
+
+
+<P>
+
+communicates with the server via serial line <I>/dev/ttyb</I>, and:
+<P>
+
+
+
+<PRE>
+        (gdb) target remote the-target:2345
+
+</PRE>
+
+
+<P>
+
+communicates via a <FONT SIZE="-1">TCP</FONT> connection to port 2345 on host `the-target', where
+you previously started up <B>gdbserver</B> with the same port number.  Note that for
+<FONT SIZE="-1">TCP</FONT> connections, you must start up <B>gdbserver</B> prior to using the `target remote'
+command, otherwise you may get an error that looks something like
+`Connection refused'.
+<P>
+
+<B>gdbserver</B> can also debug multiple inferiors at once,
+described in
+the <FONT SIZE="-1">GDB</FONT> manual in node <TT>&quot;Inferiors and Programs&quot;</TT>
+--- shell command <TT>&quot;info -f gdb -n 'Inferiors and Programs'&quot;</TT>.
+In such case use the <TT>&quot;extended-remote&quot;</TT> <FONT SIZE="-1">GDB</FONT> command variant:
+<P>
+
+
+
+<PRE>
+        (gdb) target extended-remote the-target:2345
+
+</PRE>
+
+
+<P>
+
+The <B>gdbserver</B> option <B>--multi</B> may or may not be used in such
+case.
+<A NAME="lbAE">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+
+
+There are three different modes for invoking <B>gdbserver</B>:
+<DL COMPACT>
+<DT id="1">&bull;<DD>
+Debug a specific program specified by its program name:
+
+
+<P>
+
+
+
+
+<PRE>
+        gdbserver &lt;comm&gt; &lt;prog&gt; [&lt;args&gt;...]
+
+</PRE>
+
+
+
+
+<P>
+
+
+The <I>comm</I> parameter specifies how should the server communicate
+with <FONT SIZE="-1">GDB</FONT>; it is either a device name (to use a serial line),
+a <FONT SIZE="-1">TCP</FONT> port number (<TT>&quot;:1234&quot;</TT>), or <TT>&quot;-&quot;</TT> or <TT>&quot;stdio&quot;</TT> to use
+stdin/stdout of <TT>&quot;gdbserver&quot;</TT>.  Specify the name of the program to
+debug in <I>prog</I>.  Any remaining arguments will be passed to the
+program verbatim.  When the program exits, <FONT SIZE="-1">GDB</FONT> will close the
+connection, and <TT>&quot;gdbserver&quot;</TT> will exit.
+<DT id="2">&bull;<DD>
+Debug a specific program by specifying the process <FONT SIZE="-1">ID</FONT> of a running
+program:
+
+
+<P>
+
+
+
+
+<PRE>
+        gdbserver --attach &lt;comm&gt; &lt;pid&gt;
+
+</PRE>
+
+
+
+
+<P>
+
+
+The <I>comm</I> parameter is as described above.  Supply the process <FONT SIZE="-1">ID</FONT>
+of a running program in <I>pid</I>; <FONT SIZE="-1">GDB</FONT> will do everything
+else.  Like with the previous mode, when the process <I>pid</I> exits,
+<FONT SIZE="-1">GDB</FONT> will close the connection, and <TT>&quot;gdbserver&quot;</TT> will exit.
+<DT id="3">&bull;<DD>
+Multi-process mode --- debug more than one program/process:
+
+
+<P>
+
+
+
+
+<PRE>
+        gdbserver --multi &lt;comm&gt;
+
+</PRE>
+
+
+
+
+<P>
+
+
+In this mode, <FONT SIZE="-1">GDB</FONT> can instruct <B>gdbserver</B> which
+command(s) to run.  Unlike the other 2 modes, <FONT SIZE="-1">GDB</FONT> will not
+close the connection when a process being debugged exits, so you can
+debug several processes in the same session.
+</DL>
+<P>
+
+In each of the modes you may specify these options:
+<DL COMPACT>
+<DT id="4"><B>--help</B><DD>
+
+
+List all options, with brief explanations.
+<DT id="5"><B>--version</B><DD>
+
+
+This option causes <B>gdbserver</B> to print its version number and exit.
+<DT id="6"><B>--attach</B><DD>
+
+
+<B>gdbserver</B> will attach to a running program.  The syntax is:
+
+
+<P>
+
+
+
+
+<PRE>
+        target&gt; gdbserver --attach &lt;comm&gt; &lt;pid&gt;
+
+</PRE>
+
+
+
+
+<P>
+
+
+<I>pid</I> is the process <FONT SIZE="-1">ID</FONT> of a currently running process.  It isn't
+necessary to point <B>gdbserver</B> at a binary for the running process.
+<DT id="7"><B>--multi</B><DD>
+
+
+To start <TT>&quot;gdbserver&quot;</TT> without supplying an initial command to run
+or process <FONT SIZE="-1">ID</FONT> to attach, use this command line option.
+Then you can connect using <TT>&quot;target extended-remote&quot;</TT> and start
+the program you want to debug.  The syntax is:
+
+
+<P>
+
+
+
+
+<PRE>
+        target&gt; gdbserver --multi &lt;comm&gt;
+
+</PRE>
+
+
+<DT id="8"><B>--debug</B><DD>
+
+
+Instruct <TT>&quot;gdbserver&quot;</TT> to display extra status information about the debugging
+process.
+This option is intended for <TT>&quot;gdbserver&quot;</TT> development and for bug reports to
+the developers.
+<DT id="9"><B>--remote-debug</B><DD>
+
+
+Instruct <TT>&quot;gdbserver&quot;</TT> to display remote protocol debug output.
+This option is intended for <TT>&quot;gdbserver&quot;</TT> development and for bug reports to
+the developers.
+<DT id="10"><B>--debug-file=</B><I>filename</I><DD>
+
+
+Instruct <TT>&quot;gdbserver&quot;</TT> to send any debug output to the given <I>filename</I>.
+This option is intended for <TT>&quot;gdbserver&quot;</TT> development and for bug reports to
+the developers.
+<DT id="11"><B>--debug-format=option1</B>[<B>,option2,...</B>]<DD>
+
+
+Instruct <TT>&quot;gdbserver&quot;</TT> to include extra information in each line
+of debugging output.
+<DT id="12"><B>--wrapper</B><DD>
+
+
+Specify a wrapper to launch programs
+for debugging.  The option should be followed by the name of the
+wrapper, then any command-line arguments to pass to the wrapper, then
+<TT>&quot;--&quot;</TT> indicating the end of the wrapper arguments.
+<DT id="13"><B>--once</B><DD>
+
+
+By default, <B>gdbserver</B> keeps the listening <FONT SIZE="-1">TCP</FONT> port open, so that
+additional connections are possible.  However, if you start <TT>&quot;gdbserver&quot;</TT>
+with the <B>--once</B> option, it will stop listening for any further
+connection attempts after connecting to the first <FONT SIZE="-1">GDB</FONT> session.
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+
+The full documentation for <FONT SIZE="-1">GDB</FONT> is maintained as a Texinfo manual.
+If the <TT>&quot;info&quot;</TT> and <TT>&quot;gdb&quot;</TT> programs and <FONT SIZE="-1">GDB</FONT>'s Texinfo
+documentation are properly installed at your site, the command
+<P>
+
+
+
+<PRE>
+        info gdb
+
+</PRE>
+
+
+<P>
+
+should give you access to the complete manual.
+<P>
+
+<I>Using </I><FONT SIZE="-1"><I>GDB: A</I></FONT><I> Guide to the </I><FONT SIZE="-1"><I>GNU</I></FONT><I> Source-Level Debugger</I>,
+Richard M. Stallman and Roland H. Pesch, July 1991.
+<A NAME="lbAG">&nbsp;</A>
+<H2>COPYRIGHT</H2>
+
+
+
+Copyright (c) 1988-2020 Free Software Foundation, Inc.
+<P>
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the <FONT SIZE="-1">GNU</FONT> Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being ``Free Software'' and ``Free Software Needs
+Free Documentation'', with the Front-Cover Texts being ``A <FONT SIZE="-1">GNU</FONT> Manual,''
+and with the Back-Cover Texts as in (a) below.
+<P>
+
+(a) The <FONT SIZE="-1">FSF</FONT>'s Back-Cover Text is: ``You are free to copy and modify
+this <FONT SIZE="-1">GNU</FONT> Manual.  Buying copies from <FONT SIZE="-1">GNU</FONT> Press supports the <FONT SIZE="-1">FSF</FONT> in
+developing <FONT SIZE="-1">GNU</FONT> and promoting software freedom.''
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="14"><A HREF="#lbAB">NAME</A><DD>
+<DT id="15"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="16"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="17"><A HREF="#lbAE">OPTIONS</A><DD>
+<DT id="18"><A HREF="#lbAF">SEE ALSO</A><DD>
+<DT id="19"><A HREF="#lbAG">COPYRIGHT</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:13 GMT, March 31, 2021
+</BODY>
+</HTML>

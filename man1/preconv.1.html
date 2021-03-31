@@ -1,0 +1,425 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of PRECONV</TITLE>
+</HEAD><BODY>
+<H1>PRECONV</H1>
+Section: User Commands  (1)<BR>Updated: 21 March 2020<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+preconv - convert encoding of input files to something GNU troff understands
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+
+
+[ <B>-dr</B> ]
+
+[ <B>-D </B><I>default_encoding</I> ]
+
+[ <B>-e </B><I>encoding</I> ]
+
+[<I>file</I>
+
+...]
+
+<B>-h</B>
+
+
+<B>--help</B>
+
+
+
+<B>-v</B>
+
+
+<B>--version</B>
+
+
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+<B>preconv</B>
+
+reads
+<I>files</I>
+
+and converts its encoding(s) to a form GNU
+<B><A HREF="/cgi-bin/man/man2html?1+troff">troff</A></B>(1)
+
+can process, sending the data to standard output.
+Currently, this means ASCII characters and '\[uXXXX]'
+entities, where 'XXXX' is a hexadecimal number with four to
+six digits, representing a Unicode input code.
+Normally,
+<B>preconv</B>
+
+should be invoked with the
+<B>-k</B>
+
+and
+<B>-K</B>
+
+options of
+<B>groff</B>.
+
+
+<A NAME="lbAE">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+
+Whitespace is permitted between a command-line option and its argument.
+<DL COMPACT>
+<DT id="1"><B>-d</B>
+
+<DD>
+Emit debugging messages to standard error (mainly the used encoding).
+<DT id="2"><B>-D</B><I>encoding</I>
+
+<DD>
+Specify default encoding if everything fails (see below).
+<DT id="3"><B>-e</B><I>encoding</I>
+
+<DD>
+Specify input encoding explicitly, overriding all other methods.
+This corresponds to
+<B>groff</B>'s
+
+<B>-K</B><I>encoding</I>
+
+option.
+Without this switch,
+<B>preconv</B>
+
+uses the algorithm described below to select the input encoding.
+<DT id="4"><B>--help</B>
+
+<DD>
+
+<B>-h</B>
+
+Print a help message and exit.
+<DT id="5"><B>-r</B>
+
+<DD>
+Do not add .lf requests.
+<DT id="6"><B>--version</B>
+
+<DD>
+
+<B>-v</B>
+
+Print the version number and exit.
+
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>USAGE</H2>
+
+
+<B>preconv</B>
+
+tries to find the input encoding with the following algorithm.
+<DL COMPACT>
+<DT id="7">1.<DD>
+If the input encoding has been explicitly specified with option
+<B>-e</B>,
+
+use it.
+<DT id="8">2.<DD>
+Otherwise, check whether the input starts with a
+<I>Byte Order Mark</I>
+
+(BOM, see below).
+If found, use it.
+<DT id="9">3.<DD>
+Otherwise, check whether there is a known
+<I>coding tag</I>
+
+(see below) in either the first or second input line.
+If found, use it.
+<DT id="10">4<DD>
+Finally, if the
+<B>uchardet</B>
+
+library
+(an encoding detector library available on most major distributions)
+is available on the system, use it to try to detect the encoding of the file.
+<DT id="11">5.<DD>
+If everything fails, use a default encoding as given with option
+<B>-D</B>,
+
+by the current locale, or 'latin1' if the locale is set to
+'C', 'POSIX', or empty (in that order).
+</DL>
+<P>
+
+Note that the
+<B>groff</B>
+
+program supports a
+<I>GROFF_ENCODING</I>
+
+environment variable which is eventually expanded to option
+<B>-k</B>.
+
+
+<A NAME="lbAG">&nbsp;</A>
+<H3>Byte Order Mark</H3>
+
+
+The Unicode Standard defines character U+FEFF as the Byte Order Mark
+(BOM).
+On the other hand, value U+FFFE is guaranteed not be a Unicode character at
+all.
+This allows detection of the byte order within the data stream (either
+big-endian or little-endian), and the MIME encodings 'UTF-16'
+and 'UTF-32' mandate that the data stream starts with U+FEFF.
+Similarly, the data stream encoded as 'UTF-8' might start
+with a BOM (to ease the conversion from and to UTF-16 and UTF-32).
+In all cases, the byte order mark is
+<I>not</I>
+
+part of the data but part of the encoding protocol; in other words,
+<B>preconv</B>'s
+
+output doesn't contain it.
+<P>
+
+Note that U+FEFF not at the start of the input data actually is
+emitted; it has then the meaning of a 'zero width no-break
+space' character - something not needed normally in
+<B>groff</B>.
+
+
+<A NAME="lbAH">&nbsp;</A>
+<H3>Coding Tags</H3>
+
+
+Editors which support more than a single character encoding need tags
+within the input files to mark the file's encoding.
+While it is possible to guess the right input encoding with the help of
+heuristic algorithms for data which represents a greater amount of a natural
+language, it is still just a guess.
+Additionally, all algorithms fail easily for input which is either too short
+or doesn't represent a natural language.
+<P>
+
+For these reasons,
+<B>preconv</B>
+
+supports the coding tag convention (with some restrictions) as used by
+<B>GNU Emacs</B>
+
+and
+<B>XEmacs</B>
+
+(and probably other programs too).
+<P>
+
+Coding tags in
+<B>GNU Emacs</B>
+
+and
+<B>XEmacs</B>
+
+are stored in so-called
+<I>File Variables</I>.
+
+<B>preconv</B>
+
+recognizes the following syntax form which must be put into a troff comment
+in the first or second line.
+<DL COMPACT><DT id="12"><DD>
+<P>
+
+-*-
+<I>tag1</I>:
+
+<I>value1</I>;
+
+<I>tag2</I>:
+
+<I>value2</I>;
+
+... -*-
+</DL>
+
+<P>
+
+The only relevant tag for
+<B>preconv</B>
+
+is 'coding' which can take the values listed below.
+Here an example line which tells
+<B>Emacs</B>
+
+to edit a file in troff mode, and to use latin2 as its encoding.
+<DL COMPACT><DT id="13"><DD>
+<P>
+
+
+.\&quot; -*- mode: troff; coding: latin-2 -*-
+
+</DL>
+
+<P>
+
+The following list gives all MIME coding tags (either lowercase or
+uppercase) supported by
+<B>preconv</B>;
+
+this list is hard-coded in the source.
+<DL COMPACT><DT id="14"><DD>
+<P>
+
+
+big5, cp1047, euc-jp, euc-kr, gb2312, iso-8859-1,
+iso-8859-2, iso-8859-5, iso-8859-7, iso-8859-9, iso-8859-13,
+iso-8859-15, koi8-r, us-ascii, utf-8, utf-16, utf-16be,
+utf-16le
+
+</DL>
+
+<P>
+
+In addition, the following hard-coded list of other tags is recognized
+which eventually map to values from the list above.
+<DL COMPACT><DT id="15"><DD>
+<P>
+
+
+ascii, chinese-big5, chinese-euc, chinese-iso-8bit, cn-big5,
+cn-gb, cn-gb-2312, cp878, csascii, csisolatin1,
+cyrillic-iso-8bit, cyrillic-koi8, euc-china, euc-cn,
+euc-japan, euc-japan-1990, euc-korea, greek-iso-8bit,
+iso-10646/utf8, iso-10646/utf-8, iso-latin-1, iso-latin-2,
+iso-latin-5, iso-latin-7, iso-latin-9, japanese-euc,
+japanese-iso-8bit, jis8, koi8, korean-euc, korean-iso-8bit,
+latin-0, latin1, latin-1, latin-2, latin-5, latin-7,
+latin-9, mule-utf-8, mule-utf-16, mule-utf-16be,
+mule-utf-16-be, mule-utf-16be-with-signature, mule-utf-16le,
+mule-utf-16-le, mule-utf-16le-with-signature, utf8, utf-16-be,
+utf-16-be-with-signature, utf-16be-with-signature, utf-16-le,
+utf-16-le-with-signature, utf-16le-with-signature
+
+</DL>
+
+<P>
+
+Those tags are taken from
+<B>GNU Emacs</B>
+
+and
+<B>XEmacs</B>,
+
+together with some aliases.
+Trailing '-dos', '-unix', and '-mac'
+suffixes of coding tags (which give the end-of-line convention used in
+the file) are stripped off before the comparison with the above tags
+happens.
+<A NAME="lbAI">&nbsp;</A>
+<H3>Iconv Issues</H3>
+
+<B>preconv</B>
+
+by itself only supports three encodings: latin-1, cp1047, and UTF-8;
+all other encodings are passed to the
+<B>iconv</B>
+
+library functions.
+At compile time it is searched and checked for a valid
+<B>iconv</B>
+
+implementation; a call to 'preconv --version' shows whether
+<B>iconv</B>
+
+is used.
+
+<A NAME="lbAJ">&nbsp;</A>
+<H2>BUGS</H2>
+
+
+<B>preconv</B>
+
+doesn't support
+<I>local variable lists</I>
+
+yet.
+This is a different syntax form to specify local variables at the end of a
+file.
+
+<A NAME="lbAK">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+<B><A HREF="/cgi-bin/man/man2html?1+groff">groff</A></B>(1)
+
+<BR>
+
+the
+<B>GNU Emacs</B>
+
+and
+<B>XEmacs</B>
+
+info pages
+
+
+
+
+
+
+
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="16"><A HREF="#lbAB">NAME</A><DD>
+<DT id="17"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="18"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="19"><A HREF="#lbAE">OPTIONS</A><DD>
+<DT id="20"><A HREF="#lbAF">USAGE</A><DD>
+<DL>
+<DT id="21"><A HREF="#lbAG">Byte Order Mark</A><DD>
+<DT id="22"><A HREF="#lbAH">Coding Tags</A><DD>
+<DT id="23"><A HREF="#lbAI">Iconv Issues</A><DD>
+</DL>
+<DT id="24"><A HREF="#lbAJ">BUGS</A><DD>
+<DT id="25"><A HREF="#lbAK">SEE ALSO</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:25 GMT, March 31, 2021
+</BODY>
+</HTML>

@@ -1,0 +1,678 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of scr_dump</TITLE>
+</HEAD><BODY>
+<H1>scr_dump</H1>
+Section: File Formats (5)<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+scr_dump - format of curses screen-dumps.
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<B>scr_dump</B>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+The curses library provides applications with the ability to write the
+contents of a window to an external file using <B>scr_dump</B> or <B>putwin</B>,
+and read it back using <B>scr_restore</B> or <B>getwin</B>.
+<P>
+
+The <B>putwin</B> and <B>getwin</B> functions do the work;
+while <B>scr_dump</B> and <B>scr_restore</B> conveniently save and restore
+the whole screen, i.e., <B>stdscr</B>.
+<A NAME="lbAE">&nbsp;</A>
+<H3>ncurses6</H3>
+
+<P>
+
+A longstanding implementation of screen-dump was
+revised with ncurses6 to remedy problems with the earlier approach:
+
+<BR>&nbsp;.IP&nbsp;&bull;&nbsp;4
+
+
+A ``magic number'' is written to the beginning of the dump file,
+allowing applications (such as <B><A HREF="/cgi-bin/man/man2html?1+file">file</A></B>(1)) to recognize curses dump files.
+<DL COMPACT>
+<DT id="1"><DD>
+Because ncurses6 uses a new format,
+that requires a new magic number
+was unused by other applications.
+This 16-bit number was unused:
+
+<BR>&nbsp;.sp
+
+<BR>&nbsp;.in&nbsp;+4
+
+<PRE>
+0x8888 (octal ``\210\210'')
+
+</PRE>
+
+
+<BR>&nbsp;.in&nbsp;-4
+
+
+<DT id="2"><DD>
+but to be more certain, this 32-bit number was chosen:
+
+<BR>&nbsp;.sp
+
+<BR>&nbsp;.in&nbsp;+4
+
+<PRE>
+0x88888888 (octal ``\210\210\210\210'')
+
+</PRE>
+
+
+<BR>&nbsp;.in&nbsp;-4
+
+
+<DT id="3"><DD>
+This is the pattern submitted to the maintainers of the <B>file</B> program:
+
+<BR>&nbsp;.sp
+
+<BR>&nbsp;.in&nbsp;+4
+
+<PRE>
+#
+# ncurses5 (and before) did not use a magic number,
+# making screen dumps &quot;data&quot;.
+#
+# ncurses6 (2015) uses this format, ignoring byte-order
+0    string    \210\210\210\210ncurses    ncurses6 screen image
+#
+
+</PRE>
+
+
+<BR>&nbsp;.in&nbsp;-4
+
+
+
+<BR>&nbsp;.IP&nbsp;&bull;&nbsp;4
+
+
+The screen dumps are written in textual form,
+so that internal data sizes are not directly related to the dump-format, and
+enabling the library to read dumps from either narrow- or wide-character-
+configurations.
+<DT id="4"><DD>
+The <I>narrow</I> library configuration holds characters and video attributes
+in a 32-bit <B>chtype</B>, while the <I>wide-character</I> library stores
+this information in the <B>cchar_t</B> structure, which is much larger than
+32-bits.
+
+<BR>&nbsp;.IP&nbsp;&bull;&nbsp;4
+
+
+It is possible to read a screen dump into a terminal with a different
+screen-size,
+because the library truncates or fills the screen as necessary.
+
+<BR>&nbsp;.IP&nbsp;&bull;&nbsp;4
+
+
+The ncurses6 <B>getwin</B> reads the legacy screen dumps from ncurses5.
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H3>ncurses5 (legacy)</H3>
+
+<P>
+
+The screen-dump feature was added to ncurses in June 1995.
+While there were fixes and improvements in succeeding years,
+the basic scheme was unchanged:
+
+<BR>&nbsp;.IP&nbsp;&bull;&nbsp;4
+
+
+The <B>WINDOW</B> structure was written in binary form.
+
+<BR>&nbsp;.IP&nbsp;&bull;&nbsp;4
+
+
+The <B>WINDOW</B> structure refers to lines of data,
+which were written as an array of binary data following the <B>WINDOW</B>.
+
+<BR>&nbsp;.IP&nbsp;&bull;&nbsp;4
+
+
+When <B>getwin</B> restored the window,
+it would keep track of offsets into the array of line-data
+and adjust the <B>WINDOW</B> structure which was read back into memory.
+<P>
+
+This is similar to Unix SystemV,
+but does not write a ``magic number'' to identify the file format.
+<A NAME="lbAG">&nbsp;</A>
+<H2>PORTABILITY</H2>
+
+<P>
+
+There is no standard format for <B>putwin</B>.
+This section gives a brief description of the existing formats.
+<A NAME="lbAH">&nbsp;</A>
+<H3>X/Open Curses</H3>
+
+<P>
+
+Refer to <I>X/Open Curses, Issue 7</I> (2009).
+<P>
+
+X/Open's documentation for <I>enhanced curses</I> says only:
+<DL COMPACT><DT id="5"><DD>
+<P>
+
+The <I>getwin(&nbsp;) </I>function reads window-related data
+stored in the file by <I>putwin(&nbsp;)</I>.
+The function
+then creates and initializes a new window using that data.
+<P>
+
+The <I>putwin(&nbsp;)</I> function writes all data associated
+with <I>win</I> into the <I>stdio</I> stream to which <I>filep</I>
+points, using an <B>unspecified format</B>.
+This information can be retrieved later using <I>getwin(&nbsp;)</I>.
+</DL>
+
+<P>
+
+In the mid-1990s when the X/Open Curses document was written,
+there were still systems using older, less capable curses libraries
+(aside from the BSD curses library which was not relevant to X/Open
+because it did not meet the criteria for <I>base curses</I>).
+The document explained the term ``enhanced'' as follows:
+<DL COMPACT><DT id="6"><DD>
+
+<BR>&nbsp;.IP&nbsp;&bull;&nbsp;4
+
+
+Shading is used to identify <I>X/Open Enhanced Curses</I> material,
+relating to interfaces included to provide enhanced capabilities
+for applications originally written to be compiled on systems
+based on the UNIX operating system.
+Therefore, the features described may not be present on systems
+that conform to <B>XPG4 or to earlier XPG releases</B>.
+The relevant reference pages may provide additional
+or more specific portability warnings about use of the material.
+</DL>
+
+<P>
+
+In the foregoing, emphasis was added to <B>unspecified format</B>
+and to <B>XPG4 or to earlier XPG releases</B>,
+for clarity.
+<A NAME="lbAI">&nbsp;</A>
+<H3>Unix SystemV</H3>
+
+<P>
+
+Unix SystemV curses identified the file format by writing a
+``magic number'' at the beginning of the dump.
+The <B>WINDOW</B> data and the lines of text follow, all in binary form.
+<P>
+
+The Solaris curses source has these definitions:
+
+<BR>&nbsp;.sp
+
+<BR>&nbsp;.in&nbsp;+4
+
+<PRE>
+/* terminfo magic number */
+#define MAGNUM  0432
+
+/* curses screen dump magic number */
+#define SVR2_DUMP_MAGIC_NUMBER  0433
+#define SVR3_DUMP_MAGIC_NUMBER  0434
+
+</PRE>
+
+
+<BR>&nbsp;.in&nbsp;-4
+
+
+<P>
+
+That is, the feature was likely introduced in SVr2 (1984),
+and improved in SVr3 (1987).
+The Solaris curses source has no magic number for SVr4 (1989).
+Other operating systems (AIX and HPUX) use a magic number which would
+correspond to this definition:
+
+<BR>&nbsp;.sp
+
+<BR>&nbsp;.in&nbsp;+4
+
+<PRE>
+/* curses screen dump magic number */
+#define SVR4_DUMP_MAGIC_NUMBER  0435
+
+</PRE>
+
+
+<BR>&nbsp;.in&nbsp;-4
+
+
+<P>
+
+That octal number in bytes is 001, 035.
+Because most Unix vendors use big-endian hardware,
+the magic number is written with the high-order byte first, e.g.,
+
+<BR>&nbsp;.sp
+
+<BR>&nbsp;.in&nbsp;+4
+
+<PRE>
+&nbsp;01&nbsp;35
+
+</PRE>
+
+
+<BR>&nbsp;.in&nbsp;-4
+
+
+<P>
+
+After the magic number, the <B>WINDOW</B> structure and line-data are
+written in binary format.
+While the magic number used by the Unix systems can be seen using <B><A HREF="/cgi-bin/man/man2html?1+od">od</A></B>(1),
+none of the Unix systems documents the format used for screen-dumps.
+<P>
+
+The Unix systems do not use identical formats.
+While collecting information for for this manual page,
+the <I>savescreen</I> test-program
+produced dumps of different size
+(all on 64-bit hardware, on 40x80 screens):
+
+<BR>&nbsp;.IP&nbsp;&bull;&nbsp;4
+
+
+AIX (51817 bytes)
+
+<BR>&nbsp;.IP&nbsp;&bull;&nbsp;4
+
+
+HPUX (90093 bytes)
+
+<BR>&nbsp;.IP&nbsp;&bull;&nbsp;4
+
+
+Solaris 10 (13273 bytes)
+
+<BR>&nbsp;.IP&nbsp;&bull;&nbsp;4
+
+
+ncurses5 (12888 bytes)
+<A NAME="lbAJ">&nbsp;</A>
+<H3>Solaris</H3>
+
+<P>
+
+As noted above, Solaris curses has no magic number corresponding
+to SVr4 curses.
+This is odd since Solaris was the first operating system
+to pass the SVr4 guidelines.
+Solaris has two versions of curses:
+
+<BR>&nbsp;.IP&nbsp;&bull;&nbsp;4
+
+
+The default curses library uses the SVr3 magic number.
+
+<BR>&nbsp;.IP&nbsp;&bull;&nbsp;4
+
+
+There is an alternate curses library in <B>/usr/xpg4</B>.
+This uses a textual format with no magic number.
+<DL COMPACT>
+<DT id="7"><DD>
+According to the copyright notice, the <I>xpg4</I> Solaris curses library was
+developed by MKS (Mortice Kern Systems) from 1990 to 1995.
+<DT id="8"><DD>
+Like ncurses6, there is a file-header with parameters.
+Unlike ncurses6, the contents of the window are written piecemeal,
+with coordinates and attributes for each chunk of text rather
+than writing the whole window from top to bottom.
+</DL>
+<A NAME="lbAK">&nbsp;</A>
+<H3>PDCurses</H3>
+
+<P>
+
+PDCurses added support for screen dumps in version 2.7 (2005).
+Like Unix SystemV and ncurses5,
+it writes the <B>WINDOW</B> structure in binary,
+but begins the file with its three-byte identifier ``PDC'',
+followed by a one-byte version,
+e.g.,
+
+<BR>&nbsp;.sp
+
+<BR>&nbsp;.in&nbsp;+4
+
+<PRE>
+        ``PDC\001''
+
+</PRE>
+
+
+<BR>&nbsp;.in&nbsp;-4
+
+
+<A NAME="lbAL">&nbsp;</A>
+<H3>NetBSD</H3>
+
+<P>
+
+As of April 2017, NetBSD curses does
+not support <B>scr_dump</B> and <B>scr_restore</B>
+(or <B>scr_init</B>, <B>scr_set</B>),
+although it has <B>putwin</B> and <B>getwin</B>.
+<P>
+
+Like ncurses5, NetBSD <B>putwin</B> does not identify its dumps with a
+useful magic number.
+It writes
+
+<BR>&nbsp;.IP&nbsp;&bull;&nbsp;4
+
+
+the curses shared library major and minor versions
+as the first two bytes (e.g., 7 and 1),
+
+<BR>&nbsp;.IP&nbsp;&bull;&nbsp;4
+
+
+followed by a binary dump of the <B>WINDOW</B>,
+
+<BR>&nbsp;.IP&nbsp;&bull;&nbsp;4
+
+
+some data for wide-characters referenced by the <B>WINDOW</B> structure, and
+
+<BR>&nbsp;.IP&nbsp;&bull;&nbsp;4
+
+
+finally, lines as done by other implementations.
+<A NAME="lbAM">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+<P>
+
+Given a simple program which writes text to the screen
+(and for the sake of example, limiting the screen-size to 10x20):
+
+<BR>&nbsp;.sp
+
+<BR>&nbsp;.in&nbsp;+4
+
+<PRE>
+#include &lt;<A HREF="file:///usr/include/curses.h">curses.h</A>&gt;
+
+int
+main(void)
+{
+    putenv(&quot;LINES=10&quot;);
+    putenv(&quot;COLUMNS=20&quot;);
+    initscr();
+    start_color();
+    init_pair(1, COLOR_WHITE, COLOR_BLUE);
+    init_pair(2, COLOR_RED, COLOR_BLACK);
+    bkgd(<A HREF="/cgi-bin/man/man2html?1+COLOR_PAIR">COLOR_PAIR</A>(1));
+    move(4, 5);
+    attron(A_BOLD);
+    addstr(&quot;Hello&quot;);
+    move(5, 5);
+    attroff(A_BOLD);
+    attrset(A_REVERSE | <A HREF="/cgi-bin/man/man2html?2+COLOR_PAIR">COLOR_PAIR</A>(2));
+    addstr(&quot;World!&quot;);
+    refresh();
+    scr_dump(&quot;foo.out&quot;);
+    endwin();
+    return 0;
+}
+
+</PRE>
+
+
+<BR>&nbsp;.in&nbsp;-4
+
+
+<P>
+
+When run using ncurses6, the output looks like this:
+
+<BR>&nbsp;.sp
+
+<BR>&nbsp;.in&nbsp;+4
+
+<PRE>
+\210\210\210\210ncurses 6.0.20170415
+_cury=5
+_curx=11
+_maxy=9
+_maxx=19
+_flags=14
+_attrs=\{REVERSE|C2}
+flag=_idcok
+_delay=-1
+_regbottom=9
+_bkgrnd=\{NORMAL|C1}\s
+rows:
+1:\{NORMAL|C1}\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s
+2:\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s
+3:\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s
+4:\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s
+5:\s\s\s\s\s\{BOLD}Hello\{NORMAL}\s\s\s\s\s\s\s\s\s\s
+6:\s\s\s\s\s\{REVERSE|C2}World!\{NORMAL|C1}\s\s\s\s\s\s\s\s\s
+7:\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s
+8:\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s
+9:\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s
+10:\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s
+
+</PRE>
+
+
+<BR>&nbsp;.in&nbsp;-4
+
+
+<P>
+
+The first four octal escapes are actually nonprinting characters,
+while the remainder of the file is printable text.
+You may notice:
+
+<BR>&nbsp;.IP&nbsp;&bull;&nbsp;4
+
+
+The actual color pair values are not written to the file.
+
+<BR>&nbsp;.IP&nbsp;&bull;&nbsp;4
+
+
+All characters are shown in printable form; spaces are ``\s'' to
+ensure they are not overlooked.
+
+<BR>&nbsp;.IP&nbsp;&bull;&nbsp;4
+
+
+Attributes are written in escaped curly braces, e.g., ``\{BOLD}'',
+and may include a color-pair (C1 or C2 in this example).
+
+<BR>&nbsp;.IP&nbsp;&bull;&nbsp;4
+
+
+The parameters in the header are written out only if they are nonzero.
+When reading back, order does not matter.
+
+<P>
+
+Running the same program with Solaris <I>xpg4</I> curses gives this dump:
+
+<BR>&nbsp;.sp
+
+<BR>&nbsp;.in&nbsp;+4
+
+<PRE>
+MAX=10,20
+BEG=0,0
+SCROLL=0,10
+VMIN=1
+VTIME=0
+FLAGS=0x1000
+FG=0,0
+BG=0,0, 
+0,0,0,1,
+0,19,0,0, 
+1,0,0,1,
+1,19,0,0, 
+2,0,0,1,
+2,19,0,0, 
+3,0,0,1,
+3,19,0,0, 
+4,0,0,1,
+4,5,0x20,0,Hello
+4,10,0,1,
+4,19,0,0, 
+5,0,0,1,
+5,5,0x4,2,World!
+5,11,0,1,
+5,19,0,0, 
+6,0,0,1,
+6,19,0,0, 
+7,0,0,1,
+7,19,0,0, 
+8,0,0,1,
+8,19,0,0, 
+9,0,0,1,
+9,19,0,0, 
+CUR=11,5
+
+</PRE>
+
+
+<BR>&nbsp;.in&nbsp;-4
+
+
+<P>
+
+Solaris <B>getwin</B> requires that all parameters are present, and
+in the same order.
+The <I>xpg4</I> curses library does not know about the <B>bce</B>
+(back color erase) capability, and does not color the window background.
+
+<P>
+
+On the other hand, the SVr4 curses library does know about the background color.
+However, its screen dumps are in binary.
+Here is the corresponding dump (using ``od -t x1''):
+
+<BR>&nbsp;.sp
+
+<BR>&nbsp;.in&nbsp;+4
+
+<PRE>
+0000000 1c 01 c3 d6 f3 58 05 00 0b 00 0a 00 14 00 00 00
+0000020 00 00 02 00 00 00 00 00 00 00 00 00 00 00 00 00
+0000040 00 00 b8 1a 06 08 cc 1a 06 08 00 00 09 00 10 00
+0000060 00 00 00 80 00 00 20 00 00 00 ff ff ff ff 00 00
+0000100 ff ff ff ff 00 00 00 00 20 80 00 00 20 80 00 00
+0000120 20 80 00 00 20 80 00 00 20 80 00 00 20 80 00 00
+*
+0000620 20 80 00 00 20 80 00 00 20 80 00 00 48 80 00 04
+0000640 65 80 00 04 6c 80 00 04 6c 80 00 04 6f 80 00 04
+0000660 20 80 00 00 20 80 00 00 20 80 00 00 20 80 00 00
+*
+0000740 20 80 00 00 20 80 00 00 20 80 00 00 57 00 81 00
+0000760 6f 00 81 00 72 00 81 00 6c 00 81 00 64 00 81 00
+0001000 21 00 81 00 20 80 00 00 20 80 00 00 20 80 00 00
+0001020 20 80 00 00 20 80 00 00 20 80 00 00 20 80 00 00
+*
+0001540 20 80 00 00 20 80 00 00 00 00 f6 d1 01 00 f6 d1
+0001560 08 00 00 00 40 00 00 00 00 00 00 00 00 00 00 07
+0001600 00 04 00 01 00 01 00 00 00 01 00 00 00 00 00 00
+0001620 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+*
+0002371
+
+</PRE>
+
+
+<BR>&nbsp;.in&nbsp;-4
+
+
+<A NAME="lbAN">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B>scr_dump</B>(3NCURSES),
+<B>util</B>(3NCURSES).
+<A NAME="lbAO">&nbsp;</A>
+<H2>AUTHORS</H2>
+
+<P>
+
+Thomas E. Dickey
+<BR>
+
+extended screen-dump format for ncurses 6.0 (2015)
+<P>
+Eric S. Raymond
+<BR>
+
+screen dump feature in ncurses 1.9.2d (1995)
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="9"><A HREF="#lbAB">NAME</A><DD>
+<DT id="10"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="11"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DL>
+<DT id="12"><A HREF="#lbAE">ncurses6</A><DD>
+<DT id="13"><A HREF="#lbAF">ncurses5 (legacy)</A><DD>
+</DL>
+<DT id="14"><A HREF="#lbAG">PORTABILITY</A><DD>
+<DL>
+<DT id="15"><A HREF="#lbAH">X/Open Curses</A><DD>
+<DT id="16"><A HREF="#lbAI">Unix SystemV</A><DD>
+<DT id="17"><A HREF="#lbAJ">Solaris</A><DD>
+<DT id="18"><A HREF="#lbAK">PDCurses</A><DD>
+<DT id="19"><A HREF="#lbAL">NetBSD</A><DD>
+</DL>
+<DT id="20"><A HREF="#lbAM">EXAMPLE</A><DD>
+<DT id="21"><A HREF="#lbAN">SEE ALSO</A><DD>
+<DT id="22"><A HREF="#lbAO">AUTHORS</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:05 GMT, March 31, 2021
+</BODY>
+</HTML>

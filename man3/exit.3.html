@@ -1,0 +1,309 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of EXIT</TITLE>
+</HEAD><BODY>
+<H1>EXIT</H1>
+Section: Linux Programmer's Manual (3)<BR>Updated: 2020-02-09<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+exit - cause normal process termination
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<PRE>
+<B>#include &lt;<A HREF="file:///usr/include/stdlib.h">stdlib.h</A>&gt;</B>
+
+<B>void exit(int </B><I>status</I><B>);</B>
+</PRE>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+The
+<B>exit</B>()
+
+function causes normal process termination and the value of <I>status &amp;
+0xFF</I> is returned to the parent (see
+<B><A HREF="/cgi-bin/man/man2html?2+wait">wait</A></B>(2)).
+
+<P>
+
+All functions registered with
+<B><A HREF="/cgi-bin/man/man2html?3+atexit">atexit</A></B>(3)
+
+and
+<B><A HREF="/cgi-bin/man/man2html?3+on_exit">on_exit</A></B>(3)
+
+are called, in the reverse order of their registration.
+(It is possible for one of these functions to use
+<B><A HREF="/cgi-bin/man/man2html?3+atexit">atexit</A></B>(3)
+
+or
+<B><A HREF="/cgi-bin/man/man2html?3+on_exit">on_exit</A></B>(3)
+
+to register an additional
+function to be executed during exit processing;
+the new registration is added to the front of the list of functions
+that remain to be called.)
+If one of these functions does not return
+(e.g., it calls
+<B><A HREF="/cgi-bin/man/man2html?2+_exit">_exit</A></B>(2),
+
+or kills itself with a signal),
+then none of the remaining functions is called,
+and further exit processing (in particular, flushing of
+<B><A HREF="/cgi-bin/man/man2html?3+stdio">stdio</A></B>(3)
+
+streams) is abandoned.
+If a function has been registered multiple times using
+<B><A HREF="/cgi-bin/man/man2html?3+atexit">atexit</A></B>(3)
+
+or
+<B><A HREF="/cgi-bin/man/man2html?3+on_exit">on_exit</A></B>(3),
+
+then it is called as many times as it was registered.
+<P>
+
+All open
+<B><A HREF="/cgi-bin/man/man2html?3+stdio">stdio</A></B>(3)
+
+streams are flushed and closed.
+Files created by
+<B><A HREF="/cgi-bin/man/man2html?3+tmpfile">tmpfile</A></B>(3)
+
+are removed.
+<P>
+
+The C standard specifies two constants,
+<B>EXIT_SUCCESS</B> and <B>EXIT_FAILURE</B>,
+that may be passed to
+<B>exit</B>()
+
+to indicate successful or unsuccessful
+termination, respectively.
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+The
+<B>exit</B>()
+
+function does not return.
+<A NAME="lbAF">&nbsp;</A>
+<H2>ATTRIBUTES</H2>
+
+For an explanation of the terms used in this section, see
+<B><A HREF="/cgi-bin/man/man2html?7+attributes">attributes</A></B>(7).
+
+<TABLE BORDER>
+<TR VALIGN=top><TD><B>Interface</B></TD><TD><B>Attribute</B></TD><TD><B>Value</B><BR></TD></TR>
+<TR VALIGN=top><TD>
+<B>exit</B>()
+
+</TD><TD>Thread safety</TD><TD>MT-Unsafe race:exit<BR></TD></TR>
+</TABLE>
+
+<P>
+
+The
+<B>exit</B>()
+
+function uses a global variable that is not protected,
+so it is not thread-safe.
+<A NAME="lbAG">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+POSIX.1-2001, POSIX.1-2008, C89, C99, SVr4, 4.3BSD.
+<A NAME="lbAH">&nbsp;</A>
+<H2>NOTES</H2>
+
+<P>
+
+The behavior is undefined if one of the functions registered using
+<B><A HREF="/cgi-bin/man/man2html?3+atexit">atexit</A></B>(3)
+
+and
+<B><A HREF="/cgi-bin/man/man2html?3+on_exit">on_exit</A></B>(3)
+
+calls either
+<B>exit</B>()
+
+or
+<B><A HREF="/cgi-bin/man/man2html?3+longjmp">longjmp</A></B>(3).
+
+Note that a call to
+<B><A HREF="/cgi-bin/man/man2html?2+execve">execve</A></B>(2)
+
+removes registrations created using
+<B><A HREF="/cgi-bin/man/man2html?3+atexit">atexit</A></B>(3)
+
+and
+<B><A HREF="/cgi-bin/man/man2html?3+on_exit">on_exit</A></B>(3).
+
+<P>
+
+The use of
+<B>EXIT_SUCCESS</B>
+
+and
+<B>EXIT_FAILURE</B>
+
+is slightly more portable
+(to non-UNIX environments) than the use of 0 and some nonzero value
+like 1 or -1.
+In particular, VMS uses a different convention.
+<P>
+
+BSD has attempted to standardize exit codes
+(which some C libraries such as the GNU C library have also adopted);
+see the file
+<I>&lt;<A HREF="file:///usr/include/sysexits.h">sysexits.h</A>&gt;</I>.
+
+<P>
+
+After
+<B>exit</B>(),
+
+the exit status must be transmitted to the
+parent process.
+There are three cases:
+<DL COMPACT>
+<DT id="1">&bull;<DD>
+If the parent has set
+<B>SA_NOCLDWAIT</B>,
+
+or has set the
+<B>SIGCHLD</B>
+
+handler to
+<B>SIG_IGN</B>,
+
+the status is discarded and the child dies immediately.
+<DT id="2">&bull;<DD>
+If the parent was waiting on the child,
+it is notified of the exit status and the child dies immediately.
+<DT id="3">&bull;<DD>
+Otherwise,
+the child becomes a &quot;zombie&quot; process:
+most of the process resources are recycled,
+but a slot containing minimal information about the child process
+(termination status, resource usage statistics) is retained in process table.
+This allows the parent to subsequently use
+<B><A HREF="/cgi-bin/man/man2html?2+waitpid">waitpid</A></B>(2)
+
+(or similar) to learn the termination status of the child;
+at that point the zombie process slot is released.
+</DL>
+<P>
+
+If the implementation supports the
+<B>SIGCHLD</B>
+
+signal, this signal
+is sent to the parent.
+If the parent has set
+<B>SA_NOCLDWAIT</B>,
+
+it is undefined whether a
+<B>SIGCHLD</B>
+
+signal is sent.
+
+<A NAME="lbAI">&nbsp;</A>
+<H3>Signals sent to other processes</H3>
+
+If the exiting process is a session leader and its controlling terminal
+is the controlling terminal of the session, then each process in
+the foreground process group of this controlling terminal
+is sent a
+<B>SIGHUP</B>
+
+signal, and the terminal is disassociated
+from this session, allowing it to be acquired by a new controlling
+process.
+<P>
+
+If the exit of the process causes a process group to become orphaned,
+and if any member of the newly orphaned process group is stopped,
+then a
+<B>SIGHUP</B>
+
+signal followed by a
+<B>SIGCONT</B>
+
+signal will be
+sent to each process in this process group.
+See
+<B><A HREF="/cgi-bin/man/man2html?2+setpgid">setpgid</A></B>(2)
+
+for an explanation of orphaned process groups.
+<P>
+
+Except in the above cases,
+where the signalled processes may be children of the terminating process,
+termination of a process does
+<I>not</I>
+
+in general cause a signal to be sent to children of that process.
+However, a process can use the
+<B><A HREF="/cgi-bin/man/man2html?2+prctl">prctl</A></B>(2)
+
+<B>PR_SET_PDEATHSIG</B>
+
+operation to arrange that it receives a signal if its parent terminates.
+<A NAME="lbAJ">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?2+_exit">_exit</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+get_robust_list">get_robust_list</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+setpgid">setpgid</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+wait">wait</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?3+atexit">atexit</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+on_exit">on_exit</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+tmpfile">tmpfile</A></B>(3)
+
+<A NAME="lbAK">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="4"><A HREF="#lbAB">NAME</A><DD>
+<DT id="5"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="6"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="7"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DT id="8"><A HREF="#lbAF">ATTRIBUTES</A><DD>
+<DT id="9"><A HREF="#lbAG">CONFORMING TO</A><DD>
+<DT id="10"><A HREF="#lbAH">NOTES</A><DD>
+<DL>
+<DT id="11"><A HREF="#lbAI">Signals sent to other processes</A><DD>
+</DL>
+<DT id="12"><A HREF="#lbAJ">SEE ALSO</A><DD>
+<DT id="13"><A HREF="#lbAK">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:39 GMT, March 31, 2021
+</BODY>
+</HTML>

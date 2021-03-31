@@ -1,0 +1,224 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SD_EVENT_ADD_SIGNAL</TITLE>
+</HEAD><BODY>
+<H1>SD_EVENT_ADD_SIGNAL</H1>
+Section: sd_event_add_signal (3)<BR>Updated: <BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+sd_event_add_signal, sd_event_source_get_signal, sd_event_signal_handler_t - Add a UNIX process signal event source to an event loop
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+<B>
+</B><PRE>
+#include &lt;<A HREF="file:///usr/include/systemd/sd-event.h">systemd/sd-event.h</A>&gt;
+</PRE>
+
+
+<P>
+<B>
+</B><PRE>
+typedef struct sd_event_source sd_event_source;
+</PRE>
+
+
+<DL COMPACT>
+<DT id="1">
+<B>typedef int (*sd_event_signal_handler_t)(sd_event_source&nbsp;*</B><I>s</I><B>, const&nbsp;struct&nbsp;signalfd_siginfo&nbsp;*</B><I>si</I><B>, void&nbsp;*</B><I>userdata</I><B>);</B>
+
+<DT id="2">
+<B>int sd_event_add_signal(sd_event&nbsp;*</B><I>event</I><B>, sd_event_source&nbsp;**</B><I>source</I><B>, int&nbsp;</B><I>signal</I><B>, sd_event_signal_handler_t&nbsp;</B><I>handler</I><B>, void&nbsp;*</B><I>userdata</I><B>);</B>
+
+<DT id="3">
+<B>int sd_event_source_get_signal(sd_event_source&nbsp;*</B><I>source</I><B>);</B>
+
+</DL>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+<B>sd_event_add_signal()</B>
+<DD>adds a new UNIX process signal event source to an event loop. The event loop object is specified in the
+<I>event</I>
+parameter, and the event source object is returned in the
+<I>source</I>
+parameter. The
+<I>signal</I>
+parameter specifies the numeric signal to be handled (see
+<B><A HREF="/cgi-bin/man/man2html?7+signal">signal</A></B>(7)). The
+<I>handler</I>
+parameter must reference a function to call when the signal is received or be
+<B>NULL</B>. The handler function will be passed the
+<I>userdata</I>
+pointer, which may be chosen freely by the caller. The handler also receives a pointer to a
+signalfd_siginfo
+structure containing information about the received signal. See
+<B><A HREF="/cgi-bin/man/man2html?2+signalfd">signalfd</A></B>(2)
+for further information.
+<P>
+
+Only a single handler may be installed for a specific signal. The signal must be blocked in all threads before this function is called (using
+<B><A HREF="/cgi-bin/man/man2html?2+sigprocmask">sigprocmask</A></B>(2)
+or
+<B><A HREF="/cgi-bin/man/man2html?3+pthread_sigmask">pthread_sigmask</A></B>(3)). If the handler is not specified (<I>handler</I>
+is
+<B>NULL</B>), a default handler which causes the program to exit cleanly will be used.
+<P>
+
+By default, the event source is enabled permanently (<B>SD_EVENT_ON</B>), but this may be changed with
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_source_set_enabled">sd_event_source_set_enabled</A></B>(3). If the handler function returns a negative error code, it will be disabled after the invocation, even if the
+<B>SD_EVENT_ON</B>
+mode was requested before.
+<P>
+
+To destroy an event source object use
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_source_unref">sd_event_source_unref</A></B>(3), but note that the event source is only removed from the event loop when all references to the event source are dropped. To make sure an event source does not fire anymore, even if it is still referenced, disable the event source using
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_source_set_enabled">sd_event_source_set_enabled</A></B>(3)
+with
+<B>SD_EVENT_OFF</B>.
+<P>
+
+If the second parameter of
+<B>sd_event_add_signal()</B>
+is
+<B>NULL</B>
+no reference to the event source object is returned. In this case the event source is considered &quot;floating&quot;, and will be destroyed implicitly when the event loop itself is destroyed.
+<P>
+
+<B>sd_event_source_get_signal()</B>
+returns the configured signal number of an event source created previously with
+<B>sd_event_add_signal()</B>. It takes the event source object as the
+<I>source</I>
+parameter.
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+<P>
+
+On success, these functions return 0 or a positive integer. On failure, they return a negative errno-style error code.
+<A NAME="lbAF">&nbsp;</A>
+<H3>Errors</H3>
+
+<P>
+
+Returned errors may indicate the following problems:
+<P>
+
+<B>-ENOMEM</B>
+<DL COMPACT><DT id="4"><DD>
+Not enough memory to allocate an object.
+</DL>
+
+<P>
+
+<B>-EINVAL</B>
+<DL COMPACT><DT id="5"><DD>
+An invalid argument has been passed.
+</DL>
+
+<P>
+
+<B>-EBUSY</B>
+<DL COMPACT><DT id="6"><DD>
+A handler is already installed for this signal or the signal was not blocked previously.
+</DL>
+
+<P>
+
+<B>-ESTALE</B>
+<DL COMPACT><DT id="7"><DD>
+The event loop is already terminated.
+</DL>
+
+<P>
+
+<B>-ECHILD</B>
+<DL COMPACT><DT id="8"><DD>
+The event loop has been created in a different process.
+</DL>
+
+<P>
+
+<B>-EDOM</B>
+<DL COMPACT><DT id="9"><DD>
+The passed event source is not a signal event source.
+</DL>
+
+<A NAME="lbAG">&nbsp;</A>
+<H2>NOTES</H2>
+
+<P>
+
+These APIs are implemented as a shared library, which can be compiled and linked to with the
+<B>libsystemd</B>&nbsp;<B><A HREF="/cgi-bin/man/man2html?1+pkg-config">pkg-config</A></B>(1)
+file.
+<A NAME="lbAH">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?3+sd-event">sd-event</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_new">sd_event_new</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_now">sd_event_now</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_add_io">sd_event_add_io</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_add_time">sd_event_add_time</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_add_child">sd_event_add_child</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_add_inotify">sd_event_add_inotify</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_add_defer">sd_event_add_defer</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_source_set_enabled">sd_event_source_set_enabled</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_source_set_description">sd_event_source_set_description</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_source_set_userdata">sd_event_source_set_userdata</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_source_set_floating">sd_event_source_set_floating</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?7+signal">signal</A></B>(7),
+<B><A HREF="/cgi-bin/man/man2html?2+signalfd">signalfd</A></B>(2),
+<B><A HREF="/cgi-bin/man/man2html?2+sigprocmask">sigprocmask</A></B>(2),
+<B><A HREF="/cgi-bin/man/man2html?3+pthread_sigmask">pthread_sigmask</A></B>(3)
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="10"><A HREF="#lbAB">NAME</A><DD>
+<DT id="11"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="12"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="13"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DL>
+<DT id="14"><A HREF="#lbAF">Errors</A><DD>
+</DL>
+<DT id="15"><A HREF="#lbAG">NOTES</A><DD>
+<DT id="16"><A HREF="#lbAH">SEE ALSO</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:55 GMT, March 31, 2021
+</BODY>
+</HTML>

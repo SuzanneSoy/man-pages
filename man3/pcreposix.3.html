@@ -1,0 +1,321 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of PCREPOSIX</TITLE>
+</HEAD><BODY>
+<H1>PCREPOSIX</H1>
+Section: C Library Functions (3)<BR>Updated: 09 January 2012<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+PCRE - Perl-compatible regular expressions.
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+
+<P>
+<B>#include &lt;<A HREF="file:///usr/include/pcreposix.h">pcreposix.h</A>&gt;</B>
+
+<P>
+
+<PRE>
+<B>int regcomp(regex_t *</B><I>preg</I>, const char *<I>pattern</I>,
+<B>     int </B><I>cflags</I>);
+
+<B>int regexec(regex_t *</B><I>preg</I>, const char *<I>string</I>,
+<B>     size_t </B><I>nmatch</I>, regmatch_t <I>pmatch</I>[], int <I>eflags</I>);
+<B>     size_t regerror(int </B><I>errcode</I>, const regex_t *<I>preg</I>,
+<B>     char *</B><I>errbuf</I>, size_t <I>errbuf_size</I>);
+
+<B>void regfree(regex_t *</B><I>preg</I>);
+</PRE>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+<P>
+This set of functions provides a POSIX-style API for the PCRE regular
+expression 8-bit library. See the
+
+<B>pcreapi</B>
+
+documentation for a description of PCRE's native API, which contains much
+additional functionality. There is no POSIX-style wrapper for PCRE's 16-bit
+and 32-bit library.
+<P>
+
+The functions described here are just wrapper functions that ultimately call
+the PCRE native API. Their prototypes are defined in the <B>pcreposix.h</B>
+header file, and on Unix systems the library itself is called
+<B>pcreposix.a</B>, so can be accessed by adding <B>-lpcreposix</B> to the
+command for linking an application that uses them. Because the POSIX functions
+call the native ones, it is also necessary to add <B>-lpcre</B>.
+<P>
+
+I have implemented only those POSIX option bits that can be reasonably mapped
+to PCRE native options. In addition, the option REG_EXTENDED is defined with
+the value zero. This has no effect, but since programs that are written to the
+POSIX interface often use it, this makes it easier to slot in PCRE as a
+replacement library. Other POSIX options are not even defined.
+<P>
+
+There are also some other options that are not defined by POSIX. These have
+been added at the request of users who want to make use of certain
+PCRE-specific features via the POSIX calling interface.
+<P>
+
+When PCRE is called via these functions, it is only the API that is POSIX-like
+in style. The syntax and semantics of the regular expressions themselves are
+still those of Perl, subject to the setting of various PCRE options, as
+described below. &quot;POSIX-like in style&quot; means that the API approximates to the
+POSIX definition; it is not fully POSIX-compatible, and in multi-byte encoding
+domains it is probably even less compatible.
+<P>
+
+The header for these functions is supplied as <B>pcreposix.h</B> to avoid any
+potential clash with other POSIX libraries. It can, of course, be renamed or
+aliased as <B>regex.h</B>, which is the &quot;correct&quot; name. It provides two
+structure types, <I>regex_t</I> for compiled internal forms, and
+<I>regmatch_t</I> for returning captured substrings. It also defines some
+constants whose names start with &quot;REG_&quot;; these are used for setting options and
+identifying error codes.
+<A NAME="lbAE">&nbsp;</A>
+<H2>COMPILING A PATTERN</H2>
+
+
+<P>
+The function <B>regcomp()</B> is called to compile a pattern into an
+internal form. The pattern is a C string terminated by a binary zero, and
+is passed in the argument <I>pattern</I>. The <I>preg</I> argument is a pointer
+to a <B>regex_t</B> structure that is used as a base for storing information
+about the compiled regular expression.
+<P>
+
+The argument <I>cflags</I> is either zero, or contains one or more of the bits
+defined by the following macros:
+<P>
+<BR>&nbsp;&nbsp;REG_DOTALL
+<P>
+The PCRE_DOTALL option is set when the regular expression is passed for
+compilation to the native function. Note that REG_DOTALL is not part of the
+POSIX standard.
+<P>
+<BR>&nbsp;&nbsp;REG_ICASE
+<P>
+The PCRE_CASELESS option is set when the regular expression is passed for
+compilation to the native function.
+<P>
+<BR>&nbsp;&nbsp;REG_NEWLINE
+<P>
+The PCRE_MULTILINE option is set when the regular expression is passed for
+compilation to the native function. Note that this does <I>not</I> mimic the
+defined POSIX behaviour for REG_NEWLINE (see the following section).
+<P>
+<BR>&nbsp;&nbsp;REG_NOSUB
+<P>
+The PCRE_NO_AUTO_CAPTURE option is set when the regular expression is passed
+for compilation to the native function. In addition, when a pattern that is
+compiled with this flag is passed to <B>regexec()</B> for matching, the
+<I>nmatch</I> and <I>pmatch</I> arguments are ignored, and no captured strings
+are returned.
+<P>
+<BR>&nbsp;&nbsp;REG_UCP
+<P>
+The PCRE_UCP option is set when the regular expression is passed for
+compilation to the native function. This causes PCRE to use Unicode properties
+when matchine \d, \w, etc., instead of just recognizing ASCII values. Note
+that REG_UTF8 is not part of the POSIX standard.
+<P>
+<BR>&nbsp;&nbsp;REG_UNGREEDY
+<P>
+The PCRE_UNGREEDY option is set when the regular expression is passed for
+compilation to the native function. Note that REG_UNGREEDY is not part of the
+POSIX standard.
+<P>
+<BR>&nbsp;&nbsp;REG_UTF8
+<P>
+The PCRE_UTF8 option is set when the regular expression is passed for
+compilation to the native function. This causes the pattern itself and all data
+strings used for matching it to be treated as UTF-8 strings. Note that REG_UTF8
+is not part of the POSIX standard.
+<P>
+
+In the absence of these flags, no options are passed to the native function.
+This means the the regex is compiled with PCRE default semantics. In
+particular, the way it handles newline characters in the subject string is the
+Perl way, not the POSIX way. Note that setting PCRE_MULTILINE has only
+<I>some</I> of the effects specified for REG_NEWLINE. It does not affect the way
+newlines are matched by . (they are not) or by a negative class such as [^a]
+(they are).
+<P>
+
+The yield of <B>regcomp()</B> is zero on success, and non-zero otherwise. The
+<I>preg</I> structure is filled in on success, and one member of the structure
+is public: <I>re_nsub</I> contains the number of capturing subpatterns in
+the regular expression. Various error codes are defined in the header file.
+<P>
+
+NOTE: If the yield of <B>regcomp()</B> is non-zero, you must not attempt to
+use the contents of the <I>preg</I> structure. If, for example, you pass it to
+<B>regexec()</B>, the result is undefined and your program is likely to crash.
+<A NAME="lbAF">&nbsp;</A>
+<H2>MATCHING NEWLINE CHARACTERS</H2>
+
+
+<P>
+This area is not simple, because POSIX and Perl take different views of things.
+It is not possible to get PCRE to obey POSIX semantics, but then PCRE was never
+intended to be a POSIX engine. The following table lists the different
+possibilities for matching newline characters in PCRE:
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Default&nbsp;&nbsp;&nbsp;Change&nbsp;with
+<P>
+<BR>&nbsp;&nbsp;.&nbsp;matches&nbsp;newline&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;no&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PCRE_DOTALL
+<BR>&nbsp;&nbsp;newline&nbsp;matches&nbsp;[^a]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;yes&nbsp;&nbsp;&nbsp;&nbsp;not&nbsp;changeable
+<BR>&nbsp;&nbsp;$&nbsp;matches&nbsp;\n&nbsp;at&nbsp;end&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;yes&nbsp;&nbsp;&nbsp;&nbsp;PCRE_DOLLARENDONLY
+<BR>&nbsp;&nbsp;$&nbsp;matches&nbsp;\n&nbsp;in&nbsp;middle&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;no&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PCRE_MULTILINE
+<BR>&nbsp;&nbsp;^&nbsp;matches&nbsp;\n&nbsp;in&nbsp;middle&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;no&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PCRE_MULTILINE
+<P>
+This is the equivalent table for POSIX:
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Default&nbsp;&nbsp;&nbsp;Change&nbsp;with
+<P>
+<BR>&nbsp;&nbsp;.&nbsp;matches&nbsp;newline&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;yes&nbsp;&nbsp;&nbsp;&nbsp;REG_NEWLINE
+<BR>&nbsp;&nbsp;newline&nbsp;matches&nbsp;[^a]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;yes&nbsp;&nbsp;&nbsp;&nbsp;REG_NEWLINE
+<BR>&nbsp;&nbsp;$&nbsp;matches&nbsp;\n&nbsp;at&nbsp;end&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;no&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;REG_NEWLINE
+<BR>&nbsp;&nbsp;$&nbsp;matches&nbsp;\n&nbsp;in&nbsp;middle&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;no&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;REG_NEWLINE
+<BR>&nbsp;&nbsp;^&nbsp;matches&nbsp;\n&nbsp;in&nbsp;middle&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;no&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;REG_NEWLINE
+<P>
+PCRE's behaviour is the same as Perl's, except that there is no equivalent for
+PCRE_DOLLAR_ENDONLY in Perl. In both PCRE and Perl, there is no way to stop
+newline from matching [^a].
+<P>
+
+The default POSIX newline handling can be obtained by setting PCRE_DOTALL and
+PCRE_DOLLAR_ENDONLY, but there is no way to make PCRE behave exactly as for the
+REG_NEWLINE action.
+<A NAME="lbAG">&nbsp;</A>
+<H2>MATCHING A PATTERN</H2>
+
+
+<P>
+The function <B>regexec()</B> is called to match a compiled pattern <I>preg</I>
+against a given <I>string</I>, which is by default terminated by a zero byte
+(but see REG_STARTEND below), subject to the options in <I>eflags</I>. These can
+be:
+<P>
+<BR>&nbsp;&nbsp;REG_NOTBOL
+<P>
+The PCRE_NOTBOL option is set when calling the underlying PCRE matching
+function.
+<P>
+<BR>&nbsp;&nbsp;REG_NOTEMPTY
+<P>
+The PCRE_NOTEMPTY option is set when calling the underlying PCRE matching
+function. Note that REG_NOTEMPTY is not part of the POSIX standard. However,
+setting this option can give more POSIX-like behaviour in some situations.
+<P>
+<BR>&nbsp;&nbsp;REG_NOTEOL
+<P>
+The PCRE_NOTEOL option is set when calling the underlying PCRE matching
+function.
+<P>
+<BR>&nbsp;&nbsp;REG_STARTEND
+<P>
+The string is considered to start at <I>string</I> + <I>pmatch[0].rm_so</I> and
+to have a terminating NUL located at <I>string</I> + <I>pmatch[0].rm_eo</I>
+(there need not actually be a NUL at that location), regardless of the value of
+<I>nmatch</I>. This is a BSD extension, compatible with but not specified by
+IEEE Standard 1003.2 (POSIX.2), and should be used with caution in software
+intended to be portable to other systems. Note that a non-zero <I>rm_so</I> does
+not imply REG_NOTBOL; REG_STARTEND affects only the location of the string, not
+how it is matched.
+<P>
+
+If the pattern was compiled with the REG_NOSUB flag, no data about any matched
+strings is returned. The <I>nmatch</I> and <I>pmatch</I> arguments of
+<B>regexec()</B> are ignored.
+<P>
+
+If the value of <I>nmatch</I> is zero, or if the value <I>pmatch</I> is NULL,
+no data about any matched strings is returned.
+<P>
+
+Otherwise,the portion of the string that was matched, and also any captured
+substrings, are returned via the <I>pmatch</I> argument, which points to an
+array of <I>nmatch</I> structures of type <I>regmatch_t</I>, containing the
+members <I>rm_so</I> and <I>rm_eo</I>. These contain the offset to the first
+character of each substring and the offset to the first character after the end
+of each substring, respectively. The 0th element of the vector relates to the
+entire portion of <I>string</I> that was matched; subsequent elements relate to
+the capturing subpatterns of the regular expression. Unused entries in the
+array have both structure members set to -1.
+<P>
+
+A successful match yields a zero return; various error codes are defined in the
+header file, of which REG_NOMATCH is the &quot;expected&quot; failure code.
+<A NAME="lbAH">&nbsp;</A>
+<H2>ERROR MESSAGES</H2>
+
+
+<P>
+The <B>regerror()</B> function maps a non-zero errorcode from either
+<B>regcomp()</B> or <B>regexec()</B> to a printable message. If <I>preg</I> is not
+NULL, the error should have arisen from the use of that structure. A message
+terminated by a binary zero is placed in <I>errbuf</I>. The length of the
+message, including the zero, is limited to <I>errbuf_size</I>. The yield of the
+function is the size of buffer needed to hold the whole message.
+<A NAME="lbAI">&nbsp;</A>
+<H2>MEMORY USAGE</H2>
+
+
+<P>
+Compiling a regular expression causes memory to be allocated and associated
+with the <I>preg</I> structure. The function <B>regfree()</B> frees all such
+memory, after which <I>preg</I> may no longer be used as a compiled expression.
+<A NAME="lbAJ">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+
+<P>
+<PRE>
+Philip Hazel
+University Computing Service
+Cambridge CB2 3QH, England.
+</PRE>
+
+<A NAME="lbAK">&nbsp;</A>
+<H2>REVISION</H2>
+
+
+<P>
+<PRE>
+Last updated: 09 January 2012
+Copyright (c) 1997-2012 University of Cambridge.
+</PRE>
+
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="1"><A HREF="#lbAB">NAME</A><DD>
+<DT id="2"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="3"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="4"><A HREF="#lbAE">COMPILING A PATTERN</A><DD>
+<DT id="5"><A HREF="#lbAF">MATCHING NEWLINE CHARACTERS</A><DD>
+<DT id="6"><A HREF="#lbAG">MATCHING A PATTERN</A><DD>
+<DT id="7"><A HREF="#lbAH">ERROR MESSAGES</A><DD>
+<DT id="8"><A HREF="#lbAI">MEMORY USAGE</A><DD>
+<DT id="9"><A HREF="#lbAJ">AUTHOR</A><DD>
+<DT id="10"><A HREF="#lbAK">REVISION</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:52 GMT, March 31, 2021
+</BODY>
+</HTML>

@@ -1,0 +1,369 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of PKEYS</TITLE>
+</HEAD><BODY>
+<H1>PKEYS</H1>
+Section: Linux Programmer's Manual (7)<BR>Updated: 2019-03-06<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+pkeys - overview of Memory Protection Keys
+<A NAME="lbAC">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+Memory Protection Keys (pkeys) are an extension to existing
+page-based memory permissions.
+Normal page permissions using
+page tables require expensive system calls and TLB invalidations
+when changing permissions.
+Memory Protection Keys provide a mechanism for changing
+protections without requiring modification of the page tables on
+every permission change.
+<P>
+
+To use pkeys, software must first &quot;tag&quot; a page in the page tables
+with a pkey.
+After this tag is in place, an application only has
+to change the contents of a register in order to remove write
+access, or all access to a tagged page.
+<P>
+
+Protection keys work in conjunction with the existing
+<B>PROT_READ</B>/
+
+<B>PROT_WRITE</B>/
+
+<B>PROT_EXEC</B>
+
+permissions passed to system calls such as
+<B><A HREF="/cgi-bin/man/man2html?2+mprotect">mprotect</A></B>(2)
+
+and
+<B><A HREF="/cgi-bin/man/man2html?2+mmap">mmap</A></B>(2),
+
+but always act to further restrict these traditional permission
+mechanisms.
+<P>
+
+If a process performs an access that violates pkey
+restrictions, it receives a
+<B>SIGSEGV</B>
+
+signal.
+See
+<B><A HREF="/cgi-bin/man/man2html?2+sigaction">sigaction</A></B>(2)
+
+for details of the information available with that signal.
+<P>
+
+To use the pkeys feature, the processor must support it, and the kernel
+must contain support for the feature on a given processor.
+As of early 2016 only future Intel x86 processors are supported,
+and this hardware supports 16 protection keys in each process.
+However, pkey 0 is used as the default key, so a maximum of 15
+are available for actual application use.
+The default key is assigned to any memory region for which a
+pkey has not been explicitly assigned via
+<B><A HREF="/cgi-bin/man/man2html?2+pkey_mprotect">pkey_mprotect</A></B>(2).
+
+<P>
+
+Protection keys have the potential to add a layer of security and
+reliability to applications.
+But they have not been primarily designed as
+a security feature.
+For instance, WRPKRU is a completely unprivileged
+instruction, so pkeys are useless in any case that an attacker controls
+the PKRU register or can execute arbitrary instructions.
+<P>
+
+Applications should be very careful to ensure that they do not &quot;leak&quot;
+protection keys.
+For instance, before calling
+<B><A HREF="/cgi-bin/man/man2html?2+pkey_free">pkey_free</A></B>(2),
+
+the application should be sure that no memory has that pkey assigned.
+If the application left the freed pkey assigned, a future user of
+that pkey might inadvertently change the permissions of an unrelated
+data structure, which could impact security or stability.
+The kernel currently allows in-use pkeys to have
+<B><A HREF="/cgi-bin/man/man2html?2+pkey_free">pkey_free</A></B>(2)
+
+called on them because it would have processor or memory performance
+implications to perform the additional checks needed to disallow it.
+Implementation of the necessary checks is left up to applications.
+Applications may implement these checks by searching the
+<I>/proc/[pid]/smaps</I>
+
+file for memory regions with the pkey assigned.
+Further details can be found in
+<B><A HREF="/cgi-bin/man/man2html?5+proc">proc</A></B>(5).
+
+<P>
+
+Any application wanting to use protection keys needs to be able
+to function without them.
+They might be unavailable because the hardware that the
+application runs on does not support them, the kernel code does
+not contain support, the kernel support has been disabled, or
+because the keys have all been allocated, perhaps by a library
+the application is using.
+It is recommended that applications wanting to use protection
+keys should simply call
+<B><A HREF="/cgi-bin/man/man2html?2+pkey_alloc">pkey_alloc</A></B>(2)
+
+and test whether the call succeeds,
+instead of attempting to detect support for the
+feature in any other way.
+<P>
+
+Although unnecessary, hardware support for protection keys may be
+enumerated with the
+<I>cpuid</I>
+
+instruction.
+Details of how to do this can be found in the Intel Software
+Developers Manual.
+The kernel performs this enumeration and exposes the information in
+<I>/proc/cpuinfo</I>
+
+under the &quot;flags&quot; field.
+The string &quot;pku&quot; in this field indicates hardware support for protection
+keys and the string &quot;ospke&quot; indicates that the kernel contains and has
+enabled protection keys support.
+<P>
+
+Applications using threads and protection keys should be especially
+careful.
+Threads inherit the protection key rights of the parent at the time
+of the
+<B><A HREF="/cgi-bin/man/man2html?2+clone">clone</A></B>(2),
+
+system call.
+Applications should either ensure that their own permissions are
+appropriate for child threads at the time when
+<B><A HREF="/cgi-bin/man/man2html?2+clone">clone</A></B>(2)
+
+is called, or ensure that each child thread can perform its
+own initialization of protection key rights.
+
+<A NAME="lbAD">&nbsp;</A>
+<H3>Signal Handler Behavior</H3>
+
+Each time a signal handler is invoked (including nested signals), the
+thread is temporarily given a new, default set of protection key rights
+that override the rights from the interrupted context.
+This means that applications must re-establish their desired protection
+key rights upon entering a signal handler if the desired rights differ
+from the defaults.
+The rights of any interrupted context are restored when the signal
+handler returns.
+<P>
+
+This signal behavior is unusual and is due to the fact that the x86 PKRU
+register (which stores protection key access rights) is managed with the
+same hardware mechanism (XSAVE) that manages floating-point registers.
+The signal behavior is the same as that of floating-point registers.
+
+<A NAME="lbAE">&nbsp;</A>
+<H3>Protection Keys system calls</H3>
+
+The Linux kernel implements the following pkey-related system calls:
+<B><A HREF="/cgi-bin/man/man2html?2+pkey_mprotect">pkey_mprotect</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+pkey_alloc">pkey_alloc</A></B>(2),
+
+and
+<B><A HREF="/cgi-bin/man/man2html?2+pkey_free">pkey_free</A></B>(2).
+
+<P>
+
+The Linux pkey system calls are available only if the kernel was
+configured and built with the
+<B>CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS</B>
+
+option.
+<A NAME="lbAF">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+<P>
+
+The program below allocates a page of memory with read and write permissions.
+It then writes some data to the memory and successfully reads it
+back.
+After that, it attempts to allocate a protection key and
+disallows access to the page by using the WRPKRU instruction.
+It then tries to access the page,
+which we now expect to cause a fatal signal to the application.
+<P>
+
+
+
+$<B> ./a.out</B>
+
+buffer contains: 73
+about to read buffer again...
+Segmentation fault (core dumped)
+
+
+<A NAME="lbAG">&nbsp;</A>
+<H3>Program source</H3>
+
+
+
+#define _GNU_SOURCE
+#include &lt;<A HREF="file:///usr/include/unistd.h">unistd.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/sys/syscall.h">sys/syscall.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/sys/mman.h">sys/mman.h</A>&gt;
+<P>
+static inline void
+wrpkru(unsigned int pkru)
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;unsigned&nbsp;int&nbsp;eax&nbsp;=&nbsp;pkru;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;unsigned&nbsp;int&nbsp;ecx&nbsp;=&nbsp;0;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;unsigned&nbsp;int&nbsp;edx&nbsp;=&nbsp;0;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;asm&nbsp;volatile(&quot;.byte&nbsp;0x0f,0x01,0xef\n\t&quot;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;:&nbsp;&quot;a&quot;&nbsp;(eax),&nbsp;&quot;c&quot;&nbsp;(ecx),&nbsp;&quot;d&quot;&nbsp;(edx));
+}
+<P>
+int
+pkey_set(int pkey, unsigned long rights, unsigned long flags)
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;unsigned&nbsp;int&nbsp;pkru&nbsp;=&nbsp;(rights&nbsp;&lt;&lt;&nbsp;(2&nbsp;*&nbsp;pkey));
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;wrpkru(pkru);
+}
+<P>
+int
+pkey_mprotect(void *ptr, size_t size, unsigned long orig_prot,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;unsigned&nbsp;long&nbsp;pkey)
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;syscall(SYS_pkey_mprotect,&nbsp;ptr,&nbsp;size,&nbsp;orig_prot,&nbsp;pkey);
+}
+<P>
+int
+pkey_alloc(void)
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;syscall(SYS_pkey_alloc,&nbsp;0,&nbsp;0);
+}
+<P>
+int
+pkey_free(unsigned long pkey)
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;syscall(SYS_pkey_free,&nbsp;pkey);
+}
+<P>
+#define errExit(msg)    do { perror(msg); exit(EXIT_FAILURE); \
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;while&nbsp;(0)
+<P>
+int
+main(void)
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;status;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;pkey;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;*buffer;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*Allocate&nbsp;one&nbsp;page&nbsp;of&nbsp;memory
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;buffer&nbsp;=&nbsp;mmap(NULL,&nbsp;getpagesize(),&nbsp;PROT_READ&nbsp;|&nbsp;PROT_WRITE,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MAP_ANONYMOUS&nbsp;|&nbsp;MAP_PRIVATE,&nbsp;-1,&nbsp;0);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(buffer&nbsp;==&nbsp;MAP_FAILED)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errExit(&quot;mmap&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;Put&nbsp;some&nbsp;random&nbsp;data&nbsp;into&nbsp;the&nbsp;page&nbsp;(still&nbsp;OK&nbsp;to&nbsp;touch)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;*buffer&nbsp;=&nbsp;__LINE__;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;buffer&nbsp;contains:&nbsp;%d\n&quot;,&nbsp;*buffer);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;Allocate&nbsp;a&nbsp;protection&nbsp;key:
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;pkey&nbsp;=&nbsp;pkey_alloc();
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(pkey&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errExit(&quot;pkey_alloc&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;Disable&nbsp;access&nbsp;to&nbsp;any&nbsp;memory&nbsp;with&nbsp;&quot;pkey&quot;&nbsp;set,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;even&nbsp;though&nbsp;there&nbsp;is&nbsp;none&nbsp;right&nbsp;now
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;status&nbsp;=&nbsp;pkey_set(pkey,&nbsp;PKEY_DISABLE_ACCESS,&nbsp;0);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(status)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errExit(&quot;pkey_set&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;Set&nbsp;the&nbsp;protection&nbsp;key&nbsp;on&nbsp;&quot;buffer&quot;.
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;Note&nbsp;that&nbsp;it&nbsp;is&nbsp;still&nbsp;read/write&nbsp;as&nbsp;far&nbsp;as&nbsp;mprotect()&nbsp;is
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;concerned&nbsp;and&nbsp;the&nbsp;previous&nbsp;pkey_set()&nbsp;overrides&nbsp;it.
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;status&nbsp;=&nbsp;pkey_mprotect(buffer,&nbsp;getpagesize(),
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PROT_READ&nbsp;|&nbsp;PROT_WRITE,&nbsp;pkey);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(status&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errExit(&quot;pkey_mprotect&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;about&nbsp;to&nbsp;read&nbsp;buffer&nbsp;again...\n&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;This&nbsp;will&nbsp;crash,&nbsp;because&nbsp;we&nbsp;have&nbsp;disallowed&nbsp;access
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;buffer&nbsp;contains:&nbsp;%d\n&quot;,&nbsp;*buffer);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;status&nbsp;=&nbsp;pkey_free(pkey);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(status&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errExit(&quot;pkey_free&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_SUCCESS);
+}
+
+<A NAME="lbAH">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?2+pkey_alloc">pkey_alloc</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+pkey_free">pkey_free</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+pkey_mprotect">pkey_mprotect</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+sigaction">sigaction</A></B>(2)
+
+<A NAME="lbAI">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="1"><A HREF="#lbAB">NAME</A><DD>
+<DT id="2"><A HREF="#lbAC">DESCRIPTION</A><DD>
+<DL>
+<DT id="3"><A HREF="#lbAD">Signal Handler Behavior</A><DD>
+<DT id="4"><A HREF="#lbAE">Protection Keys system calls</A><DD>
+</DL>
+<DT id="5"><A HREF="#lbAF">EXAMPLE</A><DD>
+<DL>
+<DT id="6"><A HREF="#lbAG">Program source</A><DD>
+</DL>
+<DT id="7"><A HREF="#lbAH">SEE ALSO</A><DD>
+<DT id="8"><A HREF="#lbAI">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:09 GMT, March 31, 2021
+</BODY>
+</HTML>

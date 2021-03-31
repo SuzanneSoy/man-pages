@@ -1,0 +1,372 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SD_EVENT_WAIT</TITLE>
+</HEAD><BODY>
+<H1>SD_EVENT_WAIT</H1>
+Section: sd_event_wait (3)<BR>Updated: <BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+sd_event_wait, sd_event_prepare, sd_event_dispatch, sd_event_get_state, sd_event_get_iteration, SD_EVENT_INITIAL, SD_EVENT_PREPARING, SD_EVENT_ARMED, SD_EVENT_PENDING, SD_EVENT_RUNNING, SD_EVENT_EXITING, SD_EVENT_FINISHED - Low-level event loop operations
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+<B>
+</B><PRE>
+#include &lt;<A HREF="file:///usr/include/systemd/sd-event.h">systemd/sd-event.h</A>&gt;
+</PRE>
+
+
+<P>
+<B>
+</B><PRE>
+enum {
+        <B>SD_EVENT_INITIAL</B>,
+        <B>SD_EVENT_PREPARING</B>,
+        <B>SD_EVENT_ARMED</B>,
+        <B>SD_EVENT_PENDING</B>,
+        <B>SD_EVENT_RUNNING</B>,
+        <B>SD_EVENT_EXITING</B>,
+        <B>SD_EVENT_FINISHED</B>,
+};
+</PRE>
+
+
+<DL COMPACT>
+<DT id="1">
+<B>int sd_event_prepare(sd_event&nbsp;*</B><I>event</I><B>);</B>
+
+<DT id="2">
+<B>int sd_event_wait(sd_event&nbsp;*</B><I>event</I><B>, uint64_t&nbsp;</B><I>usec</I><B>);</B>
+
+<DT id="3">
+<B>int sd_event_dispatch(sd_event&nbsp;*</B><I>event</I><B>);</B>
+
+<DT id="4">
+<B>int sd_event_get_state(sd_event&nbsp;*</B><I>event</I><B>);</B>
+
+<DT id="5">
+<B>int sd_event_get_iteration(sd_event&nbsp;*</B><I>event</I><B>, uint64_t&nbsp;*</B><I>ret</I><B>);</B>
+
+</DL>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+<DD>The low-level
+<B>sd_event_prepare()</B>,
+<B>sd_event_wait()</B>
+and
+<B>sd_event_dispatch()</B>
+functions may be used to execute specific phases of an event loop. See
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_run">sd_event_run</A></B>(3)
+and
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_loop">sd_event_loop</A></B>(3)
+for higher-level functions that execute individual but complete iterations of an event loop or run it continuously.
+<P>
+
+<B>sd_event_prepare()</B>
+checks for pending events and arms necessary timers. If any events are ready to be processed (&quot;pending&quot;), it returns a positive, non-zero value, and the caller should process these events with
+<B>sd_event_dispatch()</B>.
+<P>
+
+<B>sd_event_dispatch()</B>
+dispatches the highest priority event source that has a pending event. On success,
+<B>sd_event_dispatch()</B>
+returns either zero, which indicates that no further event sources may be dispatched and exiting of the event loop was requested via
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_exit">sd_event_exit</A></B>(3); or a positive non-zero value, which means that an event source was dispatched and the loop returned to its initial state, and the caller should initiate the next event loop iteration by invoking
+<B>sd_event_prepare()</B>
+again.
+<P>
+
+In case
+<B>sd_event_prepare()</B>
+returned zero,
+<B>sd_event_wait()</B>
+should be called to wait for further events or a timeout. If any events are ready to be processed, it returns a positive, non-zero value, and the events should be dispatched with
+<B>sd_event_dispatch()</B>. Otherwise, the event loop returned to its initial state and the next event loop iteration should be initiated by invoking
+<B>sd_event_prepare()</B>
+again.
+<P>
+
+<B>sd_event_get_state()</B>
+may be used to determine the state the event loop is currently in. It returns one of the states described below.
+<P>
+
+<B>sd_event_get_iteration()</B>
+may be used to determine the current iteration of the event loop. It returns an unsigned 64bit integer containing a counter that increases monotonically with each iteration of the event loop, starting with 0. The counter is increased at the time of the
+<B>sd_event_prepare()</B>
+invocation.
+<P>
+
+All five functions take, as the first argument, the event loop object
+<I>event</I>
+that has been created with
+<B>sd_event_new()</B>. The timeout for
+<B>sd_event_wait()</B>
+is specified in
+<I>usec</I>
+in microseconds.
+<B>(uint64_t) -1</B>
+may be used to specify an infinite timeout.
+<A NAME="lbAE">&nbsp;</A>
+<H2>STATE MACHINE</H2>
+
+<P>
+
+The event loop knows the following states, that may be queried with
+<B>sd_event_get_state()</B>.
+<P>
+
+<B>SD_EVENT_INITIAL</B>
+<DL COMPACT><DT id="6"><DD>
+The initial state the event loop is in, before each event loop iteration. Use
+<B>sd_event_prepare()</B>
+to transition the event loop into the
+<B>SD_EVENT_ARMED</B>
+or
+<B>SD_EVENT_PENDING</B>
+states.
+</DL>
+
+<P>
+
+<B>SD_EVENT_PREPARING</B>
+<DL COMPACT><DT id="7"><DD>
+An event source is currently being prepared, i.e. the preparation handler is currently being executed, as set with
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_source_set_prepare">sd_event_source_set_prepare</A></B>(3). This state is only seen in the event source preparation handler that is invoked from the
+<B>sd_event_prepare()</B>
+call and is immediately followed by
+<B>SD_EVENT_ARMED</B>
+or
+<B>SD_EVENT_PENDING</B>.
+</DL>
+
+<P>
+
+<B>SD_EVENT_ARMED</B>
+<DL COMPACT><DT id="8"><DD>
+<B>sd_event_prepare()</B>
+has been called and no event sources were ready to be dispatched. Use
+<B>sd_event_wait()</B>
+to wait for new events, and transition into
+<B>SD_EVENT_PENDING</B>
+or back into
+<B>SD_EVENT_INITIAL</B>.
+</DL>
+
+<P>
+
+<B>SD_EVENT_PENDING</B>
+<DL COMPACT><DT id="9"><DD>
+<B>sd_event_prepare()</B>
+or
+<B>sd_event_wait()</B>
+have been called and there were event sources with events pending. Use
+<B>sd_event_dispatch()</B>
+to dispatch the highest priority event source and transition back to
+<B>SD_EVENT_INITIAL</B>, or
+<B>SD_EVENT_FINISHED</B>.
+</DL>
+
+<P>
+
+<B>SD_EVENT_RUNNING</B>
+<DL COMPACT><DT id="10"><DD>
+A regular event source is currently being dispatched. This state is only seen in the event source handler that is invoked from the
+<B>sd_event_dispatch()</B>
+call, and is immediately followed by
+<B>SD_EVENT_INITIAL</B>
+or
+<B>SD_EVENT_FINISHED</B>
+as soon the event source handler returns. Note that during dispatching of exit event sources the
+<B>SD_EVENT_EXITING</B>
+state is seen instead.
+</DL>
+
+<P>
+
+<B>SD_EVENT_EXITING</B>
+<DL COMPACT><DT id="11"><DD>
+Similar to
+<B>SD_EVENT_RUNNING</B>
+but is the state in effect while dispatching exit event sources. It is followed by
+<B>SD_EVENT_INITIAL</B>
+or
+<B>SD_EVENT_FINISHED</B>
+as soon as the event handler returns.
+</DL>
+
+<P>
+
+<B>SD_EVENT_FINISHED</B>
+<DL COMPACT><DT id="12"><DD>
+The event loop has exited. All exit event sources have run. If the event loop is in this state it serves no purpose anymore, and should be freed.
+</DL>
+
+<P>
+
+A simplified flow chart of the states and the calls to transition between them is shown below. Note that
+<B>SD_EVENT_PREPARING</B>,
+<B>SD_EVENT_RUNNING</B>
+and
+<B>SD_EVENT_EXITING</B>
+are not shown here.
+<P>
+<DL COMPACT><DT id="13"><DD>
+
+
+
+<PRE>
+          INITIAL -&lt;---&lt;---&lt;---&lt;---&lt;---&lt;---&lt;---&lt;---&lt;---&lt;---&lt;---&lt;---\
+             |                                                     |
+             |                                                     ^
+             |                                                     |
+             v                 ret == 0                            |
+      sd_event_prepare() &gt;---&gt;---&gt;---&gt;---&gt;- ARMED                  |
+             |                                |                    ^
+             | ret &gt; 0                        |                    |
+             |                                |                    |
+             v                                v          ret == 0  |
+          PENDING &lt;---&lt;---&lt;---&lt;---&lt;---&lt; sd_event_wait() &gt;---&gt;---&gt;--+
+             |           ret &gt; 0                                   ^
+             |                                                     |
+             |                                                     |
+             v                                                     |
+      sd_event_dispatch() &gt;---&gt;---&gt;---&gt;---&gt;---&gt;---&gt;---&gt;---&gt;---&gt;---&gt;/
+             |                             ret &gt; 0
+             | ret == 0
+             |
+             v
+          FINISHED
+    
+</PRE>
+
+</DL>
+
+
+
+
+<A NAME="lbAF">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+<P>
+
+On success, these functions return 0 or a positive integer. On failure, they return a negative errno-style error code. In case of
+<B>sd_event_prepare()</B>
+and
+<B>sd_event_wait()</B>, a positive, non-zero return code indicates that events are ready to be processed and zero indicates that no events are ready. In case of
+<B>sd_event_dispatch()</B>, a positive, non-zero return code indicates that the event loop returned to its initial state and zero indicates the event loop has exited.
+<B>sd_event_get_state()</B>
+returns a positive or zero state on success.
+<A NAME="lbAG">&nbsp;</A>
+<H3>Errors</H3>
+
+<P>
+
+Returned errors may indicate the following problems:
+<P>
+
+<B>-EINVAL</B>
+<DL COMPACT><DT id="14"><DD>
+The
+<I>event</I>
+parameter is invalid or
+<B>NULL</B>.
+</DL>
+
+<P>
+
+<B>-EBUSY</B>
+<DL COMPACT><DT id="15"><DD>
+The event loop object is not in the right state.
+</DL>
+
+<P>
+
+<B>-ESTALE</B>
+<DL COMPACT><DT id="16"><DD>
+The event loop is already terminated.
+</DL>
+
+<P>
+
+<B>-ECHILD</B>
+<DL COMPACT><DT id="17"><DD>
+The event loop has been created in a different process.
+</DL>
+
+<P>
+
+Other errors are possible, too.
+<A NAME="lbAH">&nbsp;</A>
+<H2>NOTES</H2>
+
+<P>
+
+These APIs are implemented as a shared library, which can be compiled and linked to with the
+<B>libsystemd</B>&nbsp;<B><A HREF="/cgi-bin/man/man2html?1+pkg-config">pkg-config</A></B>(1)
+file.
+<A NAME="lbAI">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_new">sd_event_new</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_add_io">sd_event_add_io</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_add_time">sd_event_add_time</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_add_signal">sd_event_add_signal</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_add_child">sd_event_add_child</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_add_inotify">sd_event_add_inotify</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_add_defer">sd_event_add_defer</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_run">sd_event_run</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_get_fd">sd_event_get_fd</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_source_set_prepare">sd_event_source_set_prepare</A></B>(3)
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="18"><A HREF="#lbAB">NAME</A><DD>
+<DT id="19"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="20"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="21"><A HREF="#lbAE">STATE MACHINE</A><DD>
+<DT id="22"><A HREF="#lbAF">RETURN VALUE</A><DD>
+<DL>
+<DT id="23"><A HREF="#lbAG">Errors</A><DD>
+</DL>
+<DT id="24"><A HREF="#lbAH">NOTES</A><DD>
+<DT id="25"><A HREF="#lbAI">SEE ALSO</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:55 GMT, March 31, 2021
+</BODY>
+</HTML>

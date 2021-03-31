@@ -1,0 +1,226 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of RED</TITLE>
+</HEAD><BODY>
+<H1>RED</H1>
+Section: Linux (8)<BR>Updated: 13 December 2001<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+red - Random Early Detection
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<B>tc qdisc ... red</B>
+
+<B>limit</B>
+
+bytes
+<B>[ min</B>
+
+bytes
+<B>] [ max</B>
+
+bytes
+<B>] avpkt</B>
+
+bytes
+<B>[ burst</B>
+
+packets
+<B>] [ ecn ] [ harddrop] [ bandwidth</B>
+
+rate
+<B>] [ probability</B>
+
+chance
+<B>] [ adaptive ]</B>
+
+<P>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+Random Early Detection is a classless qdisc which manages its queue size
+smartly. Regular queues simply drop packets from the tail when they are
+full, which may not be the optimal behaviour. RED also performs tail drop,
+but does so in a more gradual way.
+<P>
+Once the queue hits a certain average length, packets enqueued have a
+configurable chance of being marked (which may mean dropped). This chance
+increases linearly up to a point called the
+<B>max</B>
+
+average queue length, although the queue might get bigger.
+<P>
+This has a host of benefits over simple taildrop, while not being processor
+intensive. It prevents synchronous retransmits after a burst in traffic,
+which cause further retransmits, etc.
+<P>
+The goal is to have a small queue size, which is good for interactivity
+while not disturbing TCP/IP traffic with too many sudden drops after a burst
+of traffic.
+<P>
+Depending on if ECN is configured, marking either means dropping or
+purely marking a packet as overlimit.
+<A NAME="lbAE">&nbsp;</A>
+<H2>ALGORITHM</H2>
+
+The average queue size is used for determining the marking
+probability. This is calculated using an Exponential Weighted Moving
+Average, which can be more or less sensitive to bursts.
+<P>
+When the average queue size is below
+<B>min</B>
+
+bytes, no packet will ever be marked. When it exceeds
+<B>min,</B>
+
+the probability of doing so climbs linearly up
+to
+<B>probability,</B>
+
+until the average queue size hits
+<B>max</B>
+
+bytes. Because
+<B>probability</B>
+
+is normally not set to 100%, the queue size might
+conceivably rise above
+<B>max</B>
+
+bytes, so the
+<B>limit</B>
+
+parameter is provided to set a hard maximum for the size of the queue.
+<P>
+<A NAME="lbAF">&nbsp;</A>
+<H2>PARAMETERS</H2>
+
+<DL COMPACT>
+<DT id="1">min<DD>
+Average queue size at which marking becomes a possibility. Defaults to
+<B>max</B>
+
+/3
+<P>
+<DT id="2">max<DD>
+At this average queue size, the marking probability is maximal. Should be at
+least twice
+<B>min</B>
+
+to prevent synchronous retransmits, higher for low
+<B>min.</B>
+
+Default to
+<B>limit</B>
+
+/4
+<DT id="3">probability<DD>
+Maximum probability for marking, specified as a floating point
+number from 0.0 to 1.0. Suggested values are 0.01 or 0.02 (1 or 2%,
+respectively). Default : 0.02
+<DT id="4">limit<DD>
+Hard limit on the real (not average) queue size in bytes. Further packets
+are dropped. Should be set higher than max+burst. It is advised to set this
+a few times higher than
+<B>max.</B>
+
+<DT id="5">burst<DD>
+Used for determining how fast the average queue size is influenced by the
+real queue size. Larger values make the calculation more sluggish, allowing
+longer bursts of traffic before marking starts. Real life experiments
+support the following guideline: (min+min+max)/(3*avpkt).
+<DT id="6">avpkt<DD>
+Specified in bytes. Used with burst to determine the time constant for
+average queue size calculations. 1000 is a good value.
+<DT id="7">bandwidth<DD>
+This rate is used for calculating the average queue size after some
+idle time. Should be set to the bandwidth of your interface. Does not mean
+that RED will shape for you! Optional. Default : 10Mbit
+<DT id="8">ecn<DD>
+As mentioned before, RED can either 'mark' or 'drop'. Explicit Congestion
+Notification allows RED to notify remote hosts that their rate exceeds the
+amount of bandwidth available. Non-ECN capable hosts can only be notified by
+dropping a packet. If this parameter is specified, packets which indicate
+that their hosts honor ECN will only be marked and not dropped, unless the
+queue size hits
+<B>limit</B>
+
+bytes. Recommended.
+<DT id="9">harddrop<DD>
+If average flow queue size is above
+<B>max</B>
+
+bytes, this parameter forces a drop instead of ecn marking.
+<DT id="10">adaptive<DD>
+(Added in linux-3.3) Sets RED in adaptive mode as described in <A HREF="http://icir.org/floyd/papers/adaptiveRed.pdf">http://icir.org/floyd/papers/adaptiveRed.pdf</A>
+<PRE>
+Goal of Adaptive RED is to make 'probability' dynamic value between 1% and 50% to reach the target average queue :
+<B>(max - min) / 2</B>
+</PRE>
+
+<P>
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+<P>
+<P>
+
+# tc qdisc add dev eth0 parent 1:1 handle 10: red
+<BR>&nbsp;limit&nbsp;400000&nbsp;min&nbsp;30000&nbsp;max&nbsp;90000&nbsp;avpkt&nbsp;1000
+<BR>&nbsp;burst&nbsp;55&nbsp;ecn&nbsp;adaptive&nbsp;bandwidth&nbsp;10Mbit
+<P>
+<A NAME="lbAH">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?8+tc">tc</A></B>(8),
+
+<B><A HREF="/cgi-bin/man/man2html?8+tc-choke">tc-choke</A></B>(8)
+
+<P>
+<A NAME="lbAI">&nbsp;</A>
+<H2>SOURCES</H2>
+
+<DL COMPACT>
+<DT id="11">o<DD>
+Floyd, S., and Jacobson, V., Random Early Detection gateways for
+Congestion Avoidance. <A HREF="http://www.aciri.org/floyd/papers/red/red.html">http://www.aciri.org/floyd/papers/red/red.html</A>
+<DT id="12">o<DD>
+Some changes to the algorithm by Alexey N. Kuznetsov.
+<DT id="13">o<DD>
+Adaptive RED  : <A HREF="http://icir.org/floyd/papers/adaptiveRed.pdf">http://icir.org/floyd/papers/adaptiveRed.pdf</A>
+<P>
+</DL>
+<A NAME="lbAJ">&nbsp;</A>
+<H2>AUTHORS</H2>
+
+Alexey N. Kuznetsov, &lt;<A HREF="mailto:kuznet@ms2.inr.ac.ru">kuznet@ms2.inr.ac.ru</A>&gt;,  Alexey Makarenko
+&lt;<A HREF="mailto:makar@phoenix.kharkov.ua">makar@phoenix.kharkov.ua</A>&gt;, J Hadi Salim &lt;<A HREF="mailto:hadi@nortelnetworks.com">hadi@nortelnetworks.com</A>&gt;,
+Eric Dumazet &lt;<A HREF="mailto:eric.dumazet@gmail.com">eric.dumazet@gmail.com</A>&gt;.
+This manpage maintained by bert hubert &lt;<A HREF="mailto:ahu@ds9a.nl">ahu@ds9a.nl</A>&gt;
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="14"><A HREF="#lbAB">NAME</A><DD>
+<DT id="15"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="16"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="17"><A HREF="#lbAE">ALGORITHM</A><DD>
+<DT id="18"><A HREF="#lbAF">PARAMETERS</A><DD>
+<DT id="19"><A HREF="#lbAG">EXAMPLE</A><DD>
+<DT id="20"><A HREF="#lbAH">SEE ALSO</A><DD>
+<DT id="21"><A HREF="#lbAI">SOURCES</A><DD>
+<DT id="22"><A HREF="#lbAJ">AUTHORS</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:17 GMT, March 31, 2021
+</BODY>
+</HTML>

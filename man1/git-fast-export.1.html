@@ -1,0 +1,362 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of GIT-FAST-EXPORT</TITLE>
+</HEAD><BODY>
+<H1>GIT-FAST-EXPORT</H1>
+Section: Git Manual (1)<BR>Updated: 03/04/2021<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+git-fast-export - Git data exporter
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+<PRE>
+<I>git fast-export [&lt;options&gt;]</I> | <I>git fast-import</I>
+</PRE>
+
+<P>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+This program dumps the given revisions in a form suitable to be piped into <I>git fast-import</I>.
+<P>
+You can use it as a human-readable bundle replacement (see <B><A HREF="/cgi-bin/man/man2html?1+git-bundle">git-bundle</A></B>(1)), or as a format that can be edited before being fed to <I>git fast-import</I> in order to do history rewrites (an ability relied on by tools like <I>git filter-repo</I>).
+<A NAME="lbAE">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<P>
+
+--progress=&lt;n&gt;
+<DL COMPACT><DT id="1"><DD>
+Insert
+<I>progress</I>
+statements every &lt;n&gt; objects, to be shown by
+<I>git fast-import</I>
+during import.
+</DL>
+
+<P>
+
+--signed-tags=(verbatim|warn|warn-strip|strip|abort)
+<DL COMPACT><DT id="2"><DD>
+Specify how to handle signed tags. Since any transformation after the export can change the tag names (which can also happen when excluding revisions) the signatures will not match.
+<P>
+When asking to
+<I>abort</I>
+(which is the default), this program will die when encountering a signed tag. With
+<I>strip</I>, the tags will silently be made unsigned, with
+<I>warn-strip</I>
+they will be made unsigned but a warning will be displayed, with
+<I>verbatim</I>, they will be silently exported and with
+<I>warn</I>, they will be exported, but you will see a warning.
+</DL>
+
+<P>
+
+--tag-of-filtered-object=(abort|drop|rewrite)
+<DL COMPACT><DT id="3"><DD>
+Specify how to handle tags whose tagged object is filtered out. Since revisions and files to export can be limited by path, tagged objects may be filtered completely.
+<P>
+When asking to
+<I>abort</I>
+(which is the default), this program will die when encountering such a tag. With
+<I>drop</I>
+it will omit such tags from the output. With
+<I>rewrite</I>, if the tagged object is a commit, it will rewrite the tag to tag an ancestor commit (via parent rewriting; see
+<B><A HREF="/cgi-bin/man/man2html?1+git-rev-list">git-rev-list</A></B>(1))
+</DL>
+
+<P>
+
+-M, -C
+<DL COMPACT><DT id="4"><DD>
+Perform move and/or copy detection, as described in the
+<B><A HREF="/cgi-bin/man/man2html?1+git-diff">git-diff</A></B>(1)
+manual page, and use it to generate rename and copy commands in the output dump.
+<P>
+Note that earlier versions of this command did not complain and produced incorrect results if you gave these options.
+</DL>
+
+<P>
+
+--export-marks=&lt;file&gt;
+<DL COMPACT><DT id="5"><DD>
+Dumps the internal marks table to &lt;file&gt; when complete. Marks are written one per line as
+<B>:markid SHA-1</B>. Only marks for revisions are dumped; marks for blobs are ignored. Backends can use this file to validate imports after they have been completed, or to save the marks table across incremental runs. As &lt;file&gt; is only opened and truncated at completion, the same path can also be safely given to --import-marks. The file will not be written if no new object has been marked/exported.
+</DL>
+
+<P>
+
+--import-marks=&lt;file&gt;
+<DL COMPACT><DT id="6"><DD>
+Before processing any input, load the marks specified in &lt;file&gt;. The input file must exist, must be readable, and must use the same format as produced by --export-marks.
+</DL>
+
+<P>
+
+--mark-tags
+<DL COMPACT><DT id="7"><DD>
+In addition to labelling blobs and commits with mark ids, also label tags. This is useful in conjunction with
+<B>--export-marks</B>
+and
+<B>--import-marks</B>, and is also useful (and necessary) for exporting of nested tags. It does not hurt other cases and would be the default, but many fast-import frontends are not prepared to accept tags with mark identifiers.
+<P>
+Any commits (or tags) that have already been marked will not be exported again. If the backend uses a similar --import-marks file, this allows for incremental bidirectional exporting of the repository by keeping the marks the same across runs.
+</DL>
+
+<P>
+
+--fake-missing-tagger
+<DL COMPACT><DT id="8"><DD>
+Some old repositories have tags without a tagger. The fast-import protocol was pretty strict about that, and did not allow that. So fake a tagger to be able to fast-import the output.
+</DL>
+
+<P>
+
+--use-done-feature
+<DL COMPACT><DT id="9"><DD>
+Start the stream with a
+<I>feature done</I>
+stanza, and terminate it with a
+<I>done</I>
+command.
+</DL>
+
+<P>
+
+--no-data
+<DL COMPACT><DT id="10"><DD>
+Skip output of blob objects and instead refer to blobs via their original SHA-1 hash. This is useful when rewriting the directory structure or history of a repository without touching the contents of individual files. Note that the resulting stream can only be used by a repository which already contains the necessary objects.
+</DL>
+
+<P>
+
+--full-tree
+<DL COMPACT><DT id="11"><DD>
+This option will cause fast-export to issue a &quot;deleteall&quot; directive for each commit followed by a full list of all files in the commit (as opposed to just listing the files which are different from the commit's first parent).
+</DL>
+
+<P>
+
+--anonymize
+<DL COMPACT><DT id="12"><DD>
+Anonymize the contents of the repository while still retaining the shape of the history and stored tree. See the section on
+<B>ANONYMIZING</B>
+below.
+</DL>
+
+<P>
+
+--reference-excluded-parents
+<DL COMPACT><DT id="13"><DD>
+By default, running a command such as
+<B>git fast-export master~5..master</B>
+will not include the commit master~5 and will make master~4 no longer have master~5 as a parent (though both the old master~4 and new master~4 will have all the same files). Use --reference-excluded-parents to instead have the stream refer to commits in the excluded range of history by their sha1sum. Note that the resulting stream can only be used by a repository which already contains the necessary parent commits.
+</DL>
+
+<P>
+
+--show-original-ids
+<DL COMPACT><DT id="14"><DD>
+Add an extra directive to the output for commits and blobs,
+<B>original-oid &lt;SHA1SUM&gt;</B>. While such directives will likely be ignored by importers such as git-fast-import, it may be useful for intermediary filters (e.g. for rewriting commit messages which refer to older commits, or for stripping blobs by id).
+</DL>
+
+<P>
+
+--reencode=(yes|no|abort)
+<DL COMPACT><DT id="15"><DD>
+Specify how to handle
+<B>encoding</B>
+header in commit objects. When asking to
+<I>abort</I>
+(which is the default), this program will die when encountering such a commit object. With
+<I>yes</I>, the commit message will be re-encoded into UTF-8. With
+<I>no</I>, the original encoding will be preserved.
+</DL>
+
+<P>
+
+--refspec
+<DL COMPACT><DT id="16"><DD>
+Apply the specified refspec to each ref exported. Multiple of them can be specified.
+</DL>
+
+<P>
+
+[&lt;git-rev-list-args&gt;...]
+<DL COMPACT><DT id="17"><DD>
+A list of arguments, acceptable to
+<I>git rev-parse</I>
+and
+<I>git rev-list</I>, that specifies the specific objects and references to export. For example,
+<B>master~10..master</B>
+causes the current master reference to be exported along with all objects added since its 10th ancestor commit and (unless the --reference-excluded-parents option is specified) all files common to master~9 and master~10.
+</DL>
+
+<A NAME="lbAF">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+<P>
+<DL COMPACT><DT id="18"><DD>
+
+
+
+<PRE>
+$ git fast-export --all | (cd /empty/repository &amp;&amp; git fast-import)
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+This will export the whole repository and import it into the existing empty repository. Except for reencoding commits that are not in UTF-8, it would be a one-to-one mirror.
+<P>
+<DL COMPACT><DT id="19"><DD>
+
+
+
+<PRE>
+$ git fast-export master~5..master |
+        sed &quot;s|refs/heads/master|refs/heads/other|&quot; |
+        git fast-import
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+This makes a new branch called <I>other</I> from <I>master~5..master</I> (i.e. if <I>master</I> has linear history, it will take the last 5 commits).
+<P>
+Note that this assumes that none of the blobs and commit messages referenced by that revision range contains the string <I>refs/heads/master</I>.
+<A NAME="lbAG">&nbsp;</A>
+<H2>ANONYMIZING</H2>
+
+<P>
+If the <B>--anonymize</B> option is given, git will attempt to remove all identifying information from the repository while still retaining enough of the original tree and history patterns to reproduce some bugs. The goal is that a git bug which is found on a private repository will persist in the anonymized repository, and the latter can be shared with git developers to help solve the bug.
+<P>
+With this option, git will replace all refnames, paths, blob contents, commit and tag messages, names, and email addresses in the output with anonymized data. Two instances of the same string will be replaced equivalently (e.g., two commits with the same author will have the same anonymized author in the output, but bear no resemblance to the original author string). The relationship between commits, branches, and tags is retained, as well as the commit timestamps (but the commit messages and refnames bear no resemblance to the originals). The relative makeup of the tree is retained (e.g., if you have a root tree with 10 files and 3 trees, so will the output), but their names and the contents of the files will be replaced.
+<P>
+If you think you have found a git bug, you can start by exporting an anonymized stream of the whole repository:
+<P>
+<DL COMPACT><DT id="20"><DD>
+
+
+
+<PRE>
+$ git fast-export --anonymize --all &gt;anon-stream
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+Then confirm that the bug persists in a repository created from that stream (many bugs will not, as they really do depend on the exact repository contents):
+<P>
+<DL COMPACT><DT id="21"><DD>
+
+
+
+<PRE>
+$ git init anon-repo
+$ cd anon-repo
+$ git fast-import &lt;../anon-stream
+$ ... test your bug ...
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+If the anonymized repository shows the bug, it may be worth sharing <B>anon-stream</B> along with a regular bug report. Note that the anonymized stream compresses very well, so gzipping it is encouraged. If you want to examine the stream to see that it does not contain any private data, you can peruse it directly before sending. You may also want to try:
+<P>
+<DL COMPACT><DT id="22"><DD>
+
+
+
+<PRE>
+$ perl -pe 's/\d+/X/g' &lt;anon-stream | sort -u | less
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+which shows all of the unique lines (with numbers converted to &quot;X&quot;, to collapse &quot;User 0&quot;, &quot;User 1&quot;, etc into &quot;User X&quot;). This produces a much smaller output, and it is usually easy to quickly confirm that there is no private data in the stream.
+<A NAME="lbAH">&nbsp;</A>
+<H2>LIMITATIONS</H2>
+
+<P>
+Since <I>git fast-import</I> cannot tag trees, you will not be able to export the linux.git repository completely, as it contains a tag referencing a tree instead of a commit.
+<A NAME="lbAI">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+<B><A HREF="/cgi-bin/man/man2html?1+git-fast-import">git-fast-import</A></B>(1)
+<A NAME="lbAJ">&nbsp;</A>
+<H2>GIT</H2>
+
+<P>
+Part of the <B><A HREF="/cgi-bin/man/man2html?1+git">git</A></B>(1) suite
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="23"><A HREF="#lbAB">NAME</A><DD>
+<DT id="24"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="25"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="26"><A HREF="#lbAE">OPTIONS</A><DD>
+<DT id="27"><A HREF="#lbAF">EXAMPLES</A><DD>
+<DT id="28"><A HREF="#lbAG">ANONYMIZING</A><DD>
+<DT id="29"><A HREF="#lbAH">LIMITATIONS</A><DD>
+<DT id="30"><A HREF="#lbAI">SEE ALSO</A><DD>
+<DT id="31"><A HREF="#lbAJ">GIT</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:13 GMT, March 31, 2021
+</BODY>
+</HTML>

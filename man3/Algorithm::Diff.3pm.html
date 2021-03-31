@@ -1,0 +1,1653 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of Algorithm::Diff</TITLE>
+</HEAD><BODY>
+<H1>Algorithm::Diff</H1>
+Section: User Contributed Perl Documentation (3pm)<BR>Updated: 2018-08-25<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+Algorithm::Diff - Compute `intelligent' differences between two files / lists
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+
+
+
+
+<PRE>
+    require Algorithm::Diff;
+
+    # This example produces traditional 'diff' output:
+
+    my $diff = Algorithm::Diff-&gt;new( \@seq1, \@seq2 );
+
+    $diff-&gt;Base( 1 );   # Return line numbers, not indices
+    while(  $diff-&gt;Next()  ) {
+        next   if  $diff-&gt;Same();
+        my $sep = '';
+        if(  ! $diff-&gt;<A HREF="/cgi-bin/man/man2html?2+Items">Items</A>(2)  ) {
+            printf &quot;%d,%dd%d\n&quot;,
+                $diff-&gt;Get(qw( Min1 Max1 Max2 ));
+        } elsif(  ! $diff-&gt;<A HREF="/cgi-bin/man/man2html?1+Items">Items</A>(1)  ) {
+            printf &quot;%da%d,%d\n&quot;,
+                $diff-&gt;Get(qw( Max1 Min2 Max2 ));
+        } else {
+            $sep = &quot;---\n&quot;;
+            printf &quot;%d,%dc%d,%d\n&quot;,
+                $diff-&gt;Get(qw( Min1 Max1 Min2 Max2 ));
+        }
+        print &quot;&lt; $_&quot;   for  $diff-&gt;<A HREF="/cgi-bin/man/man2html?1+Items">Items</A>(1);
+        print $sep;
+        print &quot;&gt; $_&quot;   for  $diff-&gt;<A HREF="/cgi-bin/man/man2html?2+Items">Items</A>(2);
+    }
+
+
+    # Alternate interfaces:
+
+    use Algorithm::Diff qw(
+        LCS LCS_length LCSidx
+        diff sdiff compact_diff
+        traverse_sequences traverse_balanced );
+
+    @lcs    = LCS( \@seq1, \@seq2 );
+    $lcsref = LCS( \@seq1, \@seq2 );
+    $count  = LCS_length( \@seq1, \@seq2 );
+
+    ( $seq1idxref, $seq2idxref ) = LCSidx( \@seq1, \@seq2 );
+
+
+    # Complicated interfaces:
+
+    @diffs  = diff( \@seq1, \@seq2 );
+
+    @sdiffs = sdiff( \@seq1, \@seq2 );
+
+    @cdiffs = compact_diff( \@seq1, \@seq2 );
+
+    traverse_sequences(
+        \@seq1,
+        \@seq2,
+        {   MATCH     =&gt; \&amp;callback1,
+            DISCARD_A =&gt; \&amp;callback2,
+            DISCARD_B =&gt; \&amp;callback3,
+        },
+        \&amp;key_generator,
+        @extra_args,
+    );
+
+    traverse_balanced(
+        \@seq1,
+        \@seq2,
+        {   MATCH     =&gt; \&amp;callback1,
+            DISCARD_A =&gt; \&amp;callback2,
+            DISCARD_B =&gt; \&amp;callback3,
+            CHANGE    =&gt; \&amp;callback4,
+        },
+        \&amp;key_generator,
+        @extra_args,
+    );
+
+</PRE>
+
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>INTRODUCTION</H2>
+
+
+
+(by Mark-Jason Dominus)
+<P>
+
+I once read an article written by the authors of <TT>&quot;diff&quot;</TT>; they said
+that they worked very hard on the algorithm until they found the
+right one.
+<P>
+
+I think what they ended up using (and I hope someone will correct me,
+because I am not very confident about this) was the `longest common
+subsequence' method.  In the <FONT SIZE="-1">LCS</FONT> problem, you have two sequences of
+items:
+<P>
+
+
+
+<PRE>
+    a b c d f g h j q z
+
+    a b c d e f g i j k r x y z
+
+</PRE>
+
+
+<P>
+
+and you want to find the longest sequence of items that is present in
+both original sequences in the same order.  That is, you want to find
+a new sequence <I>S</I> which can be obtained from the first sequence by
+deleting some items, and from the second sequence by deleting other
+items.  You also want <I>S</I> to be as long as possible.  In this case <I>S</I>
+is
+<P>
+
+
+
+<PRE>
+    a b c d f g j z
+
+</PRE>
+
+
+<P>
+
+From there it's only a small step to get diff-like output:
+<P>
+
+
+
+<PRE>
+    e   h i   k   q r x y
+    +   - +   +   - + + +
+
+</PRE>
+
+
+<P>
+
+This module solves the <FONT SIZE="-1">LCS</FONT> problem.  It also includes a canned function
+to generate <TT>&quot;diff&quot;</TT>-like output.
+<P>
+
+It might seem from the example above that the <FONT SIZE="-1">LCS</FONT> of two sequences is
+always pretty obvious, but that's not always the case, especially when
+the two sequences have many repeated elements.  For example, consider
+<P>
+
+
+
+<PRE>
+    a x b y c z p d q
+    a b c a x b y c z
+
+</PRE>
+
+
+<P>
+
+A naive approach might start by matching up the <TT>&quot;a&quot;</TT> and <TT>&quot;b&quot;</TT> that
+appear at the beginning of each sequence, like this:
+<P>
+
+
+
+<PRE>
+    a x b y c         z p d q
+    a   b   c a b y c z
+
+</PRE>
+
+
+<P>
+
+This finds the common subsequence <TT>&quot;a b c z&quot;</TT>.  But actually, the <FONT SIZE="-1">LCS</FONT>
+is <TT>&quot;a x b y c z&quot;</TT>:
+<P>
+
+
+
+<PRE>
+          a x b y c z p d q
+    a b c a x b y c z
+
+</PRE>
+
+
+<P>
+
+or
+<P>
+
+
+
+<PRE>
+    a       x b y c z p d q
+    a b c a x b y c z
+
+</PRE>
+
+
+<A NAME="lbAE">&nbsp;</A>
+<H2>USAGE</H2>
+
+
+
+(See also the <FONT SIZE="-1">README</FONT> file and several example
+scripts include with this module.)
+<P>
+
+This module now provides an object-oriented interface that uses less
+memory and is easier to use than most of the previous procedural
+interfaces.  It also still provides several exportable functions.  We'll
+deal with these in ascending order of difficulty:  <TT>&quot;LCS&quot;</TT>,
+<TT>&quot;LCS_length&quot;</TT>, <TT>&quot;LCSidx&quot;</TT>, <FONT SIZE="-1">OO</FONT> interface, <TT>&quot;prepare&quot;</TT>, <TT>&quot;diff&quot;</TT>, <TT>&quot;sdiff&quot;</TT>,
+<TT>&quot;traverse_sequences&quot;</TT>, and <TT>&quot;traverse_balanced&quot;</TT>.
+<A NAME="lbAF">&nbsp;</A>
+<H3>LCS</H3>
+
+
+
+
+
+Given references to two lists of items, <FONT SIZE="-1">LCS</FONT> returns an array containing
+their longest common subsequence.  In scalar context, it returns a
+reference to such a list.
+<P>
+
+
+
+<PRE>
+    @lcs    = LCS( \@seq1, \@seq2 );
+    $lcsref = LCS( \@seq1, \@seq2 );
+
+</PRE>
+
+
+<P>
+
+<TT>&quot;LCS&quot;</TT> may be passed an optional third parameter; this is a <FONT SIZE="-1">CODE</FONT>
+reference to a key generation function.  See ``<FONT SIZE="-1">KEY GENERATION
+FUNCTIONS''</FONT>.
+<P>
+
+
+
+<PRE>
+    @lcs    = LCS( \@seq1, \@seq2, \&amp;keyGen, @args );
+    $lcsref = LCS( \@seq1, \@seq2, \&amp;keyGen, @args );
+
+</PRE>
+
+
+<P>
+
+Additional parameters, if any, will be passed to the key generation
+routine.
+<A NAME="lbAG">&nbsp;</A>
+<H3>LCS_length</H3>
+
+
+
+
+
+This is just like <TT>&quot;LCS&quot;</TT> except it only returns the length of the
+longest common subsequence.  This provides a performance gain of about
+9% compared to <TT>&quot;LCS&quot;</TT>.
+<A NAME="lbAH">&nbsp;</A>
+<H3>LCSidx</H3>
+
+
+
+
+
+Like <TT>&quot;LCS&quot;</TT> except it returns references to two arrays.  The first array
+contains the indices into <TT>@seq1</TT> where the <FONT SIZE="-1">LCS</FONT> items are located.  The
+second array contains the indices into <TT>@seq2</TT> where the <FONT SIZE="-1">LCS</FONT> items are located.
+<P>
+
+Therefore, the following three lists will contain the same values:
+<P>
+
+
+
+<PRE>
+    my( $idx1, $idx2 ) = LCSidx( \@seq1, \@seq2 );
+    my @list1 = @seq1[ @$idx1 ];
+    my @list2 = @seq2[ @$idx2 ];
+    my @list3 = LCS( \@seq1, \@seq2 );
+
+</PRE>
+
+
+<A NAME="lbAI">&nbsp;</A>
+<H3>new</H3>
+
+
+
+
+
+
+
+<PRE>
+    $diff = Algorithm::Diffs-&gt;new( \@seq1, \@seq2 );
+    $diff = Algorithm::Diffs-&gt;new( \@seq1, \@seq2, \%opts );
+
+</PRE>
+
+
+<P>
+
+<TT>&quot;new&quot;</TT> computes the smallest set of additions and deletions necessary
+to turn the first sequence into the second and compactly records them
+in the object.
+<P>
+
+You use the object to iterate over <I>hunks</I>, where each hunk represents
+a contiguous section of items which should be added, deleted, replaced,
+or left unchanged.
+<P>
+
+The following summary of all of the methods looks a lot like Perl code
+but some of the symbols have different meanings:
+<P>
+
+
+
+<PRE>
+    [ ]     Encloses optional arguments
+    :       Is followed by the default value for an optional argument
+    |       Separates alternate return results
+
+</PRE>
+
+
+<P>
+
+Method summary:
+<P>
+
+
+
+<PRE>
+    $obj        = Algorithm::Diff-&gt;new( \@seq1, \@seq2, [ \%opts ] );
+    $pos        = $obj-&gt;Next(  [ $count : 1 ] );
+    $revPos     = $obj-&gt;Prev(  [ $count : 1 ] );
+    $obj        = $obj-&gt;Reset( [ $pos : 0 ] );
+    $copy       = $obj-&gt;Copy(  [ $pos, [ $newBase ] ] );
+    $oldBase    = $obj-&gt;Base(  [ $newBase ] );
+
+</PRE>
+
+
+<P>
+
+Note that all of the following methods <TT>&quot;die&quot;</TT> if used on an object that
+is ``reset'' (not currently pointing at any hunk).
+<P>
+
+
+
+<PRE>
+    $bits       = $obj-&gt;Diff(  );
+    @items|$cnt = $obj-&gt;Same(  );
+    @items|$cnt = $obj-&gt;Items( $seqNum );
+    @idxs |$cnt = $obj-&gt;Range( $seqNum, [ $base ] );
+    $minIdx     = $obj-&gt;Min(   $seqNum, [ $base ] );
+    $maxIdx     = $obj-&gt;Max(   $seqNum, [ $base ] );
+    @values     = $obj-&gt;Get(   @names );
+
+</PRE>
+
+
+<P>
+
+Passing in <TT>&quot;undef&quot;</TT> for an optional argument is always treated the same
+as if no argument were passed in.
+<DL COMPACT>
+<DT id="1">&quot;Next&quot;<DD>
+
+
+
+
+
+
+<PRE>
+    $pos = $diff-&gt;Next();    # Move forward 1 hunk
+    $pos = $diff-&gt;Next( 2 ); # Move forward 2 hunks
+    $pos = $diff-&gt;Next(-5);  # Move backward 5 hunks
+
+</PRE>
+
+
+
+
+<P>
+
+
+<TT>&quot;Next&quot;</TT> moves the object to point at the next hunk.  The object starts
+out ``reset'', which means it isn't pointing at any hunk.  If the object
+is reset, then <TT>&quot;Next()&quot;</TT> moves to the first hunk.
+
+
+<P>
+
+
+<TT>&quot;Next&quot;</TT> returns a true value iff the move didn't go past the last hunk.
+So <TT>Next(0)</TT> will return true iff the object is not reset.
+
+
+<P>
+
+
+Actually, <TT>&quot;Next&quot;</TT> returns the object's new position, which is a number
+between 1 and the number of hunks (inclusive), or returns a false value.
+<DT id="2">&quot;Prev&quot;<DD>
+
+
+
+
+<TT>&quot;Prev($N)&quot;</TT> is almost identical to <TT>&quot;Next(-$N)&quot;</TT>; it moves to the <TT>$Nth</TT>
+previous hunk.  On a 'reset' object, <TT>&quot;Prev()&quot;</TT> [and <TT>&quot;Next(-1)&quot;</TT>] move
+to the last hunk.
+
+
+<P>
+
+
+The position returned by <TT>&quot;Prev&quot;</TT> is relative to the <I>end</I> of the
+hunks; -1 for the last hunk, -2 for the second-to-last, etc.
+<DT id="3">&quot;Reset&quot;<DD>
+
+
+
+
+
+
+<PRE>
+    $diff-&gt;Reset();     # Reset the object's position
+    $diff-&gt;Reset($pos); # Move to the specified hunk
+    $diff-&gt;<A HREF="/cgi-bin/man/man2html?1+Reset">Reset</A>(1);    # Move to the first hunk
+    $diff-&gt;Reset(-1);   # Move to the last hunk
+
+</PRE>
+
+
+
+
+<P>
+
+
+<TT>&quot;Reset&quot;</TT> returns the object, so, for example, you could use
+<TT>&quot;$diff-&gt;Reset()-&gt;Next(-1)&quot;</TT> to get the number of hunks.
+<DT id="4">&quot;Copy&quot;<DD>
+
+
+
+
+
+
+<PRE>
+    $copy = $diff-&gt;Copy( $newPos, $newBase );
+
+</PRE>
+
+
+
+
+<P>
+
+
+<TT>&quot;Copy&quot;</TT> returns a copy of the object.  The copy and the original object
+share most of their data, so making copies takes very little memory.
+The copy maintains its own position (separate from the original), which
+is the main purpose of copies.  It also maintains its own base.
+
+
+<P>
+
+
+By default, the copy's position starts out the same as the original
+object's position.  But <TT>&quot;Copy&quot;</TT> takes an optional first argument to set the
+new position, so the following three snippets are equivalent:
+
+
+<P>
+
+
+
+
+<PRE>
+    $copy = $diff-&gt;Copy($pos);
+
+    $copy = $diff-&gt;Copy();
+    $copy-&gt;Reset($pos);
+
+    $copy = $diff-&gt;Copy()-&gt;Reset($pos);
+
+</PRE>
+
+
+
+
+<P>
+
+
+<TT>&quot;Copy&quot;</TT> takes an optional second argument to set the base for
+the copy.  If you wish to change the base of the copy but leave
+the position the same as in the original, here are two
+equivalent ways:
+
+
+<P>
+
+
+
+
+<PRE>
+    $copy = $diff-&gt;Copy();
+    $copy-&gt;Base( 0 );
+
+    $copy = $diff-&gt;Copy(undef,0);
+
+</PRE>
+
+
+
+
+<P>
+
+
+Here are two equivalent way to get a ``reset'' copy:
+
+
+<P>
+
+
+
+
+<PRE>
+    $copy = $diff-&gt;Copy(0);
+
+    $copy = $diff-&gt;Copy()-&gt;Reset();
+
+</PRE>
+
+
+<DT id="5">&quot;Diff&quot;<DD>
+
+
+
+
+
+
+<PRE>
+    $bits = $obj-&gt;Diff();
+
+</PRE>
+
+
+
+
+<P>
+
+
+<TT>&quot;Diff&quot;</TT> returns a true value iff the current hunk contains items that are
+different between the two sequences.  It actually returns one of the
+follow 4 values:
+<DL COMPACT><DT id="6"><DD>
+<DL COMPACT>
+<DT id="7">3<DD>
+
+
+<TT>&quot;3==(1|2)&quot;</TT>.  This hunk contains items from <TT>@seq1</TT> and the items
+from <TT>@seq2</TT> that should replace them.  Both sequence 1 and 2
+contain changed items so both the 1 and 2 bits are set.
+<DT id="8">2<DD>
+
+
+This hunk only contains items from <TT>@seq2</TT> that should be inserted (not
+items from <TT>@seq1</TT>).  Only sequence 2 contains changed items so only the 2
+bit is set.
+<DT id="9">1<DD>
+
+
+This hunk only contains items from <TT>@seq1</TT> that should be deleted (not
+items from <TT>@seq2</TT>).  Only sequence 1 contains changed items so only the 1
+bit is set.
+<DT id="10">0<DD>
+This means that the items in this hunk are the same in both sequences.
+Neither sequence 1 nor 2 contain changed items so neither the 1 nor the
+2 bits are set.
+</DL>
+</DL>
+
+<DL COMPACT><DT id="11"><DD>
+</DL>
+
+<DT id="12">&quot;Same&quot;<DD>
+
+
+
+
+<TT>&quot;Same&quot;</TT> returns a true value iff the current hunk contains items that
+are the same in both sequences.  It actually returns the list of items
+if they are the same or an empty list if they aren't.  In a scalar
+context, it returns the size of the list.
+<DT id="13">&quot;Items&quot;<DD>
+
+
+
+
+
+
+<PRE>
+    $count = $diff-&gt;<A HREF="/cgi-bin/man/man2html?2+Items">Items</A>(2);
+    @items = $diff-&gt;Items($seqNum);
+
+</PRE>
+
+
+
+
+<P>
+
+
+<TT>&quot;Items&quot;</TT> returns the (number of) items from the specified sequence that
+are part of the current hunk.
+
+
+<P>
+
+
+If the current hunk contains only insertions, then
+<TT>&quot;$diff-&gt;<A HREF="/cgi-bin/man/man2html?1+Items">Items</A>(1)&quot;</TT> will return an empty list (0 in a scalar context).
+If the current hunk contains only deletions, then <TT>&quot;$diff-&gt;<A HREF="/cgi-bin/man/man2html?2+Items">Items</A>(2)&quot;</TT>
+will return an empty list (0 in a scalar context).
+
+
+<P>
+
+
+If the hunk contains replacements, then both <TT>&quot;$diff-&gt;<A HREF="/cgi-bin/man/man2html?1+Items">Items</A>(1)&quot;</TT> and
+<TT>&quot;$diff-&gt;<A HREF="/cgi-bin/man/man2html?2+Items">Items</A>(2)&quot;</TT> will return different, non-empty lists.
+
+
+<P>
+
+
+Otherwise, the hunk contains identical items and all of the following
+will return the same lists:
+
+
+<P>
+
+
+
+
+<PRE>
+    @items = $diff-&gt;<A HREF="/cgi-bin/man/man2html?1+Items">Items</A>(1);
+    @items = $diff-&gt;<A HREF="/cgi-bin/man/man2html?2+Items">Items</A>(2);
+    @items = $diff-&gt;Same();
+
+</PRE>
+
+
+<DT id="14">&quot;Range&quot;<DD>
+
+
+
+
+
+
+<PRE>
+    $count = $diff-&gt;Range( $seqNum );
+    @indices = $diff-&gt;Range( $seqNum );
+    @indices = $diff-&gt;Range( $seqNum, $base );
+
+</PRE>
+
+
+
+
+<P>
+
+
+<TT>&quot;Range&quot;</TT> is like <TT>&quot;Items&quot;</TT> except that it returns a list of <I>indices</I> to
+the items rather than the items themselves.  By default, the index of
+the first item (in each sequence) is 0 but this can be changed by
+calling the <TT>&quot;Base&quot;</TT> method.  So, by default, the following two snippets
+return the same lists:
+
+
+<P>
+
+
+
+
+<PRE>
+    @list = $diff-&gt;<A HREF="/cgi-bin/man/man2html?2+Items">Items</A>(2);
+    @list = @seq2[ $diff-&gt;<A HREF="/cgi-bin/man/man2html?2+Range">Range</A>(2) ];
+
+</PRE>
+
+
+
+
+<P>
+
+
+You can also specify the base to use as the second argument.  So the
+following two snippets <I>always</I> return the same lists:
+
+
+<P>
+
+
+
+
+<PRE>
+    @list = $diff-&gt;<A HREF="/cgi-bin/man/man2html?1+Items">Items</A>(1);
+    @list = @seq1[ $diff-&gt;Range(1,0) ];
+
+</PRE>
+
+
+<DT id="15">&quot;Base&quot;<DD>
+
+
+
+
+
+
+<PRE>
+    $curBase = $diff-&gt;Base();
+    $oldBase = $diff-&gt;Base($newBase);
+
+</PRE>
+
+
+
+
+<P>
+
+
+<TT>&quot;Base&quot;</TT> sets and/or returns the current base (usually 0 or 1) that is
+used when you request range information.  The base defaults to 0 so
+that range information is returned as array indices.  You can set the
+base to 1 if you want to report traditional line numbers instead.
+<DT id="16">&quot;Min&quot;<DD>
+
+
+
+
+
+
+<PRE>
+    $min1 = $diff-&gt;<A HREF="/cgi-bin/man/man2html?1+Min">Min</A>(1);
+    $min = $diff-&gt;Min( $seqNum, $base );
+
+</PRE>
+
+
+
+
+<P>
+
+
+<TT>&quot;Min&quot;</TT> returns the first value that <TT>&quot;Range&quot;</TT> would return (given the
+same arguments) or returns <TT>&quot;undef&quot;</TT> if <TT>&quot;Range&quot;</TT> would return an empty
+list.
+<DT id="17">&quot;Max&quot;<DD>
+
+
+
+
+<TT>&quot;Max&quot;</TT> returns the last value that <TT>&quot;Range&quot;</TT> would return or <TT>&quot;undef&quot;</TT>.
+<DT id="18">&quot;Get&quot;<DD>
+
+
+
+
+
+
+<PRE>
+    ( $n, $x, $r ) = $diff-&gt;Get(qw( min1 max1 range1 ));
+    @values = $diff-&gt;Get(qw( 0min2 1max2 range2 same base ));
+
+</PRE>
+
+
+
+
+<P>
+
+
+<TT>&quot;Get&quot;</TT> returns one or more scalar values.  You pass in a list of the
+names of the values you want returned.  Each name must match one of the
+following regexes:
+
+
+<P>
+
+
+
+
+<PRE>
+    /^(-?\d+)?(min|max)[12]$/i
+    /^(range[12]|same|diff|base)$/i
+
+</PRE>
+
+
+
+
+<P>
+
+
+The 1 or 2 after a name says which sequence you want the information
+for (and where allowed, it is required).  The optional number before
+``min'' or ``max'' is the base to use.  So the following equalities hold:
+
+
+<P>
+
+
+
+
+<PRE>
+    $diff-&gt;Get('min1') == $diff-&gt;<A HREF="/cgi-bin/man/man2html?1+Min">Min</A>(1)
+    $diff-&gt;Get('0min2') == $diff-&gt;Min(2,0)
+
+</PRE>
+
+
+
+
+<P>
+
+
+Using <TT>&quot;Get&quot;</TT> in a scalar context when you've passed in more than one
+name is a fatal error (<TT>&quot;die&quot;</TT> is called).
+</DL>
+<A NAME="lbAJ">&nbsp;</A>
+<H3>prepare</H3>
+
+
+
+
+
+Given a reference to a list of items, <TT>&quot;prepare&quot;</TT> returns a reference
+to a hash which can be used when comparing this sequence to other
+sequences with <TT>&quot;LCS&quot;</TT> or <TT>&quot;LCS_length&quot;</TT>.
+<P>
+
+
+
+<PRE>
+    $prep = prepare( \@seq1 );
+    for $i ( 0 .. 10_000 )
+    {
+        @lcs = LCS( $prep, $seq[$i] );
+        # do something useful with @lcs
+    }
+
+</PRE>
+
+
+<P>
+
+<TT>&quot;prepare&quot;</TT> may be passed an optional third parameter; this is a <FONT SIZE="-1">CODE</FONT>
+reference to a key generation function.  See ``<FONT SIZE="-1">KEY GENERATION
+FUNCTIONS''</FONT>.
+<P>
+
+
+
+<PRE>
+    $prep = prepare( \@seq1, \&amp;keyGen );
+    for $i ( 0 .. 10_000 )
+    {
+        @lcs = LCS( $seq[$i], $prep, \&amp;keyGen );
+        # do something useful with @lcs
+    }
+
+</PRE>
+
+
+<P>
+
+Using <TT>&quot;prepare&quot;</TT> provides a performance gain of about 50% when calling <FONT SIZE="-1">LCS</FONT>
+many times compared with not preparing.
+<A NAME="lbAK">&nbsp;</A>
+<H3>diff</H3>
+
+
+
+
+
+
+
+<PRE>
+    @diffs     = diff( \@seq1, \@seq2 );
+    $diffs_ref = diff( \@seq1, \@seq2 );
+
+</PRE>
+
+
+<P>
+
+<TT>&quot;diff&quot;</TT> computes the smallest set of additions and deletions necessary
+to turn the first sequence into the second, and returns a description
+of these changes.  The description is a list of <I>hunks</I>; each hunk
+represents a contiguous section of items which should be added,
+deleted, or replaced.  (Hunks containing unchanged items are not
+included.)
+<P>
+
+The return value of <TT>&quot;diff&quot;</TT> is a list of hunks, or, in scalar context, a
+reference to such a list.  If there are no differences, the list will be
+empty.
+<P>
+
+Here is an example.  Calling <TT>&quot;diff&quot;</TT> for the following two sequences:
+<P>
+
+
+
+<PRE>
+    a b c e h j l m n p
+    b c d e f j k l m r s t
+
+</PRE>
+
+
+<P>
+
+would produce the following list:
+<P>
+
+
+
+<PRE>
+    (
+      [ [ '-', 0, 'a' ] ],
+
+      [ [ '+', 2, 'd' ] ],
+
+      [ [ '-', 4, 'h' ],
+        [ '+', 4, 'f' ] ],
+
+      [ [ '+', 6, 'k' ] ],
+
+      [ [ '-',  8, 'n' ],
+        [ '-',  9, 'p' ],
+        [ '+',  9, 'r' ],
+        [ '+', 10, 's' ],
+        [ '+', 11, 't' ] ],
+    )
+
+</PRE>
+
+
+<P>
+
+There are five hunks here.  The first hunk says that the <TT>&quot;a&quot;</TT> at
+position 0 of the first sequence should be deleted (<TT>&quot;-&quot;</TT>).  The second
+hunk says that the <TT>&quot;d&quot;</TT> at position 2 of the second sequence should
+be inserted (<TT>&quot;+&quot;</TT>).  The third hunk says that the <TT>&quot;h&quot;</TT> at position 4
+of the first sequence should be removed and replaced with the <TT>&quot;f&quot;</TT>
+from position 4 of the second sequence.  And so on.
+<P>
+
+<TT>&quot;diff&quot;</TT> may be passed an optional third parameter; this is a <FONT SIZE="-1">CODE</FONT>
+reference to a key generation function.  See ``<FONT SIZE="-1">KEY GENERATION
+FUNCTIONS''</FONT>.
+<P>
+
+Additional parameters, if any, will be passed to the key generation
+routine.
+<A NAME="lbAL">&nbsp;</A>
+<H3>sdiff</H3>
+
+
+
+
+
+
+
+<PRE>
+    @sdiffs     = sdiff( \@seq1, \@seq2 );
+    $sdiffs_ref = sdiff( \@seq1, \@seq2 );
+
+</PRE>
+
+
+<P>
+
+<TT>&quot;sdiff&quot;</TT> computes all necessary components to show two sequences
+and their minimized differences side by side, just like the
+Unix-utility <I>sdiff</I> does:
+<P>
+
+
+
+<PRE>
+    same             same
+    before     |     after
+    old        &lt;     -
+    -          &gt;     new
+
+</PRE>
+
+
+<P>
+
+It returns a list of array refs, each pointing to an array of
+display instructions. In scalar context it returns a reference
+to such a list. If there are no differences, the list will have one
+entry per item, each indicating that the item was unchanged.
+<P>
+
+Display instructions consist of three elements: A modifier indicator
+(<TT>&quot;+&quot;</TT>: Element added, <TT>&quot;-&quot;</TT>: Element removed, <TT>&quot;u&quot;</TT>: Element unmodified,
+<TT>&quot;c&quot;</TT>: Element changed) and the value of the old and new elements, to
+be displayed side-by-side.
+<P>
+
+An <TT>&quot;sdiff&quot;</TT> of the following two sequences:
+<P>
+
+
+
+<PRE>
+    a b c e h j l m n p
+    b c d e f j k l m r s t
+
+</PRE>
+
+
+<P>
+
+results in
+<P>
+
+
+
+<PRE>
+    ( [ '-', 'a', ''  ],
+      [ 'u', 'b', 'b' ],
+      [ 'u', 'c', 'c' ],
+      [ '+', '',  'd' ],
+      [ 'u', 'e', 'e' ],
+      [ 'c', 'h', 'f' ],
+      [ 'u', 'j', 'j' ],
+      [ '+', '',  'k' ],
+      [ 'u', 'l', 'l' ],
+      [ 'u', 'm', 'm' ],
+      [ 'c', 'n', 'r' ],
+      [ 'c', 'p', 's' ],
+      [ '+', '',  't' ],
+    )
+
+</PRE>
+
+
+<P>
+
+<TT>&quot;sdiff&quot;</TT> may be passed an optional third parameter; this is a <FONT SIZE="-1">CODE</FONT>
+reference to a key generation function.  See ``<FONT SIZE="-1">KEY GENERATION
+FUNCTIONS''</FONT>.
+<P>
+
+Additional parameters, if any, will be passed to the key generation
+routine.
+<A NAME="lbAM">&nbsp;</A>
+<H3>compact_diff</H3>
+
+
+
+
+
+<TT>&quot;compact_diff&quot;</TT> is much like <TT>&quot;sdiff&quot;</TT> except it returns a much more
+compact description consisting of just one flat list of indices.  An
+example helps explain the format:
+<P>
+
+
+
+<PRE>
+    my @a = qw( a b c   e  h j   l m n p      );
+    my @b = qw(   b c d e f  j k l m    r s t );
+    @cdiff = compact_diff( \@a, \@b );
+    # Returns:
+    #   @a      @b       @a       @b
+    #  start   start   values   values
+    (    0,      0,   #       =
+         0,      0,   #    a  !
+         1,      0,   #  b c  =  b c
+         3,      2,   #       !  d
+         3,      3,   #    e  =  e
+         4,      4,   #    f  !  h
+         5,      5,   #    j  =  j
+         6,      6,   #       !  k
+         6,      7,   #  l m  =  l m
+         8,      9,   #  n p  !  r s t
+        10,     12,   #
+    );
+
+</PRE>
+
+
+<P>
+
+The 0th, 2nd, 4th, etc. entries are all indices into <TT>@seq1</TT> (@a in the
+above example) indicating where a hunk begins.  The 1st, 3rd, 5th, etc.
+entries are all indices into <TT>@seq2</TT> (@b in the above example) indicating
+where the same hunk begins.
+<P>
+
+So each pair of indices (except the last pair) describes where a hunk
+begins (in each sequence).  Since each hunk must end at the item just
+before the item that starts the next hunk, the next pair of indices can
+be used to determine where the hunk ends.
+<P>
+
+So, the first 4 entries (0..3) describe the first hunk.  Entries 0 and 1
+describe where the first hunk begins (and so are always both 0).
+Entries 2 and 3 describe where the next hunk begins, so subtracting 1
+from each tells us where the first hunk ends.  That is, the first hunk
+contains items <TT>$diff[0]</TT> through <TT>&quot;$diff[2] - 1&quot;</TT> of the first sequence
+and contains items <TT>$diff[1]</TT> through <TT>&quot;$diff[3] - 1&quot;</TT> of the second
+sequence.
+<P>
+
+In other words, the first hunk consists of the following two lists of items:
+<P>
+
+
+
+<PRE>
+               #  1st pair     2nd pair
+               # of indices   of indices
+    @list1 = @a[ $cdiff[0] .. $cdiff[2]-1 ];
+    @list2 = @b[ $cdiff[1] .. $cdiff[3]-1 ];
+               # Hunk start   Hunk end
+
+</PRE>
+
+
+<P>
+
+Note that the hunks will always alternate between those that are part of
+the <FONT SIZE="-1">LCS</FONT> (those that contain unchanged items) and those that contain
+changes.  This means that all we need to be told is whether the first
+hunk is a 'same' or 'diff' hunk and we can determine which of the other
+hunks contain 'same' items or 'diff' items.
+<P>
+
+By convention, we always make the first hunk contain unchanged items.
+So the 1st, 3rd, 5th, etc. hunks (all odd-numbered hunks if you start
+counting from 1) all contain unchanged items.  And the 2nd, 4th, 6th,
+etc. hunks (all even-numbered hunks if you start counting from 1) all
+contain changed items.
+<P>
+
+Since <TT>@a</TT> and <TT>@b</TT> don't begin with the same value, the first hunk in our
+example is empty (otherwise we'd violate the above convention).  Note
+that the first 4 index values in our example are all zero.  Plug these
+values into our previous code block and we get:
+<P>
+
+
+
+<PRE>
+    @hunk1a = @a[ 0 .. 0-1 ];
+    @hunk1b = @b[ 0 .. 0-1 ];
+
+</PRE>
+
+
+<P>
+
+And <TT>&quot;0..-1&quot;</TT> returns the empty list.
+<P>
+
+Move down one pair of indices (2..5) and we get the offset ranges for
+the second hunk, which contains changed items.
+<P>
+
+Since <TT>@diff[2..5]</TT> contains (0,0,1,0) in our example, the second hunk
+consists of these two lists of items:
+<P>
+
+
+
+<PRE>
+        @hunk2a = @a[ $cdiff[2] .. $cdiff[4]-1 ];
+        @hunk2b = @b[ $cdiff[3] .. $cdiff[5]-1 ];
+    # or
+        @hunk2a = @a[ 0 .. 1-1 ];
+        @hunk2b = @b[ 0 .. 0-1 ];
+    # or
+        @hunk2a = @a[ 0 .. 0 ];
+        @hunk2b = @b[ 0 .. -1 ];
+    # or
+        @hunk2a = ( 'a' );
+        @hunk2b = ( );
+
+</PRE>
+
+
+<P>
+
+That is, we would delete item 0 ('a') from <TT>@a</TT>.
+<P>
+
+Since <TT>@diff[4..7]</TT> contains (1,0,3,2) in our example, the third hunk
+consists of these two lists of items:
+<P>
+
+
+
+<PRE>
+        @hunk3a = @a[ $cdiff[4] .. $cdiff[6]-1 ];
+        @hunk3a = @b[ $cdiff[5] .. $cdiff[7]-1 ];
+    # or
+        @hunk3a = @a[ 1 .. 3-1 ];
+        @hunk3a = @b[ 0 .. 2-1 ];
+    # or
+        @hunk3a = @a[ 1 .. 2 ];
+        @hunk3a = @b[ 0 .. 1 ];
+    # or
+        @hunk3a = qw( b c );
+        @hunk3a = qw( b c );
+
+</PRE>
+
+
+<P>
+
+Note that this third hunk contains unchanged items as our convention demands.
+<P>
+
+You can continue this process until you reach the last two indices,
+which will always be the number of items in each sequence.  This is
+required so that subtracting one from each will give you the indices to
+the last items in each sequence.
+<A NAME="lbAN">&nbsp;</A>
+<H3>traverse_sequences</H3>
+
+
+
+
+
+<TT>&quot;traverse_sequences&quot;</TT> used to be the most general facility provided by
+this module (the new <FONT SIZE="-1">OO</FONT> interface is more powerful and much easier to
+use).
+<P>
+
+Imagine that there are two arrows.  Arrow A points to an element of
+sequence A, and arrow B points to an element of the sequence B. 
+Initially, the arrows point to the first elements of the respective
+sequences.  <TT>&quot;traverse_sequences&quot;</TT> will advance the arrows through the
+sequences one element at a time, calling an appropriate user-specified
+callback function before each advance.  It will advance the arrows in
+such a way that if there are equal elements <TT>$A[$i]</TT> and <TT>$B[$j]</TT>
+which are equal and which are part of the <FONT SIZE="-1">LCS,</FONT> there will be some moment
+during the execution of <TT>&quot;traverse_sequences&quot;</TT> when arrow A is pointing
+to <TT>$A[$i]</TT> and arrow B is pointing to <TT>$B[$j]</TT>.  When this happens,
+<TT>&quot;traverse_sequences&quot;</TT> will call the <TT>&quot;MATCH&quot;</TT> callback function and then
+it will advance both arrows.
+<P>
+
+Otherwise, one of the arrows is pointing to an element of its sequence
+that is not part of the <FONT SIZE="-1">LCS.</FONT>  <TT>&quot;traverse_sequences&quot;</TT> will advance that
+arrow and will call the <TT>&quot;DISCARD_A&quot;</TT> or the <TT>&quot;DISCARD_B&quot;</TT> callback,
+depending on which arrow it advanced.  If both arrows point to elements
+that are not part of the <FONT SIZE="-1">LCS,</FONT> then <TT>&quot;traverse_sequences&quot;</TT> will advance
+one of them and call the appropriate callback, but it is not specified
+which it will call.
+<P>
+
+The arguments to <TT>&quot;traverse_sequences&quot;</TT> are the two sequences to
+traverse, and a hash which specifies the callback functions, like this:
+<P>
+
+
+
+<PRE>
+    traverse_sequences(
+        \@seq1, \@seq2,
+        {   MATCH =&gt; $callback_1,
+            DISCARD_A =&gt; $callback_2,
+            DISCARD_B =&gt; $callback_3,
+        }
+    );
+
+</PRE>
+
+
+<P>
+
+Callbacks for <FONT SIZE="-1">MATCH, DISCARD_A,</FONT> and <FONT SIZE="-1">DISCARD_B</FONT> are invoked with at least
+the indices of the two arrows as their arguments.  They are not expected
+to return any values.  If a callback is omitted from the table, it is
+not called.
+<P>
+
+Callbacks for A_FINISHED and B_FINISHED are invoked with at least the
+corresponding index in A or B.
+<P>
+
+If arrow A reaches the end of its sequence, before arrow B does,
+<TT>&quot;traverse_sequences&quot;</TT> will call the <TT>&quot;A_FINISHED&quot;</TT> callback when it
+advances arrow B, if there is such a function; if not it will call
+<TT>&quot;DISCARD_B&quot;</TT> instead.  Similarly if arrow B finishes first. 
+<TT>&quot;traverse_sequences&quot;</TT> returns when both arrows are at the ends of their
+respective sequences.  It returns true on success and false on failure. 
+At present there is no way to fail.
+<P>
+
+<TT>&quot;traverse_sequences&quot;</TT> may be passed an optional fourth parameter; this
+is a <FONT SIZE="-1">CODE</FONT> reference to a key generation function.  See ``<FONT SIZE="-1">KEY GENERATION
+FUNCTIONS''</FONT>.
+<P>
+
+Additional parameters, if any, will be passed to the key generation function.
+<P>
+
+If you want to pass additional parameters to your callbacks, but don't
+need a custom key generation function, you can get the default by
+passing undef:
+<P>
+
+
+
+<PRE>
+    traverse_sequences(
+        \@seq1, \@seq2,
+        {   MATCH =&gt; $callback_1,
+            DISCARD_A =&gt; $callback_2,
+            DISCARD_B =&gt; $callback_3,
+        },
+        undef,     # default key-gen
+        $myArgument1,
+        $myArgument2,
+        $myArgument3,
+    );
+
+</PRE>
+
+
+<P>
+
+<TT>&quot;traverse_sequences&quot;</TT> does not have a useful return value; you are
+expected to plug in the appropriate behavior with the callback
+functions.
+<A NAME="lbAO">&nbsp;</A>
+<H3>traverse_balanced</H3>
+
+
+
+
+
+<TT>&quot;traverse_balanced&quot;</TT> is an alternative to <TT>&quot;traverse_sequences&quot;</TT>. It
+uses a different algorithm to iterate through the entries in the
+computed <FONT SIZE="-1">LCS.</FONT> Instead of sticking to one side and showing element changes
+as insertions and deletions only, it will jump back and forth between
+the two sequences and report <I>changes</I> occurring as deletions on one
+side followed immediately by an insertion on the other side.
+<P>
+
+In addition to the <TT>&quot;DISCARD_A&quot;</TT>, <TT>&quot;DISCARD_B&quot;</TT>, and <TT>&quot;MATCH&quot;</TT> callbacks
+supported by <TT>&quot;traverse_sequences&quot;</TT>, <TT>&quot;traverse_balanced&quot;</TT> supports
+a <TT>&quot;CHANGE&quot;</TT> callback indicating that one element got <TT>&quot;replaced&quot;</TT> by another:
+<P>
+
+
+
+<PRE>
+    traverse_balanced(
+        \@seq1, \@seq2,
+        {   MATCH =&gt; $callback_1,
+            DISCARD_A =&gt; $callback_2,
+            DISCARD_B =&gt; $callback_3,
+            CHANGE    =&gt; $callback_4,
+        }
+    );
+
+</PRE>
+
+
+<P>
+
+If no <TT>&quot;CHANGE&quot;</TT> callback is specified, <TT>&quot;traverse_balanced&quot;</TT>
+will map <TT>&quot;CHANGE&quot;</TT> events to <TT>&quot;DISCARD_A&quot;</TT> and <TT>&quot;DISCARD_B&quot;</TT> actions,
+therefore resulting in a similar behaviour as <TT>&quot;traverse_sequences&quot;</TT>
+with different order of events.
+<P>
+
+<TT>&quot;traverse_balanced&quot;</TT> might be a bit slower than <TT>&quot;traverse_sequences&quot;</TT>,
+noticeable only while processing huge amounts of data.
+<P>
+
+The <TT>&quot;sdiff&quot;</TT> function of this module 
+is implemented as call to <TT>&quot;traverse_balanced&quot;</TT>.
+<P>
+
+<TT>&quot;traverse_balanced&quot;</TT> does not have a useful return value; you are expected to
+plug in the appropriate behavior with the callback functions.
+<A NAME="lbAP">&nbsp;</A>
+<H2>KEY GENERATION FUNCTIONS</H2>
+
+
+
+Most of the functions accept an optional extra parameter.  This is a
+<FONT SIZE="-1">CODE</FONT> reference to a key generating (hashing) function that should return
+a string that uniquely identifies a given element.  It should be the
+case that if two elements are to be considered equal, their keys should
+be the same (and the other way around).  If no key generation function
+is provided, the key will be the element as a string.
+<P>
+
+By default, comparisons will use ``eq'' and elements will be turned into keys
+using the default stringizing operator '&quot;&quot;'.
+<P>
+
+Where this is important is when you're comparing something other than
+strings.  If it is the case that you have multiple different objects
+that should be considered to be equal, you should supply a key
+generation function. Otherwise, you have to make sure that your arrays
+contain unique references.
+<P>
+
+For instance, consider this example:
+<P>
+
+
+
+<PRE>
+    package Person;
+
+    sub new
+    {
+        my $package = shift;
+        return bless { name =&gt; '', ssn =&gt; '', @_ }, $package;
+    }
+
+    sub clone
+    {
+        my $old = shift;
+        my $new = bless { %$old }, ref($old);
+    }
+
+    sub hash
+    {
+        return shift()-&gt;{'ssn'};
+    }
+
+    my $person1 = Person-&gt;new( name =&gt; 'Joe', ssn =&gt; '123-45-6789' );
+    my $person2 = Person-&gt;new( name =&gt; 'Mary', ssn =&gt; '123-47-0000' );
+    my $person3 = Person-&gt;new( name =&gt; 'Pete', ssn =&gt; '999-45-2222' );
+    my $person4 = Person-&gt;new( name =&gt; 'Peggy', ssn =&gt; '123-45-9999' );
+    my $person5 = Person-&gt;new( name =&gt; 'Frank', ssn =&gt; '000-45-9999' );
+
+</PRE>
+
+
+<P>
+
+If you did this:
+<P>
+
+
+
+<PRE>
+    my $array1 = [ $person1, $person2, $person4 ];
+    my $array2 = [ $person1, $person3, $person4, $person5 ];
+    Algorithm::Diff::diff( $array1, $array2 );
+
+</PRE>
+
+
+<P>
+
+everything would work out <FONT SIZE="-1">OK</FONT> (each of the objects would be converted
+into a string like ``Person=HASH(0x82425b0)'' for comparison).
+<P>
+
+But if you did this:
+<P>
+
+
+
+<PRE>
+    my $array1 = [ $person1, $person2, $person4 ];
+    my $array2 = [ $person1, $person3, $person4-&gt;clone(), $person5 ];
+    Algorithm::Diff::diff( $array1, $array2 );
+
+</PRE>
+
+
+<P>
+
+<TT>$person4</TT> and <TT>$person4</TT>-&gt;<I>clone()</I> (which have the same name and <FONT SIZE="-1">SSN</FONT>)
+would be seen as different objects. If you wanted them to be considered
+equivalent, you would have to pass in a key generation function:
+<P>
+
+
+
+<PRE>
+    my $array1 = [ $person1, $person2, $person4 ];
+    my $array2 = [ $person1, $person3, $person4-&gt;clone(), $person5 ];
+    Algorithm::Diff::diff( $array1, $array2, \&amp;Person::hash );
+
+</PRE>
+
+
+<P>
+
+This would use the 'ssn' field in each Person as a comparison key, and
+so would consider <TT>$person4</TT> and <TT>$person4</TT>-&gt;<I>clone()</I> as equal.
+<P>
+
+You may also pass additional parameters to the key generation function
+if you wish.
+<A NAME="lbAQ">&nbsp;</A>
+<H2>ERROR CHECKING</H2>
+
+
+
+If you pass these routines a non-reference and they expect a reference,
+they will die with a message.
+<A NAME="lbAR">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+
+
+This version released by Tye McQueen (<A HREF="http://perlmonks.org/?node=tye).">http://perlmonks.org/?node=tye).</A>
+<A NAME="lbAS">&nbsp;</A>
+<H2>LICENSE</H2>
+
+
+
+Parts Copyright (c) 2000-2004 Ned Konz.  All rights reserved.
+Parts by Tye McQueen.
+<P>
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl.
+<A NAME="lbAT">&nbsp;</A>
+<H2>MAILING LIST</H2>
+
+
+
+Mark-Jason still maintains a mailing list.  To join a low-volume mailing
+list for announcements related to diff and Algorithm::Diff, send an
+empty mail message to <A HREF="mailto:mjd-perl-diff-request@plover.com">mjd-perl-diff-request@plover.com</A>.
+<A NAME="lbAU">&nbsp;</A>
+<H2>CREDITS</H2>
+
+
+
+Versions through 0.59 (and much of this documentation) were written by:
+<P>
+
+Mark-Jason Dominus, <A HREF="mailto:mjd-perl-diff@plover.com">mjd-perl-diff@plover.com</A>
+<P>
+
+This version borrows some documentation and routine names from
+Mark-Jason's, but Diff.pm's code was completely replaced.
+<P>
+
+This code was adapted from the Smalltalk code of Mario Wolczko
+&lt;<A HREF="mailto:mario@wolczko.com">mario@wolczko.com</A>&gt;, which is available at
+<A HREF="ftp://st.cs.uiuc.edu/pub/Smalltalk/MANCHESTER/manchester/4.0/diff.st">ftp://st.cs.uiuc.edu/pub/Smalltalk/MANCHESTER/manchester/4.0/diff.st</A>
+<P>
+
+<TT>&quot;sdiff&quot;</TT> and <TT>&quot;traverse_balanced&quot;</TT> were written by Mike Schilli
+&lt;m@perlmeister.com&gt;.
+<P>
+
+The algorithm is that described in
+<I>A Fast Algorithm for Computing Longest Common Subsequences</I>,
+<FONT SIZE="-1">CACM,</FONT> vol.20, no.5, pp.350-353, May 1977, with a few
+minor improvements to improve the speed.
+<P>
+
+Much work was done by Ned Konz (<A HREF="mailto:perl@bike-nomad.com">perl@bike-nomad.com</A>).
+<P>
+
+The <FONT SIZE="-1">OO</FONT> interface and some other changes are by Tye McQueen.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="19"><A HREF="#lbAB">NAME</A><DD>
+<DT id="20"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="21"><A HREF="#lbAD">INTRODUCTION</A><DD>
+<DT id="22"><A HREF="#lbAE">USAGE</A><DD>
+<DL>
+<DT id="23"><A HREF="#lbAF">LCS</A><DD>
+<DT id="24"><A HREF="#lbAG">LCS_length</A><DD>
+<DT id="25"><A HREF="#lbAH">LCSidx</A><DD>
+<DT id="26"><A HREF="#lbAI">new</A><DD>
+<DT id="27"><A HREF="#lbAJ">prepare</A><DD>
+<DT id="28"><A HREF="#lbAK">diff</A><DD>
+<DT id="29"><A HREF="#lbAL">sdiff</A><DD>
+<DT id="30"><A HREF="#lbAM">compact_diff</A><DD>
+<DT id="31"><A HREF="#lbAN">traverse_sequences</A><DD>
+<DT id="32"><A HREF="#lbAO">traverse_balanced</A><DD>
+</DL>
+<DT id="33"><A HREF="#lbAP">KEY GENERATION FUNCTIONS</A><DD>
+<DT id="34"><A HREF="#lbAQ">ERROR CHECKING</A><DD>
+<DT id="35"><A HREF="#lbAR">AUTHOR</A><DD>
+<DT id="36"><A HREF="#lbAS">LICENSE</A><DD>
+<DT id="37"><A HREF="#lbAT">MAILING LIST</A><DD>
+<DT id="38"><A HREF="#lbAU">CREDITS</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:35 GMT, March 31, 2021
+</BODY>
+</HTML>

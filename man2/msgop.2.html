@@ -1,0 +1,975 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of MSGOP</TITLE>
+</HEAD><BODY>
+<H1>MSGOP</H1>
+Section: Linux Programmer's Manual (2)<BR>Updated: 2019-08-02<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+msgrcv, msgsnd - System V message queue operations
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<PRE>
+<B>#include &lt;<A HREF="file:///usr/include/sys/types.h">sys/types.h</A>&gt;</B>
+<B>#include &lt;<A HREF="file:///usr/include/sys/ipc.h">sys/ipc.h</A>&gt;</B>
+<B>#include &lt;<A HREF="file:///usr/include/sys/msg.h">sys/msg.h</A>&gt;</B>
+
+<B>int msgsnd(int </B><I>msqid</I><B>, const void *</B><I>msgp</I><B>, size_t </B><I>msgsz</I><B>, int </B><I>msgflg</I><B>);</B>
+
+<B>ssize_t msgrcv(int </B><I>msqid</I><B>, void *</B><I>msgp</I><B>, size_t </B><I>msgsz</I><B>, long </B><I>msgtyp</I><B>,</B>
+<B>               int </B><I>msgflg</I><B>);</B>
+</PRE>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+The
+<B>msgsnd</B>()
+
+and
+<B>msgrcv</B>()
+
+system calls are used to send messages to,
+and receive messages from, a System&nbsp;V message queue.
+The calling process must have write permission on the message queue
+in order to send a message, and read permission to receive a message.
+<P>
+
+The
+<I>msgp</I>
+
+argument is a pointer to a caller-defined structure
+of the following general form:
+<P>
+
+
+
+struct msgbuf {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;long&nbsp;mtype;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;message&nbsp;type,&nbsp;must&nbsp;be&nbsp;&gt;&nbsp;0&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;mtext[1];&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;message&nbsp;data&nbsp;*/
+};
+
+
+<P>
+
+The
+<I>mtext</I>
+
+field is an array (or other structure) whose size is specified by
+<I>msgsz</I>,
+
+a nonnegative integer value.
+Messages of zero length (i.e., no
+<I>mtext</I>
+
+field) are permitted.
+The
+<I>mtype</I>
+
+field must have a strictly positive integer value.
+This value can be
+used by the receiving process for message selection
+(see the description of
+<B>msgrcv</B>()
+
+below).
+<A NAME="lbAE">&nbsp;</A>
+<H3>msgsnd()</H3>
+
+The
+<B>msgsnd</B>()
+
+system call appends a copy of the message pointed to by
+<I>msgp</I>
+
+to the message queue whose identifier is specified
+by
+<I>msqid</I>.
+
+<P>
+
+If sufficient space is available in the queue,
+<B>msgsnd</B>()
+
+succeeds immediately.
+The queue capacity is governed by the
+<I>msg_qbytes</I>
+
+field in the associated data structure for the message queue.
+During queue creation this field is initialized to
+<B>MSGMNB</B>
+
+bytes, but this limit can be modified using
+<B><A HREF="/cgi-bin/man/man2html?2+msgctl">msgctl</A></B>(2).
+
+A message queue is considered to be full if either of the following
+conditions is true:
+<DL COMPACT>
+<DT id="1">*<DD>
+Adding a new message to the queue would cause the total number of bytes
+in the queue to exceed the queue's maximum size (the
+<I>msg_qbytes</I>
+
+field).
+<DT id="2">*<DD>
+Adding another message to the queue would cause the total number of messages
+in the queue to exceed the queue's maximum size (the
+<I>msg_qbytes</I>
+
+field).
+This check is necessary to prevent an unlimited number of zero-length
+messages being placed on the queue.
+Although such messages contain no data,
+they nevertheless consume (locked) kernel memory.
+</DL>
+<P>
+
+If insufficient space is available in the queue, then the default
+behavior of
+<B>msgsnd</B>()
+
+is to block until space becomes available.
+If
+<B>IPC_NOWAIT</B>
+
+is specified in
+<I>msgflg</I>,
+
+then the call instead fails with the error
+<B>EAGAIN</B>.
+
+<P>
+
+A blocked
+<B>msgsnd</B>()
+
+call may also fail if:
+<DL COMPACT>
+<DT id="3">*<DD>
+the queue is removed,
+in which case the system call fails with
+<I>errno</I>
+
+set to
+<B>EIDRM</B>;
+
+or
+<DT id="4">*<DD>
+a signal is caught, in which case the system call fails
+with
+<I>errno</I>
+
+set to
+<B>EINTR</B>;<B>see</B>
+
+<B><A HREF="/cgi-bin/man/man2html?7+signal">signal</A></B>(7).
+
+(<B>msgsnd</B>()
+
+is never automatically restarted after being interrupted by a
+signal handler, regardless of the setting of the
+<B>SA_RESTART</B>
+
+flag when establishing a signal handler.)
+</DL>
+<P>
+
+Upon successful completion the message queue data structure is updated
+as follows:
+<DL COMPACT>
+<DT id="5"><DD>
+<I>msg_lspid</I>
+
+is set to the process ID of the calling process.
+<DT id="6"><DD>
+<I>msg_qnum</I>
+
+is incremented by 1.
+<DT id="7"><DD>
+<I>msg_stime</I>
+
+is set to the current time.
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H3>msgrcv()</H3>
+
+The
+<B>msgrcv</B>()
+
+system call removes a message from the queue specified by
+<I>msqid</I>
+
+and places it in the buffer
+pointed to by
+<I>msgp</I>.
+
+<P>
+
+The argument
+<I>msgsz</I>
+
+specifies the maximum size in bytes for the member
+<I>mtext</I>
+
+of the structure pointed to by the
+<I>msgp</I>
+
+argument.
+If the message text has length greater than
+<I>msgsz</I>,
+
+then the behavior depends on whether
+<B>MSG_NOERROR</B>
+
+is specified in
+<I>msgflg</I>.
+
+If
+<B>MSG_NOERROR</B>
+
+is specified, then
+the message text will be truncated (and the truncated part will be
+lost); if
+<B>MSG_NOERROR</B>
+
+is not specified, then
+the message isn't removed from the queue and
+the system call fails returning -1 with
+<I>errno</I>
+
+set to
+<B>E2BIG</B>.
+
+<P>
+
+Unless
+<B>MSG_COPY</B>
+
+is specified in
+<I>msgflg</I>
+
+(see below),
+the
+<I>msgtyp</I>
+
+argument specifies the type of message requested, as follows:
+<DL COMPACT>
+<DT id="8">*<DD>
+If
+<I>msgtyp</I>
+
+is 0,
+then the first message in the queue is read.
+<DT id="9">*<DD>
+If
+<I>msgtyp</I>
+
+is greater than 0,
+then the first message in the queue of type
+<I>msgtyp</I>
+
+is read, unless
+<B>MSG_EXCEPT</B>
+
+was specified in
+<I>msgflg</I>,
+
+in which case
+the first message in the queue of type not equal to
+<I>msgtyp</I>
+
+will be read.
+<DT id="10">*<DD>
+If
+<I>msgtyp</I>
+
+is less than 0,
+then the first message in the queue with the lowest type less than or
+equal to the absolute value of
+<I>msgtyp</I>
+
+will be read.
+</DL>
+<P>
+
+The
+<I>msgflg</I>
+
+argument is a bit mask constructed by ORing together zero or more
+of the following flags:
+<DL COMPACT>
+<DT id="11"><B>IPC_NOWAIT</B>
+
+<DD>
+Return immediately if no message of the requested type is in the queue.
+The system call fails with
+<I>errno</I>
+
+set to
+<B>ENOMSG</B>.
+
+<DT id="12"><B>MSG_COPY</B> (since Linux 3.8)
+
+<DD>
+
+Nondestructively fetch a copy of the message at the ordinal position
+in the queue specified by
+<I>msgtyp</I>
+
+(messages are considered to be numbered starting at 0).
+<DT id="13"><DD>
+This flag must be specified in conjunction with
+<B>IPC_NOWAIT</B>,
+
+with the result that, if there is no message available at the given position,
+the call fails immediately with the error
+<B>ENOMSG</B>.
+
+Because they alter the meaning of
+<I>msgtyp</I>
+
+in orthogonal ways,
+<B>MSG_COPY</B>
+
+and
+<B>MSG_EXCEPT</B>
+
+may not both be specified in
+<I>msgflg</I>.
+
+<DT id="14"><DD>
+The
+<B>MSG_COPY</B>
+
+flag was added for the implementation of
+the kernel checkpoint-restore facility and
+is available only if the kernel was built with the
+<B>CONFIG_CHECKPOINT_RESTORE</B>
+
+option.
+<DT id="15"><B>MSG_EXCEPT</B>
+
+<DD>
+Used with
+<I>msgtyp</I>
+
+greater than 0
+to read the first message in the queue with message type that differs
+from
+<I>msgtyp</I>.
+
+<DT id="16"><B>MSG_NOERROR</B>
+
+<DD>
+To truncate the message text if longer than
+<I>msgsz</I>
+
+bytes.
+</DL>
+<P>
+
+If no message of the requested type is available and
+<B>IPC_NOWAIT</B>
+
+isn't specified in
+<I>msgflg</I>,
+
+the calling process is blocked until one of the following conditions occurs:
+<DL COMPACT>
+<DT id="17">*<DD>
+A message of the desired type is placed in the queue.
+<DT id="18">*<DD>
+The message queue is removed from the system.
+In this case, the system call fails with
+<I>errno</I>
+
+set to
+<B>EIDRM</B>.
+
+<DT id="19">*<DD>
+The calling process catches a signal.
+In this case, the system call fails with
+<I>errno</I>
+
+set to
+<B>EINTR</B>.
+
+(<B>msgrcv</B>()
+
+is never automatically restarted after being interrupted by a
+signal handler, regardless of the setting of the
+<B>SA_RESTART</B>
+
+flag when establishing a signal handler.)
+</DL>
+<P>
+
+Upon successful completion the message queue data structure is updated
+as follows:
+<DL COMPACT>
+<DT id="20"><DD>
+<I>msg_lrpid</I>
+
+is set to the process ID of the calling process.
+<DT id="21"><DD>
+<I>msg_qnum</I>
+
+is decremented by 1.
+<DT id="22"><DD>
+<I>msg_rtime</I>
+
+is set to the current time.
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+On failure both functions return -1
+with
+<I>errno</I>
+
+indicating the error,
+otherwise
+<B>msgsnd</B>()
+
+returns 0
+and
+<B>msgrcv</B>()
+
+returns the number of bytes actually copied into the
+<I>mtext</I>
+
+array.
+<A NAME="lbAH">&nbsp;</A>
+<H2>ERRORS</H2>
+
+When
+<B>msgsnd</B>()
+
+fails,
+<I>errno</I>
+
+will be set to one among the following values:
+<DL COMPACT>
+<DT id="23"><B>EACCES</B>
+
+<DD>
+The calling process does not have write permission on the message queue,
+and does not have the
+<B>CAP_IPC_OWNER</B>
+
+capability in the user namespace that governs its IPC namespace.
+<DT id="24"><B>EAGAIN</B>
+
+<DD>
+The message can't be sent due to the
+<I>msg_qbytes</I>
+
+limit for the queue and
+<B>IPC_NOWAIT</B>
+
+was specified in
+<I>msgflg</I>.
+
+<DT id="25"><B>EFAULT</B>
+
+<DD>
+The address pointed to by
+<I>msgp</I>
+
+isn't accessible.
+<DT id="26"><B>EIDRM</B>
+
+<DD>
+The message queue was removed.
+<DT id="27"><B>EINTR</B>
+
+<DD>
+Sleeping on a full message queue condition, the process caught a signal.
+<DT id="28"><B>EINVAL</B>
+
+<DD>
+Invalid
+<I>msqid</I>
+
+value, or nonpositive
+<I>mtype</I>
+
+value, or
+invalid
+<I>msgsz</I>
+
+value (less than 0 or greater than the system value
+<B>MSGMAX</B>).
+
+<DT id="29"><B>ENOMEM</B>
+
+<DD>
+The system does not have enough memory to make a copy of the
+message pointed to by
+<I>msgp</I>.
+
+</DL>
+<P>
+
+When
+<B>msgrcv</B>()
+
+fails,
+<I>errno</I>
+
+will be set to one among the following values:
+<DL COMPACT>
+<DT id="30"><B>E2BIG</B>
+
+<DD>
+The message text length is greater than
+<I>msgsz</I>
+
+and
+<B>MSG_NOERROR</B>
+
+isn't specified in
+<I>msgflg</I>.
+
+<DT id="31"><B>EACCES</B>
+
+<DD>
+The calling process does not have read permission on the message queue,
+and does not have the
+<B>CAP_IPC_OWNER</B>
+
+capability in the user namespace that governs its IPC namespace.
+<DT id="32"><B>EFAULT</B>
+
+<DD>
+The address pointed to by
+<I>msgp</I>
+
+isn't accessible.
+<DT id="33"><B>EIDRM</B>
+
+<DD>
+While the process was sleeping to receive a message,
+the message queue was removed.
+<DT id="34"><B>EINTR</B>
+
+<DD>
+While the process was sleeping to receive a message,
+the process caught a signal; see
+<B><A HREF="/cgi-bin/man/man2html?7+signal">signal</A></B>(7).
+
+<DT id="35"><B>EINVAL</B>
+
+<DD>
+<I>msqid</I>
+
+was invalid, or
+<I>msgsz</I>
+
+was less than 0.
+<DT id="36"><B>EINVAL</B> (since Linux 3.14)
+
+<DD>
+<I>msgflg</I>
+
+specified
+<B>MSG_COPY</B>,
+
+but not
+<B>IPC_NOWAIT</B>.
+
+<DT id="37"><B>EINVAL</B> (since Linux 3.14)
+
+<DD>
+<I>msgflg</I>
+
+specified both
+<B>MSG_COPY</B>
+
+and
+<B>MSG_EXCEPT</B>.
+
+<DT id="38"><B>ENOMSG</B>
+
+<DD>
+<B>IPC_NOWAIT</B>
+
+was specified in
+<I>msgflg</I>
+
+and no message of the requested type existed on the message queue.
+<DT id="39"><B>ENOMSG</B>
+
+<DD>
+<B>IPC_NOWAIT</B>
+
+and
+<B>MSG_COPY</B>
+
+were specified in
+<I>msgflg</I>
+
+and the queue contains less than
+<I>msgtyp</I>
+
+messages.
+<DT id="40"><B>ENOSYS</B> (since Linux 3.8)
+
+<DD>
+<I>MSG_COPY</I>
+
+was specified in
+<I>msgflg</I>,
+
+and this kernel was configured without
+<B>CONFIG_CHECKPOINT_RESTORE</B>.
+
+</DL>
+<A NAME="lbAI">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+POSIX.1-2001, POSIX.1-2008, SVr4.
+<P>
+
+The
+<B>MSG_EXCEPT</B>
+
+and
+<B>MSG_COPY</B>
+
+flags are Linux-specific;
+their definitions can be obtained by defining the
+<B>_GNU_SOURCE</B>
+
+
+feature test macro.
+<A NAME="lbAJ">&nbsp;</A>
+<H2>NOTES</H2>
+
+The inclusion of
+<I>&lt;<A HREF="file:///usr/include/sys/types.h">sys/types.h</A>&gt;</I>
+
+and
+<I>&lt;<A HREF="file:///usr/include/sys/ipc.h">sys/ipc.h</A>&gt;</I>
+
+isn't required on Linux or by any version of POSIX.
+However,
+some old implementations required the inclusion of these header files,
+and the SVID also documented their inclusion.
+Applications intended to be portable to such old systems may need
+to include these header files.
+
+
+<P>
+
+The
+<I>msgp</I>
+
+argument is declared as <I>struct msgbuf&nbsp;*</I> in
+glibc 2.0 and 2.1.
+It is declared as <I>void&nbsp;*</I>
+in glibc 2.2 and later, as required by SUSv2 and SUSv3.
+<P>
+
+The following limits on message queue resources affect the
+<B>msgsnd</B>()
+
+call:
+<DL COMPACT>
+<DT id="41"><B>MSGMAX</B>
+
+<DD>
+Maximum size of a message text, in bytes (default value: 8192 bytes).
+On Linux, this limit can be read and modified via
+<I>/proc/sys/kernel/msgmax</I>.
+
+<DT id="42"><B>MSGMNB</B>
+
+<DD>
+Maximum number of bytes that can be held in a message queue
+(default value: 16384 bytes).
+On Linux, this limit can be read and modified via
+<I>/proc/sys/kernel/msgmnb</I>.
+
+A privileged process
+(Linux: a process with the
+<B>CAP_SYS_RESOURCE</B>
+
+capability)
+can increase the size of a message queue beyond
+<B>MSGMNB</B>
+
+using the
+<B><A HREF="/cgi-bin/man/man2html?2+msgctl">msgctl</A></B>(2)
+
+<B>IPC_SET</B>
+
+operation.
+</DL>
+<P>
+
+The implementation has no intrinsic system-wide limits on the
+number of message headers
+(<B>MSGTQL</B>)
+
+and the number of bytes in the message pool
+(<B>MSGPOOL</B>).
+
+<A NAME="lbAK">&nbsp;</A>
+<H2>BUGS</H2>
+
+In Linux 3.13 and earlier,
+if
+<B>msgrcv</B>()
+
+was called with the
+<B>MSG_COPY</B>
+
+flag, but without
+<B>IPC_NOWAIT</B>,
+
+and the message queue contained less than
+<I>msgtyp</I>
+
+messages, then the call would block until the next message is written
+to the queue.
+
+At that point, the call would return a copy of the message,
+<I>regardless</I>
+
+of whether that message was at the ordinal position
+<I>msgtyp</I>.
+
+This bug is fixed
+
+in Linux 3.14.
+<P>
+
+Specifying both
+<B>MSG_COPY</B>
+
+and
+<B>MSC_EXCEPT</B>
+
+in
+<I>msgflg</I>
+
+is a logical error (since these flags impose different interpretations on
+<I>msgtyp</I>).
+
+In Linux 3.13 and earlier,
+
+this error was not diagnosed by
+<B>msgrcv</B>().
+
+This bug is fixed
+
+in Linux 3.14.
+<A NAME="lbAL">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+The program below demonstrates the use of
+<B>msgsnd</B>()
+
+and
+<B>msgrcv</B>().
+
+<P>
+
+The example program is first run with the <B>-s</B> option to send a
+message and then run again with the <B>-r</B> option to receive a
+message.
+<P>
+
+The following shell session shows a sample run of the program:
+<P>
+
+
+
+$<B> ./a.out -s</B>
+
+sent: a message at Wed Mar  4 16:25:45 2015
+<P>
+$<B> ./a.out -r</B>
+
+message received: a message at Wed Mar  4 16:25:45 2015
+
+
+<A NAME="lbAM">&nbsp;</A>
+<H3>Program source</H3>
+
+
+
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdlib.h">stdlib.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/string.h">string.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/time.h">time.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/unistd.h">unistd.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/errno.h">errno.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/sys/types.h">sys/types.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/sys/ipc.h">sys/ipc.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/sys/msg.h">sys/msg.h</A>&gt;
+<P>
+struct msgbuf {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;long&nbsp;mtype;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;mtext[80];
+};
+<P>
+static void
+usage(char *prog_name, char *msg)
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(msg&nbsp;!=&nbsp;NULL)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fputs(msg,&nbsp;stderr);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;Usage:&nbsp;%s&nbsp;[options]\n&quot;,&nbsp;prog_name);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;Options&nbsp;are:\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;-s&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;send&nbsp;message&nbsp;using&nbsp;msgsnd()\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;-r&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;read&nbsp;message&nbsp;using&nbsp;msgrcv()\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;-t&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;message&nbsp;type&nbsp;(default&nbsp;is&nbsp;1)\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;-k&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;message&nbsp;queue&nbsp;key&nbsp;(default&nbsp;is&nbsp;1234)\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+}
+<P>
+static void
+send_msg(int qid, int msgtype)
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;msgbuf&nbsp;msg;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;time_t&nbsp;t;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;msg.mtype&nbsp;=&nbsp;msgtype;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;time(&amp;t);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;snprintf(msg.mtext,&nbsp;sizeof(msg.mtext),&nbsp;&quot;a&nbsp;message&nbsp;at&nbsp;%s&quot;,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ctime(&amp;t));
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(msgsnd(qid,&nbsp;(void&nbsp;*)&nbsp;&amp;msg,&nbsp;sizeof(msg.mtext),
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IPC_NOWAIT)&nbsp;==&nbsp;-1)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;perror(&quot;msgsnd&nbsp;error&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;sent:&nbsp;%s\n&quot;,&nbsp;msg.mtext);
+}
+<P>
+static void
+get_msg(int qid, int msgtype)
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;msgbuf&nbsp;msg;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(msgrcv(qid,&nbsp;(void&nbsp;*)&nbsp;&amp;msg,&nbsp;sizeof(msg.mtext),&nbsp;msgtype,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MSG_NOERROR&nbsp;|&nbsp;IPC_NOWAIT)&nbsp;==&nbsp;-1)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(errno&nbsp;!=&nbsp;ENOMSG)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;perror(&quot;msgrcv&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;No&nbsp;message&nbsp;available&nbsp;for&nbsp;msgrcv()\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;else
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;message&nbsp;received:&nbsp;%s\n&quot;,&nbsp;msg.mtext);
+}
+<P>
+int
+main(int argc, char *argv[])
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;qid,&nbsp;opt;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;mode&nbsp;=&nbsp;0;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;1&nbsp;=&nbsp;send,&nbsp;2&nbsp;=&nbsp;receive&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;msgtype&nbsp;=&nbsp;1;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;msgkey&nbsp;=&nbsp;1234;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;while&nbsp;((opt&nbsp;=&nbsp;getopt(argc,&nbsp;argv,&nbsp;&quot;srt:k:&quot;))&nbsp;!=&nbsp;-1)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;switch&nbsp;(opt)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;case&nbsp;'s':
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mode&nbsp;=&nbsp;1;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;break;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;case&nbsp;'r':
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mode&nbsp;=&nbsp;2;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;break;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;case&nbsp;'t':
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;msgtype&nbsp;=&nbsp;atoi(optarg);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(msgtype&nbsp;&lt;=&nbsp;0)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;usage(argv[0],&nbsp;&quot;-t&nbsp;option&nbsp;must&nbsp;be&nbsp;greater&nbsp;than&nbsp;0\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;break;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;case&nbsp;'k':
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;msgkey&nbsp;=&nbsp;atoi(optarg);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;break;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;default:
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;usage(argv[0],&nbsp;&quot;Unrecognized&nbsp;option\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(mode&nbsp;==&nbsp;0)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;usage(argv[0],&nbsp;&quot;must&nbsp;use&nbsp;either&nbsp;-s&nbsp;or&nbsp;-r&nbsp;option\n&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;qid&nbsp;=&nbsp;msgget(msgkey,&nbsp;IPC_CREAT&nbsp;|&nbsp;0666);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(qid&nbsp;==&nbsp;-1)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;perror(&quot;msgget&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(mode&nbsp;==&nbsp;2)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;get_msg(qid,&nbsp;msgtype);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;else
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;send_msg(qid,&nbsp;msgtype);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_SUCCESS);
+}
+
+<A NAME="lbAN">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?2+msgctl">msgctl</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+msgget">msgget</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?7+capabilities">capabilities</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+mq_overview">mq_overview</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+sysvipc">sysvipc</A></B>(7)
+
+<A NAME="lbAO">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="43"><A HREF="#lbAB">NAME</A><DD>
+<DT id="44"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="45"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DL>
+<DT id="46"><A HREF="#lbAE">msgsnd()</A><DD>
+<DT id="47"><A HREF="#lbAF">msgrcv()</A><DD>
+</DL>
+<DT id="48"><A HREF="#lbAG">RETURN VALUE</A><DD>
+<DT id="49"><A HREF="#lbAH">ERRORS</A><DD>
+<DT id="50"><A HREF="#lbAI">CONFORMING TO</A><DD>
+<DT id="51"><A HREF="#lbAJ">NOTES</A><DD>
+<DT id="52"><A HREF="#lbAK">BUGS</A><DD>
+<DT id="53"><A HREF="#lbAL">EXAMPLE</A><DD>
+<DL>
+<DT id="54"><A HREF="#lbAM">Program source</A><DD>
+</DL>
+<DT id="55"><A HREF="#lbAN">SEE ALSO</A><DD>
+<DT id="56"><A HREF="#lbAO">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:33 GMT, March 31, 2021
+</BODY>
+</HTML>

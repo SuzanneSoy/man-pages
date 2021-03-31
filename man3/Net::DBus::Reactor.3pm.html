@@ -1,0 +1,428 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of Net::DBus::Reactor</TITLE>
+</HEAD><BODY>
+<H1>Net::DBus::Reactor</H1>
+Section: User Contributed Perl Documentation (3pm)<BR>Updated: 2019-12-26<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+Net::DBus::Reactor - application event loop
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+
+
+Create and run an event loop:
+<P>
+
+
+
+<PRE>
+   use Net::DBus::Reactor;
+   my $reactor = Net::DBus::Reactor-&gt;main();
+
+   $reactor-&gt;run();
+
+</PRE>
+
+
+<P>
+
+Manage some file handlers
+<P>
+
+
+
+<PRE>
+   $reactor-&gt;add_read($fd,
+                      Net::DBus::Callback-&gt;new(method =&gt; sub {
+                         my $fd = shift;
+                         ...read some data...
+                      }, args =&gt; [$fd]));
+
+   $reactor-&gt;add_write($fd,
+                       Net::DBus::Callback-&gt;new(method =&gt; sub {
+                          my $fd = shift;
+                          ...write some data...
+                       }, args =&gt; [$fd]));
+
+</PRE>
+
+
+<P>
+
+Temporarily (dis|en)able a handle
+<P>
+
+
+
+<PRE>
+   # Disable
+   $reactor-&gt;toggle_read($fd, 0);
+   # Enable
+   $reactor-&gt;toggle_read($fd, 1);
+
+</PRE>
+
+
+<P>
+
+Permanently remove a handle
+<P>
+
+
+
+<PRE>
+   $reactor-&gt;remove_read($fd);
+
+</PRE>
+
+
+<P>
+
+Manage a regular timeout every 100 milliseconds
+<P>
+
+
+
+<PRE>
+   my $timer = $reactor-&gt;add_timeout(100,
+                                     Net::DBus::Callback-&gt;new(
+              method =&gt; sub {
+                 ...process the alarm...
+              }));
+
+</PRE>
+
+
+<P>
+
+Temporarily (dis|en)able a timer
+<P>
+
+
+
+<PRE>
+   # Disable
+   $reactor-&gt;toggle_timeout($timer, 0);
+   # Enable
+   $reactor-&gt;toggle_timeout($timer, 1);
+
+</PRE>
+
+
+<P>
+
+Permanently remove a timer
+<P>
+
+
+
+<PRE>
+   $reactor-&gt;remove_timeout($timer);
+
+</PRE>
+
+
+<P>
+
+Add a post-dispatch hook
+<P>
+
+
+
+<PRE>
+   my $hook = $reactor-&gt;add_hook(Net::DBus::Callback-&gt;new(
+         method =&gt; sub {
+            ... do some work...
+         }));
+
+</PRE>
+
+
+<P>
+
+Remove a hook
+<P>
+
+
+
+<PRE>
+   $reactor-&gt;remove_hook($hook);
+
+</PRE>
+
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+
+This class provides a general purpose event loop for
+the purposes of multiplexing I/O events and timeouts
+in a single process. The underlying implementation is
+done using the select system call. File handles can
+be registered for monitoring on read, write and exception
+(out-of-band data) events. Timers can be registered
+to expire with a periodic frequency. These are implemented
+using the timeout parameter of the select system call.
+Since this parameter merely represents an upper bound
+on the amount of time the select system call is allowed
+to sleep, the actual period of the timers may vary. Under
+normal load this variance is typically 10 milliseconds.
+Finally, hooks may be registered which will be invoked on
+each iteration of the event loop (ie after processing
+the file events, or timeouts indicated by the select
+system call returning).
+<A NAME="lbAE">&nbsp;</A>
+<H2>METHODS</H2>
+
+
+
+<DL COMPACT>
+<DT id="1">my $reactor = Net::DBus::Reactor-&gt;<B>new()</B>;<DD>
+
+
+
+
+Creates a new event loop ready for monitoring file handles, or
+generating timeouts. Except in very unusual circumstances (examples
+of which I can't think up) it is not necessary or desriable to
+explicitly create new reactor instances. Instead call the main
+method to get a handle to the singleton instance.
+<DT id="2">$reactor = Net::DBus::Reactor-&gt;main;<DD>
+
+
+
+
+Return a handle to the singleton instance of the reactor. This
+is the recommended way of getting hold of a reactor, since it
+removes the need for modules to pass around handles to their
+privately created reactors.
+<DT id="3">$reactor-&gt;manage($connection);<DD>
+
+
+
+
+
+<DT id="4">$reactor-&gt;manage($server);<DD>
+
+
+
+
+
+Registers a <TT>&quot;Net::DBus::Binding::Connection&quot;</TT> or <TT>&quot;Net::DBus::Binding::Server&quot;</TT> object
+for management by the event loop. This basically involves
+hooking up the watch &amp; timeout callbacks to the event loop.
+For connections it will also register a hook to invoke the
+<TT>&quot;dispatch&quot;</TT> method periodically.
+<DT id="5">$reactor-&gt;<B>run()</B>;<DD>
+
+
+
+
+Starts the event loop monitoring any registered
+file handles and timeouts. At least one file
+handle, or timer must have been registered prior
+to running the reactor, otherwise it will immediately
+exit. The reactor will run until all registered
+file handles, or timeouts have been removed, or
+disabled. The reactor can be explicitly stopped by
+calling the <TT>&quot;shutdown&quot;</TT> method.
+<DT id="6">$reactor-&gt;<B>shutdown()</B>;<DD>
+
+
+
+
+Explicitly shutdown the reactor after pending
+events have been processed.
+<DT id="7">$reactor-&gt;<B>step()</B>;<DD>
+
+
+
+
+Perform one iteration of the event loop, going to
+sleep until an event occurs on a registered file
+handle, or a timeout occurrs. This method is generally
+not required in day-to-day use.
+<DT id="8">$reactor-&gt;add_read($fd, $callback[, $status]);<DD>
+
+
+
+
+Registers a file handle for monitoring of read
+events. The <TT>$callback</TT> parameter specifies either
+a code reference to a subroutine, or an instance of
+the <TT>&quot;Net::DBus::Callback&quot;</TT> object to invoke each time
+an event occurs. The optional <TT>$status</TT> parameter is
+a boolean value to specify whether the watch is
+initially enabled.
+<DT id="9">$reactor-&gt;add_write($fd, $callback[, $status]);<DD>
+
+
+
+
+Registers a file handle for monitoring of write
+events. The <TT>$callback</TT> parameter specifies either
+a code reference to a subroutine, or an
+instance of the <TT>&quot;Net::DBus::Callback&quot;</TT> object to invoke
+each time an event occurs. The optional <TT>$status</TT>
+parameter is a boolean value to specify whether the
+watch is initially enabled.
+<DT id="10">$reactor-&gt;add_exception($fd, $callback[, $status]);<DD>
+
+
+
+
+Registers a file handle for monitoring of exception
+events. The <TT>$callback</TT> parameter specifies either
+a code reference to a subroutine, or  an
+instance of the <TT>&quot;Net::DBus::Callback&quot;</TT> object to invoke
+each time an event occurs. The optional <TT>$status</TT>
+parameter is a boolean value to specify whether the
+watch is initially enabled.
+<DT id="11">my $id = $reactor-&gt;add_timeout($interval, $callback, $status);<DD>
+
+
+
+
+Registers a new timeout to expire every <TT>$interval</TT>
+milliseconds. The <TT>$callback</TT> parameter specifies either
+a code reference to a subroutine, or an
+instance of the <TT>&quot;Net::DBus::Callback&quot;</TT> object to invoke
+each time the timeout expires. The optional <TT>$status</TT>
+parameter is a boolean value to specify whether the
+timeout is initially enabled. The return parameter is
+a unique identifier which can be used to later remove
+or disable the timeout.
+<DT id="12">$reactor-&gt;remove_timeout($id);<DD>
+
+
+
+
+Removes a previously registered timeout specified by
+the <TT>$id</TT> parameter.
+<DT id="13">$reactor-&gt;toggle_timeout($id, $status[, $interval]);<DD>
+
+
+
+
+Updates the state of a previously registered timeout
+specified by the <TT>$id</TT> parameter. The <TT>$status</TT>
+parameter specifies whether the timeout is to be enabled
+or disabled, while the optional <TT>$interval</TT> parameter
+can be used to change the period of the timeout.
+<DT id="14">my $id = $reactor-&gt;add_hook($callback[, $status]);<DD>
+
+
+
+
+Registers a new hook to be fired on each iteration
+of the event loop. The <TT>$callback</TT> parameter
+specifies  either a code reference to a subroutine, or
+an instance of the <TT>&quot;Net::DBus::Callback&quot;</TT>
+class to invoke. The <TT>$status</TT> parameter determines
+whether the hook is initially enabled, or disabled.
+The return parameter is a unique id which should
+be used to later remove, or disable the hook.
+<DT id="15">$reactor-&gt;remove_hook($id)<DD>
+
+
+
+
+Removes the previously registered hook identified
+by <TT>$id</TT>.
+<DT id="16">$reactor-&gt;toggle_hook($id, $status)<DD>
+
+
+
+
+Updates the status of the previously registered
+hook identified by <TT>$id</TT>. The <TT>$status</TT> parameter
+determines whether the hook is to be enabled or
+disabled.
+<DT id="17">$reactor-&gt;remove_read($fd);<DD>
+
+
+
+
+
+<DT id="18">$reactor-&gt;remove_write($fd);<DD>
+
+
+
+
+<DT id="19">$reactor-&gt;remove_exception($fd);<DD>
+
+
+
+
+
+Removes a watch on the file handle <TT>$fd</TT>.
+<DT id="20">$reactor-&gt;toggle_read($fd, $status);<DD>
+
+
+
+
+
+<DT id="21">$reactor-&gt;toggle_write($fd, $status);<DD>
+
+
+
+
+<DT id="22">$reactor-&gt;toggle_exception($fd, $status);<DD>
+
+
+
+
+
+Updates the status of a watch on the file handle <TT>$fd</TT>.
+The <TT>$status</TT> parameter species whether the watch is
+to be enabled or disabled.
+</DL>
+<A NAME="lbAF">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+
+Net::DBus::Callback, Net::DBus::Connection, Net::DBus::Server
+<A NAME="lbAG">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+
+
+Daniel Berrange &lt;<A HREF="mailto:dan@berrange.com">dan@berrange.com</A>&gt;
+<A NAME="lbAH">&nbsp;</A>
+<H2>COPYRIGHT</H2>
+
+
+
+Copyright 2004-2011 by Daniel Berrange
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="23"><A HREF="#lbAB">NAME</A><DD>
+<DT id="24"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="25"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="26"><A HREF="#lbAE">METHODS</A><DD>
+<DT id="27"><A HREF="#lbAF">SEE ALSO</A><DD>
+<DT id="28"><A HREF="#lbAG">AUTHOR</A><DD>
+<DT id="29"><A HREF="#lbAH">COPYRIGHT</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:49 GMT, March 31, 2021
+</BODY>
+</HTML>

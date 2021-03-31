@@ -1,0 +1,240 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SD_JOURNAL_PRINT</TITLE>
+</HEAD><BODY>
+<H1>SD_JOURNAL_PRINT</H1>
+Section: sd_journal_print (3)<BR>Updated: <BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+sd_journal_print, sd_journal_printv, sd_journal_send, sd_journal_sendv, sd_journal_perror, SD_JOURNAL_SUPPRESS_LOCATION - Submit log entries to the journal
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+<B>
+</B><PRE>
+#include &lt;<A HREF="file:///usr/include/systemd/sd-journal.h">systemd/sd-journal.h</A>&gt;
+</PRE>
+
+
+<DL COMPACT>
+<DT id="1">
+<B>int sd_journal_print(int&nbsp;</B><I>priority</I><B>, const&nbsp;char&nbsp;*</B><I>format</I><B>, ...);</B>
+
+<DT id="2">
+<B>int sd_journal_printv(int&nbsp;</B><I>priority</I><B>, const&nbsp;char&nbsp;*</B><I>format</I><B>, va_list&nbsp;</B><I>ap</I><B>);</B>
+
+<DT id="3">
+<B>int sd_journal_send(const&nbsp;char&nbsp;*</B><I>format</I><B>, ...);</B>
+
+<DT id="4">
+<B>int sd_journal_sendv(const&nbsp;struct&nbsp;iovec&nbsp;*</B><I>iov</I><B>, int&nbsp;</B><I>n</I><B>);</B>
+
+<DT id="5">
+<B>int sd_journal_perror(const&nbsp;char&nbsp;*</B><I>message</I><B>);</B>
+
+</DL>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+<B>sd_journal_print()</B>
+<DD>may be used to submit simple, plain text log entries to the system journal. The first argument is a priority value. This is followed by a format string and its parameters, similar to
+<B><A HREF="/cgi-bin/man/man2html?3+printf">printf</A></B>(3)
+or
+<B><A HREF="/cgi-bin/man/man2html?3+syslog">syslog</A></B>(3). Note that currently the resulting message will be truncated to
+<B>LINE_MAX - 8</B>. The priority value is one of
+<B>LOG_EMERG</B>,
+<B>LOG_ALERT</B>,
+<B>LOG_CRIT</B>,
+<B>LOG_ERR</B>,
+<B>LOG_WARNING</B>,
+<B>LOG_NOTICE</B>,
+<B>LOG_INFO</B>,
+<B>LOG_DEBUG</B>, as defined in
+syslog.h, see
+<B><A HREF="/cgi-bin/man/man2html?3+syslog">syslog</A></B>(3)
+for details. It is recommended to use this call to submit log messages in the application locale or system locale and in UTF-8 format, but no such restrictions are enforced. Note that log messages written using this function are generally not expected to end in a new-line character. However, as all trailing whitespace (including spaces, new-lines, tabulators and carriage returns) are automatically stripped from the logged string, it is acceptable to specify one (or more). Empty lines (after trailing whitespace removal) are suppressed. On non-empty lines, leading whitespace (as well as inner whitespace) is left unmodified.
+<P>
+
+<B>sd_journal_printv()</B>
+is similar to
+<B>sd_journal_print()</B>
+but takes a variable argument list encapsulated in an object of type
+<I>va_list</I>
+(see
+<B><A HREF="/cgi-bin/man/man2html?3+stdarg">stdarg</A></B>(3)
+for more information) instead of the format string. It is otherwise equivalent in behavior.
+<P>
+
+<B>sd_journal_send()</B>
+may be used to submit structured log entries to the system journal. It takes a series of format strings, each immediately followed by their associated parameters, terminated by
+<B>NULL</B>. The strings passed should be of the format
+&quot;VARIABLE=value&quot;. The variable name must be in uppercase and consist only of characters, numbers and underscores, and may not begin with an underscore. (All assignments that do not follow this syntax will be ignored.) The value can be of any size and format. It is highly recommended to submit text strings formatted in the UTF-8 character encoding only, and submit binary fields only when formatting in UTF-8 strings is not sensible. A number of well-known fields are defined, see
+<B><A HREF="/cgi-bin/man/man2html?7+systemd.journal-fields">systemd.journal-fields</A></B>(7)
+for details, but additional application defined fields may be used. A variable may be assigned more than one value per entry. If this function is used, trailing whitespace is automatically removed from each formatted field.
+<P>
+
+<B>sd_journal_sendv()</B>
+is similar to
+<B>sd_journal_send()</B>
+but takes an array of
+<I>struct iovec</I>
+(as defined in
+uio.h, see
+<B><A HREF="/cgi-bin/man/man2html?3+readv">readv</A></B>(3)
+for details) instead of the format string. Each structure should reference one field of the entry to submit. The second argument specifies the number of structures in the array.
+<B>sd_journal_sendv()</B>
+is particularly useful to submit binary objects to the journal where that is necessary. Note that this function will not strip trailing whitespace of the passed fields, but passes the specified data along unmodified. This is different from both
+<B>sd_journal_print()</B>
+and
+<B>sd_journal_send()</B>
+described above, which are based on format strings, and do strip trailing whitespace.
+<P>
+
+<B>sd_journal_perror()</B>
+is a similar to
+<B><A HREF="/cgi-bin/man/man2html?3+perror">perror</A></B>(3)
+and writes a message to the journal that consists of the passed string, suffixed with &quot;: &quot; and a human-readable representation of the current error code stored in
+<B><A HREF="/cgi-bin/man/man2html?3+errno">errno</A></B>(3). If the message string is passed as
+<B>NULL</B>
+or empty string, only the error string representation will be written, prefixed with nothing. An additional journal field ERRNO= is included in the entry containing the numeric error code formatted as decimal string. The log priority used is
+<B>LOG_ERR</B>
+(3).
+<P>
+
+Note that
+<B>sd_journal_send()</B>
+is a wrapper around
+<B>sd_journal_sendv()</B>
+to make it easier to use when only text strings shall be submitted. Also, the following two calls are mostly equivalent:
+<P>
+<DL COMPACT><DT id="6"><DD>
+
+
+
+<PRE>
+sd_journal_print(LOG_INFO, &quot;Hello World, this is PID %lu!&quot;, (unsigned long) getpid());
+
+sd_journal_send(&quot;MESSAGE=Hello World, this is PID %lu!&quot;, (unsigned long) getpid(),
+                &quot;PRIORITY=%i&quot;, LOG_INFO,
+                NULL);
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+Note that these calls implicitly add fields for the source file, function name and code line where invoked. This is implemented with macros. If this is not desired, it can be turned off by defining SD_JOURNAL_SUPPRESS_LOCATION before including
+sd-journal.h.
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?3+syslog">syslog</A></B>(3)
+and
+<B>sd_journal_print()</B>
+may largely be used interchangeably functionality-wise. However, note that log messages logged via the former take a different path to the journal server than the later, and hence global chronological ordering between the two streams cannot be guaranteed. Using
+<B>sd_journal_print()</B>
+has the benefit of logging source code line, filenames, and functions as metadata along all entries, and guaranteeing chronological ordering with structured log entries that are generated via
+<B>sd_journal_send()</B>. Using
+<B>syslog()</B>
+has the benefit of being more portable.
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+<P>
+
+The five calls return 0 on success or a negative errno-style error code. The
+<B><A HREF="/cgi-bin/man/man2html?3+errno">errno</A></B>(3)
+variable itself is not altered.
+<P>
+
+If
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-journald">systemd-journald</A></B>(8)
+is not running (the socket is not present), those functions do nothing, and also return 0.
+<A NAME="lbAF">&nbsp;</A>
+<H2>THREAD SAFETY</H2>
+
+<P>
+
+All functions listed here are thread-safe and may be called in parallel from multiple threads.
+<P>
+
+<B>sd_journal_sendv()</B>
+is &quot;async signal safe&quot; in the meaning of
+<B><A HREF="/cgi-bin/man/man2html?7+signal-safety">signal-safety</A></B>(7).
+<P>
+
+<B>sd_journal_print</B>,
+<B>sd_journal_printv</B>,
+<B>sd_journal_send</B>, and
+<B>sd_journal_perror</B>
+are not async signal safe.
+<A NAME="lbAG">&nbsp;</A>
+<H2>NOTES</H2>
+
+<P>
+
+These APIs are implemented as a shared library, which can be compiled and linked to with the
+<B>libsystemd</B>&nbsp;<B><A HREF="/cgi-bin/man/man2html?1+pkg-config">pkg-config</A></B>(1)
+file.
+<A NAME="lbAH">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?3+sd-journal">sd-journal</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_journal_stream_fd">sd_journal_stream_fd</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+syslog">syslog</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+perror">perror</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+errno">errno</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?7+systemd.journal-fields">systemd.journal-fields</A></B>(7),
+<B><A HREF="/cgi-bin/man/man2html?7+signal">signal</A></B>(7),
+<B><A HREF="/cgi-bin/man/man2html?7+socket">socket</A></B>(7)
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="7"><A HREF="#lbAB">NAME</A><DD>
+<DT id="8"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="9"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="10"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DT id="11"><A HREF="#lbAF">THREAD SAFETY</A><DD>
+<DT id="12"><A HREF="#lbAG">NOTES</A><DD>
+<DT id="13"><A HREF="#lbAH">SEE ALSO</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:55 GMT, March 31, 2021
+</BODY>
+</HTML>

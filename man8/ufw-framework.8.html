@@ -1,0 +1,408 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of UFW FRAMEWORK</TITLE>
+</HEAD><BODY>
+<H1>UFW FRAMEWORK</H1>
+Section: April 2014 (8)<BR>Updated: <BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<P>
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+ufw-framework - using the ufw framework
+<P>
+
+<A NAME="lbAC">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<B>ufw</B> provides both a command line interface and a framework for managing a
+netfilter firewall. While the <B>ufw</B> command provides an easy to use
+interface for managing a firewall, the <B>ufw</B> framework provides the
+administrator methods to customize default behavior and add rules not
+supported by the command line tool. In this way, <B>ufw</B> can take full
+advantage of Linux netfilter's power and flexibility.
+<P>
+<A NAME="lbAD">&nbsp;</A>
+<H2>OVERVIEW</H2>
+
+<P>
+
+The framework provides boot time initialization, rules files for adding custom
+rules, a method for loading netfilter modules, configuration of kernel
+parameters and configuration of IPv6. The framework consists of the following
+files:
+<DL COMPACT>
+<DT id="1">/lib/ufw/ufw-init<DD>
+initialization script
+<DT id="2">/etc/ufw/before.init<DD>
+initialization customization script run before ufw is initialized
+<DT id="3">/etc/ufw/after.init<DD>
+initialization customization script run after ufw is initialized
+<DT id="4">/etc/ufw/before[6].rules<DD>
+rules file containing rules evaluated before UI added rules
+<DT id="5">/etc/ufw/user[6].rules<DD>
+rules file containing UI added rules (managed with the <B>ufw</B> command)
+<DT id="6">/etc/ufw/after[6].rules<DD>
+rules file containing rules evaluated after UI added rules
+<DT id="7">/etc/default/ufw<DD>
+high level configuration
+<DT id="8">/etc/ufw/sysctl.conf<DD>
+kernel network tunables
+<DT id="9">/etc/ufw/ufw.conf<DD>
+additional high level configuration
+<P>
+</DL>
+<A NAME="lbAE">&nbsp;</A>
+<H2>BOOT INITIALIZATION</H2>
+
+<P>
+
+<B>ufw</B> is started on boot with /lib/ufw/ufw-init. This script is a
+standard SysV style initscript used by the <B>ufw</B> command and should not be
+modified. The /etc/before.init and /etc/after.init
+scripts may be used to perform any additional firewall configuration that is
+not yet supported in ufw itself and if they exist and are executable, ufw-init
+will execute these scripts. ufw-init will exit with error if either of these
+scripts exit with error. ufw-init supports the following arguments:
+<DL COMPACT>
+<DT id="10">start:<DD>
+loads the firewall
+<DT id="11">stop:<DD>
+unloads the firewall
+<DT id="12">restart:<DD>
+reloads the firewall
+<DT id="13">force-reload:<DD>
+same as restart
+<DT id="14">status:<DD>
+basic status of the firewall
+<DT id="15">force-stop:<DD>
+same as stop, except does not check if the firewall is already loaded
+<DT id="16">flush-all:<DD>
+flushes the built-in chains, deletes all non-built-in chains and resets the
+policy to ACCEPT
+</DL>
+<P>
+
+ufw-init will call before.init and after.init with start, stop, status and
+flush-all, but typically, if used, these scripts need only implement start and
+stop.
+<P>
+
+<B>ufw</B> uses many user-defined chains in addition to the built-in iptables
+chains. If MANAGE_BUILTINS in /etc/default/ufw is set to 'yes', on
+stop and reload the built-in chains are flushed. If it is set to 'no', on stop
+and reload the <B>ufw</B> secondary chains are removed and the <B>ufw</B> primary
+chains are flushed. In addition to flushing the <B>ufw</B> specific chains, it
+keeps the primary chains in the same order with respect to any other
+user-defined chains that may have been added. This allows for <B>ufw</B> to
+interoperate with other software that may manage their own firewall rules.
+<P>
+
+To ensure your firewall is loading on boot, you must integrate this script
+into the boot process. Consult your distribution's documentation for the proper
+way to modify your boot process if <B>ufw</B> is not already integrated.
+<P>
+<A NAME="lbAF">&nbsp;</A>
+<H2>RULES FILES</H2>
+
+<P>
+
+<B>ufw</B> is in part a front-end for <B>iptables-restore</B>, with its rules
+saved in /etc/ufw/before.rules, /etc/ufw/after.rules and
+/etc/ufw/user.rules. Administrators can customize <B>before.rules</B>
+and <B>after.rules</B> as desired using the standard <B>iptables-restore</B>
+syntax. Rules are evaluated as follows: <B>before.rules</B> first,
+<B>user.rules</B> next, and <B>after.rules</B> last. IPv6 rules are evaluated in
+the same way, with the rules files named <B>before6.rules</B>, <B>user6.rules</B>
+and <B>after6.rules</B>. Please note that <B>ufw status</B> only shows rules
+added with <B>ufw</B> and not the rules found in the /etc/ufw rules
+files.
+<P>
+
+<B>Important</B>: <B>ufw</B> only uses the *filter table by default. You
+may add any other tables such as *nat, *raw and *mangle as desired. For each
+table a corresponding COMMIT statement is required.
+<P>
+
+After modifying any of these files, you must reload <B>ufw</B> for the rules to
+take effect.  See the EXAMPLES section for common uses of these rules files.
+<P>
+<A NAME="lbAG">&nbsp;</A>
+<H2>MODULES</H2>
+
+<P>
+
+Netfilter has many different connection tracking modules. These modules are
+aware of the underlying protocol and allow the administrator to simplify his or
+her rule sets. You can adjust which netfilter modules to load by adjusting
+IPT_MODULES in /etc/default/ufw. Some popular modules to load are:
+<P>
+<BR>&nbsp;&nbsp;nf_conntrack_ftp
+<BR>&nbsp;&nbsp;nf_nat_ftp
+<BR>&nbsp;&nbsp;nf_conntrack_irc
+<BR>&nbsp;&nbsp;nf_nat_irc
+<BR>&nbsp;&nbsp;nf_conntrack_netbios_ns
+<BR>&nbsp;&nbsp;nf_conntrack_pptp
+<BR>&nbsp;&nbsp;nf_conntrack_tftp
+<BR>&nbsp;&nbsp;nf_nat_tftp
+<BR>&nbsp;&nbsp;nf_conntrack_sane
+<P>
+
+Unconditional loading of connection tracking modules (nf_conntrack_*) in this
+manner is deprecated. <B>ufw</B> continues to support the functionality but new
+configuration should only contain the specific modules required for the site.
+For more information, see CONNECTION HELPERS.
+<P>
+<A NAME="lbAH">&nbsp;</A>
+<H2>KERNEL PARAMETERS</H2>
+
+<P>
+
+<B>ufw</B> will read in /etc/ufw/sysctl.conf on boot when enabled.
+Please note that /etc/ufw/sysctl.conf overrides values in the
+system systcl.conf (usually /etc/sysctl.conf). Administrators can
+change the file used by modifying /etc/default/ufw.
+<P>
+<A NAME="lbAI">&nbsp;</A>
+<H2>IPV6</H2>
+
+<P>
+
+IPv6 is enabled by default. When disabled, all incoming, outgoing and forwarded
+packets are dropped, with the exception of traffic on the loopback interface.
+To adjust this behavior, set IPV6 to 'yes' in /etc/default/ufw. See
+the <B>ufw</B> manual page for details.
+<P>
+<A NAME="lbAJ">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+<P>
+
+As mentioned, <B>ufw</B> loads its rules files into the kernel by using the
+<B>iptables-restore</B> and <B>ip6tables-restore</B> commands. Users wanting
+to add rules to the <B>ufw</B> rules files manually must be familiar with
+these as well as the <B>iptables</B> and <B>ip6tables</B> commands. Below are
+some common examples of using the <B>ufw</B> rules files.  All examples assume
+IPv4 only and that DEFAULT_FORWARD_POLICY in /etc/default/ufw is
+set to DROP.
+<A NAME="lbAK">&nbsp;</A>
+<H3>IP Masquerading</H3>
+
+<P>
+
+To allow IP masquerading for computers from the 10.0.0.0/8 network on eth1 to
+share the single IP address on eth0:
+<DL COMPACT>
+<DT id="17">Edit /etc/ufw/sysctl.conf to have:<DD>
+<BR>&nbsp;net.ipv4.ip_forward=1
+<DT id="18">Add to the end of /etc/ufw/before.rules, after the *filter section:<DD>
+<BR>&nbsp;*nat
+<BR>&nbsp;:POSTROUTING&nbsp;ACCEPT&nbsp;[0:0]
+<BR>&nbsp;-A&nbsp;POSTROUTING&nbsp;-s&nbsp;10.0.0.0/8&nbsp;-o&nbsp;eth0&nbsp;-j&nbsp;MASQUERADE
+<BR>&nbsp;COMMIT
+<DT id="19">If your firewall is using IPv6 tunnels or 6to4 and is also doing NAT, then you should not usually masquerade protocol '41' (ipv6) packets. For example, instead of the above, /etc/ufw/before.rules can be adjusted to have:<DD>
+<BR>&nbsp;*nat
+<BR>&nbsp;:POSTROUTING&nbsp;ACCEPT&nbsp;[0:0]
+<BR>&nbsp;-A&nbsp;POSTROUTING&nbsp;-s&nbsp;10.0.0.0/8&nbsp;!&nbsp;--protocol&nbsp;41&nbsp;-o&nbsp;eth0&nbsp;-j&nbsp;MASQUERADE
+<BR>&nbsp;COMMIT
+<DT id="20">Add the <B>ufw route</B> to allow the traffic:<DD>
+<BR>&nbsp;ufw&nbsp;route&nbsp;allow&nbsp;in&nbsp;on&nbsp;eth1&nbsp;out&nbsp;on&nbsp;eth0&nbsp;from&nbsp;10.0.0.0/8
+</DL>
+<A NAME="lbAL">&nbsp;</A>
+<H3>Port Redirections</H3>
+
+<P>
+
+To forward tcp port 80 on eth0 to go to the webserver at 10.0.0.2:
+<DL COMPACT>
+<DT id="21">Edit /etc/ufw/sysctl.conf to have:<DD>
+<BR>&nbsp;net.ipv4.ip_forward=1
+<DT id="22">Add to the end of /etc/ufw/before.rules, after the *filter section:<DD>
+<BR>&nbsp;*nat
+<BR>&nbsp;:PREROUTING&nbsp;ACCEPT&nbsp;[0:0]
+<BR>&nbsp;-A&nbsp;PREROUTING&nbsp;-p&nbsp;tcp&nbsp;-i&nbsp;eth0&nbsp;--dport&nbsp;80&nbsp;-j&nbsp;DNAT&nbsp;\
+<BR>&nbsp;&nbsp;&nbsp;--to-destination&nbsp;10.0.0.2:80
+<BR>&nbsp;COMMIT
+<DT id="23">Add the <B>ufw route</B> rule to allow the traffic:<DD>
+<BR>&nbsp;ufw&nbsp;route&nbsp;allow&nbsp;in&nbsp;on&nbsp;eth0&nbsp;to&nbsp;10.0.0.2&nbsp;port&nbsp;80&nbsp;proto&nbsp;tcp
+<P>
+</DL>
+<A NAME="lbAM">&nbsp;</A>
+<H3>Egress filtering</H3>
+
+<P>
+
+To block RFC1918 addresses going out of eth0:
+<DL COMPACT>
+<DT id="24">Add the <B>ufw route</B> rules to reject the traffic:<DD>
+<BR>&nbsp;ufw&nbsp;route&nbsp;reject&nbsp;out&nbsp;on&nbsp;eth0&nbsp;to&nbsp;10.0.0.0/8
+<BR>&nbsp;ufw&nbsp;route&nbsp;reject&nbsp;out&nbsp;on&nbsp;eth0&nbsp;to&nbsp;172.16.0.0/12
+<BR>&nbsp;ufw&nbsp;route&nbsp;reject&nbsp;out&nbsp;on&nbsp;eth0&nbsp;to&nbsp;192.168.0.0/16
+<P>
+</DL>
+<A NAME="lbAN">&nbsp;</A>
+<H3>Full example</H3>
+
+<P>
+
+This example combines the other examples and demonstrates a simple routing
+firewall. <B>Warning</B>: this setup is only an example to demonstrate
+the functionality of the <B>ufw</B> framework in a concise and simple manner
+and should not be used in production without understanding what each part
+does and does not do. Your firewall will undoubtedly want to be less open.
+<P>
+
+This router/firewall has two interfaces: eth0 (Internet facing) and eth1
+(internal LAN). Internal clients have addresses on the 10.0.0.0/8 network
+and should be able to connect to anywhere on the Internet. Connections
+to port 80 from the Internet should be forwarded to 10.0.0.2. Access to
+ssh port 22 from the administrative workstation (10.0.0.100) to this machine
+should be allowed. Also make sure no internal traffic goes to the Internet.
+<DL COMPACT>
+<DT id="25">Edit /etc/ufw/sysctl.conf to have:<DD>
+<BR>&nbsp;&nbsp;net.ipv4.ip_forward=1
+<DT id="26">Add to the end of /etc/ufw/before.rules, after the *filter section:<DD>
+<BR>&nbsp;*nat
+<BR>&nbsp;:PREROUTING&nbsp;ACCEPT&nbsp;[0:0]
+<BR>&nbsp;:POSTROUTING&nbsp;ACCEPT&nbsp;[0:0]
+<BR>&nbsp;-A&nbsp;PREROUTING&nbsp;-p&nbsp;tcp&nbsp;-i&nbsp;eth0&nbsp;--dport&nbsp;80&nbsp;-j&nbsp;DNAT&nbsp;\
+<BR>&nbsp;&nbsp;&nbsp;--to-destination&nbsp;10.0.0.2:80
+<BR>&nbsp;-A&nbsp;POSTROUTING&nbsp;-s&nbsp;10.0.0.0/8&nbsp;-o&nbsp;eth0&nbsp;-j&nbsp;MASQUERADE
+<BR>&nbsp;COMMIT
+<DT id="27">Add the necessary <B>ufw</B> rules:<DD>
+<BR>&nbsp;ufw&nbsp;route&nbsp;reject&nbsp;out&nbsp;on&nbsp;eth0&nbsp;to&nbsp;10.0.0.0/8
+<BR>&nbsp;ufw&nbsp;route&nbsp;reject&nbsp;out&nbsp;on&nbsp;eth0&nbsp;to&nbsp;172.16.0.0/12
+<BR>&nbsp;ufw&nbsp;route&nbsp;reject&nbsp;out&nbsp;on&nbsp;eth0&nbsp;to&nbsp;192.168.0.0/16
+<BR>&nbsp;ufw&nbsp;route&nbsp;allow&nbsp;in&nbsp;on&nbsp;eth1&nbsp;out&nbsp;on&nbsp;eth0&nbsp;from&nbsp;10.0.0.0/8
+<BR>&nbsp;ufw&nbsp;route&nbsp;allow&nbsp;in&nbsp;on&nbsp;eth0&nbsp;to&nbsp;10.0.0.2&nbsp;port&nbsp;80&nbsp;proto&nbsp;tcp
+<BR>&nbsp;ufw&nbsp;allow&nbsp;in&nbsp;on&nbsp;eth1&nbsp;from&nbsp;10.0.0.100&nbsp;to&nbsp;any&nbsp;port&nbsp;22&nbsp;proto&nbsp;tcp
+<P>
+</DL>
+<A NAME="lbAO">&nbsp;</A>
+<H2>CONNECTION HELPERS</H2>
+
+<P>
+
+Various protocols require the use of netfilter connection tracking helpers to
+group related packets into RELATED flows to make rulesets clearer and more
+precise. For example, with a couple of kernel modules and a couple of rules, a
+ruleset could simply allow a connection to FTP port 21, then the kernel would
+examine the traffic and mark the other FTP data packets as RELATED to the
+initial connection.
+<P>
+
+When the helpers were first introduced, one could only configure the modules as
+part of module load (eg, if your FTP server listened on a different port than
+21, you'd have to load the nf_conntrack_ftp module specifying the correct
+port). Over time it was understood that unconditionally using connection
+helpers could lead to abuse, in part because some protocols allow user
+specified data that would allow traversing the firewall in undesired ways. As
+of kernel 4.7, automatic conntrack helper assignment (ie, handling packets for
+a given port and all IP addresses) is disabled (the old behavior can be
+restored by setting net/netfilter/nf_conntrack_helper=1 in
+/etc/ufw/sysctl.conf). Firewalls should now instead use the CT
+target to associate traffic with a particular helper and then set RELATED rules
+to use the helper. This allows sites to tailor the use of helpers and help
+avoid abuse.
+<P>
+
+In general, to use helpers securely, the following needs to happen:
+<DL COMPACT>
+<DT id="28">1.<DD>
+net/netfilter/nf_conntrack_helper should be set to 0 (default)
+<DT id="29">2.<DD>
+create a rule for the start of a connection (eg for FTP, port 21)
+<DT id="30">3.<DD>
+create a helper rule to associate the helper with this connection
+<DT id="31">4.<DD>
+create a helper rule to associate a RELATED flow with this connection
+<DT id="32">5.<DD>
+if needed, add the corresponding nf_conntrack_* module to IPT_MODULES
+<DT id="33">6.<DD>
+optionally add the corresponding nf_nat_* module to IPT_MODULES
+</DL>
+<P>
+
+In general it is desirable to make connection helper rules as specific as
+possible and ensure anti-spoofing is correctly setup for your site to avoid
+security issues in your ruleset. For more information, see ANTI-SPOOFING,
+above, and &lt;<A HREF="https://home.regit.org/netfilter-en/secure-use-of-helpers/">https://home.regit.org/netfilter-en/secure-use-of-helpers/</A>&gt;.
+<P>
+
+Currently helper rules must be managed in via the RULES FILES. A future version
+of <B>ufw</B> will introduce syntax for working with helper rules.
+<P>
+<A NAME="lbAP">&nbsp;</A>
+<H2>NOTES</H2>
+
+<P>
+
+When using ufw with libvirt and bridging, packets may be blocked. The
+libvirt team recommends that the following sysctl's be set to disable netfilter
+on the bridge:
+<P>
+<BR>&nbsp;&nbsp;net.bridge.bridge-nf-call-ip6tables&nbsp;=&nbsp;0
+<BR>&nbsp;&nbsp;net.bridge.bridge-nf-call-iptables&nbsp;=&nbsp;0
+<BR>&nbsp;&nbsp;net.bridge.bridge-nf-call-arptables&nbsp;=&nbsp;0
+<P>
+Note that the bridge module must be loaded in to the kernel before these values
+are set. One way to ensure this works properly with ufw is to add 'bridge' to
+IPT_MODULES in /etc/default/ufw, and then add the above rules to
+/etc/ufw/sysctl.conf.
+<P>
+Alternatively to disabling netfilter on the bridge, you can configure iptables
+to allow all traffic to be forwarded across the bridge. Eg, add to
+/etc/ufw/before.rules within the *filter section:
+<P>
+<BR>&nbsp;&nbsp;-I&nbsp;FORWARD&nbsp;-m&nbsp;physdev&nbsp;--physdev-is-bridged&nbsp;-j&nbsp;ACCEPT
+<P>
+<A NAME="lbAQ">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?8+ufw">ufw</A></B>(8), <B><A HREF="/cgi-bin/man/man2html?8+iptables">iptables</A></B>(8), <B><A HREF="/cgi-bin/man/man2html?8+ip6tables">ip6tables</A></B>(8), <B><A HREF="/cgi-bin/man/man2html?8+iptables-restore">iptables-restore</A></B>(8), <B><A HREF="/cgi-bin/man/man2html?8+ip6tables-restore">ip6tables-restore</A></B>(8), <B><A HREF="/cgi-bin/man/man2html?8+sysctl">sysctl</A></B>(8), <B><A HREF="/cgi-bin/man/man2html?5+sysctl.conf">sysctl.conf</A></B>(5)
+<P>
+<A NAME="lbAR">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+<P>
+
+ufw is Copyright 2008-2014, Canonical Ltd.
+<P>
+<P>
+
+ufw and this manual page was originally written by Jamie Strandboge &lt;<A HREF="mailto:jamie@canonical.com">jamie@canonical.com</A>&gt;
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="34"><A HREF="#lbAB">NAME</A><DD>
+<DT id="35"><A HREF="#lbAC">DESCRIPTION</A><DD>
+<DT id="36"><A HREF="#lbAD">OVERVIEW</A><DD>
+<DT id="37"><A HREF="#lbAE">BOOT INITIALIZATION</A><DD>
+<DT id="38"><A HREF="#lbAF">RULES FILES</A><DD>
+<DT id="39"><A HREF="#lbAG">MODULES</A><DD>
+<DT id="40"><A HREF="#lbAH">KERNEL PARAMETERS</A><DD>
+<DT id="41"><A HREF="#lbAI">IPV6</A><DD>
+<DT id="42"><A HREF="#lbAJ">EXAMPLES</A><DD>
+<DL>
+<DT id="43"><A HREF="#lbAK">IP Masquerading</A><DD>
+<DT id="44"><A HREF="#lbAL">Port Redirections</A><DD>
+<DT id="45"><A HREF="#lbAM">Egress filtering</A><DD>
+<DT id="46"><A HREF="#lbAN">Full example</A><DD>
+</DL>
+<DT id="47"><A HREF="#lbAO">CONNECTION HELPERS</A><DD>
+<DT id="48"><A HREF="#lbAP">NOTES</A><DD>
+<DT id="49"><A HREF="#lbAQ">SEE ALSO</A><DD>
+<DT id="50"><A HREF="#lbAR">AUTHOR</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:18 GMT, March 31, 2021
+</BODY>
+</HTML>

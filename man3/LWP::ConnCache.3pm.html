@@ -1,0 +1,369 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of LWP::ConnCache</TITLE>
+</HEAD><BODY>
+<H1>LWP::ConnCache</H1>
+Section: User Contributed Perl Documentation (3pm)<BR>Updated: 2019-11-29<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+LWP::ConnCache - Connection cache manager
+<A NAME="lbAC">&nbsp;</A>
+<H2>NOTE</H2>
+
+
+
+This module is experimental.  Details of its interface is likely to
+change in the future.
+<A NAME="lbAD">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+
+
+
+
+<PRE>
+ use LWP::ConnCache;
+ my $cache = LWP::ConnCache-&gt;new;
+ $cache-&gt;deposit($type, $key, $sock);
+ $sock = $cache-&gt;withdraw($type, $key);
+
+</PRE>
+
+
+<A NAME="lbAE">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+
+The <TT>&quot;LWP::ConnCache&quot;</TT> class is the standard connection cache manager
+for LWP::UserAgent.
+<A NAME="lbAF">&nbsp;</A>
+<H2>METHODS</H2>
+
+
+
+The following basic methods are provided:
+<A NAME="lbAG">&nbsp;</A>
+<H3>new</H3>
+
+
+
+
+
+<PRE>
+    my $cache = LWP::ConnCache-&gt;new( %options )
+
+</PRE>
+
+
+<P>
+
+This method constructs a new LWP::ConnCache object.  The only
+option currently accepted is <TT>&quot;total_capacity&quot;</TT>.  If specified it
+initializes the ``total_capacity'' in LWP::ConnCache option. It defaults to <TT>1</TT>.
+<A NAME="lbAH">&nbsp;</A>
+<H3>total_capacity</H3>
+
+
+
+
+
+<PRE>
+    my $cap = $cache-&gt;total_capacity;
+    $cache-&gt;total_capacity(0); # drop all immediately
+    $cache-&gt;total_capacity(undef); # no limit
+    $cache-&gt;total_capacity($number);
+
+</PRE>
+
+
+<P>
+
+Get/sets the number of connection that will be cached.  Connections
+will start to be dropped when this limit is reached.  If set to <TT>0</TT>,
+then all connections are immediately dropped.  If set to <TT>&quot;undef&quot;</TT>,
+then there is no limit.
+<A NAME="lbAI">&nbsp;</A>
+<H3>capacity</H3>
+
+
+
+
+
+<PRE>
+    my $http_capacity = $cache-&gt;capacity('http');
+    $cache-&gt;capacity('http', 2 );
+
+</PRE>
+
+
+<P>
+
+Get/set a limit for the number of connections of the specified type
+that can be cached.  The first parameter is a short string like
+``http'' or ``ftp''.
+<A NAME="lbAJ">&nbsp;</A>
+<H3>drop</H3>
+
+
+
+
+
+<PRE>
+    $cache-&gt;drop(); # Drop ALL connections
+    # which is just a synonym for:
+    $cache-&gt;drop(sub{1}); # Drop ALL connections
+    # drop all connections older than 22 seconds and add a reason for it!
+    $cache-&gt;drop(22, &quot;Older than 22 secs dropped&quot;);
+    # which is just a synonym for:
+    $cache-&gt;drop(sub {
+        my ($conn, $type, $key, $deposit_time) = @_;
+        if ($deposit_time &lt; 22) {
+            # true values drop the connection
+            return 1;
+        }
+        # false values don't drop the connection
+        return 0;
+    }, &quot;Older than 22 secs dropped&quot; );
+
+</PRE>
+
+
+<P>
+
+Drop connections by some criteria.  The <TT>$checker</TT> argument is a
+subroutine that is called for each connection.  If the routine returns
+a <FONT SIZE="-1">TRUE</FONT> value then the connection is dropped.  The routine is called
+with ($conn, <TT>$type</TT>, <TT>$key</TT>, <TT>$deposit_time</TT>) as arguments.
+<P>
+
+Shortcuts: If the <TT>$checker</TT> argument is absent (or <TT>&quot;undef&quot;</TT>) all cached
+connections are dropped.  If the <TT>$checker</TT> is a number then all
+connections untouched that the given number of seconds or more are
+dropped.  If <TT>$checker</TT> is a string then all connections of the given
+type are dropped.
+<P>
+
+The <TT>&quot;reason&quot;</TT> is passed on to the ``dropped'' in LWP::ConnCache method.
+<A NAME="lbAK">&nbsp;</A>
+<H3>prune</H3>
+
+
+
+
+
+<PRE>
+    $cache-&gt;prune();
+
+</PRE>
+
+
+<P>
+
+Calling this method will drop all connections that are dead.  This is
+tested by calling the ``ping'' in LWP::ConnCache method on the connections. If
+the ``ping'' in LWP::ConnCache method exists and returns a false value, then the
+connection is dropped.
+<A NAME="lbAL">&nbsp;</A>
+<H3>get_types</H3>
+
+
+
+
+
+<PRE>
+    my @types = $cache-&gt;get_types();
+
+</PRE>
+
+
+<P>
+
+This returns all the <TT>&quot;type&quot;</TT> fields used for the currently cached
+connections.
+<A NAME="lbAM">&nbsp;</A>
+<H3>get_connections</H3>
+
+
+
+
+
+<PRE>
+    my @conns = $cache-&gt;get_connections(); # all connections
+    my @conns = $cache-&gt;get_connections('http'); # connections for http
+
+</PRE>
+
+
+<P>
+
+This returns all connection objects of the specified type.  If no type
+is specified then all connections are returned.  In scalar context the
+number of cached connections of the specified type is returned.
+<A NAME="lbAN">&nbsp;</A>
+<H2>PROTOCOL METHODS</H2>
+
+
+
+The following methods are called by low-level protocol modules to
+try to save away connections and to get them back.
+<A NAME="lbAO">&nbsp;</A>
+<H3>deposit</H3>
+
+
+
+
+
+<PRE>
+    $cache-&gt;deposit($type, $key, $conn);
+
+</PRE>
+
+
+<P>
+
+This method adds a new connection to the cache.  As a result, other
+already cached connections might be dropped.  Multiple connections with
+the same type/key might be added.
+<A NAME="lbAP">&nbsp;</A>
+<H3>withdraw</H3>
+
+
+
+
+
+<PRE>
+    my $conn = $cache-&gt;withdraw($type, $key);
+
+</PRE>
+
+
+<P>
+
+This method tries to fetch back a connection that was previously
+deposited.  If no cached connection with the specified <TT>$type</TT>/$key is
+found, then <TT>&quot;undef&quot;</TT> is returned.  There is not guarantee that a
+deposited connection can be withdrawn, as the cache manger is free to
+drop connections at any time.
+<A NAME="lbAQ">&nbsp;</A>
+<H2>INTERNAL METHODS</H2>
+
+
+
+The following methods are called internally.  Subclasses might want to
+override them.
+<A NAME="lbAR">&nbsp;</A>
+<H3>enforce_limits</H3>
+
+
+
+
+
+<PRE>
+    $conn-&gt;enforce_limits([$type])
+
+</PRE>
+
+
+<P>
+
+This method is called with after a new connection is added (deposited)
+in the cache or capacity limits are adjusted.  The default
+implementation drops connections until the specified capacity limits
+are not exceeded.
+<A NAME="lbAS">&nbsp;</A>
+<H3>dropping</H3>
+
+
+
+
+
+<PRE>
+    $conn-&gt;dropping($conn_record, $reason)
+
+</PRE>
+
+
+<P>
+
+This method is called when a connection is dropped.  The record
+belonging to the dropped connection is passed as the first argument
+and a string describing the reason for the drop is passed as the
+second argument.  The default implementation makes some noise if the
+<TT>$LWP::ConnCache::DEBUG</TT> variable is set and nothing more.
+<A NAME="lbAT">&nbsp;</A>
+<H2>SUBCLASSING</H2>
+
+
+
+For specialized cache policy it makes sense to subclass
+<TT>&quot;LWP::ConnCache&quot;</TT> and perhaps override the ``deposit'' in LWP::ConnCache,
+``enforce_limits'' in LWP::ConnCache, and ``dropping'' in LWP::ConnCache methods.
+<P>
+
+The object itself is a hash.  Keys prefixed with <TT>&quot;cc_&quot;</TT> are reserved
+for the base class.
+<A NAME="lbAU">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+
+LWP::UserAgent
+<A NAME="lbAV">&nbsp;</A>
+<H2>COPYRIGHT</H2>
+
+
+
+Copyright 2001 Gisle Aas.
+<P>
+
+This library is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself.
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="1"><A HREF="#lbAB">NAME</A><DD>
+<DT id="2"><A HREF="#lbAC">NOTE</A><DD>
+<DT id="3"><A HREF="#lbAD">SYNOPSIS</A><DD>
+<DT id="4"><A HREF="#lbAE">DESCRIPTION</A><DD>
+<DT id="5"><A HREF="#lbAF">METHODS</A><DD>
+<DL>
+<DT id="6"><A HREF="#lbAG">new</A><DD>
+<DT id="7"><A HREF="#lbAH">total_capacity</A><DD>
+<DT id="8"><A HREF="#lbAI">capacity</A><DD>
+<DT id="9"><A HREF="#lbAJ">drop</A><DD>
+<DT id="10"><A HREF="#lbAK">prune</A><DD>
+<DT id="11"><A HREF="#lbAL">get_types</A><DD>
+<DT id="12"><A HREF="#lbAM">get_connections</A><DD>
+</DL>
+<DT id="13"><A HREF="#lbAN">PROTOCOL METHODS</A><DD>
+<DL>
+<DT id="14"><A HREF="#lbAO">deposit</A><DD>
+<DT id="15"><A HREF="#lbAP">withdraw</A><DD>
+</DL>
+<DT id="16"><A HREF="#lbAQ">INTERNAL METHODS</A><DD>
+<DL>
+<DT id="17"><A HREF="#lbAR">enforce_limits</A><DD>
+<DT id="18"><A HREF="#lbAS">dropping</A><DD>
+</DL>
+<DT id="19"><A HREF="#lbAT">SUBCLASSING</A><DD>
+<DT id="20"><A HREF="#lbAU">SEE ALSO</A><DD>
+<DT id="21"><A HREF="#lbAV">COPYRIGHT</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:47 GMT, March 31, 2021
+</BODY>
+</HTML>

@@ -1,0 +1,399 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of PCRECPP</TITLE>
+</HEAD><BODY>
+<H1>PCRECPP</H1>
+Section: C Library Functions (3)<BR>Updated: 08 January 2012<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+PCRE - Perl-compatible regular expressions.
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS OF C++ WRAPPER</H2>
+
+
+<P>
+<B>#include &lt;<A HREF="file:///usr/include/pcrecpp.h">pcrecpp.h</A>&gt;</B>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+
+<P>
+The C++ wrapper for PCRE was provided by Google Inc. Some additional
+functionality was added by Giuseppe Maxia. This brief man page was constructed
+from the notes in the <I>pcrecpp.h</I> file, which should be consulted for
+further details. Note that the C++ wrapper supports only the original 8-bit
+PCRE library. There is no 16-bit or 32-bit support at present.
+<A NAME="lbAE">&nbsp;</A>
+<H2>MATCHING INTERFACE</H2>
+
+
+<P>
+The &quot;FullMatch&quot; operation checks that supplied text matches a supplied pattern
+exactly. If pointer arguments are supplied, it copies matched sub-strings that
+match sub-patterns into them.
+<P>
+<BR>&nbsp;&nbsp;Example:&nbsp;successful&nbsp;match
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pcrecpp::RE&nbsp;re(&quot;h.*o&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;re.FullMatch(&quot;hello&quot;);
+<P>
+<BR>&nbsp;&nbsp;Example:&nbsp;unsuccessful&nbsp;match&nbsp;(requires&nbsp;full&nbsp;match):
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pcrecpp::RE&nbsp;re(&quot;e&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;!re.FullMatch(&quot;hello&quot;);
+<P>
+<BR>&nbsp;&nbsp;Example:&nbsp;creating&nbsp;a&nbsp;temporary&nbsp;RE&nbsp;object:
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pcrecpp::RE(&quot;h.*o&quot;).FullMatch(&quot;hello&quot;);
+<P>
+You can pass in a &quot;const char*&quot; or a &quot;string&quot; for &quot;text&quot;. The examples below
+tend to use a const char*. You can, as in the different examples above, store
+the RE object explicitly in a variable or use a temporary RE object. The
+examples below use one mode or the other arbitrarily. Either could correctly be
+used for any of these examples.
+<P>
+
+You must supply extra pointer arguments to extract matched subpieces.
+<P>
+<BR>&nbsp;&nbsp;Example:&nbsp;extracts&nbsp;&quot;ruby&quot;&nbsp;into&nbsp;&quot;s&quot;&nbsp;and&nbsp;1234&nbsp;into&nbsp;&quot;i&quot;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;i;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;string&nbsp;s;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pcrecpp::RE&nbsp;re(&quot;(\\w+):(\\d+)&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;re.FullMatch(&quot;ruby:1234&quot;,&nbsp;&amp;s,&nbsp;&amp;i);
+<P>
+<BR>&nbsp;&nbsp;Example:&nbsp;does&nbsp;not&nbsp;try&nbsp;to&nbsp;extract&nbsp;any&nbsp;extra&nbsp;sub-patterns
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;re.FullMatch(&quot;ruby:1234&quot;,&nbsp;&amp;s);
+<P>
+<BR>&nbsp;&nbsp;Example:&nbsp;does&nbsp;not&nbsp;try&nbsp;to&nbsp;extract&nbsp;into&nbsp;NULL
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;re.FullMatch(&quot;ruby:1234&quot;,&nbsp;NULL,&nbsp;&amp;i);
+<P>
+<BR>&nbsp;&nbsp;Example:&nbsp;integer&nbsp;overflow&nbsp;causes&nbsp;failure
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;!re.FullMatch(&quot;ruby:1234567891234&quot;,&nbsp;NULL,&nbsp;&amp;i);
+<P>
+<BR>&nbsp;&nbsp;Example:&nbsp;fails&nbsp;because&nbsp;there&nbsp;aren't&nbsp;enough&nbsp;sub-patterns:
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;!pcrecpp::RE(&quot;\\w+:\\d+&quot;).FullMatch(&quot;ruby:1234&quot;,&nbsp;&amp;s);
+<P>
+<BR>&nbsp;&nbsp;Example:&nbsp;fails&nbsp;because&nbsp;string&nbsp;cannot&nbsp;be&nbsp;stored&nbsp;in&nbsp;integer
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;!pcrecpp::RE(&quot;(.*)&quot;).FullMatch(&quot;ruby&quot;,&nbsp;&amp;i);
+<P>
+The provided pointer arguments can be pointers to any scalar numeric
+type, or one of:
+<P>
+<BR>&nbsp;&nbsp;&nbsp;string&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(matched&nbsp;piece&nbsp;is&nbsp;copied&nbsp;to&nbsp;string)
+<BR>&nbsp;&nbsp;&nbsp;StringPiece&nbsp;&nbsp;&nbsp;(StringPiece&nbsp;is&nbsp;mutated&nbsp;to&nbsp;point&nbsp;to&nbsp;matched&nbsp;piece)
+<BR>&nbsp;&nbsp;&nbsp;T&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(where&nbsp;&quot;bool&nbsp;T::ParseFrom(const&nbsp;char*,&nbsp;int)&quot;&nbsp;exists)
+<BR>&nbsp;&nbsp;&nbsp;NULL&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(the&nbsp;corresponding&nbsp;matched&nbsp;sub-pattern&nbsp;is&nbsp;not&nbsp;copied)
+<P>
+The function returns true iff all of the following conditions are satisfied:
+<P>
+<BR>&nbsp;&nbsp;a.&nbsp;&quot;text&quot;&nbsp;matches&nbsp;&quot;pattern&quot;&nbsp;exactly;
+<P>
+<BR>&nbsp;&nbsp;b.&nbsp;The&nbsp;number&nbsp;of&nbsp;matched&nbsp;sub-patterns&nbsp;is&nbsp;&gt;=&nbsp;number&nbsp;of&nbsp;supplied
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pointers;
+<P>
+<BR>&nbsp;&nbsp;c.&nbsp;The&nbsp;&quot;i&quot;th&nbsp;argument&nbsp;has&nbsp;a&nbsp;suitable&nbsp;type&nbsp;for&nbsp;holding&nbsp;the
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;string&nbsp;captured&nbsp;as&nbsp;the&nbsp;&quot;i&quot;th&nbsp;sub-pattern.&nbsp;If&nbsp;you&nbsp;pass&nbsp;in
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;void&nbsp;*&nbsp;NULL&nbsp;for&nbsp;the&nbsp;&quot;i&quot;th&nbsp;argument,&nbsp;or&nbsp;a&nbsp;non-void&nbsp;*&nbsp;NULL
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;of&nbsp;the&nbsp;correct&nbsp;type,&nbsp;or&nbsp;pass&nbsp;fewer&nbsp;arguments&nbsp;than&nbsp;the
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;number&nbsp;of&nbsp;sub-patterns,&nbsp;&quot;i&quot;th&nbsp;captured&nbsp;sub-pattern&nbsp;is
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ignored.
+<P>
+CAVEAT: An optional sub-pattern that does not exist in the matched
+string is assigned the empty string. Therefore, the following will
+return false (because the empty string is not a valid number):
+<P>
+<BR>&nbsp;&nbsp;&nbsp;int&nbsp;number;
+<BR>&nbsp;&nbsp;&nbsp;pcrecpp::RE::FullMatch(&quot;abc&quot;,&nbsp;&quot;[a-z]+(\\d+)?&quot;,&nbsp;&amp;number);
+<P>
+The matching interface supports at most 16 arguments per call.
+If you need more, consider using the more general interface
+<B>pcrecpp::RE::DoMatch</B>. See <B>pcrecpp.h</B> for the signature for
+<B>DoMatch</B>.
+<P>
+
+NOTE: Do not use <B>no_arg</B>, which is used internally to mark the end of a
+list of optional arguments, as a placeholder for missing arguments, as this can
+lead to segfaults.
+<A NAME="lbAF">&nbsp;</A>
+<H2>QUOTING METACHARACTERS</H2>
+
+
+<P>
+You can use the &quot;QuoteMeta&quot; operation to insert backslashes before all
+potentially meaningful characters in a string. The returned string, used as a
+regular expression, will exactly match the original string.
+<P>
+<BR>&nbsp;&nbsp;Example:
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;string&nbsp;quoted&nbsp;=&nbsp;RE::QuoteMeta(unquoted);
+<P>
+Note that it's legal to escape a character even if it has no special meaning in
+a regular expression -- so this function does that. (This also makes it
+identical to the perl function of the same name; see &quot;perldoc -f quotemeta&quot;.)
+For example, &quot;1.5-2.0?&quot; becomes &quot;1\.5\-2\.0\?&quot;.
+<A NAME="lbAG">&nbsp;</A>
+<H2>PARTIAL MATCHES</H2>
+
+
+<P>
+You can use the &quot;PartialMatch&quot; operation when you want the pattern
+to match any substring of the text.
+<P>
+<BR>&nbsp;&nbsp;Example:&nbsp;simple&nbsp;search&nbsp;for&nbsp;a&nbsp;string:
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pcrecpp::RE(&quot;ell&quot;).PartialMatch(&quot;hello&quot;);
+<P>
+<BR>&nbsp;&nbsp;Example:&nbsp;find&nbsp;first&nbsp;number&nbsp;in&nbsp;a&nbsp;string:
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;number;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pcrecpp::RE&nbsp;re(&quot;(\\d+)&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;re.PartialMatch(&quot;x*100&nbsp;+&nbsp;20&quot;,&nbsp;&amp;number);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;assert(number&nbsp;==&nbsp;100);
+<A NAME="lbAH">&nbsp;</A>
+<H2>UTF-8 AND THE MATCHING INTERFACE</H2>
+
+
+<P>
+By default, pattern and text are plain text, one byte per character. The UTF8
+flag, passed to the constructor, causes both pattern and string to be treated
+as UTF-8 text, still a byte stream but potentially multiple bytes per
+character. In practice, the text is likelier to be UTF-8 than the pattern, but
+the match returned may depend on the UTF8 flag, so always use it when matching
+UTF8 text. For example, &quot;.&quot; will match one byte normally but with UTF8 set may
+match up to three bytes of a multi-byte character.
+<P>
+<BR>&nbsp;&nbsp;Example:
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pcrecpp::RE_Options&nbsp;options;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;options.set_utf8();
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pcrecpp::RE&nbsp;re(utf8_pattern,&nbsp;options);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;re.FullMatch(utf8_string);
+<P>
+<BR>&nbsp;&nbsp;Example:&nbsp;using&nbsp;the&nbsp;convenience&nbsp;function&nbsp;UTF8():
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pcrecpp::RE&nbsp;re(utf8_pattern,&nbsp;pcrecpp::UTF8());
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;re.FullMatch(utf8_string);
+<P>
+NOTE: The UTF8 flag is ignored if pcre was not configured with the
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--enable-utf8&nbsp;flag.
+<A NAME="lbAI">&nbsp;</A>
+<H2>PASSING MODIFIERS TO THE REGULAR EXPRESSION ENGINE</H2>
+
+
+<P>
+PCRE defines some modifiers to change the behavior of the regular expression
+engine. The C++ wrapper defines an auxiliary class, RE_Options, as a vehicle to
+pass such modifiers to a RE class. Currently, the following modifiers are
+supported:
+<P>
+<BR>&nbsp;&nbsp;&nbsp;modifier&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;description&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Perl&nbsp;corresponding
+<P>
+<BR>&nbsp;&nbsp;&nbsp;PCRE_CASELESS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;case&nbsp;insensitive&nbsp;match&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/i
+<BR>&nbsp;&nbsp;&nbsp;PCRE_MULTILINE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;multiple&nbsp;lines&nbsp;match&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/m
+<BR>&nbsp;&nbsp;&nbsp;PCRE_DOTALL&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dot&nbsp;matches&nbsp;newlines&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/s
+<BR>&nbsp;&nbsp;&nbsp;PCRE_DOLLAR_ENDONLY&nbsp;&nbsp;&nbsp;$&nbsp;matches&nbsp;only&nbsp;at&nbsp;end&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;N/A
+<BR>&nbsp;&nbsp;&nbsp;PCRE_EXTRA&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;strict&nbsp;escape&nbsp;parsing&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;N/A
+<BR>&nbsp;&nbsp;&nbsp;PCRE_EXTENDED&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ignore&nbsp;white&nbsp;spaces&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/x
+<BR>&nbsp;&nbsp;&nbsp;PCRE_UTF8&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;handles&nbsp;UTF8&nbsp;chars&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;built-in
+<BR>&nbsp;&nbsp;&nbsp;PCRE_UNGREEDY&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;reverses&nbsp;*&nbsp;and&nbsp;*?&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;N/A
+<BR>&nbsp;&nbsp;&nbsp;PCRE_NO_AUTO_CAPTURE&nbsp;&nbsp;disables&nbsp;capturing&nbsp;parens&nbsp;&nbsp;&nbsp;N/A&nbsp;(*)
+<P>
+(*) Both Perl and PCRE allow non capturing parentheses by means of the
+&quot;?:&quot; modifier within the pattern itself. e.g. (?:ab|cd) does not
+capture, while (ab|cd) does.
+<P>
+
+For a full account on how each modifier works, please check the
+PCRE API reference page.
+<P>
+
+For each modifier, there are two member functions whose name is made
+out of the modifier in lowercase, without the &quot;PCRE_&quot; prefix. For
+instance, PCRE_CASELESS is handled by
+<P>
+<BR>&nbsp;&nbsp;bool&nbsp;caseless()
+<P>
+which returns true if the modifier is set, and
+<P>
+<BR>&nbsp;&nbsp;RE_Options&nbsp;&amp;&nbsp;set_caseless(bool)
+<P>
+which sets or unsets the modifier. Moreover, PCRE_EXTRA_MATCH_LIMIT can be
+accessed through the <B>set_match_limit()</B> and <B>match_limit()</B> member
+functions. Setting <I>match_limit</I> to a non-zero value will limit the
+execution of pcre to keep it from doing bad things like blowing the stack or
+taking an eternity to return a result. A value of 5000 is good enough to stop
+stack blowup in a 2MB thread stack. Setting <I>match_limit</I> to zero disables
+match limiting. Alternatively, you can call <B>match_limit_recursion()</B>
+which uses PCRE_EXTRA_MATCH_LIMIT_RECURSION to limit how much PCRE
+recurses. <B>match_limit()</B> limits the number of matches PCRE does;
+<B>match_limit_recursion()</B> limits the depth of internal recursion, and
+therefore the amount of stack that is used.
+<P>
+
+Normally, to pass one or more modifiers to a RE class, you declare
+a <I>RE_Options</I> object, set the appropriate options, and pass this
+object to a RE constructor. Example:
+<P>
+<BR>&nbsp;&nbsp;&nbsp;RE_Options&nbsp;opt;
+<BR>&nbsp;&nbsp;&nbsp;opt.set_caseless(true);
+<BR>&nbsp;&nbsp;&nbsp;if&nbsp;(RE(&quot;HELLO&quot;,&nbsp;opt).PartialMatch(&quot;hello&nbsp;world&quot;))&nbsp;...
+<P>
+RE_options has two constructors. The default constructor takes no arguments and
+creates a set of flags that are off by default. The optional parameter
+<I>option_flags</I> is to facilitate transfer of legacy code from C programs.
+This lets you do
+<P>
+<BR>&nbsp;&nbsp;&nbsp;RE(pattern,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RE_Options(PCRE_CASELESS|PCRE_MULTILINE)).PartialMatch(str);
+<P>
+However, new code is better off doing
+<P>
+<BR>&nbsp;&nbsp;&nbsp;RE(pattern,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RE_Options().set_caseless(true).set_multiline(true))
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.PartialMatch(str);
+<P>
+If you are going to pass one of the most used modifiers, there are some
+convenience functions that return a RE_Options class with the
+appropriate modifier already set: <B>CASELESS()</B>, <B>UTF8()</B>,
+<B>MULTILINE()</B>, <B>DOTALL</B>(), and <B>EXTENDED()</B>.
+<P>
+
+If you need to set several options at once, and you don't want to go through
+the pains of declaring a RE_Options object and setting several options, there
+is a parallel method that give you such ability on the fly. You can concatenate
+several <B>set_xxxxx()</B> member functions, since each of them returns a
+reference to its class object. For example, to pass PCRE_CASELESS,
+PCRE_EXTENDED, and PCRE_MULTILINE to a RE with one statement, you may write:
+<P>
+<BR>&nbsp;&nbsp;&nbsp;RE(&quot;&nbsp;^&nbsp;xyz&nbsp;\\s+&nbsp;.*&nbsp;blah$&quot;,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RE_Options()
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.set_caseless(true)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.set_extended(true)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.set_multiline(true)).PartialMatch(sometext);
+<P>
+<A NAME="lbAJ">&nbsp;</A>
+<H2>SCANNING TEXT INCREMENTALLY</H2>
+
+
+<P>
+The &quot;Consume&quot; operation may be useful if you want to repeatedly
+match regular expressions at the front of a string and skip over
+them as they match. This requires use of the &quot;StringPiece&quot; type,
+which represents a sub-range of a real string. Like RE, StringPiece
+is defined in the pcrecpp namespace.
+<P>
+<BR>&nbsp;&nbsp;Example:&nbsp;read&nbsp;lines&nbsp;of&nbsp;the&nbsp;form&nbsp;&quot;var&nbsp;=&nbsp;value&quot;&nbsp;from&nbsp;a&nbsp;string.
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;string&nbsp;contents&nbsp;=&nbsp;...;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;Fill&nbsp;string&nbsp;somehow
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pcrecpp::StringPiece&nbsp;input(contents);&nbsp;&nbsp;//&nbsp;Wrap&nbsp;in&nbsp;a&nbsp;StringPiece
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;string&nbsp;var;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;value;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pcrecpp::RE&nbsp;re(&quot;(\\w+)&nbsp;=&nbsp;(\\d+)\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;while&nbsp;(re.Consume(&amp;input,&nbsp;&amp;var,&nbsp;&amp;value))&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;...;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+Each successful call to &quot;Consume&quot; will set &quot;var/value&quot;, and also
+advance &quot;input&quot; so it points past the matched text.
+<P>
+
+The &quot;FindAndConsume&quot; operation is similar to &quot;Consume&quot; but does not
+anchor your match at the beginning of the string. For example, you
+could extract all words from a string by repeatedly calling
+<P>
+<BR>&nbsp;&nbsp;pcrecpp::RE(&quot;(\\w+)&quot;).FindAndConsume(&amp;input,&nbsp;&amp;word)
+<A NAME="lbAK">&nbsp;</A>
+<H2>PARSING HEX/OCTAL/C-RADIX NUMBERS</H2>
+
+
+<P>
+By default, if you pass a pointer to a numeric value, the
+corresponding text is interpreted as a base-10 number. You can
+instead wrap the pointer with a call to one of the operators Hex(),
+Octal(), or CRadix() to interpret the text in another base. The
+CRadix operator interprets C-style &quot;0&quot; (base-8) and &quot;0x&quot; (base-16)
+prefixes, but defaults to base-10.
+<P>
+<BR>&nbsp;&nbsp;Example:
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;a,&nbsp;b,&nbsp;c,&nbsp;d;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;pcrecpp::RE&nbsp;re(&quot;(.*)&nbsp;(.*)&nbsp;(.*)&nbsp;(.*)&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;re.FullMatch(&quot;100&nbsp;40&nbsp;0100&nbsp;0x40&quot;,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pcrecpp::Octal(&amp;a),&nbsp;pcrecpp::Hex(&amp;b),
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pcrecpp::CRadix(&amp;c),&nbsp;pcrecpp::CRadix(&amp;d));
+<P>
+will leave 64 in a, b, c, and d.
+<A NAME="lbAL">&nbsp;</A>
+<H2>REPLACING PARTS OF STRINGS</H2>
+
+
+<P>
+You can replace the first match of &quot;pattern&quot; in &quot;str&quot; with &quot;rewrite&quot;.
+Within &quot;rewrite&quot;, backslash-escaped digits (\1 to \9) can be
+used to insert text matching corresponding parenthesized group
+from the pattern. \0 in &quot;rewrite&quot; refers to the entire matching
+text. For example:
+<P>
+<BR>&nbsp;&nbsp;string&nbsp;s&nbsp;=&nbsp;&quot;yabba&nbsp;dabba&nbsp;doo&quot;;
+<BR>&nbsp;&nbsp;pcrecpp::RE(&quot;b+&quot;).Replace(&quot;d&quot;,&nbsp;&amp;s);
+<P>
+will leave &quot;s&quot; containing &quot;yada dabba doo&quot;. The result is true if the pattern
+matches and a replacement occurs, false otherwise.
+<P>
+
+<B>GlobalReplace</B> is like <B>Replace</B> except that it replaces all
+occurrences of the pattern in the string with the rewrite. Replacements are
+not subject to re-matching. For example:
+<P>
+<BR>&nbsp;&nbsp;string&nbsp;s&nbsp;=&nbsp;&quot;yabba&nbsp;dabba&nbsp;doo&quot;;
+<BR>&nbsp;&nbsp;pcrecpp::RE(&quot;b+&quot;).GlobalReplace(&quot;d&quot;,&nbsp;&amp;s);
+<P>
+will leave &quot;s&quot; containing &quot;yada dada doo&quot;. It returns the number of
+replacements made.
+<P>
+
+<B>Extract</B> is like <B>Replace</B>, except that if the pattern matches,
+&quot;rewrite&quot; is copied into &quot;out&quot; (an additional argument) with substitutions.
+The non-matching portions of &quot;text&quot; are ignored. Returns true iff a match
+occurred and the extraction happened successfully;  if no match occurs, the
+string is left unaffected.
+<A NAME="lbAM">&nbsp;</A>
+<H2>AUTHOR</H2>
+
+
+<P>
+<PRE>
+The C++ wrapper was contributed by Google Inc.
+Copyright (c) 2007 Google Inc.
+</PRE>
+
+<A NAME="lbAN">&nbsp;</A>
+<H2>REVISION</H2>
+
+
+<P>
+<PRE>
+Last updated: 08 January 2012
+</PRE>
+
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="1"><A HREF="#lbAB">NAME</A><DD>
+<DT id="2"><A HREF="#lbAC">SYNOPSIS OF C++ WRAPPER</A><DD>
+<DT id="3"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="4"><A HREF="#lbAE">MATCHING INTERFACE</A><DD>
+<DT id="5"><A HREF="#lbAF">QUOTING METACHARACTERS</A><DD>
+<DT id="6"><A HREF="#lbAG">PARTIAL MATCHES</A><DD>
+<DT id="7"><A HREF="#lbAH">UTF-8 AND THE MATCHING INTERFACE</A><DD>
+<DT id="8"><A HREF="#lbAI">PASSING MODIFIERS TO THE REGULAR EXPRESSION ENGINE</A><DD>
+<DT id="9"><A HREF="#lbAJ">SCANNING TEXT INCREMENTALLY</A><DD>
+<DT id="10"><A HREF="#lbAK">PARSING HEX/OCTAL/C-RADIX NUMBERS</A><DD>
+<DT id="11"><A HREF="#lbAL">REPLACING PARTS OF STRINGS</A><DD>
+<DT id="12"><A HREF="#lbAM">AUTHOR</A><DD>
+<DT id="13"><A HREF="#lbAN">REVISION</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:51 GMT, March 31, 2021
+</BODY>
+</HTML>

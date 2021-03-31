@@ -1,0 +1,192 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SD_BUS_ADD_MATCH</TITLE>
+</HEAD><BODY>
+<H1>SD_BUS_ADD_MATCH</H1>
+Section: sd_bus_add_match (3)<BR>Updated: <BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+sd_bus_add_match, sd_bus_add_match_async, sd_bus_match_signal, sd_bus_match_signal_async - Add a match rule for incoming message dispatching
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+<B>
+</B><PRE>
+#include &lt;<A HREF="file:///usr/include/systemd/sd-bus.h">systemd/sd-bus.h</A>&gt;
+</PRE>
+
+
+<DL COMPACT>
+<DT id="1">
+<B>typedef int (*sd_bus_message_handler_t)(sd_bus_message&nbsp;*</B><I>m</I><B>, void&nbsp;*</B><I>userdata</I><B>, sd_bus_error&nbsp;*</B><I>ret_error</I><B>);</B>
+
+<DT id="2">
+<B>int sd_bus_add_match(sd_bus&nbsp;*</B><I>bus</I><B>, sd_bus_slot&nbsp;**</B><I>slot</I><B>, const&nbsp;char&nbsp;*</B><I>match</I><B>, sd_bus_message_handler_t&nbsp;</B><I>callback</I><B>, void&nbsp;*</B><I>userdata</I><B>);</B>
+
+<DT id="3">
+<B>int sd_bus_add_match_async(sd_bus&nbsp;*</B><I>bus</I><B>, sd_bus_slot&nbsp;**</B><I>slot</I><B>, const&nbsp;char&nbsp;*</B><I>match</I><B>, sd_bus_message_handler_t&nbsp;</B><I>callback</I><B>, sd_bus_message_handler_t&nbsp;</B><I>install_callback</I><B>, void&nbsp;*</B><I>userdata</I><B>);</B>
+
+<DT id="4">
+<B>int sd_bus_match_signal(sd_bus&nbsp;*</B><I>bus</I><B>, sd_bus_slot&nbsp;**</B><I>slot</I><B>, const&nbsp;char&nbsp;*</B><I>sender</I><B>, const&nbsp;char&nbsp;*</B><I>path</I><B>, const&nbsp;char&nbsp;*</B><I>interface</I><B>, const&nbsp;char&nbsp;*</B><I>member</I><B>, sd_bus_message_handler_t&nbsp;</B><I>callback</I><B>, void&nbsp;*</B><I>userdata</I><B>);</B>
+
+<DT id="5">
+<B>int sd_bus_match_signal_async(sd_bus&nbsp;*</B><I>bus</I><B>, sd_bus_slot&nbsp;**</B><I>slot</I><B>, const&nbsp;char&nbsp;*</B><I>sender</I><B>, const&nbsp;char&nbsp;*</B><I>path</I><B>, const&nbsp;char&nbsp;*</B><I>interface</I><B>, const&nbsp;char&nbsp;*</B><I>member</I><B>, sd_bus_message_handler_t&nbsp;</B><I>callback</I><B>, sd_bus_message_handler_t&nbsp;</B><I>install_callback</I><B>, void&nbsp;*</B><I>userdata</I><B>);</B>
+
+</DL>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+<B>sd_bus_add_match()</B>
+<DD>installs a match rule for messages received on the specified bus connection object
+<I>bus</I>. The syntax of the match rule expression passed in
+<I>match</I>
+is described in the
+m[blue]<B>D-Bus Specification</B>m[]<FONT SIZE="-2">[1]</FONT>. The specified handler function
+<I>callback</I>
+is called for eaching incoming message matching the specified expression, the
+<I>userdata</I>
+parameter is passed as-is to the callback function. The match is installed synchronously when connected to a bus broker, i.e. the call sends a control message requested the match to be added to the broker and waits until the broker confirms the match has been installed successfully.
+<P>
+
+<B>sd_bus_add_match_async()</B>
+operates very similar to
+<B>sd_bus_match_signal()</B>, however it installs the match asynchronously, in a non-blocking fashion: a request is sent to the broker, but the call does not wait for a response. The
+<I>install_callback</I>
+function is called when the response is later received, with the response message from the broker as parameter. If this function is specified as
+<B>NULL</B>
+a default implementation is used that terminates the bus connection should installing the match fail.
+<P>
+
+<B>sd_bus_match_signal()</B>
+is very similar to
+<B>sd_bus_add_match()</B>, but only matches signals, and instead of a match expression accepts four parameters:
+<I>sender</I>
+(the service name of the sender),
+<I>path</I>
+(the object path of the emitting object),
+<I>interface</I>
+(the interface the signal belongs to),
+<I>member</I>
+(the signal name), from which the match string is internally generated. Optionally, these parameters may be specified as
+<B>NULL</B>
+in which case the relevant field of incoming signals is not tested.
+<P>
+
+<B>sd_bus_match_signal_async()</B>
+combines the signal matching logic of
+<B>sd_bus_match_signal()</B>
+with the asynchronous behaviour of
+<B>sd_bus_add_match_async()</B>.
+<P>
+
+On success, and if non-<B>NULL</B>, the
+<I>slot</I>
+return parameter will be set to a slot object that may be used as a reference to the installed match, and may be utilized to remove it again at a later time with
+<B><A HREF="/cgi-bin/man/man2html?3+sd_bus_slot_unref">sd_bus_slot_unref</A></B>(3). If specified as
+<B>NULL</B>
+the lifetime of the match is bound to the lifetime of the bus object itself, and the match is generally not removed independently. See
+<B><A HREF="/cgi-bin/man/man2html?3+sd_bus_slot_set_floating">sd_bus_slot_set_floating</A></B>(3)
+for details.
+<P>
+
+The message
+<I>m</I>
+passed to the callback is only borrowed, that is, the callback should not call
+<B><A HREF="/cgi-bin/man/man2html?3+sd_bus_message_unref">sd_bus_message_unref</A></B>(3)
+on it. If the callback wants to hold on to the message beyond the lifetime of the callback, it needs to call
+<B><A HREF="/cgi-bin/man/man2html?3+sd_bus_message_ref">sd_bus_message_ref</A></B>(3)
+to create a new reference.
+<P>
+
+If an error occurs during the callback invocation, the callback should return a negative error number (optionally, a more precise error may be returned in
+<I>ret_error</I>, as well). If it wants other callbacks that match the same rule to be called, it should return 0. Otherwise it should return a positive integer.
+<P>
+
+If the
+<I>bus</I>
+refers to a direct connection (i.e. not a bus connection, as set with
+<B><A HREF="/cgi-bin/man/man2html?3+sd_bus_set_bus_client">sd_bus_set_bus_client</A></B>(3)) the match is only installed on the client side, and the synchronous and asynchronous functions operate the same.
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+<P>
+
+On success,
+<B>sd_bus_add_match()</B>
+and the other calls return 0 or a positive integer. On failure, they return a negative errno-style error code.
+<A NAME="lbAF">&nbsp;</A>
+<H2>NOTES</H2>
+
+<P>
+
+These APIs are implemented as a shared library, which can be compiled and linked to with the
+<B>libsystemd</B>&nbsp;<B><A HREF="/cgi-bin/man/man2html?1+pkg-config">pkg-config</A></B>(1)
+file.
+<A NAME="lbAG">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?3+sd-bus">sd-bus</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_bus_slot_unref">sd_bus_slot_unref</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_bus_message_ref">sd_bus_message_ref</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_bus_set_bus_client">sd_bus_set_bus_client</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_bus_slot_set_floating">sd_bus_slot_set_floating</A></B>(3)
+<A NAME="lbAH">&nbsp;</A>
+<H2>NOTES</H2>
+
+<DL COMPACT>
+<DT id="6"> 1.<DD>
+D-Bus Specification
+<DL COMPACT><DT id="7"><DD>
+<A HREF="https://dbus.freedesktop.org/doc/dbus-specification.html">https://dbus.freedesktop.org/doc/dbus-specification.html</A>
+</DL>
+
+<P>
+</DL>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="8"><A HREF="#lbAB">NAME</A><DD>
+<DT id="9"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="10"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="11"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DT id="12"><A HREF="#lbAF">NOTES</A><DD>
+<DT id="13"><A HREF="#lbAG">SEE ALSO</A><DD>
+<DT id="14"><A HREF="#lbAH">NOTES</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:54 GMT, March 31, 2021
+</BODY>
+</HTML>

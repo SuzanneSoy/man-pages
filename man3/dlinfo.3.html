@@ -1,0 +1,447 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of DLINFO</TITLE>
+</HEAD><BODY>
+<H1>DLINFO</H1>
+Section: Linux Programmer's Manual (3)<BR>Updated: 2019-03-06<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+dlinfo - obtain information about a dynamically loaded object
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<PRE>
+<B>#define _GNU_SOURCE</B>
+<B>#include &lt;<A HREF="file:///usr/include/link.h">link.h</A>&gt;</B>
+<B>#include &lt;<A HREF="file:///usr/include/dlfcn.h">dlfcn.h</A>&gt;</B>
+
+<B>int dlinfo(void *</B>handle<B>, int </B>request<B>, void *</B>info<B>);</B>
+
+Link with <I>-ldl</I>.
+</PRE>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+The
+<B>dlinfo</B>()
+
+function obtains information about the dynamically loaded object
+referred to by
+<I>handle</I>
+
+(typically obtained by an earlier call to
+<B><A HREF="/cgi-bin/man/man2html?3+dlopen">dlopen</A></B>(3)
+
+or
+<B><A HREF="/cgi-bin/man/man2html?3+dlmopen">dlmopen</A></B>(3)).
+
+The
+<I>request</I>
+
+argument specifies which information is to be returned.
+The
+<I>info</I>
+
+argument is a pointer to a buffer used to store information
+returned by the call; the type of this argument depends on
+<I>request</I>.
+
+<P>
+
+The following values are supported for
+<I>request</I>
+
+(with the corresponding type for
+<I>info</I>
+
+shown in parentheses):
+<DL COMPACT>
+<DT id="1"><B>RTLD_DI_LMID</B> (<I>Lmid_t *</I>)
+
+<DD>
+Obtain the ID of the link-map list (namespace) in which
+<I>handle</I>
+
+is loaded.
+<DT id="2"><B>RTLD_DI_LINKMAP</B> (<I>struct link_map **</I>)
+
+<DD>
+Obtain a pointer to the
+<I>link_map</I>
+
+structure corresponding to
+<I>handle</I>.
+
+The
+<I>info</I>
+
+argument points to a pointer to a
+<I>link_map</I>
+
+structure, defined in
+<I>&lt;<A HREF="file:///usr/include/link.h">link.h</A>&gt;</I>
+
+as:
+<DT id="3"><DD>
+
+
+struct link_map {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;ElfW(Addr)&nbsp;l_addr;&nbsp;&nbsp;/*&nbsp;Difference&nbsp;between&nbsp;the
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;address&nbsp;in&nbsp;the&nbsp;ELF&nbsp;file&nbsp;and
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;the&nbsp;address&nbsp;in&nbsp;memory&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*l_name;&nbsp;&nbsp;/*&nbsp;Absolute&nbsp;pathname&nbsp;where
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;object&nbsp;was&nbsp;found&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;ElfW(Dyn)&nbsp;*l_ld;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Dynamic&nbsp;section&nbsp;of&nbsp;the
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;shared&nbsp;object&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;link_map&nbsp;*l_next,&nbsp;*l_prev;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Chain&nbsp;of&nbsp;loaded&nbsp;objects&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Plus&nbsp;additional&nbsp;fields&nbsp;private&nbsp;to&nbsp;the
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;implementation&nbsp;*/
+};
+
+
+<DT id="4"><B>RTLD_DI_ORIGIN</B> (<I>char *</I>)
+
+<DD>
+Copy the pathname of the origin of the shared object corresponding to
+<I>handle</I>
+
+to the location pointed to by
+<I>info</I>.
+
+<DT id="5"><B>RTLD_DI_SERINFO</B> (<I>Dl_serinfo *</I>)
+
+<DD>
+Obtain the library search paths for the shared object referred to by
+<I>handle</I>.
+
+The
+<I>info</I>
+
+argument is a pointer to a
+<I>Dl_serinfo</I>
+
+that contains the search paths.
+Because the number of search paths may vary,
+the size of the structure pointed to by
+<I>info</I>
+
+can vary.
+The
+<B>RTLD_DI_SERINFOSIZE</B>
+
+request described below allows applications to size the buffer suitably.
+The caller must perform the following steps:
+<DL COMPACT><DT id="6"><DD>
+<DL COMPACT>
+<DT id="7">1.<DD>
+Use a
+<B>RTLD_DI_SERINFOSIZE</B>
+
+request to populate a
+<I>Dl_serinfo</I>
+
+structure with the size
+(<I>dls_size</I>)
+
+of the structure needed for the subsequent
+<B>RTLD_DI_SERINFO</B>
+
+request.
+<DT id="8">2.<DD>
+Allocate a
+<I>Dl_serinfo</I>
+
+buffer of the correct size
+(<I>dls_size</I>).
+
+<DT id="9">3.<DD>
+Use a further
+<B>RTLD_DI_SERINFOSIZE</B>
+
+request to populate the
+<I>dls_size</I>
+
+and
+<I>dls_cnt</I>
+
+fields of the buffer allocated in the previous step.
+<DT id="10">4.<DD>
+Use a
+<B>RTLD_DI_SERINFO</B>
+
+to obtain the library search paths.
+<DT id="11"><DD>
+</DL>
+</DL>
+
+<DT id="12"><DD>
+The
+<I>Dl_serinfo</I>
+
+structure is defined as follows:
+<DT id="13"><DD>
+
+
+typedef struct {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;size_t&nbsp;dls_size;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Size&nbsp;in&nbsp;bytes&nbsp;of
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;the&nbsp;whole&nbsp;buffer&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;unsigned&nbsp;int&nbsp;dls_cnt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Number&nbsp;of&nbsp;elements
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;in&nbsp;'dls_serpath'&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;Dl_serpath&nbsp;dls_serpath[1];&nbsp;/*&nbsp;Actually&nbsp;longer,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'dls_cnt'&nbsp;elements&nbsp;*/
+} Dl_serinfo;
+
+
+<DT id="14"><DD>
+Each of the
+<I>dls_serpath</I>
+
+elements in the above structure is a structure of the following form:
+<DT id="15"><DD>
+
+
+typedef struct {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;*dls_name;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Name&nbsp;of&nbsp;library&nbsp;search
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;path&nbsp;directory&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;unsigned&nbsp;int&nbsp;dls_flags;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Indicates&nbsp;where&nbsp;this
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;directory&nbsp;came&nbsp;from&nbsp;*/
+} Dl_serpath;
+
+
+<DT id="16"><DD>
+The
+<I>dls_flags</I>
+
+field is currently unused, and always contains zero.
+<DT id="17"><B>RTLD_DI_SERINFOSIZE</B> (<I>Dl_serinfo *</I>)
+
+<DD>
+Populate the
+<I>dls_size</I>
+
+and
+<I>dls_cnt</I>
+
+fields of the
+<I>Dl_serinfo</I>
+
+structure pointed to by
+<I>info</I>
+
+with values suitable for allocating a buffer for use in a subsequent
+<B>RTLD_DI_SERINFO</B>
+
+request.
+<DT id="18"><B>RTLD_DI_TLS_MODID</B> (<I>size_t *</I>, since glibc 2.4)
+
+<DD>
+Obtain the module ID of this shared object's TLS (thread-local storage)
+segment, as used in TLS relocations.
+If this object does not define a TLS segment, zero is placed in
+<I>*info</I>.
+
+<DT id="19"><B>RTLD_DI_TLS_DATA</B> (<I>void **</I>, since glibc 2.4)
+
+<DD>
+Obtain a pointer to the calling
+thread's TLS block corresponding to this shared object's TLS segment.
+If this object does not define a PT_TLS segment,
+or if the calling thread has not allocated a block for it,
+NULL is placed in
+<I>*info</I>.
+
+</DL>
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+On success,
+<B>dlinfo</B>()
+
+returns 0.
+On failure, it returns -1; the cause of the error can be diagnosed using
+<B><A HREF="/cgi-bin/man/man2html?3+dlerror">dlerror</A></B>(3).
+
+<A NAME="lbAF">&nbsp;</A>
+<H2>VERSIONS</H2>
+
+<B>dlinfo</B>()
+
+first appeared in glibc 2.3.3.
+<A NAME="lbAG">&nbsp;</A>
+<H2>ATTRIBUTES</H2>
+
+For an explanation of the terms used in this section, see
+<B><A HREF="/cgi-bin/man/man2html?7+attributes">attributes</A></B>(7).
+
+<TABLE BORDER>
+<TR VALIGN=top><TD><B>Interface</B></TD><TD><B>Attribute</B></TD><TD><B>Value</B><BR></TD></TR>
+<TR VALIGN=top><TD>
+<B>dlinfo</B>()
+
+</TD><TD>Thread safety</TD><TD>MT-Safe<BR></TD></TR>
+</TABLE>
+
+<A NAME="lbAH">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+This function is a nonstandard GNU extension.
+<A NAME="lbAI">&nbsp;</A>
+<H2>NOTES</H2>
+
+This function derives from the Solaris function of the same name
+and also appears on some other systems.
+The sets of requests supported by the various implementations
+overlaps only partially.
+<A NAME="lbAJ">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+The program below opens a shared objects using
+<B><A HREF="/cgi-bin/man/man2html?3+dlopen">dlopen</A></B>(3)
+
+and then uses the
+<B>RTLD_DI_SERINFOSIZE</B>
+
+and
+<B>RTLD_DI_SERINFO</B>
+
+requests to obtain the library search path list for the library.
+Here is an example of what we might see when running the program:
+<P>
+
+
+
+$ <B>./a.out /lib64/libm.so.6</B>
+dls_serpath[0].dls_name = /lib64
+dls_serpath[1].dls_name = /usr/lib64
+
+
+<A NAME="lbAK">&nbsp;</A>
+<H3>Program source</H3>
+
+
+
+#define _GNU_SOURCE
+#include &lt;<A HREF="file:///usr/include/dlfcn.h">dlfcn.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/link.h">link.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdlib.h">stdlib.h</A>&gt;
+<P>
+int
+main(int argc, char *argv[])
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;void&nbsp;*handle;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;Dl_serinfo&nbsp;serinfo;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;Dl_serinfo&nbsp;*sip;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;j;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(argc&nbsp;!=&nbsp;2)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;Usage:&nbsp;%s&nbsp;&lt;libpath&gt;\n&quot;,&nbsp;argv[0]);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Obtain&nbsp;a&nbsp;handle&nbsp;for&nbsp;shared&nbsp;object&nbsp;specified&nbsp;on&nbsp;command&nbsp;line&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;handle&nbsp;=&nbsp;dlopen(argv[1],&nbsp;RTLD_NOW);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(handle&nbsp;==&nbsp;NULL)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;dlopen()&nbsp;failed:&nbsp;%s\n&quot;,&nbsp;dlerror());
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Discover&nbsp;the&nbsp;size&nbsp;of&nbsp;the&nbsp;buffer&nbsp;that&nbsp;we&nbsp;must&nbsp;pass&nbsp;to
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RTLD_DI_SERINFO&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(dlinfo(handle,&nbsp;RTLD_DI_SERINFOSIZE,&nbsp;&amp;serinfo)&nbsp;==&nbsp;-1)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;RTLD_DI_SERINFOSIZE&nbsp;failed:&nbsp;%s\n&quot;,&nbsp;dlerror());
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Allocate&nbsp;the&nbsp;buffer&nbsp;for&nbsp;use&nbsp;with&nbsp;RTLD_DI_SERINFO&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;sip&nbsp;=&nbsp;malloc(serinfo.dls_size);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(sip&nbsp;==&nbsp;NULL)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;perror(&quot;malloc&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Initialize&nbsp;the&nbsp;'dls_size'&nbsp;and&nbsp;'dls_cnt'&nbsp;fields&nbsp;in&nbsp;the&nbsp;newly
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;allocated&nbsp;buffer&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(dlinfo(handle,&nbsp;RTLD_DI_SERINFOSIZE,&nbsp;sip)&nbsp;==&nbsp;-1)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;RTLD_DI_SERINFOSIZE&nbsp;failed:&nbsp;%s\n&quot;,&nbsp;dlerror());
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Fetch&nbsp;and&nbsp;print&nbsp;library&nbsp;search&nbsp;list&nbsp;*/
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(dlinfo(handle,&nbsp;RTLD_DI_SERINFO,&nbsp;sip)&nbsp;==&nbsp;-1)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;RTLD_DI_SERINFO&nbsp;failed:&nbsp;%s\n&quot;,&nbsp;dlerror());
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;(j&nbsp;=&nbsp;0;&nbsp;j&nbsp;&lt;&nbsp;serinfo.dls_cnt;&nbsp;j++)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;dls_serpath[%d].dls_name&nbsp;=&nbsp;%s\n&quot;,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;j,&nbsp;sip-&gt;dls_serpath[j].dls_name);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_SUCCESS);
+}
+
+<A NAME="lbAL">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?3+dl_iterate_phdr">dl_iterate_phdr</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+dladdr">dladdr</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+dlerror">dlerror</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+dlopen">dlopen</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+dlsym">dlsym</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?8+ld.so">ld.so</A></B>(8)
+
+<A NAME="lbAM">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="20"><A HREF="#lbAB">NAME</A><DD>
+<DT id="21"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="22"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="23"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DT id="24"><A HREF="#lbAF">VERSIONS</A><DD>
+<DT id="25"><A HREF="#lbAG">ATTRIBUTES</A><DD>
+<DT id="26"><A HREF="#lbAH">CONFORMING TO</A><DD>
+<DT id="27"><A HREF="#lbAI">NOTES</A><DD>
+<DT id="28"><A HREF="#lbAJ">EXAMPLE</A><DD>
+<DL>
+<DT id="29"><A HREF="#lbAK">Program source</A><DD>
+</DL>
+<DT id="30"><A HREF="#lbAL">SEE ALSO</A><DD>
+<DT id="31"><A HREF="#lbAM">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:38 GMT, March 31, 2021
+</BODY>
+</HTML>

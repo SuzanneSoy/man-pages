@@ -1,0 +1,338 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of MAKECONTEXT</TITLE>
+</HEAD><BODY>
+<H1>MAKECONTEXT</H1>
+Section: Linux Programmer's Manual (3)<BR>Updated: 2019-03-06<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+makecontext, swapcontext - manipulate user context
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<B>#include &lt;<A HREF="file:///usr/include/ucontext.h">ucontext.h</A>&gt;</B>
+
+<P>
+
+<B>void makecontext(ucontext_t *</B><I>ucp</I><B>, void (*</B><I>func</I><B>)(),</B>
+
+<B>int </B><I>argc</I><B>, ...);</B>
+
+<P>
+
+<B>int swapcontext(ucontext_t *</B><I>oucp</I><B>, const ucontext_t *</B><I>ucp</I><B>);</B>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+In a System V-like environment, one has the type <I>ucontext_t</I> defined in
+<I>&lt;<A HREF="file:///usr/include/ucontext.h">ucontext.h</A>&gt;</I>
+
+and the four functions
+<B><A HREF="/cgi-bin/man/man2html?3+getcontext">getcontext</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+setcontext">setcontext</A></B>(3),
+
+<B>makecontext</B>()
+
+and
+<B>swapcontext</B>()
+
+that allow user-level context switching
+between multiple threads of control within a process.
+<P>
+
+For the type and the first two functions, see
+<B><A HREF="/cgi-bin/man/man2html?3+getcontext">getcontext</A></B>(3).
+
+<P>
+
+The
+<B>makecontext</B>()
+
+function modifies the context pointed to
+by <I>ucp</I> (which was obtained from a call to
+<B><A HREF="/cgi-bin/man/man2html?3+getcontext">getcontext</A></B>(3)).
+
+Before invoking
+<B>makecontext</B>(),
+
+the caller must allocate a new stack
+for this context and assign its address to <I>ucp-&gt;uc_stack</I>,
+and define a successor context and
+assign its address to <I>ucp-&gt;uc_link</I>.
+<P>
+
+When this context is later activated (using
+<B><A HREF="/cgi-bin/man/man2html?3+setcontext">setcontext</A></B>(3)
+
+or
+<B>swapcontext</B>())
+
+the function <I>func</I> is called,
+and passed the series of integer
+(<I>int</I>)
+
+arguments that follow
+<I>argc</I>;
+
+the caller must specify the number of these arguments in
+<I>argc</I>.
+
+When this function returns, the successor context is activated.
+If the successor context pointer is NULL, the thread exits.
+<P>
+
+The
+<B>swapcontext</B>()
+
+function saves the current context in
+the structure pointed to by <I>oucp</I>, and then activates the
+context pointed to by <I>ucp</I>.
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+When successful,
+<B>swapcontext</B>()
+
+does not return.
+(But we may return later, in case <I>oucp</I> is
+activated, in which case it looks like
+<B>swapcontext</B>()
+
+returns 0.)
+On error,
+<B>swapcontext</B>()
+
+returns -1 and
+sets <I>errno</I> appropriately.
+<A NAME="lbAF">&nbsp;</A>
+<H2>ERRORS</H2>
+
+<DL COMPACT>
+<DT id="1"><B>ENOMEM</B>
+
+<DD>
+Insufficient stack space left.
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H2>VERSIONS</H2>
+
+<B>makecontext</B>()
+
+and
+<B>swapcontext</B>()
+
+are provided in glibc since version 2.1.
+<A NAME="lbAH">&nbsp;</A>
+<H2>ATTRIBUTES</H2>
+
+For an explanation of the terms used in this section, see
+<B><A HREF="/cgi-bin/man/man2html?7+attributes">attributes</A></B>(7).
+
+<TABLE BORDER>
+<TR VALIGN=top><TD><B>Interface</B></TD><TD><B>Attribute</B></TD><TD><B>Value</B><BR></TD></TR>
+<TR VALIGN=top><TD>
+<B>makecontext</B>()
+
+</TD><TD>Thread safety</TD><TD>MT-Safe race:ucp<BR></TD></TR>
+<TR VALIGN=top><TD>
+<B>swapcontext</B>()
+
+</TD><TD>Thread safety</TD><TD>MT-Safe race:oucp race:ucp<BR></TD></TR>
+</TABLE>
+
+<A NAME="lbAI">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+SUSv2, POSIX.1-2001.
+POSIX.1-2008 removes the specifications of
+<B>makecontext</B>()
+
+and
+<B>swapcontext</B>(),
+
+citing portability issues, and
+recommending that applications be rewritten to use POSIX threads instead.
+<A NAME="lbAJ">&nbsp;</A>
+<H2>NOTES</H2>
+
+The interpretation of <I>ucp-&gt;uc_stack</I> is just as in
+<B><A HREF="/cgi-bin/man/man2html?2+sigaltstack">sigaltstack</A></B>(2),
+
+namely, this struct contains the start and length of a memory area
+to be used as the stack, regardless of the direction of growth of
+the stack.
+Thus, it is not necessary for the user program to
+worry about this direction.
+<P>
+
+On architectures where
+<I>int</I>
+
+and pointer types are the same size
+(e.g., x86-32, where both types are 32 bits),
+you may be able to get away with passing pointers as arguments to
+<B>makecontext</B>()
+
+following
+<I>argc</I>.
+
+However, doing this is not guaranteed to be portable,
+is undefined according to the standards,
+and won't work on architectures where pointers are larger than
+<I>int</I>s.
+
+Nevertheless, starting with version 2.8, glibc makes some changes to
+<B>makecontext</B>(),
+
+to permit this on some 64-bit architectures (e.g., x86-64).
+<A NAME="lbAK">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+<P>
+
+The example program below demonstrates the use of
+<B><A HREF="/cgi-bin/man/man2html?3+getcontext">getcontext</A></B>(3),
+
+<B>makecontext</B>(),
+
+and
+<B>swapcontext</B>().
+
+Running the program produces the following output:
+<P>
+
+
+
+$<B> ./a.out</B>
+
+main: swapcontext(&amp;uctx_main, &amp;uctx_func2)
+func2: started
+func2: swapcontext(&amp;uctx_func2, &amp;uctx_func1)
+func1: started
+func1: swapcontext(&amp;uctx_func1, &amp;uctx_func2)
+func2: returning
+func1: returning
+main: exiting
+
+
+<A NAME="lbAL">&nbsp;</A>
+<H3>Program source</H3>
+
+
+
+#include &lt;<A HREF="file:///usr/include/ucontext.h">ucontext.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdlib.h">stdlib.h</A>&gt;
+<P>
+static ucontext_t uctx_main, uctx_func1, uctx_func2;
+<P>
+#define handle_error(msg) \
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;do&nbsp;{&nbsp;perror(msg);&nbsp;exit(EXIT_FAILURE);&nbsp;}&nbsp;while&nbsp;(0)
+<P>
+static void
+func1(void)
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;func1:&nbsp;started\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;func1:&nbsp;swapcontext(&amp;uctx_func1,&nbsp;&amp;uctx_func2)\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(swapcontext(&amp;uctx_func1,&nbsp;&amp;uctx_func2)&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;handle_error(&quot;swapcontext&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;func1:&nbsp;returning\n&quot;);
+}
+<P>
+static void
+func2(void)
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;func2:&nbsp;started\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;func2:&nbsp;swapcontext(&amp;uctx_func2,&nbsp;&amp;uctx_func1)\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(swapcontext(&amp;uctx_func2,&nbsp;&amp;uctx_func1)&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;handle_error(&quot;swapcontext&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;func2:&nbsp;returning\n&quot;);
+}
+<P>
+int
+main(int argc, char *argv[])
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;func1_stack[16384];
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;func2_stack[16384];
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(getcontext(&amp;uctx_func1)&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;handle_error(&quot;getcontext&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uctx_func1.uc_stack.ss_sp&nbsp;=&nbsp;func1_stack;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uctx_func1.uc_stack.ss_size&nbsp;=&nbsp;sizeof(func1_stack);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uctx_func1.uc_link&nbsp;=&nbsp;&amp;uctx_main;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;makecontext(&amp;uctx_func1,&nbsp;func1,&nbsp;0);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(getcontext(&amp;uctx_func2)&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;handle_error(&quot;getcontext&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uctx_func2.uc_stack.ss_sp&nbsp;=&nbsp;func2_stack;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uctx_func2.uc_stack.ss_size&nbsp;=&nbsp;sizeof(func2_stack);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Successor&nbsp;context&nbsp;is&nbsp;f1(),&nbsp;unless&nbsp;argc&nbsp;&gt;&nbsp;1&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uctx_func2.uc_link&nbsp;=&nbsp;(argc&nbsp;&gt;&nbsp;1)&nbsp;?&nbsp;NULL&nbsp;:&nbsp;&amp;uctx_func1;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;makecontext(&amp;uctx_func2,&nbsp;func2,&nbsp;0);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;main:&nbsp;swapcontext(&amp;uctx_main,&nbsp;&amp;uctx_func2)\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(swapcontext(&amp;uctx_main,&nbsp;&amp;uctx_func2)&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;handle_error(&quot;swapcontext&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;main:&nbsp;exiting\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_SUCCESS);
+}
+
+<A NAME="lbAM">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?2+sigaction">sigaction</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+sigaltstack">sigaltstack</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+sigprocmask">sigprocmask</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?3+getcontext">getcontext</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+sigsetjmp">sigsetjmp</A></B>(3)
+
+<A NAME="lbAN">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="2"><A HREF="#lbAB">NAME</A><DD>
+<DT id="3"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="4"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="5"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DT id="6"><A HREF="#lbAF">ERRORS</A><DD>
+<DT id="7"><A HREF="#lbAG">VERSIONS</A><DD>
+<DT id="8"><A HREF="#lbAH">ATTRIBUTES</A><DD>
+<DT id="9"><A HREF="#lbAI">CONFORMING TO</A><DD>
+<DT id="10"><A HREF="#lbAJ">NOTES</A><DD>
+<DT id="11"><A HREF="#lbAK">EXAMPLE</A><DD>
+<DL>
+<DT id="12"><A HREF="#lbAL">Program source</A><DD>
+</DL>
+<DT id="13"><A HREF="#lbAM">SEE ALSO</A><DD>
+<DT id="14"><A HREF="#lbAN">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:47 GMT, March 31, 2021
+</BODY>
+</HTML>

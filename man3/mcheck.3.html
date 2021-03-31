@@ -1,0 +1,330 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of MCHECK</TITLE>
+</HEAD><BODY>
+<H1>MCHECK</H1>
+Section: Linux Programmer's Manual (3)<BR>Updated: 2019-03-06<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+mcheck, mcheck_check_all, mcheck_pedantic, mprobe - heap consistency checking
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<PRE>
+<B>#include &lt;<A HREF="file:///usr/include/mcheck.h">mcheck.h</A>&gt;</B>
+
+<B>int mcheck(void (*</B><I>abortfunc</I><B>)(enum mcheck_status </B><I>mstatus</I><B>));</B>
+
+<B>int mcheck_pedantic(void (*</B><I>abortfunc</I><B>)(enum mcheck_status </B><I>mstatus</I><B>));</B>
+
+<B>void mcheck_check_all(void);</B>
+
+<B>enum mcheck_status mprobe(void *</B><I>ptr</I><B>);</B>
+</PRE>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+The
+<B>mcheck</B>()
+
+function installs a set of debugging hooks for the
+<B><A HREF="/cgi-bin/man/man2html?3+malloc">malloc</A></B>(3)
+
+family of memory-allocation functions.
+These hooks cause certain consistency checks to be performed
+on the state of the heap.
+The checks can detect application errors such as freeing a block of memory
+more than once or corrupting the bookkeeping data structures
+that immediately precede a block of allocated memory.
+<P>
+
+To be effective, the
+<B>mcheck</B>()
+
+function must be called before the first call to
+<B><A HREF="/cgi-bin/man/man2html?3+malloc">malloc</A></B>(3)
+
+or a related function.
+In cases where this is difficult to ensure, linking the program with
+<I>-lmcheck</I>
+
+inserts an implicit call to
+<B>mcheck</B>()
+
+(with a NULL argument)
+before the first call to a memory-allocation function.
+<P>
+
+The
+<B>mcheck_pedantic</B>()
+
+function is similar to
+<B>mcheck</B>(),
+
+but performs checks on all allocated blocks whenever
+one of the memory-allocation functions is called.
+This can be very slow!
+<P>
+
+The
+<B>mcheck_check_all</B>()
+
+function causes an immediate check on all allocated blocks.
+This call is effective only if
+<B>mcheck</B>()
+
+is called beforehand.
+<P>
+
+If the system detects an inconsistency in the heap,
+the caller-supplied function pointed to by
+<I>abortfunc</I>
+
+is invoked with a single argument,
+<I>mstatus</I>,
+
+that indicates what type of inconsistency was detected.
+If
+<I>abortfunc</I>
+
+is NULL, a default function prints an error message on
+<I>stderr</I>
+
+and calls
+<B><A HREF="/cgi-bin/man/man2html?3+abort">abort</A></B>(3).
+
+<P>
+
+The
+<B>mprobe</B>()
+
+function performs a consistency check on
+the block of allocated memory pointed to by
+<I>ptr</I>.
+
+The
+<B>mcheck</B>()
+
+function should be called beforehand (otherwise
+<B>mprobe</B>()
+
+returns
+<B>MCHECK_DISABLED</B>).
+
+<P>
+
+The following list describes the values returned by
+<B>mprobe</B>()
+
+or passed as the
+<I>mstatus</I>
+
+argument when
+<I>abortfunc</I>
+
+is invoked:
+<DL COMPACT>
+<DT id="1"><B>MCHECK_DISABLED</B> (<B>mprobe</B>() only)
+
+<DD>
+<B>mcheck</B>()
+
+was not called before the first memory allocation function was called.
+Consistency checking is not possible.
+<DT id="2"><B>MCHECK_OK</B> (<B>mprobe</B>() only)
+
+<DD>
+No inconsistency detected.
+<DT id="3"><B>MCHECK_HEAD</B>
+
+<DD>
+Memory preceding an allocated block was clobbered.
+<DT id="4"><B>MCHECK_TAIL</B>
+
+<DD>
+Memory following an allocated block was clobbered.
+<DT id="5"><B>MCHECK_FREE</B>
+
+<DD>
+A block of memory was freed twice.
+</DL>
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+<B>mcheck</B>()
+
+and
+<B>mcheck_pedantic</B>()
+
+return 0 on success, or -1 on error.
+<A NAME="lbAF">&nbsp;</A>
+<H2>VERSIONS</H2>
+
+The
+<B>mcheck_pedantic</B>()
+
+and
+<B>mcheck_check_all</B>()
+
+functions are available since glibc 2.2.
+The
+<B>mcheck</B>()
+
+and
+<B>mprobe</B>()
+
+functions are present since at least glibc 2.0
+<A NAME="lbAG">&nbsp;</A>
+<H2>ATTRIBUTES</H2>
+
+For an explanation of the terms used in this section, see
+<B><A HREF="/cgi-bin/man/man2html?7+attributes">attributes</A></B>(7).
+
+<TABLE BORDER>
+<TR VALIGN=top><TD><B>Interface</B></TD><TD><B>Attribute</B></TD><TD><B>Value</B><BR></TD></TR>
+<TR VALIGN=top><TD>
+<B>mcheck</B>(),
+
+<B>mcheck_pedantic</B>(),
+
+<BR>
+
+<B>mcheck_check_all</B>(),
+
+<B>mprobe</B>()
+
+</TD><TD>Thread safety</TD><TD>
+MT-Unsafe race:mcheck
+<BR>
+
+const:malloc_hooks
+<BR></TD></TR>
+</TABLE>
+
+<P>
+<A NAME="lbAH">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+These functions are GNU extensions.
+<A NAME="lbAI">&nbsp;</A>
+<H2>NOTES</H2>
+
+Linking a program with
+<I>-lmcheck</I>
+
+and using the
+<B>MALLOC_CHECK_</B>
+
+environment variable (described in
+<B><A HREF="/cgi-bin/man/man2html?3+mallopt">mallopt</A></B>(3))
+
+cause the same kinds of errors to be detected.
+But, using
+<B>MALLOC_CHECK_</B>
+
+does not require the application to be relinked.
+
+<A NAME="lbAJ">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+The program below calls
+<B>mcheck</B>()
+
+with a NULL argument and then frees the same block of memory twice.
+The following shell session demonstrates what happens
+when running the program:
+<P>
+
+
+
+$<B> ./a.out</B>
+
+About to free
+<P>
+About to free a second time
+block freed twice
+Aborted (core dumped)
+
+
+<A NAME="lbAK">&nbsp;</A>
+<H3>Program source</H3>
+
+
+
+#include &lt;<A HREF="file:///usr/include/stdlib.h">stdlib.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/mcheck.h">mcheck.h</A>&gt;
+<P>
+int
+main(int argc, char *argv[])
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;*p;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(mcheck(NULL)&nbsp;!=&nbsp;0)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;mcheck()&nbsp;failed\n&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;p&nbsp;=&nbsp;malloc(1000);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;About&nbsp;to&nbsp;free\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;free(p);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;\nAbout&nbsp;to&nbsp;free&nbsp;a&nbsp;second&nbsp;time\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;free(p);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_SUCCESS);
+}
+
+<A NAME="lbAL">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?3+malloc">malloc</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+mallopt">mallopt</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+mtrace">mtrace</A></B>(3)
+
+<A NAME="lbAM">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="6"><A HREF="#lbAB">NAME</A><DD>
+<DT id="7"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="8"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="9"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DT id="10"><A HREF="#lbAF">VERSIONS</A><DD>
+<DT id="11"><A HREF="#lbAG">ATTRIBUTES</A><DD>
+<DT id="12"><A HREF="#lbAH">CONFORMING TO</A><DD>
+<DT id="13"><A HREF="#lbAI">NOTES</A><DD>
+<DT id="14"><A HREF="#lbAJ">EXAMPLE</A><DD>
+<DL>
+<DT id="15"><A HREF="#lbAK">Program source</A><DD>
+</DL>
+<DT id="16"><A HREF="#lbAL">SEE ALSO</A><DD>
+<DT id="17"><A HREF="#lbAM">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:48 GMT, March 31, 2021
+</BODY>
+</HTML>

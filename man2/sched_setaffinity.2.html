@@ -1,0 +1,609 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SCHED_SETAFFINITY</TITLE>
+</HEAD><BODY>
+<H1>SCHED_SETAFFINITY</H1>
+Section: Linux Programmer's Manual (2)<BR>Updated: 2019-10-10<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+sched_setaffinity, sched_getaffinity - set and get a thread's CPU affinity mask
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<PRE>
+<B>#define _GNU_SOURCE</B>             /* See <A HREF="/cgi-bin/man/man2html?7+feature_test_macros">feature_test_macros</A>(7) */
+<B>#include &lt;<A HREF="file:///usr/include/sched.h">sched.h</A>&gt;</B>
+
+<B>int sched_setaffinity(pid_t </B><I>pid</I><B>, size_t </B><I>cpusetsize</I><B>,</B>
+<B>                      const cpu_set_t *</B><I>mask</I><B>);</B>
+
+<B>int sched_getaffinity(pid_t </B><I>pid</I><B>, size_t </B><I>cpusetsize</I><B>,</B>
+<B>                      cpu_set_t *</B><I>mask</I><B>);</B>
+</PRE>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+A thread's CPU affinity mask determines the set of CPUs on which
+it is eligible to run.
+On a multiprocessor system, setting the CPU affinity mask
+can be used to obtain performance benefits.
+For example,
+by dedicating one CPU to a particular thread
+(i.e., setting the affinity mask of that thread to specify a single CPU,
+and setting the affinity mask of all other threads to exclude that CPU),
+it is possible to ensure maximum execution speed for that thread.
+Restricting a thread to run on a single CPU also avoids
+the performance cost caused by the cache invalidation that occurs
+when a thread ceases to execute on one CPU and then
+recommences execution on a different CPU.
+<P>
+
+A CPU affinity mask is represented by the
+<I>cpu_set_t</I>
+
+structure, a &quot;CPU set&quot;, pointed to by
+<I>mask</I>.
+
+A set of macros for manipulating CPU sets is described in
+<B><A HREF="/cgi-bin/man/man2html?3+CPU_SET">CPU_SET</A></B>(3).
+
+<P>
+
+<B>sched_setaffinity</B>()
+
+sets the CPU affinity mask of the thread whose ID is
+<I>pid</I>
+
+to the value specified by
+<I>mask</I>.
+
+If
+<I>pid</I>
+
+is zero, then the calling thread is used.
+The argument
+<I>cpusetsize</I>
+
+is the length (in bytes) of the data pointed to by
+<I>mask</I>.
+
+Normally this argument would be specified as
+<I>sizeof(cpu_set_t)</I>.
+
+<P>
+
+If the thread specified by
+<I>pid</I>
+
+is not currently running on one of the CPUs specified in
+<I>mask</I>,
+
+then that thread is migrated to one of the CPUs specified in
+<I>mask</I>.
+
+<P>
+
+<B>sched_getaffinity</B>()
+
+writes the affinity mask of the thread whose ID is
+<I>pid</I>
+
+into the
+<I>cpu_set_t</I>
+
+structure pointed to by
+<I>mask</I>.
+
+The
+<I>cpusetsize</I>
+
+argument specifies the size (in bytes) of
+<I>mask</I>.
+
+If
+<I>pid</I>
+
+is zero, then the mask of the calling thread is returned.
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+On success,
+<B>sched_setaffinity</B>()
+
+and
+<B>sched_getaffinity</B>()
+
+return 0 (but see &quot;C library/kernel differences&quot; below,
+which notes that the underlying
+<B>sched_getaffinity</B>()
+
+differs in its return value).
+On error, -1 is returned, and
+<I>errno</I>
+
+is set appropriately.
+<A NAME="lbAF">&nbsp;</A>
+<H2>ERRORS</H2>
+
+<DL COMPACT>
+<DT id="1"><B>EFAULT</B>
+
+<DD>
+A supplied memory address was invalid.
+<DT id="2"><B>EINVAL</B>
+
+<DD>
+The affinity bit mask
+<I>mask</I>
+
+contains no processors that are currently physically on the system
+and permitted to the thread according to any restrictions that
+may be imposed by
+<I>cpuset</I>
+
+cgroups or the &quot;cpuset&quot; mechanism described in
+<B><A HREF="/cgi-bin/man/man2html?7+cpuset">cpuset</A></B>(7).
+
+<DT id="3"><B>EINVAL</B>
+
+<DD>
+(<B>sched_getaffinity</B>()
+
+and, in kernels before 2.6.9,
+<B>sched_setaffinity</B>())
+
+<I>cpusetsize</I>
+
+is smaller than the size of the affinity mask used by the kernel.
+<DT id="4"><B>EPERM</B>
+
+<DD>
+(<B>sched_setaffinity</B>())
+
+The calling thread does not have appropriate privileges.
+The caller needs an effective user ID equal to the real user ID
+or effective user ID of the thread identified by
+<I>pid</I>,
+
+or it must possess the
+<B>CAP_SYS_NICE</B>
+
+capability in the user namespace of the thread
+<I>pid</I>.
+
+<DT id="5"><B>ESRCH</B>
+
+<DD>
+The thread whose ID is <I>pid</I> could not be found.
+</DL>
+<A NAME="lbAG">&nbsp;</A>
+<H2>VERSIONS</H2>
+
+The CPU affinity system calls were introduced in Linux kernel 2.5.8.
+The system call wrappers were introduced in glibc 2.3.
+Initially, the glibc interfaces included a
+<I>cpusetsize</I>
+
+argument, typed as
+<I>unsigned int</I>.
+
+In glibc 2.3.3, the
+<I>cpusetsize</I>
+
+argument was removed, but was then restored in glibc 2.3.4, with type
+<I>size_t</I>.
+
+<A NAME="lbAH">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+These system calls are Linux-specific.
+<A NAME="lbAI">&nbsp;</A>
+<H2>NOTES</H2>
+
+After a call to
+<B>sched_setaffinity</B>(),
+
+the set of CPUs on which the thread will actually run is
+the intersection of the set specified in the
+<I>mask</I>
+
+argument and the set of CPUs actually present on the system.
+The system may further restrict the set of CPUs on which the thread
+runs if the &quot;cpuset&quot; mechanism described in
+<B><A HREF="/cgi-bin/man/man2html?7+cpuset">cpuset</A></B>(7)
+
+is being used.
+These restrictions on the actual set of CPUs on which the thread
+will run are silently imposed by the kernel.
+<P>
+
+There are various ways of determining the number of CPUs
+available on the system, including: inspecting the contents of
+<I>/proc/cpuinfo</I>;
+
+using
+<B><A HREF="/cgi-bin/man/man2html?3+sysconf">sysconf</A></B>(3)
+
+to obtain the values of the
+<B>_SC_NPROCESSORS_CONF</B>
+
+and
+<B>_SC_NPROCESSORS_ONLN</B>
+
+parameters; and inspecting the list of CPU directories under
+<I>/sys/devices/system/cpu/</I>.
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?7+sched">sched</A></B>(7)
+
+has a description of the Linux scheduling scheme.
+<P>
+
+The affinity mask is a per-thread attribute that can be
+adjusted independently for each of the threads in a thread group.
+The value returned from a call to
+<B><A HREF="/cgi-bin/man/man2html?2+gettid">gettid</A></B>(2)
+
+can be passed in the argument
+<I>pid</I>.
+
+Specifying
+<I>pid</I>
+
+as 0 will set the attribute for the calling thread,
+and passing the value returned from a call to
+<B><A HREF="/cgi-bin/man/man2html?2+getpid">getpid</A></B>(2)
+
+will set the attribute for the main thread of the thread group.
+(If you are using the POSIX threads API, then use
+<B><A HREF="/cgi-bin/man/man2html?3+pthread_setaffinity_np">pthread_setaffinity_np</A></B>(3)
+
+instead of
+<B>sched_setaffinity</B>().)
+
+<P>
+
+The
+<I>isolcpus</I>
+
+boot option can be used to isolate one or more CPUs at boot time,
+so that no processes are scheduled onto those CPUs.
+Following the use of this boot option,
+the only way to schedule processes onto the isolated CPUs is via
+<B>sched_setaffinity</B>()
+
+or the
+<B><A HREF="/cgi-bin/man/man2html?7+cpuset">cpuset</A></B>(7)
+
+mechanism.
+For further information, see the kernel source file
+<I>Documentation/admin-guide/kernel-parameters.txt</I>.
+
+As noted in that file,
+<I>isolcpus</I>
+
+is the preferred mechanism of isolating CPUs
+(versus the alternative of manually setting the CPU affinity
+of all processes on the system).
+<P>
+
+A child created via
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2)
+
+inherits its parent's CPU affinity mask.
+The affinity mask is preserved across an
+<B><A HREF="/cgi-bin/man/man2html?2+execve">execve</A></B>(2).
+
+<A NAME="lbAJ">&nbsp;</A>
+<H3>C library/kernel differences</H3>
+
+This manual page describes the glibc interface for the CPU affinity calls.
+The actual system call interface is slightly different, with the
+<I>mask</I>
+
+being typed as
+<I>unsigned long&nbsp;*</I>,
+
+reflecting the fact that the underlying implementation of CPU
+sets is a simple bit mask.
+<P>
+
+On success, the raw
+<B>sched_getaffinity</B>()
+
+system call returns the number of bytes placed copied into the
+<I>mask</I>
+
+buffer;
+this will be the minimum of
+<I>cpusetsize</I>
+
+and the size (in bytes) of the
+<I>cpumask_t</I>
+
+data type that is used internally by the kernel to
+represent the CPU set bit mask.
+<A NAME="lbAK">&nbsp;</A>
+<H3>Handling systems with large CPU affinity masks</H3>
+
+The underlying system calls (which represent CPU masks as bit masks of type
+<I>unsigned long&nbsp;*</I>)
+
+impose no restriction on the size of the CPU mask.
+However, the
+<I>cpu_set_t</I>
+
+data type used by glibc has a fixed size of 128 bytes,
+meaning that the maximum CPU number that can be represented is 1023.
+
+
+If the kernel CPU affinity mask is larger than 1024,
+then calls of the form:
+<P>
+
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;sched_getaffinity(pid,&nbsp;sizeof(cpu_set_t),&nbsp;&amp;mask);
+<P>
+
+fail with the error
+<B>EINVAL</B>,
+
+the error produced by the underlying system call for the case where the
+<I>mask</I>
+
+size specified in
+<I>cpusetsize</I>
+
+is smaller than the size of the affinity mask used by the kernel.
+(Depending on the system CPU topology, the kernel affinity mask can
+be substantially larger than the number of active CPUs in the system.)
+<P>
+
+When working on systems with large kernel CPU affinity masks,
+one must dynamically allocate the
+<I>mask</I>
+
+argument (see
+<B><A HREF="/cgi-bin/man/man2html?3+CPU_ALLOC">CPU_ALLOC</A></B>(3)).
+
+Currently, the only way to do this is by probing for the size
+of the required mask using
+<B>sched_getaffinity</B>()
+
+calls with increasing mask sizes (until the call does not fail with the error
+<B>EINVAL</B>).
+
+<P>
+
+Be aware that
+<B><A HREF="/cgi-bin/man/man2html?3+CPU_ALLOC">CPU_ALLOC</A></B>(3)
+
+may allocate a slightly larger CPU set than requested
+(because CPU sets are implemented as bit masks allocated in units of
+<I>sizeof(long)</I>).
+
+Consequently,
+<B>sched_getaffinity</B>()
+
+can set bits beyond the requested allocation size, because the kernel
+sees a few additional bits.
+Therefore, the caller should iterate over the bits in the returned set,
+counting those which are set, and stop upon reaching the value returned by
+<B><A HREF="/cgi-bin/man/man2html?3+CPU_COUNT">CPU_COUNT</A></B>(3)
+
+(rather than iterating over the number of bits
+requested to be allocated).
+<A NAME="lbAL">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+The program below creates a child process.
+The parent and child then each assign themselves to a specified CPU
+and execute identical loops that consume some CPU time.
+Before terminating, the parent waits for the child to complete.
+The program takes three command-line arguments:
+the CPU number for the parent,
+the CPU number for the child,
+and the number of loop iterations that both processes should perform.
+<P>
+
+As the sample runs below demonstrate, the amount of real and CPU time
+consumed when running the program will depend on intra-core caching effects
+and whether the processes are using the same CPU.
+<P>
+
+We first employ
+<B><A HREF="/cgi-bin/man/man2html?1+lscpu">lscpu</A></B>(1)
+
+to determine that this (x86)
+system has two cores, each with two CPUs:
+<P>
+
+
+
+$ <B>lscpu | egrep -i 'core.*:|socket'</B>
+Thread(s) per core:    2
+Core(s) per socket:    2
+Socket(s):             1
+
+
+<P>
+
+We then time the operation of the example program for three cases:
+both processes running on the same CPU;
+both processes running on different CPUs on the same core;
+and both processes running on different CPUs on different cores.
+<P>
+
+
+
+$ <B>time -p ./a.out 0 0 100000000</B>
+real 14.75
+user 3.02
+sys 11.73
+$ <B>time -p ./a.out 0 1 100000000</B>
+real 11.52
+user 3.98
+sys 19.06
+$ <B>time -p ./a.out 0 3 100000000</B>
+real 7.89
+user 3.29
+sys 12.07
+
+
+<A NAME="lbAM">&nbsp;</A>
+<H3>Program source</H3>
+
+
+
+#define _GNU_SOURCE
+#include &lt;<A HREF="file:///usr/include/sched.h">sched.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdlib.h">stdlib.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/unistd.h">unistd.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/sys/wait.h">sys/wait.h</A>&gt;
+<P>
+#define errExit(msg)    do { perror(msg); exit(EXIT_FAILURE); \
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;while&nbsp;(0)
+<P>
+int
+main(int argc, char *argv[])
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;cpu_set_t&nbsp;set;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;parentCPU,&nbsp;childCPU;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;nloops,&nbsp;j;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(argc&nbsp;!=&nbsp;4)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;Usage:&nbsp;%s&nbsp;parent-cpu&nbsp;child-cpu&nbsp;num-loops\n&quot;,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;argv[0]);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;parentCPU&nbsp;=&nbsp;atoi(argv[1]);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;childCPU&nbsp;=&nbsp;atoi(argv[2]);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;nloops&nbsp;=&nbsp;atoi(argv[3]);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;CPU_ZERO(&amp;set);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;switch&nbsp;(fork())&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;case&nbsp;-1:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Error&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errExit(&quot;fork&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;case&nbsp;0:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Child&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CPU_SET(childCPU,&nbsp;&amp;set);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(sched_setaffinity(getpid(),&nbsp;sizeof(set),&nbsp;&amp;set)&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errExit(&quot;sched_setaffinity&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;(j&nbsp;=&nbsp;0;&nbsp;j&nbsp;&lt;&nbsp;nloops;&nbsp;j++)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;getppid();
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_SUCCESS);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;default:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Parent&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CPU_SET(parentCPU,&nbsp;&amp;set);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(sched_setaffinity(getpid(),&nbsp;sizeof(set),&nbsp;&amp;set)&nbsp;==&nbsp;-1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errExit(&quot;sched_setaffinity&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;(j&nbsp;=&nbsp;0;&nbsp;j&nbsp;&lt;&nbsp;nloops;&nbsp;j++)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;getppid();
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;wait(NULL);&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Wait&nbsp;for&nbsp;child&nbsp;to&nbsp;terminate&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_SUCCESS);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+}
+
+<A NAME="lbAN">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+
+<B><A HREF="/cgi-bin/man/man2html?1+lscpu">lscpu</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?1+nproc">nproc</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?1+taskset">taskset</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?2+clone">clone</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+getcpu">getcpu</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+getpriority">getpriority</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+gettid">gettid</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+nice">nice</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+sched_get_priority_max">sched_get_priority_max</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+sched_get_priority_min">sched_get_priority_min</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+sched_getscheduler">sched_getscheduler</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+sched_setscheduler">sched_setscheduler</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+setpriority">setpriority</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?3+CPU_SET">CPU_SET</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+get_nprocs">get_nprocs</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+pthread_setaffinity_np">pthread_setaffinity_np</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+sched_getcpu">sched_getcpu</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?7+capabilities">capabilities</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+cpuset">cpuset</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+sched">sched</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?8+numactl">numactl</A></B>(8)
+
+<A NAME="lbAO">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="6"><A HREF="#lbAB">NAME</A><DD>
+<DT id="7"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="8"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="9"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DT id="10"><A HREF="#lbAF">ERRORS</A><DD>
+<DT id="11"><A HREF="#lbAG">VERSIONS</A><DD>
+<DT id="12"><A HREF="#lbAH">CONFORMING TO</A><DD>
+<DT id="13"><A HREF="#lbAI">NOTES</A><DD>
+<DL>
+<DT id="14"><A HREF="#lbAJ">C library/kernel differences</A><DD>
+<DT id="15"><A HREF="#lbAK">Handling systems with large CPU affinity masks</A><DD>
+</DL>
+<DT id="16"><A HREF="#lbAL">EXAMPLE</A><DD>
+<DL>
+<DT id="17"><A HREF="#lbAM">Program source</A><DD>
+</DL>
+<DT id="18"><A HREF="#lbAN">SEE ALSO</A><DD>
+<DT id="19"><A HREF="#lbAO">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:34 GMT, March 31, 2021
+</BODY>
+</HTML>

@@ -1,0 +1,1394 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of GIT-PUSH</TITLE>
+</HEAD><BODY>
+<H1>GIT-PUSH</H1>
+Section: Git Manual (1)<BR>Updated: 03/04/2021<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+git-push - Update remote refs along with associated objects
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+<PRE>
+<I>git push</I> [--all | --mirror | --tags] [--follow-tags] [--atomic] [-n | --dry-run] [--receive-pack=&lt;git-receive-pack&gt;]
+           [--repo=&lt;repository&gt;] [-f | --force] [-d | --delete] [--prune] [-v | --verbose]
+           [-u | --set-upstream] [-o &lt;string&gt; | --push-option=&lt;string&gt;]
+           [--[no-]signed|--signed=(true|false|if-asked)]
+           [--force-with-lease[=&lt;refname&gt;[:&lt;expect&gt;]]]
+           [--no-verify] [&lt;repository&gt; [&lt;refspec&gt;...]]
+</PRE>
+
+<P>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+Updates remote refs using local refs, while sending objects necessary to complete the given refs.
+<P>
+You can make interesting things happen to a repository every time you push into it, by setting up <I>hooks</I> there. See documentation for <B><A HREF="/cgi-bin/man/man2html?1+git-receive-pack">git-receive-pack</A></B>(1).
+<P>
+When the command line does not specify where to push with the <B>&lt;repository&gt;</B> argument, <B>branch.*.remote</B> configuration for the current branch is consulted to determine where to push. If the configuration is missing, it defaults to <I>origin</I>.
+<P>
+When the command line does not specify what to push with <B>&lt;refspec&gt;...</B> arguments or <B>--all</B>, <B>--mirror</B>, <B>--tags</B> options, the command finds the default <B>&lt;refspec&gt;</B> by consulting <B>remote.*.push</B> configuration, and if it is not found, honors <B>push.default</B> configuration to decide what to push (See <B><A HREF="/cgi-bin/man/man2html?1+git-config">git-config</A></B>(1) for the meaning of <B>push.default</B>).
+<P>
+When neither the command-line nor the configuration specify what to push, the default behavior is used, which corresponds to the <B>simple</B> value for <B>push.default</B>: the current branch is pushed to the corresponding upstream branch, but as a safety measure, the push is aborted if the upstream branch does not have the same name as the local one.
+<A NAME="lbAE">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+<P>
+
+&lt;repository&gt;
+<DL COMPACT><DT id="1"><DD>
+The &quot;remote&quot; repository that is destination of a push operation. This parameter can be either a URL (see the section
+GIT URLS
+below) or the name of a remote (see the section
+REMOTES
+below).
+</DL>
+
+<P>
+
+&lt;refspec&gt;...
+<DL COMPACT><DT id="2"><DD>
+Specify what destination ref to update with what source object. The format of a &lt;refspec&gt; parameter is an optional plus
+<B>+</B>, followed by the source object &lt;src&gt;, followed by a colon
+<B>:</B>, followed by the destination ref &lt;dst&gt;.
+<P>
+The &lt;src&gt; is often the name of the branch you would want to push, but it can be any arbitrary &quot;SHA-1 expression&quot;, such as
+<B>master~4</B>
+or
+<B>HEAD</B>
+(see
+<B><A HREF="/cgi-bin/man/man2html?7+gitrevisions">gitrevisions</A></B>(7)).
+<P>
+The &lt;dst&gt; tells which ref on the remote side is updated with this push. Arbitrary expressions cannot be used here, an actual ref must be named. If
+<B>git push [&lt;repository&gt;]</B>
+without any
+<B>&lt;refspec&gt;</B>
+argument is set to update some ref at the destination with
+<B>&lt;src&gt;</B>
+with
+<B>remote.&lt;repository&gt;.push</B>
+configuration variable,
+<B>:&lt;dst&gt;</B>
+part can be omitted---such a push will update a ref that
+<B>&lt;src&gt;</B>
+normally updates without any
+<B>&lt;refspec&gt;</B>
+on the command line. Otherwise, missing
+<B>:&lt;dst&gt;</B>
+means to update the same ref as the
+<B>&lt;src&gt;</B>.
+<P>
+If &lt;dst&gt; doesn't start with
+<B>refs/</B>
+(e.g.
+<B>refs/heads/master</B>) we will try to infer where in
+<B>refs/*</B>
+on the destination &lt;repository&gt; it belongs based on the type of &lt;src&gt; being pushed and whether &lt;dst&gt; is ambiguous.
+<P>
+<DL COMPACT><DT id="3"><DD>
+&bull;
+
+
+If &lt;dst&gt; unambiguously refers to a ref on the &lt;repository&gt; remote, then push to that ref.
+</DL>
+
+<P>
+<DL COMPACT><DT id="4"><DD>
+&bull;
+
+
+If &lt;src&gt; resolves to a ref starting with refs/heads/ or refs/tags/, then prepend that to &lt;dst&gt;.
+</DL>
+
+<P>
+<DL COMPACT><DT id="5"><DD>
+&bull;
+
+
+Other ambiguity resolutions might be added in the future, but for now any other cases will error out with an error indicating what we tried, and depending on the
+<B>advice.pushUnqualifiedRefname</B>
+configuration (see
+<B><A HREF="/cgi-bin/man/man2html?1+git-config">git-config</A></B>(1)) suggest what refs/ namespace you may have wanted to push to.
+</DL>
+
+<P>
+The object referenced by &lt;src&gt; is used to update the &lt;dst&gt; reference on the remote side. Whether this is allowed depends on where in
+<B>refs/*</B>
+the &lt;dst&gt; reference lives as described in detail below, in those sections &quot;update&quot; means any modifications except deletes, which as noted after the next few sections are treated differently.
+<P>
+The
+<B>refs/heads/*</B>
+namespace will only accept commit objects, and updates only if they can be fast-forwarded.
+<P>
+The
+<B>refs/tags/*</B>
+namespace will accept any kind of object (as commits, trees and blobs can be tagged), and any updates to them will be rejected.
+<P>
+It's possible to push any type of object to any namespace outside of
+<B>refs/{tags,heads}/*</B>. In the case of tags and commits, these will be treated as if they were the commits inside
+<B>refs/heads/*</B>
+for the purposes of whether the update is allowed.
+<P>
+I.e. a fast-forward of commits and tags outside
+<B>refs/{tags,heads}/*</B>
+is allowed, even in cases where what's being fast-forwarded is not a commit, but a tag object which happens to point to a new commit which is a fast-forward of the commit the last tag (or commit) it's replacing. Replacing a tag with an entirely different tag is also allowed, if it points to the same commit, as well as pushing a peeled tag, i.e. pushing the commit that existing tag object points to, or a new tag object which an existing commit points to.
+<P>
+Tree and blob objects outside of
+<B>refs/{tags,heads}/*</B>
+will be treated the same way as if they were inside
+<B>refs/tags/*</B>, any update of them will be rejected.
+<P>
+All of the rules described above about what's not allowed as an update can be overridden by adding an the optional leading
+<B>+</B>
+to a refspec (or using
+<B>--force</B>
+command line option). The only exception to this is that no amount of forcing will make the
+<B>refs/heads/*</B>
+namespace accept a non-commit object. Hooks and configuration can also override or amend these rules, see e.g.
+<B>receive.denyNonFastForwards</B>
+in
+<B><A HREF="/cgi-bin/man/man2html?1+git-config">git-config</A></B>(1)
+and
+<B>pre-receive</B>
+and
+<B>update</B>
+in
+<B><A HREF="/cgi-bin/man/man2html?5+githooks">githooks</A></B>(5).
+<P>
+Pushing an empty &lt;src&gt; allows you to delete the &lt;dst&gt; ref from the remote repository. Deletions are always accepted without a leading
+<B>+</B>
+in the refspec (or
+<B>--force</B>), except when forbidden by configuration or hooks. See
+<B>receive.denyDeletes</B>
+in
+<B><A HREF="/cgi-bin/man/man2html?1+git-config">git-config</A></B>(1)
+and
+<B>pre-receive</B>
+and
+<B>update</B>
+in
+<B><A HREF="/cgi-bin/man/man2html?5+githooks">githooks</A></B>(5).
+<P>
+The special refspec
+<B>:</B>
+(or
+<B>+:</B>
+to allow non-fast-forward updates) directs Git to push &quot;matching&quot; branches: for every branch that exists on the local side, the remote side is updated if a branch of the same name already exists on the remote side.
+<P>
+<B>tag &lt;tag&gt;</B>
+means the same as
+<B>refs/tags/&lt;tag&gt;:refs/tags/&lt;tag&gt;</B>.
+</DL>
+
+<P>
+
+--all
+<DL COMPACT><DT id="6"><DD>
+Push all branches (i.e. refs under
+<B>refs/heads/</B>); cannot be used with other &lt;refspec&gt;.
+</DL>
+
+<P>
+
+--prune
+<DL COMPACT><DT id="7"><DD>
+Remove remote branches that don't have a local counterpart. For example a remote branch
+<B>tmp</B>
+will be removed if a local branch with the same name doesn't exist any more. This also respects refspecs, e.g.
+<B>git push --prune remote refs/heads/*:refs/tmp/*</B>
+would make sure that remote
+<B>refs/tmp/foo</B>
+will be removed if
+<B>refs/heads/foo</B>
+doesn't exist.
+</DL>
+
+<P>
+
+--mirror
+<DL COMPACT><DT id="8"><DD>
+Instead of naming each ref to push, specifies that all refs under
+<B>refs/</B>
+(which includes but is not limited to
+<B>refs/heads/</B>,
+<B>refs/remotes/</B>, and
+<B>refs/tags/</B>) be mirrored to the remote repository. Newly created local refs will be pushed to the remote end, locally updated refs will be force updated on the remote end, and deleted refs will be removed from the remote end. This is the default if the configuration option
+<B>remote.&lt;remote&gt;.mirror</B>
+is set.
+</DL>
+
+<P>
+
+-n, --dry-run
+<DL COMPACT><DT id="9"><DD>
+Do everything except actually send the updates.
+</DL>
+
+<P>
+
+--porcelain
+<DL COMPACT><DT id="10"><DD>
+Produce machine-readable output. The output status line for each ref will be tab-separated and sent to stdout instead of stderr. The full symbolic names of the refs will be given.
+</DL>
+
+<P>
+
+-d, --delete
+<DL COMPACT><DT id="11"><DD>
+All listed refs are deleted from the remote repository. This is the same as prefixing all refs with a colon.
+</DL>
+
+<P>
+
+--tags
+<DL COMPACT><DT id="12"><DD>
+All refs under
+<B>refs/tags</B>
+are pushed, in addition to refspecs explicitly listed on the command line.
+</DL>
+
+<P>
+
+--follow-tags
+<DL COMPACT><DT id="13"><DD>
+Push all the refs that would be pushed without this option, and also push annotated tags in
+<B>refs/tags</B>
+that are missing from the remote but are pointing at commit-ish that are reachable from the refs being pushed. This can also be specified with configuration variable
+<B>push.followTags</B>. For more information, see
+<B>push.followTags</B>
+in
+<B><A HREF="/cgi-bin/man/man2html?1+git-config">git-config</A></B>(1).
+</DL>
+
+<P>
+
+--[no-]signed, --signed=(true|false|if-asked)
+<DL COMPACT><DT id="14"><DD>
+GPG-sign the push request to update refs on the receiving side, to allow it to be checked by the hooks and/or be logged. If
+<B>false</B>
+or
+<B>--no-signed</B>, no signing will be attempted. If
+<B>true</B>
+or
+<B>--signed</B>, the push will fail if the server does not support signed pushes. If set to
+<B>if-asked</B>, sign if and only if the server supports signed pushes. The push will also fail if the actual call to
+<B>gpg --sign</B>
+fails. See
+<B><A HREF="/cgi-bin/man/man2html?1+git-receive-pack">git-receive-pack</A></B>(1)
+for the details on the receiving end.
+</DL>
+
+<P>
+
+--[no-]atomic
+<DL COMPACT><DT id="15"><DD>
+Use an atomic transaction on the remote side if available. Either all refs are updated, or on error, no refs are updated. If the server does not support atomic pushes the push will fail.
+</DL>
+
+<P>
+
+-o &lt;option&gt;, --push-option=&lt;option&gt;
+<DL COMPACT><DT id="16"><DD>
+Transmit the given string to the server, which passes them to the pre-receive as well as the post-receive hook. The given string must not contain a NUL or LF character. When multiple
+<B>--push-option=&lt;option&gt;</B>
+are given, they are all sent to the other side in the order listed on the command line. When no
+<B>--push-option=&lt;option&gt;</B>
+is given from the command line, the values of configuration variable
+<B>push.pushOption</B>
+are used instead.
+</DL>
+
+<P>
+
+--receive-pack=&lt;git-receive-pack&gt;, --exec=&lt;git-receive-pack&gt;
+<DL COMPACT><DT id="17"><DD>
+Path to the
+<I>git-receive-pack</I>
+program on the remote end. Sometimes useful when pushing to a remote repository over ssh, and you do not have the program in a directory on the default $PATH.
+</DL>
+
+<P>
+
+--[no-]force-with-lease, --force-with-lease=&lt;refname&gt;, --force-with-lease=&lt;refname&gt;:&lt;expect&gt;
+<DL COMPACT><DT id="18"><DD>
+Usually, &quot;git push&quot; refuses to update a remote ref that is not an ancestor of the local ref used to overwrite it.
+<P>
+This option overrides this restriction if the current value of the remote ref is the expected value. &quot;git push&quot; fails otherwise.
+<P>
+Imagine that you have to rebase what you have already published. You will have to bypass the &quot;must fast-forward&quot; rule in order to replace the history you originally published with the rebased history. If somebody else built on top of your original history while you are rebasing, the tip of the branch at the remote may advance with her commit, and blindly pushing with
+<B>--force</B>
+will lose her work.
+<P>
+This option allows you to say that you expect the history you are updating is what you rebased and want to replace. If the remote ref still points at the commit you specified, you can be sure that no other people did anything to the ref. It is like taking a &quot;lease&quot; on the ref without explicitly locking it, and the remote ref is updated only if the &quot;lease&quot; is still valid.
+<P>
+<B>--force-with-lease</B>
+alone, without specifying the details, will protect all remote refs that are going to be updated by requiring their current value to be the same as the remote-tracking branch we have for them.
+<P>
+<B>--force-with-lease=&lt;refname&gt;</B>, without specifying the expected value, will protect the named ref (alone), if it is going to be updated, by requiring its current value to be the same as the remote-tracking branch we have for it.
+<P>
+<B>--force-with-lease=&lt;refname&gt;:&lt;expect&gt;</B>
+will protect the named ref (alone), if it is going to be updated, by requiring its current value to be the same as the specified value
+<B>&lt;expect&gt;</B>
+(which is allowed to be different from the remote-tracking branch we have for the refname, or we do not even have to have such a remote-tracking branch when this form is used). If
+<B>&lt;expect&gt;</B>
+is the empty string, then the named ref must not already exist.
+<P>
+Note that all forms other than
+<B>--force-with-lease=&lt;refname&gt;:&lt;expect&gt;</B>
+that specifies the expected current value of the ref explicitly are still experimental and their semantics may change as we gain experience with this feature.
+<P>
+&quot;--no-force-with-lease&quot; will cancel all the previous --force-with-lease on the command line.
+<P>
+A general note on safety: supplying this option without an expected value, i.e. as
+<B>--force-with-lease</B>
+or
+<B>--force-with-lease=&lt;refname&gt;</B>
+interacts very badly with anything that implicitly runs
+<B>git fetch</B>
+on the remote to be pushed to in the background, e.g.
+<B>git fetch origin</B>
+on your repository in a cronjob.
+<P>
+The protection it offers over
+<B>--force</B>
+is ensuring that subsequent changes your work wasn't based on aren't clobbered, but this is trivially defeated if some background process is updating refs in the background. We don't have anything except the remote tracking info to go by as a heuristic for refs you're expected to have seen &amp; are willing to clobber.
+<P>
+If your editor or some other system is running
+<B>git fetch</B>
+in the background for you a way to mitigate this is to simply set up another remote:
+<P>
+<DL COMPACT><DT id="19"><DD>
+
+
+
+<PRE>
+git remote add origin-push $(git config remote.origin.url)
+git fetch origin-push
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+Now when the background process runs
+<B>git fetch origin</B>
+the references on
+<B>origin-push</B>
+won't be updated, and thus commands like:
+<P>
+<DL COMPACT><DT id="20"><DD>
+
+
+
+<PRE>
+git push --force-with-lease origin-push
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+Will fail unless you manually run
+<B>git fetch origin-push</B>. This method is of course entirely defeated by something that runs
+<B>git fetch --all</B>, in that case you'd need to either disable it or do something more tedious like:
+<P>
+<DL COMPACT><DT id="21"><DD>
+
+
+
+<PRE>
+git fetch              # update 'master' from remote
+git tag base master    # mark our base point
+git rebase -i master   # rewrite some commits
+git push --force-with-lease=master:base master:master
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+I.e. create a
+<B>base</B>
+tag for versions of the upstream code that you've seen and are willing to overwrite, then rewrite history, and finally force push changes to
+<B>master</B>
+if the remote version is still at
+<B>base</B>, regardless of what your local
+<B>remotes/origin/master</B>
+has been updated to in the background.
+</DL>
+
+<P>
+
+-f, --force
+<DL COMPACT><DT id="22"><DD>
+Usually, the command refuses to update a remote ref that is not an ancestor of the local ref used to overwrite it. Also, when
+<B>--force-with-lease</B>
+option is used, the command refuses to update a remote ref whose current value does not match what is expected.
+<P>
+This flag disables these checks, and can cause the remote repository to lose commits; use it with care.
+<P>
+Note that
+<B>--force</B>
+applies to all the refs that are pushed, hence using it with
+<B>push.default</B>
+set to
+<B>matching</B>
+or with multiple push destinations configured with
+<B>remote.*.push</B>
+may overwrite refs other than the current branch (including local refs that are strictly behind their remote counterpart). To force a push to only one branch, use a
+<B>+</B>
+in front of the refspec to push (e.g
+<B>git push origin +master</B>
+to force a push to the
+<B>master</B>
+branch). See the
+<B>&lt;refspec&gt;...</B>
+section above for details.
+</DL>
+
+<P>
+
+--repo=&lt;repository&gt;
+<DL COMPACT><DT id="23"><DD>
+This option is equivalent to the &lt;repository&gt; argument. If both are specified, the command-line argument takes precedence.
+</DL>
+
+<P>
+
+-u, --set-upstream
+<DL COMPACT><DT id="24"><DD>
+For every branch that is up to date or successfully pushed, add upstream (tracking) reference, used by argument-less
+<B><A HREF="/cgi-bin/man/man2html?1+git-pull">git-pull</A></B>(1)
+and other commands. For more information, see
+<B>branch.&lt;name&gt;.merge</B>
+in
+<B><A HREF="/cgi-bin/man/man2html?1+git-config">git-config</A></B>(1).
+</DL>
+
+<P>
+
+--[no-]thin
+<DL COMPACT><DT id="25"><DD>
+These options are passed to
+<B><A HREF="/cgi-bin/man/man2html?1+git-send-pack">git-send-pack</A></B>(1). A thin transfer significantly reduces the amount of sent data when the sender and receiver share many of the same objects in common. The default is
+<B>--thin</B>.
+</DL>
+
+<P>
+
+-q, --quiet
+<DL COMPACT><DT id="26"><DD>
+Suppress all output, including the listing of updated refs, unless an error occurs. Progress is not reported to the standard error stream.
+</DL>
+
+<P>
+
+-v, --verbose
+<DL COMPACT><DT id="27"><DD>
+Run verbosely.
+</DL>
+
+<P>
+
+--progress
+<DL COMPACT><DT id="28"><DD>
+Progress status is reported on the standard error stream by default when it is attached to a terminal, unless -q is specified. This flag forces progress status even if the standard error stream is not directed to a terminal.
+</DL>
+
+<P>
+
+--no-recurse-submodules, --recurse-submodules=check|on-demand|only|no
+<DL COMPACT><DT id="29"><DD>
+May be used to make sure all submodule commits used by the revisions to be pushed are available on a remote-tracking branch. If
+<I>check</I>
+is used Git will verify that all submodule commits that changed in the revisions to be pushed are available on at least one remote of the submodule. If any commits are missing the push will be aborted and exit with non-zero status. If
+<I>on-demand</I>
+is used all submodules that changed in the revisions to be pushed will be pushed. If on-demand was not able to push all necessary revisions it will also be aborted and exit with non-zero status. If
+<I>only</I>
+is used all submodules will be recursively pushed while the superproject is left unpushed. A value of
+<I>no</I>
+or using
+<B>--no-recurse-submodules</B>
+can be used to override the push.recurseSubmodules configuration variable when no submodule recursion is required.
+</DL>
+
+<P>
+
+--[no-]verify
+<DL COMPACT><DT id="30"><DD>
+Toggle the pre-push hook (see
+<B><A HREF="/cgi-bin/man/man2html?5+githooks">githooks</A></B>(5)). The default is --verify, giving the hook a chance to prevent the push. With --no-verify, the hook is bypassed completely.
+</DL>
+
+<P>
+
+-4, --ipv4
+<DL COMPACT><DT id="31"><DD>
+Use IPv4 addresses only, ignoring IPv6 addresses.
+</DL>
+
+<P>
+
+-6, --ipv6
+<DL COMPACT><DT id="32"><DD>
+Use IPv6 addresses only, ignoring IPv4 addresses.
+</DL>
+
+<A NAME="lbAF">&nbsp;</A>
+<H2>GIT URLS</H2>
+
+<P>
+In general, URLs contain information about the transport protocol, the address of the remote server, and the path to the repository. Depending on the transport protocol, some of this information may be absent.
+<P>
+Git supports ssh, git, http, and https protocols (in addition, ftp, and ftps can be used for fetching, but this is inefficient and deprecated; do not use it).
+<P>
+The native transport (i.e. git:// URL) does no authentication and should be used with caution on unsecured networks.
+<P>
+The following syntaxes may be used with them:
+<P>
+<DL COMPACT><DT id="33"><DD>
+&bull;
+
+
+<A HREF="ssh://[user@]host.xz[:port]/path/to/repo.git/">ssh://[user@]host.xz[:port]/path/to/repo.git/</A>
+</DL>
+
+<P>
+<DL COMPACT><DT id="34"><DD>
+&bull;
+
+
+<A HREF="git://host.xz[:port]/path/to/repo.git/">git://host.xz[:port]/path/to/repo.git/</A>
+</DL>
+
+<P>
+<DL COMPACT><DT id="35"><DD>
+&bull;
+
+
+http[s]://host.xz[:port]/path/to/repo.git/
+</DL>
+
+<P>
+<DL COMPACT><DT id="36"><DD>
+&bull;
+
+
+ftp[s]://host.xz[:port]/path/to/repo.git/
+</DL>
+
+<P>
+An alternative scp-like syntax may also be used with the ssh protocol:
+<P>
+<DL COMPACT><DT id="37"><DD>
+&bull;
+
+
+[user@]host.xz:path/to/repo.git/
+</DL>
+
+<P>
+This syntax is only recognized if there are no slashes before the first colon. This helps differentiate a local path that contains a colon. For example the local path <B>foo:bar</B> could be specified as an absolute path or <B>./foo:bar</B> to avoid being misinterpreted as an ssh url.
+<P>
+The ssh and git protocols additionally support ~username expansion:
+<P>
+<DL COMPACT><DT id="38"><DD>
+&bull;
+
+
+<A HREF="ssh://[user@]host.xz[:port]/~[user]/path/to/repo.git/">ssh://[user@]host.xz[:port]/~[user]/path/to/repo.git/</A>
+</DL>
+
+<P>
+<DL COMPACT><DT id="39"><DD>
+&bull;
+
+
+<A HREF="git://host.xz[:port]/~[user]/path/to/repo.git/">git://host.xz[:port]/~[user]/path/to/repo.git/</A>
+</DL>
+
+<P>
+<DL COMPACT><DT id="40"><DD>
+&bull;
+
+
+[user@]host.xz:/~[user]/path/to/repo.git/
+</DL>
+
+<P>
+For local repositories, also supported by Git natively, the following syntaxes may be used:
+<P>
+<DL COMPACT><DT id="41"><DD>
+&bull;
+
+
+/path/to/repo.git/
+</DL>
+
+<P>
+<DL COMPACT><DT id="42"><DD>
+&bull;
+
+
+<A HREF="file:///path/to/repo.git/">file:///path/to/repo.git/</A>
+</DL>
+
+<P>
+These two syntaxes are mostly equivalent, except when cloning, when the former implies --local option. See <B><A HREF="/cgi-bin/man/man2html?1+git-clone">git-clone</A></B>(1) for details.
+<P>
+<I>git clone</I>, <I>git fetch</I> and <I>git pull</I>, but not <I>git push</I>, will also accept a suitable bundle file. See <B><A HREF="/cgi-bin/man/man2html?1+git-bundle">git-bundle</A></B>(1).
+<P>
+When Git doesn't know how to handle a certain transport protocol, it attempts to use the <I>remote-&lt;transport&gt;</I> remote helper, if one exists. To explicitly request a remote helper, the following syntax may be used:
+<P>
+<DL COMPACT><DT id="43"><DD>
+&bull;
+
+
+&lt;transport&gt;::&lt;address&gt;
+</DL>
+
+<P>
+where &lt;address&gt; may be a path, a server and path, or an arbitrary URL-like string recognized by the specific remote helper being invoked. See <B><A HREF="/cgi-bin/man/man2html?7+gitremote-helpers">gitremote-helpers</A></B>(7) for details.
+<P>
+If there are a large number of similarly-named remote repositories and you want to use a different format for them (such that the URLs you use will be rewritten into URLs that work), you can create a configuration section of the form:
+<P>
+<DL COMPACT><DT id="44"><DD>
+
+
+
+<PRE>
+        [url &quot;&lt;actual url base&gt;&quot;]
+                insteadOf = &lt;other url base&gt;
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+For example, with this:
+<P>
+<DL COMPACT><DT id="45"><DD>
+
+
+
+<PRE>
+        [url &quot;<A HREF="git://git.host.xz/">git://git.host.xz/</A>&quot;]
+                insteadOf = host.xz:/path/to/
+                insteadOf = work:
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+a URL like &quot;work:repo.git&quot; or like &quot;host.xz:/path/to/repo.git&quot; will be rewritten in any context that takes a URL to be &quot;<A HREF="git://git.host.xz/repo.git">git://git.host.xz/repo.git</A>&quot;.
+<P>
+If you want to rewrite URLs for push only, you can create a configuration section of the form:
+<P>
+<DL COMPACT><DT id="46"><DD>
+
+
+
+<PRE>
+        [url &quot;&lt;actual url base&gt;&quot;]
+                pushInsteadOf = &lt;other url base&gt;
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+For example, with this:
+<P>
+<DL COMPACT><DT id="47"><DD>
+
+
+
+<PRE>
+        [url &quot;<A HREF="ssh://example.org/">ssh://example.org/</A>&quot;]
+                pushInsteadOf = <A HREF="git://example.org/">git://example.org/</A>
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+a URL like &quot;<A HREF="git://example.org/path/to/repo.git">git://example.org/path/to/repo.git</A>&quot; will be rewritten to &quot;<A HREF="ssh://example.org/path/to/repo.git">ssh://example.org/path/to/repo.git</A>&quot; for pushes, but pulls will still use the original URL.
+<A NAME="lbAG">&nbsp;</A>
+<H2>REMOTES</H2>
+
+<P>
+The name of one of the following can be used instead of a URL as <B>&lt;repository&gt;</B> argument:
+<P>
+<DL COMPACT><DT id="48"><DD>
+&bull;
+
+
+a remote in the Git configuration file:
+<B>$GIT_DIR/config</B>,
+</DL>
+
+<P>
+<DL COMPACT><DT id="49"><DD>
+&bull;
+
+
+a file in the
+<B>$GIT_DIR/remotes</B>
+directory, or
+</DL>
+
+<P>
+<DL COMPACT><DT id="50"><DD>
+&bull;
+
+
+a file in the
+<B>$GIT_DIR/branches</B>
+directory.
+</DL>
+
+<P>
+All of these also allow you to omit the refspec from the command line because they each contain a refspec which git will use by default.
+<A NAME="lbAH">&nbsp;</A>
+<H3>Named remote in configuration file</H3>
+
+<P>
+You can choose to provide the name of a remote which you had previously configured using <B><A HREF="/cgi-bin/man/man2html?1+git-remote">git-remote</A></B>(1), <B><A HREF="/cgi-bin/man/man2html?1+git-config">git-config</A></B>(1) or even by a manual edit to the <B>$GIT_DIR/config</B> file. The URL of this remote will be used to access the repository. The refspec of this remote will be used by default when you do not provide a refspec on the command line. The entry in the config file would appear like this:
+<P>
+<DL COMPACT><DT id="51"><DD>
+
+
+
+<PRE>
+        [remote &quot;&lt;name&gt;&quot;]
+                url = &lt;url&gt;
+                pushurl = &lt;pushurl&gt;
+                push = &lt;refspec&gt;
+                fetch = &lt;refspec&gt;
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+The <B>&lt;pushurl&gt;</B> is used for pushes only. It is optional and defaults to <B>&lt;url&gt;</B>.
+<A NAME="lbAI">&nbsp;</A>
+<H3>Named file in <B>$GIT_DIR/remotes</B></H3>
+
+<P>
+You can choose to provide the name of a file in <B>$GIT_DIR/remotes</B>. The URL in this file will be used to access the repository. The refspec in this file will be used as default when you do not provide a refspec on the command line. This file should have the following format:
+<P>
+<DL COMPACT><DT id="52"><DD>
+
+
+
+<PRE>
+        URL: one of the above URL format
+        Push: &lt;refspec&gt;
+        Pull: &lt;refspec&gt;
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+<B>Push:</B> lines are used by <I>git push</I> and <B>Pull:</B> lines are used by <I>git pull</I> and <I>git fetch</I>. Multiple <B>Push:</B> and <B>Pull:</B> lines may be specified for additional branch mappings.
+<A NAME="lbAJ">&nbsp;</A>
+<H3>Named file in <B>$GIT_DIR/branches</B></H3>
+
+<P>
+You can choose to provide the name of a file in <B>$GIT_DIR/branches</B>. The URL in this file will be used to access the repository. This file should have the following format:
+<P>
+<DL COMPACT><DT id="53"><DD>
+
+
+
+<PRE>
+        &lt;url&gt;#&lt;head&gt;
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+<B>&lt;url&gt;</B> is required; <B>#&lt;head&gt;</B> is optional.
+<P>
+Depending on the operation, git will use one of the following refspecs, if you don't provide one on the command line. <B>&lt;branch&gt;</B> is the name of this file in <B>$GIT_DIR/branches</B> and <B>&lt;head&gt;</B> defaults to <B>master</B>.
+<P>
+git fetch uses:
+<P>
+<DL COMPACT><DT id="54"><DD>
+
+
+
+<PRE>
+        refs/heads/&lt;head&gt;:refs/heads/&lt;branch&gt;
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+git push uses:
+<P>
+<DL COMPACT><DT id="55"><DD>
+
+
+
+<PRE>
+        HEAD:refs/heads/&lt;head&gt;
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<A NAME="lbAK">&nbsp;</A>
+<H2>OUTPUT</H2>
+
+<P>
+The output of &quot;git push&quot; depends on the transport method used; this section describes the output when pushing over the Git protocol (either locally or via ssh).
+<P>
+The status of the push is output in tabular form, with each line representing the status of a single ref. Each line is of the form:
+<P>
+<DL COMPACT><DT id="56"><DD>
+
+
+
+<PRE>
+ &lt;flag&gt; &lt;summary&gt; &lt;from&gt; -&gt; &lt;to&gt; (&lt;reason&gt;)
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+If --porcelain is used, then each line of the output is of the form:
+<P>
+<DL COMPACT><DT id="57"><DD>
+
+
+
+<PRE>
+ &lt;flag&gt; \t &lt;from&gt;:&lt;to&gt; \t &lt;summary&gt; (&lt;reason&gt;)
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+The status of up-to-date refs is shown only if --porcelain or --verbose option is used.
+<P>
+
+flag
+<DL COMPACT><DT id="58"><DD>
+A single character indicating the status of the ref:
+<P>
+
+(space)
+<DL COMPACT><DT id="59"><DD>
+for a successfully pushed fast-forward;
+</DL>
+
+<P>
+
+<B>+</B>
+<DL COMPACT><DT id="60"><DD>
+for a successful forced update;
+</DL>
+
+<P>
+
+<B>-</B>
+<DL COMPACT><DT id="61"><DD>
+for a successfully deleted ref;
+</DL>
+
+<P>
+
+<B>*</B>
+<DL COMPACT><DT id="62"><DD>
+for a successfully pushed new ref;
+</DL>
+
+<P>
+
+<B>!</B>
+<DL COMPACT><DT id="63"><DD>
+for a ref that was rejected or failed to push; and
+</DL>
+
+<P>
+
+<B>=</B>
+<DL COMPACT><DT id="64"><DD>
+for a ref that was up to date and did not need pushing.
+</DL>
+
+</DL>
+
+<P>
+
+summary
+<DL COMPACT><DT id="65"><DD>
+For a successfully pushed ref, the summary shows the old and new values of the ref in a form suitable for using as an argument to
+<B>git log</B>
+(this is
+<B>&lt;old&gt;..&lt;new&gt;</B>
+in most cases, and
+<B>&lt;old&gt;...&lt;new&gt;</B>
+for forced non-fast-forward updates).
+<P>
+For a failed update, more details are given:
+<P>
+
+rejected
+<DL COMPACT><DT id="66"><DD>
+Git did not try to send the ref at all, typically because it is not a fast-forward and you did not force the update.
+</DL>
+
+<P>
+
+remote rejected
+<DL COMPACT><DT id="67"><DD>
+The remote end refused the update. Usually caused by a hook on the remote side, or because the remote repository has one of the following safety options in effect:
+<B>receive.denyCurrentBranch</B>
+(for pushes to the checked out branch),
+<B>receive.denyNonFastForwards</B>
+(for forced non-fast-forward updates),
+<B>receive.denyDeletes</B>
+or
+<B>receive.denyDeleteCurrent</B>. See
+<B><A HREF="/cgi-bin/man/man2html?1+git-config">git-config</A></B>(1).
+</DL>
+
+<P>
+
+remote failure
+<DL COMPACT><DT id="68"><DD>
+The remote end did not report the successful update of the ref, perhaps because of a temporary error on the remote side, a break in the network connection, or other transient error.
+</DL>
+
+</DL>
+
+<P>
+
+from
+<DL COMPACT><DT id="69"><DD>
+The name of the local ref being pushed, minus its
+<B>refs/&lt;type&gt;/</B>
+prefix. In the case of deletion, the name of the local ref is omitted.
+</DL>
+
+<P>
+
+to
+<DL COMPACT><DT id="70"><DD>
+The name of the remote ref being updated, minus its
+<B>refs/&lt;type&gt;/</B>
+prefix.
+</DL>
+
+<P>
+
+reason
+<DL COMPACT><DT id="71"><DD>
+A human-readable explanation. In the case of successfully pushed refs, no explanation is needed. For a failed ref, the reason for failure is described.
+</DL>
+
+<A NAME="lbAL">&nbsp;</A>
+<H2>NOTE ABOUT FAST-FORWARDS</H2>
+
+<P>
+When an update changes a branch (or more in general, a ref) that used to point at commit A to point at another commit B, it is called a fast-forward update if and only if B is a descendant of A.
+<P>
+In a fast-forward update from A to B, the set of commits that the original commit A built on top of is a subset of the commits the new commit B builds on top of. Hence, it does not lose any history.
+<P>
+In contrast, a non-fast-forward update will lose history. For example, suppose you and somebody else started at the same commit X, and you built a history leading to commit B while the other person built a history leading to commit A. The history looks like this:
+<P>
+<DL COMPACT><DT id="72"><DD>
+
+
+
+<PRE>
+      B
+     /
+ ---X---A
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+Further suppose that the other person already pushed changes leading to A back to the original repository from which you two obtained the original commit X.
+<P>
+The push done by the other person updated the branch that used to point at commit X to point at commit A. It is a fast-forward.
+<P>
+But if you try to push, you will attempt to update the branch (that now points at A) with commit B. This does <I>not</I> fast-forward. If you did so, the changes introduced by commit A will be lost, because everybody will now start building on top of B.
+<P>
+The command by default does not allow an update that is not a fast-forward to prevent such loss of history.
+<P>
+If you do not want to lose your work (history from X to B) or the work by the other person (history from X to A), you would need to first fetch the history from the repository, create a history that contains changes done by both parties, and push the result back.
+<P>
+You can perform &quot;git pull&quot;, resolve potential conflicts, and &quot;git push&quot; the result. A &quot;git pull&quot; will create a merge commit C between commits A and B.
+<P>
+<DL COMPACT><DT id="73"><DD>
+
+
+
+<PRE>
+      B---C
+     /   /
+ ---X---A
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+Updating A with the resulting merge commit will fast-forward and your push will be accepted.
+<P>
+Alternatively, you can rebase your change between X and B on top of A, with &quot;git pull --rebase&quot;, and push the result back. The rebase will create a new commit D that builds the change between X and B on top of A.
+<P>
+<DL COMPACT><DT id="74"><DD>
+
+
+
+<PRE>
+      B   D
+     /   /
+ ---X---A
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+<P>
+Again, updating A with this commit will fast-forward and your push will be accepted.
+<P>
+There is another common situation where you may encounter non-fast-forward rejection when you try to push, and it is possible even when you are pushing into a repository nobody else pushes into. After you push commit A yourself (in the first picture in this section), replace it with &quot;git commit --amend&quot; to produce commit B, and you try to push it out, because forgot that you have pushed A out already. In such a case, and only if you are certain that nobody in the meantime fetched your earlier commit A (and started building on top of it), you can run &quot;git push --force&quot; to overwrite it. In other words, &quot;git push --force&quot; is a method reserved for a case where you do mean to lose history.
+<A NAME="lbAM">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+<P>
+
+<B>git push</B>
+<DL COMPACT><DT id="75"><DD>
+Works like
+<B>git push &lt;remote&gt;</B>, where &lt;remote&gt; is the current branch's remote (or
+<B>origin</B>, if no remote is configured for the current branch).
+</DL>
+
+<P>
+
+<B>git push origin</B>
+<DL COMPACT><DT id="76"><DD>
+Without additional configuration, pushes the current branch to the configured upstream (<B>remote.origin.merge</B>
+configuration variable) if it has the same name as the current branch, and errors out without pushing otherwise.
+<P>
+The default behavior of this command when no &lt;refspec&gt; is given can be configured by setting the
+<B>push</B>
+option of the remote, or the
+<B>push.default</B>
+configuration variable.
+<P>
+For example, to default to pushing only the current branch to
+<B>origin</B>
+use
+<B>git config remote.origin.push HEAD</B>. Any valid &lt;refspec&gt; (like the ones in the examples below) can be configured as the default for
+<B>git push origin</B>.
+</DL>
+
+<P>
+
+<B>git push origin :</B>
+<DL COMPACT><DT id="77"><DD>
+Push &quot;matching&quot; branches to
+<B>origin</B>. See &lt;refspec&gt; in the
+OPTIONS
+section above for a description of &quot;matching&quot; branches.
+</DL>
+
+<P>
+
+<B>git push origin master</B>
+<DL COMPACT><DT id="78"><DD>
+Find a ref that matches
+<B>master</B>
+in the source repository (most likely, it would find
+<B>refs/heads/master</B>), and update the same ref (e.g.
+<B>refs/heads/master</B>) in
+<B>origin</B>
+repository with it. If
+<B>master</B>
+did not exist remotely, it would be created.
+</DL>
+
+<P>
+
+<B>git push origin HEAD</B>
+<DL COMPACT><DT id="79"><DD>
+A handy way to push the current branch to the same name on the remote.
+</DL>
+
+<P>
+
+<B>git push mothership master:satellite/master dev:satellite/dev</B>
+<DL COMPACT><DT id="80"><DD>
+Use the source ref that matches
+<B>master</B>
+(e.g.
+<B>refs/heads/master</B>) to update the ref that matches
+<B>satellite/master</B>
+(most probably
+<B>refs/remotes/satellite/master</B>) in the
+<B>mothership</B>
+repository; do the same for
+<B>dev</B>
+and
+<B>satellite/dev</B>.
+<P>
+See the section describing
+<B>&lt;refspec&gt;...</B>
+above for a discussion of the matching semantics.
+<P>
+This is to emulate
+<B>git fetch</B>
+run on the
+<B>mothership</B>
+using
+<B>git push</B>
+that is run in the opposite direction in order to integrate the work done on
+<B>satellite</B>, and is often necessary when you can only make connection in one way (i.e. satellite can ssh into mothership but mothership cannot initiate connection to satellite because the latter is behind a firewall or does not run sshd).
+<P>
+After running this
+<B>git push</B>
+on the
+<B>satellite</B>
+machine, you would ssh into the
+<B>mothership</B>
+and run
+<B>git merge</B>
+there to complete the emulation of
+<B>git pull</B>
+that were run on
+<B>mothership</B>
+to pull changes made on
+<B>satellite</B>.
+</DL>
+
+<P>
+
+<B>git push origin HEAD:master</B>
+<DL COMPACT><DT id="81"><DD>
+Push the current branch to the remote ref matching
+<B>master</B>
+in the
+<B>origin</B>
+repository. This form is convenient to push the current branch without thinking about its local name.
+</DL>
+
+<P>
+
+<B>git push origin master:refs/heads/experimental</B>
+<DL COMPACT><DT id="82"><DD>
+Create the branch
+<B>experimental</B>
+in the
+<B>origin</B>
+repository by copying the current
+<B>master</B>
+branch. This form is only needed to create a new branch or tag in the remote repository when the local name and the remote name are different; otherwise, the ref name on its own will work.
+</DL>
+
+<P>
+
+<B>git push origin :experimental</B>
+<DL COMPACT><DT id="83"><DD>
+Find a ref that matches
+<B>experimental</B>
+in the
+<B>origin</B>
+repository (e.g.
+<B>refs/heads/experimental</B>), and delete it.
+</DL>
+
+<P>
+
+<B>git push origin +dev:master</B>
+<DL COMPACT><DT id="84"><DD>
+Update the origin repository's master branch with the dev branch, allowing non-fast-forward updates.
+<B>This can leave unreferenced commits dangling in the origin repository.</B>
+Consider the following situation, where a fast-forward is not possible:
+<P>
+<DL COMPACT><DT id="85"><DD>
+
+
+
+<PRE>
+            o---o---o---A---B  origin/master
+                     \
+                      X---Y---Z  dev
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+The above command would change the origin repository to
+<P>
+<DL COMPACT><DT id="86"><DD>
+
+
+
+<PRE>
+                      A---B  (unnamed branch)
+                     /
+            o---o---o---X---Y---Z  master
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+Commits A and B would no longer belong to a branch with a symbolic name, and so would be unreachable. As such, these commits would be removed by a
+<B>git gc</B>
+command on the origin repository.
+</DL>
+
+<A NAME="lbAN">&nbsp;</A>
+<H2>SECURITY</H2>
+
+<P>
+The fetch and push protocols are not designed to prevent one side from stealing data from the other repository that was not intended to be shared. If you have private data that you need to protect from a malicious peer, your best option is to store it in another repository. This applies to both clients and servers. In particular, namespaces on a server are not effective for read access control; you should only grant read access to a namespace to clients that you would trust with read access to the entire repository.
+<P>
+The known attack vectors are as follows:
+<P>
+<DL COMPACT><DT id="87"><DD>
+ 1.
+
+
+The victim sends &quot;have&quot; lines advertising the IDs of objects it has that are not explicitly intended to be shared but can be used to optimize the transfer if the peer also has them. The attacker chooses an object ID X to steal and sends a ref to X, but isn't required to send the content of X because the victim already has it. Now the victim believes that the attacker has X, and it sends the content of X back to the attacker later. (This attack is most straightforward for a client to perform on a server, by creating a ref to X in the namespace the client has access to and then fetching it. The most likely way for a server to perform it on a client is to &quot;merge&quot; X into a public branch and hope that the user does additional work on this branch and pushes it back to the server without noticing the merge.)
+</DL>
+
+<P>
+<DL COMPACT><DT id="88"><DD>
+ 2.
+
+
+As in #1, the attacker chooses an object ID X to steal. The victim sends an object Y that the attacker already has, and the attacker falsely claims to have X and not Y, so the victim sends Y as a delta against X. The delta reveals regions of X that are similar to Y to the attacker.
+</DL>
+
+<A NAME="lbAO">&nbsp;</A>
+<H2>GIT</H2>
+
+<P>
+Part of the <B><A HREF="/cgi-bin/man/man2html?1+git">git</A></B>(1) suite
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="89"><A HREF="#lbAB">NAME</A><DD>
+<DT id="90"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="91"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="92"><A HREF="#lbAE">OPTIONS</A><DD>
+<DT id="93"><A HREF="#lbAF">GIT URLS</A><DD>
+<DT id="94"><A HREF="#lbAG">REMOTES</A><DD>
+<DL>
+<DT id="95"><A HREF="#lbAH">Named remote in configuration file</A><DD>
+<DT id="96"><A HREF="#lbAI">Named file in <B>$GIT_DIR/remotes</B></A><DD>
+<DT id="97"><A HREF="#lbAJ">Named file in <B>$GIT_DIR/branches</B></A><DD>
+</DL>
+<DT id="98"><A HREF="#lbAK">OUTPUT</A><DD>
+<DT id="99"><A HREF="#lbAL">NOTE ABOUT FAST-FORWARDS</A><DD>
+<DT id="100"><A HREF="#lbAM">EXAMPLES</A><DD>
+<DT id="101"><A HREF="#lbAN">SECURITY</A><DD>
+<DT id="102"><A HREF="#lbAO">GIT</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:14 GMT, March 31, 2021
+</BODY>
+</HTML>

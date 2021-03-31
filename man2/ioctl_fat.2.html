@@ -1,0 +1,659 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of IOCTL-FAT</TITLE>
+</HEAD><BODY>
+<H1>IOCTL-FAT</H1>
+Section: Linux Programmer's Manual (2)<BR>Updated: 2019-03-06<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+ioctl_fat - manipulating the FAT filesystem
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<PRE>
+<B>#include &lt;<A HREF="file:///usr/include/linux/msdos_fs.h">linux/msdos_fs.h</A>&gt;</B>
+<B>#include &lt;<A HREF="file:///usr/include/sys/ioctl.h">sys/ioctl.h</A>&gt;</B>
+
+<B>int ioctl(int </B><I>fd</I><B>, FAT_IOCTL_GET_ATTRIBUTES, uint32_t *</B><I>attr</I><B>);</B>
+<B>int ioctl(int </B><I>fd</I><B>, FAT_IOCTL_SET_ATTRIBUTES, uint32_t *</B><I>attr</I><B>);</B>
+<B>int ioctl(int </B><I>fd</I><B>, FAT_IOCTL_GET_VOLUME_ID, uint32_t *</B><I>id</I><B>);</B>
+<B>int ioctl(int </B><I>fd</I><B>, VFAT_IOCTL_READDIR_BOTH,</B>
+<B>          struct __fat_dirent[2] </B><I>entry</I><B>);</B>
+<B>int ioctl(int </B><I>fd</I><B>, VFAT_IOCTL_READDIR_SHORT,</B>
+<B>          struct __fat_dirent[2] </B><I>entry</I><B>);</B>
+</PRE>
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+The
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+system call can be used to read and write metadata of FAT filesystems that
+are not accessible using other system calls.
+<A NAME="lbAE">&nbsp;</A>
+<H3>Reading and setting file attributes</H3>
+
+Files and directories in the FAT filesystem possess an attribute bit mask that
+can be read with
+<B>FAT_IOCTL_GET_ATTRIBUTES</B>
+
+and written with
+<B>FAT_IOCTL_SET_ATTRIBUTES</B>.
+
+<P>
+
+The
+<I>fd</I>
+
+argument contains a file descriptor for a file or directory.
+It is sufficient to create the file descriptor by calling
+<B><A HREF="/cgi-bin/man/man2html?2+open">open</A></B>(2)
+
+with the
+<B>O_RDONLY</B>
+
+flag.
+<P>
+
+The
+<I>attr</I>
+
+argument contains a pointer to a bit mask.
+The bits of the bit mask are:
+<DL COMPACT>
+<DT id="1"><B>ATTR_RO</B>
+
+<DD>
+This bit specifies that the file or directory is read-only.
+<DT id="2"><B>ATTR_HIDDEN</B>
+
+<DD>
+This bit specifies that the file or directory is hidden.
+<DT id="3"><B>ATTR_SYS</B>
+
+<DD>
+This bit specifies that the file is a system file.
+<DT id="4"><B>ATTR_VOLUME</B>
+
+<DD>
+This bit specifies that the file is a volume label.
+This attribute is read-only.
+<DT id="5"><B>ATTR_DIR</B>
+
+<DD>
+This bit specifies that this is a directory.
+This attribute is read-only.
+<DT id="6"><B>ATTR_ARCH</B>
+
+<DD>
+This bit indicates that this file or directory should be archived.
+It is set when a file is created or modified.
+It is reset by an archiving system.
+</DL>
+<P>
+
+The zero value
+<B>ATTR_NONE</B>
+
+can be used to indicate that no attribute bit is set.
+<A NAME="lbAF">&nbsp;</A>
+<H3>Reading the volume ID</H3>
+
+FAT filesystems are identified by a volume ID.
+The volume ID can be read with
+<B>FAT_IOCTL_GET_VOLUME_ID</B>.
+
+<P>
+
+The
+<I>fd</I>
+
+argument can be a file descriptor for any file or directory of the
+filesystem.
+It is sufficient to create the file descriptor by calling
+<B><A HREF="/cgi-bin/man/man2html?2+open">open</A></B>(2)
+
+with the
+<B>O_RDONLY</B>
+
+flag.
+<P>
+
+The
+<I>id</I>
+
+argument is a pointer to the field that will be filled with the volume ID.
+Typically the volume ID is displayed to the user as a group of two
+16-bit fields:
+<P>
+
+
+
+printf(&quot;Volume ID %04x-%04x\n&quot;, id &gt;&gt; 16, id &amp; 0xFFFF);
+
+
+<A NAME="lbAG">&nbsp;</A>
+<H3>Reading short file names of a directory</H3>
+
+A file or directory on a FAT filesystem always has a short filename
+consisting of up to 8 capital letters, optionally followed by a period
+and up to 3 capital letters for the file extension.
+If the actual filename does not fit into this scheme, it is stored
+as a long filename of up to 255 UTF-16 characters.
+<P>
+
+The short filenames in a directory can be read with
+<B>VFAT_IOCTL_READDIR_SHORT</B>.
+
+<B>VFAT_IOCTL_READDIR_BOTH</B>
+
+reads both the short and the long filenames.
+<P>
+
+The
+<I>fd</I>
+
+argument must be a file descriptor for a directory.
+It is sufficient to create the file descriptor by calling
+<B><A HREF="/cgi-bin/man/man2html?2+open">open</A></B>(2)
+
+with the
+<B>O_RDONLY</B>
+
+flag.
+The file descriptor can be used only once to iterate over the directory
+entries by calling
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+repeatedly.
+<P>
+
+The
+<I>entry</I>
+
+argument is a two-element array of the following structures:
+<P>
+
+
+
+struct __fat_dirent {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;long&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;d_ino;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;__kernel_off_t&nbsp;&nbsp;d_off;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;short&nbsp;&nbsp;d_reclen;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;d_name[256];
+};
+
+
+<P>
+
+The first entry in the array is for the short filename.
+The second entry is for the long filename.
+<P>
+
+The
+<I>d_ino</I>
+
+and
+<I>d_off</I>
+
+fields are filled only for long filenames.
+The
+<I>d_ino</I>
+
+field holds the inode number of the directory.
+The
+<I>d_off</I>
+
+field holds the offset of the file entry in the directory.
+As these values are not available for short filenames, the user code should
+simply ignore them.
+<P>
+
+The field
+<I>d_reclen</I>
+
+contains the length of the filename in the field
+<I>d_name</I>.
+
+To keep backward compatibility, a length of 0 for the short filename signals
+that the end of the directory has been reached.
+However, the preferred method for detecting the end of the directory
+is to test the
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+return value.
+If no long filename exists, field
+<I>d_reclen</I>
+
+is set to 0 and
+<I>d_name</I>
+
+is a character string of length 0 for the long filename.
+<A NAME="lbAH">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+On error, -1 is returned, and
+<I>errno</I>
+
+is set to indicate the error.
+<P>
+
+For
+<B>VFAT_IOCTL_READDIR_BOTH</B>
+
+and
+<B>VFAT_IOCTL_READDIR_SHORT</B>
+
+a return value of 1 signals that a new directory entry has been read and
+a return value of 0 signals that the end of the directory has been reached.
+<A NAME="lbAI">&nbsp;</A>
+<H2>ERRORS</H2>
+
+<DL COMPACT>
+<DT id="7"><B>ENOENT</B>
+
+<DD>
+This error is returned by
+<B>VFAT_IOCTL_READDIR_BOTH</B>
+
+and
+<B>VFAT_IOCTL_READDIR_SHORT</B>
+
+if the file descriptor
+<I>fd</I>
+
+refers to a removed, but still open directory.
+<DT id="8"><B>ENOTDIR</B>
+
+<DD>
+This error is returned by
+<B>VFAT_IOCTL_READDIR_BOTH</B>
+
+and
+<B>VFAT_IOCTL_READDIR_SHORT</B>
+
+if the file descriptor
+<I>fd</I>
+
+does not refer to a directory.
+<DT id="9"><B>ENOTTY</B>
+
+<DD>
+The file descriptor
+<I>fd</I>
+
+does not refer to an object in a FAT filesystem.
+</DL>
+<P>
+
+For further error values, see
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2).
+
+<A NAME="lbAJ">&nbsp;</A>
+<H2>VERSIONS</H2>
+
+<B>VFAT_IOCTL_READDIR_BOTH</B>
+
+and
+<B>VFAT_IOCTL_READDIR_SHORT</B>
+
+first appeared in Linux 2.0.
+<P>
+
+<B>FAT_IOCTL_GET_ATTRIBUTES</B>
+
+and
+<B>FAT_IOCTL_SET_ATTRIBUTES</B>
+
+first appeared
+
+in Linux 2.6.12.
+<P>
+
+<B>FAT_IOCTL_GET_VOLUME_ID</B>
+
+was introduced in version 3.11
+
+of the Linux kernel.
+<A NAME="lbAK">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+This API is Linux-specific.
+<A NAME="lbAL">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+<A NAME="lbAM">&nbsp;</A>
+<H3>Toggling the archive flag</H3>
+
+The following program demonstrates the usage of
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+to manipulate file attributes.
+The program reads and displays the archive attribute of a file.
+After inverting the value of the attribute,
+the program reads and displays the attribute again.
+<P>
+
+The following was recorded when applying the program for the file
+<I>/mnt/user/foo</I>:
+
+<P>
+
+
+
+# ./toggle_fat_archive_flag /mnt/user/foo
+Archive flag is set
+Toggling archive flag
+Archive flag is not set
+
+
+<A NAME="lbAN">&nbsp;</A>
+<H3>Program source (toggle_fat_archive_flag.c)</H3>
+
+
+
+#include &lt;<A HREF="file:///usr/include/fcntl.h">fcntl.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/linux/msdos_fs.h">linux/msdos_fs.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdint.h">stdint.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdlib.h">stdlib.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/sys/ioctl.h">sys/ioctl.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/unistd.h">unistd.h</A>&gt;
+<P>
+/*
+<BR>&nbsp;*&nbsp;Read&nbsp;file&nbsp;attributes&nbsp;of&nbsp;a&nbsp;file&nbsp;on&nbsp;a&nbsp;FAT&nbsp;filesystem.
+<BR>&nbsp;*&nbsp;Output&nbsp;the&nbsp;state&nbsp;of&nbsp;the&nbsp;archive&nbsp;flag.
+<BR>&nbsp;*/
+static uint32_t
+readattr(int fd)
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;attr;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;ret;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;ret&nbsp;=&nbsp;ioctl(fd,&nbsp;FAT_IOCTL_GET_ATTRIBUTES,&nbsp;&amp;attr);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(ret&nbsp;==&nbsp;-1)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;perror(&quot;ioctl&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(attr&nbsp;&amp;&nbsp;ATTR_ARCH)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;Archive&nbsp;flag&nbsp;is&nbsp;set\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;else
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;Archive&nbsp;flag&nbsp;is&nbsp;not&nbsp;set\n&quot;);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;attr;
+}
+<P>
+int
+main(int argc, char *argv[])
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;attr;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;fd;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;ret;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(argc&nbsp;!=&nbsp;2)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;Usage:&nbsp;%s&nbsp;FILENAME\n&quot;,&nbsp;argv[0]);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fd&nbsp;=&nbsp;open(argv[1],&nbsp;O_RDONLY);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(fd&nbsp;==&nbsp;-1)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;perror(&quot;open&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;Read&nbsp;and&nbsp;display&nbsp;the&nbsp;FAT&nbsp;file&nbsp;attributes.
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;attr&nbsp;=&nbsp;readattr(fd);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;Invert&nbsp;archive&nbsp;attribute.
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;Toggling&nbsp;archive&nbsp;flag\n&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;attr&nbsp;^=&nbsp;ATTR_ARCH;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;Write&nbsp;the&nbsp;changed&nbsp;FAT&nbsp;file&nbsp;attributes.
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;ret&nbsp;=&nbsp;ioctl(fd,&nbsp;FAT_IOCTL_SET_ATTRIBUTES,&nbsp;&amp;attr);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(ret&nbsp;==&nbsp;-1)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;perror(&quot;ioctl&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;Read&nbsp;and&nbsp;display&nbsp;the&nbsp;FAT&nbsp;file&nbsp;attributes.
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;readattr(fd);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;close(fd);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_SUCCESS);
+}
+
+
+<A NAME="lbAO">&nbsp;</A>
+<H3>Reading the volume ID</H3>
+
+The following program demonstrates the use of
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+to display the volume ID of a FAT filesystem.
+<P>
+
+The following output was recorded when applying the program for
+directory
+<I>/mnt/user</I>:
+
+<P>
+
+
+
+$ ./display_fat_volume_id /mnt/user
+Volume ID 6443-6241
+
+
+<A NAME="lbAP">&nbsp;</A>
+<H3>Program source (display_fat_volume_id.c)</H3>
+
+
+
+#include &lt;<A HREF="file:///usr/include/fcntl.h">fcntl.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/linux/msdos_fs.h">linux/msdos_fs.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdint.h">stdint.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdlib.h">stdlib.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/sys/ioctl.h">sys/ioctl.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/unistd.h">unistd.h</A>&gt;
+<P>
+int
+main(int argc, char *argv[])
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;uint32_t&nbsp;id;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;fd;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;ret;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(argc&nbsp;!=&nbsp;2)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;Usage:&nbsp;%s&nbsp;FILENAME\n&quot;,&nbsp;argv[0]);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fd&nbsp;=&nbsp;open(argv[1],&nbsp;O_RDONLY);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(fd&nbsp;==&nbsp;-1)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;perror(&quot;open&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;Read&nbsp;volume&nbsp;ID.
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;ret&nbsp;=&nbsp;ioctl(fd,&nbsp;FAT_IOCTL_GET_VOLUME_ID,&nbsp;&amp;id);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(ret&nbsp;==&nbsp;-1)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;perror(&quot;ioctl&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;Format&nbsp;the&nbsp;output&nbsp;as&nbsp;two&nbsp;groups&nbsp;of&nbsp;16&nbsp;bits&nbsp;each.
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;Volume&nbsp;ID&nbsp;%04x-%04x\n&quot;,&nbsp;id&nbsp;&gt;&gt;&nbsp;16,&nbsp;id&nbsp;&amp;&nbsp;0xFFFF);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;close(fd);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_SUCCESS);
+}
+
+
+<A NAME="lbAQ">&nbsp;</A>
+<H3>Listing a directory</H3>
+
+The following program demonstrates the use of
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+to list a directory.
+<P>
+
+The following was recorded when applying the program to the directory
+<I>/mnt/user</I>:
+
+<P>
+
+
+
+$ <B>./fat_dir /mnt/user</B>
+46 -&gt; ''
+46. -&gt; ''
+ALONGF~1.TXT -&gt; 'a long filename.txt'
+UPPER.TXT -&gt; ''
+LOWER.TXT -&gt; 'lower.txt'
+
+
+
+<A NAME="lbAR">&nbsp;</A>
+<H3>Program source</H3>
+
+
+
+#include &lt;<A HREF="file:///usr/include/fcntl.h">fcntl.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/linux/msdos_fs.h">linux/msdos_fs.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdio.h">stdio.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/stdlib.h">stdlib.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/sys/ioctl.h">sys/ioctl.h</A>&gt;
+#include &lt;<A HREF="file:///usr/include/unistd.h">unistd.h</A>&gt;
+<P>
+int
+main(int argc, char *argv[])
+{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;struct&nbsp;__fat_dirent&nbsp;entry[2];
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;fd;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;ret;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(argc&nbsp;!=&nbsp;2)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;Usage:&nbsp;%s&nbsp;DIRECTORY\n&quot;,&nbsp;argv[0]);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;Open&nbsp;file&nbsp;descriptor&nbsp;for&nbsp;the&nbsp;directory.
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;fd&nbsp;=&nbsp;open(argv[1],&nbsp;O_RDONLY&nbsp;|&nbsp;O_DIRECTORY);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(fd&nbsp;==&nbsp;-1)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;perror(&quot;open&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;(;;)&nbsp;{
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;Read&nbsp;next&nbsp;directory&nbsp;entry.
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ret&nbsp;=&nbsp;ioctl(&nbsp;fd,&nbsp;VFAT_IOCTL_READDIR_BOTH,&nbsp;entry);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;If&nbsp;an&nbsp;error&nbsp;occurs,&nbsp;the&nbsp;return&nbsp;value&nbsp;is&nbsp;-1.
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;If&nbsp;the&nbsp;end&nbsp;of&nbsp;the&nbsp;directory&nbsp;list&nbsp;has&nbsp;been&nbsp;reached,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;the&nbsp;return&nbsp;value&nbsp;is&nbsp;0.
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;For&nbsp;backward&nbsp;compatibility&nbsp;the&nbsp;end&nbsp;of&nbsp;the&nbsp;directory
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;list&nbsp;is&nbsp;also&nbsp;signaled&nbsp;by&nbsp;d_reclen&nbsp;==&nbsp;0.
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(ret&nbsp;&lt;&nbsp;1)
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;break;
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;Write&nbsp;both&nbsp;the&nbsp;short&nbsp;name&nbsp;and&nbsp;the&nbsp;long&nbsp;name.
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;%s&nbsp;-&gt;&nbsp;'%s'\n&quot;,&nbsp;entry[0].d_name,&nbsp;entry[1].d_name);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(ret&nbsp;==&nbsp;-1)&nbsp;{
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;perror(&quot;VFAT_IOCTL_READDIR_BOTH&quot;);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;}
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;Close&nbsp;the&nbsp;file&nbsp;descriptor.
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;close(fd);
+<P>
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_SUCCESS);
+}
+
+
+<A NAME="lbAS">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+<A NAME="lbAT">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="10"><A HREF="#lbAB">NAME</A><DD>
+<DT id="11"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="12"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DL>
+<DT id="13"><A HREF="#lbAE">Reading and setting file attributes</A><DD>
+<DT id="14"><A HREF="#lbAF">Reading the volume ID</A><DD>
+<DT id="15"><A HREF="#lbAG">Reading short file names of a directory</A><DD>
+</DL>
+<DT id="16"><A HREF="#lbAH">RETURN VALUE</A><DD>
+<DT id="17"><A HREF="#lbAI">ERRORS</A><DD>
+<DT id="18"><A HREF="#lbAJ">VERSIONS</A><DD>
+<DT id="19"><A HREF="#lbAK">CONFORMING TO</A><DD>
+<DT id="20"><A HREF="#lbAL">EXAMPLE</A><DD>
+<DL>
+<DT id="21"><A HREF="#lbAM">Toggling the archive flag</A><DD>
+<DT id="22"><A HREF="#lbAN">Program source (toggle_fat_archive_flag.c)</A><DD>
+<DT id="23"><A HREF="#lbAO">Reading the volume ID</A><DD>
+<DT id="24"><A HREF="#lbAP">Program source (display_fat_volume_id.c)</A><DD>
+<DT id="25"><A HREF="#lbAQ">Listing a directory</A><DD>
+<DT id="26"><A HREF="#lbAR">Program source</A><DD>
+</DL>
+<DT id="27"><A HREF="#lbAS">SEE ALSO</A><DD>
+<DT id="28"><A HREF="#lbAT">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:33 GMT, March 31, 2021
+</BODY>
+</HTML>

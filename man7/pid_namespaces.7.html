@@ -1,0 +1,564 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of PID_NAMESPACES</TITLE>
+</HEAD><BODY>
+<H1>PID_NAMESPACES</H1>
+Section: Linux Programmer's Manual (7)<BR>Updated: 2019-03-06<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+pid_namespaces - overview of Linux PID namespaces
+<A NAME="lbAC">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+For an overview of namespaces, see
+<B><A HREF="/cgi-bin/man/man2html?7+namespaces">namespaces</A></B>(7).
+
+<P>
+
+PID namespaces isolate the process ID number space,
+meaning that processes in different PID namespaces can have the same PID.
+PID namespaces allow containers to provide functionality
+such as suspending/resuming the set of processes in the container and
+migrating the container to a new host
+while the processes inside the container maintain the same PIDs.
+<P>
+
+PIDs in a new PID namespace start at 1,
+somewhat like a standalone system, and calls to
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+vfork">vfork</A></B>(2),
+
+or
+<B><A HREF="/cgi-bin/man/man2html?2+clone">clone</A></B>(2)
+
+will produce processes with PIDs that are unique within the namespace.
+<P>
+
+Use of PID namespaces requires a kernel that is configured with the
+<B>CONFIG_PID_NS</B>
+
+option.
+
+
+
+<A NAME="lbAD">&nbsp;</A>
+<H3>The namespace init process</H3>
+
+The first process created in a new namespace
+(i.e., the process created using
+<B><A HREF="/cgi-bin/man/man2html?2+clone">clone</A></B>(2)
+
+with the
+<B>CLONE_NEWPID</B>
+
+flag, or the first child created by a process after a call to
+<B><A HREF="/cgi-bin/man/man2html?2+unshare">unshare</A></B>(2)
+
+using the
+<B>CLONE_NEWPID</B>
+
+flag) has the PID 1, and is the &quot;init&quot; process for the namespace (see
+<B><A HREF="/cgi-bin/man/man2html?1+init">init</A></B>(1)).
+
+This process becomes the parent of any child processes that are orphaned
+because a process that resides in this PID namespace terminated
+(see below for further details).
+<P>
+
+If the &quot;init&quot; process of a PID namespace terminates,
+the kernel terminates all of the processes in the namespace via a
+<B>SIGKILL</B>
+
+signal.
+This behavior reflects the fact that the &quot;init&quot; process
+is essential for the correct operation of a PID namespace.
+In this case, a subsequent
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2)
+
+into this PID namespace fail with the error
+<B>ENOMEM</B>;
+
+it is not possible to create a new process in a PID namespace whose &quot;init&quot;
+process has terminated.
+Such scenarios can occur when, for example,
+a process uses an open file descriptor for a
+<I>/proc/[pid]/ns/pid</I>
+
+file corresponding to a process that was in a namespace to
+<B><A HREF="/cgi-bin/man/man2html?2+setns">setns</A></B>(2)
+
+into that namespace after the &quot;init&quot; process has terminated.
+Another possible scenario can occur after a call to
+<B><A HREF="/cgi-bin/man/man2html?2+unshare">unshare</A></B>(2):
+
+if the first child subsequently created by a
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2)
+
+terminates, then subsequent calls to
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2)
+
+fail with
+<B>ENOMEM</B>.
+
+<P>
+
+Only signals for which the &quot;init&quot; process has established a signal handler
+can be sent to the &quot;init&quot; process by other members of the PID namespace.
+This restriction applies even to privileged processes,
+and prevents other members of the PID namespace from
+accidentally killing the &quot;init&quot; process.
+<P>
+
+Likewise, a process in an ancestor namespace
+can---subject to the usual permission checks described in
+<B><A HREF="/cgi-bin/man/man2html?2+kill">kill</A></B>(2)---send
+
+signals to the &quot;init&quot; process of a child PID namespace only
+if the &quot;init&quot; process has established a handler for that signal.
+(Within the handler, the
+<I>siginfo_t</I>
+
+<I>si_pid</I>
+
+field described in
+<B><A HREF="/cgi-bin/man/man2html?2+sigaction">sigaction</A></B>(2)
+
+will be zero.)
+<B>SIGKILL</B>
+
+or
+<B>SIGSTOP</B>
+
+are treated exceptionally:
+these signals are forcibly delivered when sent from an ancestor PID namespace.
+Neither of these signals can be caught by the &quot;init&quot; process,
+and so will result in the usual actions associated with those signals
+(respectively, terminating and stopping the process).
+<P>
+
+Starting with Linux 3.4, the
+<B><A HREF="/cgi-bin/man/man2html?2+reboot">reboot</A></B>(2)
+
+system call causes a signal to be sent to the namespace &quot;init&quot; process.
+See
+<B><A HREF="/cgi-bin/man/man2html?2+reboot">reboot</A></B>(2)
+
+for more details.
+
+
+
+<A NAME="lbAE">&nbsp;</A>
+<H3>Nesting PID namespaces</H3>
+
+PID namespaces can be nested:
+each PID namespace has a parent,
+except for the initial (&quot;root&quot;) PID namespace.
+The parent of a PID namespace is the PID namespace of the process that
+created the namespace using
+<B><A HREF="/cgi-bin/man/man2html?2+clone">clone</A></B>(2)
+
+or
+<B><A HREF="/cgi-bin/man/man2html?2+unshare">unshare</A></B>(2).
+
+PID namespaces thus form a tree,
+with all namespaces ultimately tracing their ancestry to the root namespace.
+Since Linux 3.7,
+
+
+the kernel limits the maximum nesting depth for PID namespaces to 32.
+<P>
+
+A process is visible to other processes in its PID namespace,
+and to the processes in each direct ancestor PID namespace
+going back to the root PID namespace.
+In this context, &quot;visible&quot; means that one process
+can be the target of operations by another process using
+system calls that specify a process ID.
+Conversely, the processes in a child PID namespace can't see
+processes in the parent and further removed ancestor namespaces.
+More succinctly: a process can see (e.g., send signals with
+<B><A HREF="/cgi-bin/man/man2html?2+kill">kill</A></B>(2),
+
+set nice values with
+<B><A HREF="/cgi-bin/man/man2html?2+setpriority">setpriority</A></B>(2),
+
+etc.) only processes contained in its own PID namespace
+and in descendants of that namespace.
+<P>
+
+A process has one process ID in each of the layers of the PID
+namespace hierarchy in which is visible,
+and walking back though each direct ancestor namespace
+through to the root PID namespace.
+System calls that operate on process IDs always
+operate using the process ID that is visible in the
+PID namespace of the caller.
+A call to
+<B><A HREF="/cgi-bin/man/man2html?2+getpid">getpid</A></B>(2)
+
+always returns the PID associated with the namespace in which
+the process was created.
+<P>
+
+Some processes in a PID namespace may have parents
+that are outside of the namespace.
+For example, the parent of the initial process in the namespace
+(i.e., the
+<B><A HREF="/cgi-bin/man/man2html?1+init">init</A></B>(1)
+
+process with PID 1) is necessarily in another namespace.
+Likewise, the direct children of a process that uses
+<B><A HREF="/cgi-bin/man/man2html?2+setns">setns</A></B>(2)
+
+to cause its children to join a PID namespace are in a different
+PID namespace from the caller of
+<B><A HREF="/cgi-bin/man/man2html?2+setns">setns</A></B>(2).
+
+Calls to
+<B><A HREF="/cgi-bin/man/man2html?2+getppid">getppid</A></B>(2)
+
+for such processes return 0.
+<P>
+
+While processes may freely descend into child PID namespaces
+(e.g., using
+<B><A HREF="/cgi-bin/man/man2html?2+setns">setns</A></B>(2)
+
+with a PID namespace file descriptor),
+they may not move in the other direction.
+That is to say, processes may not enter any ancestor namespaces
+(parent, grandparent, etc.).
+Changing PID namespaces is a one-way operation.
+<P>
+
+The
+<B>NS_GET_PARENT</B>
+
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl">ioctl</A></B>(2)
+
+operation can be used to discover the parental relationship
+between PID namespaces; see
+<B><A HREF="/cgi-bin/man/man2html?2+ioctl_ns">ioctl_ns</A></B>(2).
+
+
+
+
+<A NAME="lbAF">&nbsp;</A>
+<H3><A HREF="/cgi-bin/man/man2html?2+setns">setns</A>(2) and <A HREF="/cgi-bin/man/man2html?2+unshare">unshare</A>(2) semantics</H3>
+
+Calls to
+<B><A HREF="/cgi-bin/man/man2html?2+setns">setns</A></B>(2)
+
+that specify a PID namespace file descriptor
+and calls to
+<B><A HREF="/cgi-bin/man/man2html?2+unshare">unshare</A></B>(2)
+
+with the
+<B>CLONE_NEWPID</B>
+
+flag cause children subsequently created
+by the caller to be placed in a different PID namespace from the caller.
+(Since Linux 4.12, that PID namespace is shown via the
+<I>/proc/[pid]/ns/pid_for_children</I>
+
+file, as described in
+<B><A HREF="/cgi-bin/man/man2html?7+namespaces">namespaces</A></B>(7).)
+
+These calls do not, however,
+change the PID namespace of the calling process,
+because doing so would change the caller's idea of its own PID
+(as reported by
+<B>getpid</B>()),
+
+which would break many applications and libraries.
+<P>
+
+To put things another way:
+a process's PID namespace membership is determined when the process is created
+and cannot be changed thereafter.
+Among other things, this means that the parental relationship
+between processes mirrors the parental relationship between PID namespaces:
+the parent of a process is either in the same namespace
+or resides in the immediate parent PID namespace.
+<P>
+
+A process may call
+<B><A HREF="/cgi-bin/man/man2html?2+unshare">unshare</A></B>(2)
+
+with the
+<B>CLONE_NEWPID</B>
+
+flag only once.
+After it has performed this operation, its
+<I>/proc/PID/ns/pid_for_children</I>
+
+symbolic link will be empty until the first child is created in the namespace.
+
+
+
+<A NAME="lbAG">&nbsp;</A>
+<H3>Adoption of orphaned children</H3>
+
+When a child process becomes orphaned, it is reparented to the &quot;init&quot;
+process in the PID namespace of its parent
+(unless one of the nearer ancestors of the parent employed the
+<B><A HREF="/cgi-bin/man/man2html?2+prctl">prctl</A></B>(2)
+
+<B>PR_SET_CHILD_SUBREAPER</B>
+
+command to mark itself as the reaper of orphaned descendant processes).
+Note that because of the
+<B><A HREF="/cgi-bin/man/man2html?2+setns">setns</A></B>(2)
+
+and
+<B><A HREF="/cgi-bin/man/man2html?2+unshare">unshare</A></B>(2)
+
+semantics described above, this may be the &quot;init&quot; process in the PID
+namespace that is the
+<I>parent</I>
+
+of the child's PID namespace,
+rather than the &quot;init&quot; process in the child's own PID namespace.
+
+
+
+
+<A NAME="lbAH">&nbsp;</A>
+<H3>Compatibility of CLONE_NEWPID with other CLONE_* flags</H3>
+
+In current versions of Linux,
+<B>CLONE_NEWPID</B>
+
+can't be combined with
+<B>CLONE_THREAD</B>.
+
+Threads are required to be in the same PID namespace such that
+the threads in a process can send signals to each other.
+Similarly, it must be possible to see all of the threads
+of a processes in the
+<B><A HREF="/cgi-bin/man/man2html?5+proc">proc</A></B>(5)
+
+filesystem.
+Additionally, if two threads were in different PID
+namespaces, the process ID of the process sending a signal
+could not be meaningfully encoded when a signal is sent
+(see the description of the
+<I>siginfo_t</I>
+
+type in
+<B><A HREF="/cgi-bin/man/man2html?2+sigaction">sigaction</A></B>(2)).
+
+Since this is computed when a signal is enqueued,
+a signal queue shared by processes in multiple PID namespaces
+would defeat that.
+<P>
+
+
+
+
+In earlier versions of Linux,
+<B>CLONE_NEWPID</B>
+
+was additionally disallowed (failing with the error
+<B>EINVAL</B>)
+
+in combination with
+<B>CLONE_SIGHAND</B>
+
+
+(before Linux 4.3) as well as
+
+<B>CLONE_VM</B>
+
+(before Linux 3.12).
+The changes that lifted these restrictions have also been ported to
+earlier stable kernels.
+
+
+
+<A NAME="lbAI">&nbsp;</A>
+<H3>/proc and PID namespaces</H3>
+
+A
+<I>/proc</I>
+
+filesystem shows (in the
+<I>/proc/[pid]</I>
+
+directories) only processes visible in the PID namespace
+of the process that performed the mount, even if the
+<I>/proc</I>
+
+filesystem is viewed from processes in other namespaces.
+<P>
+
+After creating a new PID namespace,
+it is useful for the child to change its root directory
+and mount a new procfs instance at
+<I>/proc</I>
+
+so that tools such as
+<B><A HREF="/cgi-bin/man/man2html?1+ps">ps</A></B>(1)
+
+work correctly.
+If a new mount namespace is simultaneously created by including
+<B>CLONE_NEWNS</B>
+
+in the
+<I>flags</I>
+
+argument of
+<B><A HREF="/cgi-bin/man/man2html?2+clone">clone</A></B>(2)
+
+or
+<B><A HREF="/cgi-bin/man/man2html?2+unshare">unshare</A></B>(2),
+
+then it isn't necessary to change the root directory:
+a new procfs instance can be mounted directly over
+<I>/proc</I>.
+
+<P>
+
+From a shell, the command to mount
+<I>/proc</I>
+
+is:
+<P>
+
+
+
+$ mount -t proc proc /proc
+
+
+<P>
+
+Calling
+<B><A HREF="/cgi-bin/man/man2html?2+readlink">readlink</A></B>(2)
+
+on the path
+<I>/proc/self</I>
+
+yields the process ID of the caller in the PID namespace of the procfs mount
+(i.e., the PID namespace of the process that mounted the procfs).
+This can be useful for introspection purposes,
+when a process wants to discover its PID in other namespaces.
+
+
+
+<A NAME="lbAJ">&nbsp;</A>
+<H3>/proc files</H3>
+
+<DL COMPACT>
+<DT id="1"><B>/proc/sys/kernel/ns_last_pid</B> (since Linux 3.3)
+
+<DD>
+
+This file displays the last PID that was allocated in this PID namespace.
+When the next PID is allocated,
+the kernel will search for the lowest unallocated PID
+that is greater than this value,
+and when this file is subsequently read it will show that PID.
+<DT id="2"><DD>
+This file is writable by a process that has the
+<B>CAP_SYS_ADMIN</B>
+
+capability inside its user namespace.
+
+This makes it possible to determine the PID that is allocated
+to the next process that is created inside this PID namespace.
+
+
+
+</DL>
+<A NAME="lbAK">&nbsp;</A>
+<H3>Miscellaneous</H3>
+
+When a process ID is passed over a UNIX domain socket to a
+process in a different PID namespace (see the description of
+<B>SCM_CREDENTIALS</B>
+
+in
+<B><A HREF="/cgi-bin/man/man2html?7+unix">unix</A></B>(7)),
+
+it is translated into the corresponding PID value in
+the receiving process's PID namespace.
+<A NAME="lbAL">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+Namespaces are a Linux-specific feature.
+<A NAME="lbAM">&nbsp;</A>
+<H2>EXAMPLE</H2>
+
+See
+<B><A HREF="/cgi-bin/man/man2html?7+user_namespaces">user_namespaces</A></B>(7).
+
+<A NAME="lbAN">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<B><A HREF="/cgi-bin/man/man2html?2+clone">clone</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+reboot">reboot</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+setns">setns</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+unshare">unshare</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?5+proc">proc</A></B>(5),
+
+<B><A HREF="/cgi-bin/man/man2html?7+capabilities">capabilities</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+credentials">credentials</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+mount_namespaces">mount_namespaces</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+namespaces">namespaces</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+user_namespaces">user_namespaces</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?8+switch_root">switch_root</A></B>(8)
+
+<A NAME="lbAO">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="3"><A HREF="#lbAB">NAME</A><DD>
+<DT id="4"><A HREF="#lbAC">DESCRIPTION</A><DD>
+<DL>
+<DT id="5"><A HREF="#lbAD">The namespace init process</A><DD>
+<DT id="6"><A HREF="#lbAE">Nesting PID namespaces</A><DD>
+<DT id="7"><A HREF="#lbAF">setns(2) and unshare(2) semantics</A><DD>
+<DT id="8"><A HREF="#lbAG">Adoption of orphaned children</A><DD>
+<DT id="9"><A HREF="#lbAH">Compatibility of CLONE_NEWPID with other CLONE_* flags</A><DD>
+<DT id="10"><A HREF="#lbAI">/proc and PID namespaces</A><DD>
+<DT id="11"><A HREF="#lbAJ">/proc files</A><DD>
+<DT id="12"><A HREF="#lbAK">Miscellaneous</A><DD>
+</DL>
+<DT id="13"><A HREF="#lbAL">CONFORMING TO</A><DD>
+<DT id="14"><A HREF="#lbAM">EXAMPLE</A><DD>
+<DT id="15"><A HREF="#lbAN">SEE ALSO</A><DD>
+<DT id="16"><A HREF="#lbAO">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:09 GMT, March 31, 2021
+</BODY>
+</HTML>

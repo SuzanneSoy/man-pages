@@ -1,0 +1,258 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SD_EVENT_NEW</TITLE>
+</HEAD><BODY>
+<H1>SD_EVENT_NEW</H1>
+Section: sd_event_new (3)<BR>Updated: <BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+sd_event_new, sd_event_default, sd_event_ref, sd_event_unref, sd_event_unrefp, sd_event_get_tid, sd_event - Acquire and release an event loop object
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+<B>
+</B><PRE>
+#include &lt;<A HREF="file:///usr/include/systemd/sd-event.h">systemd/sd-event.h</A>&gt;
+</PRE>
+
+
+<P>
+<B>
+</B><PRE>
+typedef struct sd_event sd_event;
+</PRE>
+
+
+<DL COMPACT>
+<DT id="1">
+<B>int sd_event_new(sd_event&nbsp;**</B><I>event</I><B>);</B>
+
+<DT id="2">
+<B>int sd_event_default(sd_event&nbsp;**</B><I>event</I><B>);</B>
+
+<DT id="3">
+<B>sd_event *sd_event_ref(sd_event&nbsp;*</B><I>event</I><B>);</B>
+
+<DT id="4">
+<B>sd_event *sd_event_unref(sd_event&nbsp;*</B><I>event</I><B>);</B>
+
+<DT id="5">
+<B>void sd_event_unrefp(sd_event&nbsp;**</B><I>event</I><B>);</B>
+
+<DT id="6">
+<B>int sd_event_get_tid(sd_event&nbsp;*</B><I>event</I><B>, pid_t&nbsp;*</B><I>tid</I><B>);</B>
+
+</DL>
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+<B>sd_event_new()</B>
+<DD>allocates a new event loop object. The event loop object is returned in the
+<I>event</I>
+parameter. After use, drop the returned reference with
+<B>sd_event_unref()</B>. When the last reference is dropped, the object is freed.
+<P>
+
+<B>sd_event_default()</B>
+acquires a reference to the default event loop object of the calling thread, possibly allocating a new object if no default event loop object has been allocated yet for the thread. After use, drop the returned reference with
+<B>sd_event_unref()</B>. When the last reference is dropped, the event loop is freed. If this function is called while the object returned from a previous call from the same thread is still referenced, the same object is returned again, but the reference is increased by one. It is recommended to use this call instead of
+<B>sd_event_new()</B>
+in order to share event loop objects between various components that are dispatched in the same thread. All threads have exactly either zero or one default event loop objects associated, but never more.
+<P>
+
+After allocating an event loop object, add event sources to it with
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_add_io">sd_event_add_io</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_add_time">sd_event_add_time</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_add_signal">sd_event_add_signal</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_add_child">sd_event_add_child</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_add_inotify">sd_event_add_inotify</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_add_defer">sd_event_add_defer</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_add_post">sd_event_add_post</A></B>(3)
+or
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_add_exit">sd_event_add_exit</A></B>(3), and then execute the event loop using
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_loop">sd_event_loop</A></B>(3).
+<P>
+
+<B>sd_event_ref()</B>
+increases the reference count of the specified event loop object by one.
+<P>
+
+<B>sd_event_unref()</B>
+decreases the reference count of the specified event loop object by one. If the count hits zero, the object is freed. Note that it is freed regardless of whether it is the default event loop object for a thread or not. This means that allocating an event loop with
+<B>sd_event_default()</B>, then releasing it, and then acquiring a new one with
+<B>sd_event_default()</B>
+will result in two distinct objects. Note that, in order to free an event loop object, all remaining event sources of the event loop also need to be freed as each keeps a reference to it.
+<P>
+
+<B>sd_event_unrefp()</B>
+is similar to
+<B>sd_event_unref()</B>
+but takes a pointer to a pointer to an
+<B>sd_event</B>
+object. This call is useful in conjunction with GCC's and LLVM's
+m[blue]<B>Clean-up Variable Attribute</B>m[]<FONT SIZE="-2">[1]</FONT>. Note that this function is defined as inline function. Use a declaration like the following, in order to allocate an event loop object that is freed automatically as the code block is left:
+<P>
+<DL COMPACT><DT id="7"><DD>
+
+
+
+<PRE>
+{
+        __attribute__((cleanup(sd_event_unrefp)) sd_event *event = NULL;
+        int r;
+        ...
+        r = sd_event_default(&amp;event);
+        if (r &lt; 0)
+                fprintf(stderr, &quot;Failed to allocate event loop: %s\n&quot;, strerror(-r));
+        ...
+}
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+<B>sd_event_ref()</B>,
+<B>sd_event_unref()</B>
+and
+<B>sd_event_unrefp()</B>
+execute no operation if the passed in event loop object is
+<B>NULL</B>.
+<P>
+
+<B>sd_event_get_tid()</B>
+retrieves the thread identifier (&quot;TID&quot;) of the thread the specified event loop object is associated with. This call is only supported for event loops allocated with
+<B>sd_event_default()</B>, and returns the identifier for the thread the event loop is the default event loop of. See
+<B><A HREF="/cgi-bin/man/man2html?2+gettid">gettid</A></B>(2)
+for more information on thread identifiers.
+<A NAME="lbAE">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+<P>
+
+On success,
+<B>sd_event_new()</B>,
+<B>sd_event_default()</B>
+and
+<B>sd_event_get_tid()</B>
+return 0 or a positive integer. On failure, they return a negative errno-style error code.
+<B>sd_event_ref()</B>
+always returns a pointer to the event loop object passed in.
+<B>sd_event_unref()</B>
+always returns
+<B>NULL</B>.
+<A NAME="lbAF">&nbsp;</A>
+<H3>Errors</H3>
+
+<P>
+
+Returned errors may indicate the following problems:
+<P>
+
+<B>-ENOMEM</B>
+<DL COMPACT><DT id="8"><DD>
+Not enough memory to allocate the object.
+</DL>
+
+<P>
+
+<B>-EMFILE</B>
+<DL COMPACT><DT id="9"><DD>
+The maximum number of event loops has been allocated.
+</DL>
+
+<P>
+
+<B>-ENXIO</B>
+<DL COMPACT><DT id="10"><DD>
+<B>sd_event_get_tid()</B>
+was invoked on an event loop object that was not allocated with
+<B>sd_event_default()</B>.
+</DL>
+
+<A NAME="lbAG">&nbsp;</A>
+<H2>NOTES</H2>
+
+<P>
+
+These APIs are implemented as a shared library, which can be compiled and linked to with the
+<B>libsystemd</B>&nbsp;<B><A HREF="/cgi-bin/man/man2html?1+pkg-config">pkg-config</A></B>(1)
+file.
+<A NAME="lbAH">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?1+systemd">systemd</A></B>(1),
+<B><A HREF="/cgi-bin/man/man2html?3+sd-event">sd-event</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_add_io">sd_event_add_io</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_add_time">sd_event_add_time</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_add_signal">sd_event_add_signal</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_add_child">sd_event_add_child</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_add_inotify">sd_event_add_inotify</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_add_defer">sd_event_add_defer</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?3+sd_event_run">sd_event_run</A></B>(3),
+<B><A HREF="/cgi-bin/man/man2html?2+gettid">gettid</A></B>(2)
+<A NAME="lbAI">&nbsp;</A>
+<H2>NOTES</H2>
+
+<DL COMPACT>
+<DT id="11"> 1.<DD>
+Clean-up Variable Attribute
+<DL COMPACT><DT id="12"><DD>
+<A HREF="https://gcc.gnu.org/onlinedocs/gcc/Common-Variable-Attributes.html">https://gcc.gnu.org/onlinedocs/gcc/Common-Variable-Attributes.html</A>
+</DL>
+
+<P>
+</DL>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="13"><A HREF="#lbAB">NAME</A><DD>
+<DT id="14"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="15"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="16"><A HREF="#lbAE">RETURN VALUE</A><DD>
+<DL>
+<DT id="17"><A HREF="#lbAF">Errors</A><DD>
+</DL>
+<DT id="18"><A HREF="#lbAG">NOTES</A><DD>
+<DT id="19"><A HREF="#lbAH">SEE ALSO</A><DD>
+<DT id="20"><A HREF="#lbAI">NOTES</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:55 GMT, March 31, 2021
+</BODY>
+</HTML>

@@ -1,0 +1,663 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SCHED_SETATTR</TITLE>
+</HEAD><BODY>
+<H1>SCHED_SETATTR</H1>
+Section: Linux Programmer's Manual (2)<BR>Updated: 2019-03-06<BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+sched_setattr, sched_getattr -
+set and get scheduling policy and attributes
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<PRE>
+<B>#include &lt;<A HREF="file:///usr/include/sched.h">sched.h</A>&gt;</B>
+
+<B>int sched_setattr(pid_t </B><I>pid</I><B>, struct sched_attr *</B><I>attr</I><B>,</B>
+<B>                  unsigned int </B><I>flags</I><B>);</B>
+
+<B>int sched_getattr(pid_t </B><I>pid</I><B>, struct sched_attr *</B><I>attr</I><B>,</B>
+<B>                  unsigned int </B><I>size</I><B>, unsigned int </B><I>flags</I><B>);</B>
+</PRE>
+
+
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<A NAME="lbAE">&nbsp;</A>
+<H3>sched_setattr()</H3>
+
+The
+<B>sched_setattr</B>()
+
+system call sets the scheduling policy and
+associated attributes for the thread whose ID is specified in
+<I>pid</I>.
+
+If
+<I>pid</I>
+
+equals zero,
+the scheduling policy and attributes of the calling thread will be set.
+<P>
+
+Currently, Linux supports the following &quot;normal&quot;
+(i.e., non-real-time) scheduling policies as values that may be specified in
+<I>policy</I>:
+
+<DL COMPACT>
+<DT id="1"><B>SCHED_OTHER</B>
+
+<DD>
+the standard round-robin time-sharing policy;
+
+
+<DT id="2"><B>SCHED_BATCH</B>
+
+<DD>
+for &quot;batch&quot; style execution of processes; and
+<DT id="3"><B>SCHED_IDLE</B>
+
+<DD>
+for running
+<I>very</I>
+
+low priority background jobs.
+</DL>
+<P>
+
+Various &quot;real-time&quot; policies are also supported,
+for special time-critical applications that need precise control over
+the way in which runnable threads are selected for execution.
+For the rules governing when a process may use these policies, see
+<B><A HREF="/cgi-bin/man/man2html?7+sched">sched</A></B>(7).
+
+The real-time policies that may be specified in
+<I>policy</I>
+
+are:
+<DL COMPACT>
+<DT id="4"><B>SCHED_FIFO</B>
+
+<DD>
+a first-in, first-out policy; and
+<DT id="5"><B>SCHED_RR</B>
+
+<DD>
+a round-robin policy.
+</DL>
+<P>
+
+Linux also provides the following policy:
+<DL COMPACT>
+<DT id="6"><B>SCHED_DEADLINE</B>
+
+<DD>
+a deadline scheduling policy; see
+<B><A HREF="/cgi-bin/man/man2html?7+sched">sched</A></B>(7)
+
+for details.
+</DL>
+<P>
+
+The
+<I>attr</I>
+
+argument is a pointer to a structure that defines
+the new scheduling policy and attributes for the specified thread.
+This structure has the following form:
+<P>
+
+
+
+struct sched_attr {
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u32&nbsp;size;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Size&nbsp;of&nbsp;this&nbsp;structure&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u32&nbsp;sched_policy;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Policy&nbsp;(SCHED_*)&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;sched_flags;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Flags&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;s32&nbsp;sched_nice;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Nice&nbsp;value&nbsp;(SCHED_OTHER,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SCHED_BATCH)&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u32&nbsp;sched_priority;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Static&nbsp;priority&nbsp;(SCHED_FIFO,
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SCHED_RR)&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;Remaining&nbsp;fields&nbsp;are&nbsp;for&nbsp;SCHED_DEADLINE&nbsp;*/
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;sched_runtime;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;sched_deadline;
+<BR>&nbsp;&nbsp;&nbsp;&nbsp;u64&nbsp;sched_period;
+};
+
+
+<P>
+
+The fields of this structure are as follows:
+<DL COMPACT>
+<DT id="7"><B>size</B>
+
+<DD>
+This field should be set to the size of the structure in bytes, as in
+<I>sizeof(struct sched_attr)</I>.
+
+If the provided structure is smaller than the kernel structure,
+any additional fields are assumed to be '0'.
+If the provided structure is larger than the kernel structure,
+the kernel verifies that all additional fields are 0;
+if they are not,
+<B>sched_setattr</B>()
+
+fails with the error
+<B>E2BIG</B>
+
+and updates
+<I>size</I>
+
+to contain the size of the kernel structure.
+<DT id="8"><DD>
+The above behavior when the size of the user-space
+<I>sched_attr</I>
+
+structure does not match the size of the kernel structure
+allows for future extensibility of the interface.
+Malformed applications that pass oversize structures
+won't break in the future if the size of the kernel
+<I>sched_attr</I>
+
+structure is increased.
+In the future,
+it could also allow applications that know about a larger user-space
+<I>sched_attr</I>
+
+structure to determine whether they are running on an older kernel
+that does not support the larger structure.
+<DT id="9"><I>sched_policy</I>
+
+<DD>
+This field specifies the scheduling policy, as one of the
+<B>SCHED_*</B>
+
+values listed above.
+<DT id="10"><I>sched_flags</I>
+
+<DD>
+This field contains zero or more of the following flags
+that are ORed together to control scheduling behavior:
+<DL COMPACT><DT id="11"><DD>
+<DL COMPACT>
+<DT id="12"><B>SCHED_FLAG_RESET_ON_FORK</B>
+
+<DD>
+Children created by
+<B><A HREF="/cgi-bin/man/man2html?2+fork">fork</A></B>(2)
+
+do not inherit privileged scheduling policies.
+See
+<B><A HREF="/cgi-bin/man/man2html?7+sched">sched</A></B>(7)
+
+for details.
+<DT id="13"><B>SCHED_FLAG_RECLAIM</B> (since Linux 4.13)
+
+<DD>
+
+This flag allows a
+<B>SCHED_DEADLINE</B>
+
+thread to reclaim bandwidth unused by other real-time threads.
+
+
+<DT id="14"><B>SCHED_FLAG_DL_OVERRUN</B> (since Linux 4.16)
+
+<DD>
+
+This flag allows an application to get informed about run-time overruns in
+<B>SCHED_DEADLINE</B>
+
+threads.
+Such overruns may be caused by (for example) coarse execution time accounting
+or incorrect parameter assignment.
+Notification takes the form of a
+<B>SIGXCPU</B>
+
+signal which is generated on each overrun.
+<DT id="15"><DD>
+This
+<B>SIGXCPU</B>
+
+signal is
+<I>process-directed</I>
+
+(see
+<B><A HREF="/cgi-bin/man/man2html?7+signal">signal</A></B>(7))
+
+rather than thread-directed.
+This is probably a bug.
+On the one hand,
+<B>sched_setattr</B>()
+
+is being used to set a per-thread attribute.
+On the other hand, if the process-directed signal is delivered to
+a thread inside the process other than the one that had a run-time overrun,
+the application has no way of knowing which thread overran.
+</DL>
+</DL>
+
+<DT id="16"><I>sched_nice</I>
+
+<DD>
+This field specifies the nice value to be set when specifying
+<I>sched_policy</I>
+
+as
+<B>SCHED_OTHER</B>
+
+or
+<B>SCHED_BATCH</B>.
+
+The nice value is a number in the range -20 (high priority)
+to +19 (low priority); see
+<B><A HREF="/cgi-bin/man/man2html?7+sched">sched</A></B>(7).
+
+<DT id="17"><I>sched_priority</I>
+
+<DD>
+This field specifies the static priority to be set when specifying
+<I>sched_policy</I>
+
+as
+<B>SCHED_FIFO</B>
+
+or
+<B>SCHED_RR</B>.
+
+The allowed range of priorities for these policies can be determined using
+<B><A HREF="/cgi-bin/man/man2html?2+sched_get_priority_min">sched_get_priority_min</A></B>(2)
+
+and
+<B><A HREF="/cgi-bin/man/man2html?2+sched_get_priority_max">sched_get_priority_max</A></B>(2).
+
+For other policies, this field must be specified as 0.
+<DT id="18"><I>sched_runtime</I>
+
+<DD>
+This field specifies the &quot;Runtime&quot; parameter for deadline scheduling.
+The value is expressed in nanoseconds.
+This field, and the next two fields,
+are used only for
+<B>SCHED_DEADLINE</B>
+
+scheduling; for further details, see
+<B><A HREF="/cgi-bin/man/man2html?7+sched">sched</A></B>(7).
+
+<DT id="19"><I>sched_deadline</I>
+
+<DD>
+This field specifies the &quot;Deadline&quot; parameter for deadline scheduling.
+The value is expressed in nanoseconds.
+<DT id="20"><I>sched_period</I>
+
+<DD>
+This field specifies the &quot;Period&quot; parameter for deadline scheduling.
+The value is expressed in nanoseconds.
+</DL>
+<P>
+
+The
+<I>flags</I>
+
+argument is provided to allow for future extensions to the interface;
+in the current implementation it must be specified as 0.
+
+
+<A NAME="lbAF">&nbsp;</A>
+<H3>sched_getattr()</H3>
+
+The
+<B>sched_getattr</B>()
+
+system call fetches the scheduling policy and the
+associated attributes for the thread whose ID is specified in
+<I>pid</I>.
+
+If
+<I>pid</I>
+
+equals zero,
+the scheduling policy and attributes of the calling thread
+will be retrieved.
+<P>
+
+The
+<I>size</I>
+
+argument should be set to the size of the
+<I>sched_attr</I>
+
+structure as known to user space.
+The value must be at least as large as the size of the initially published
+<I>sched_attr</I>
+
+structure, or the call fails with the error
+<B>EINVAL</B>.
+
+<P>
+
+The retrieved scheduling attributes are placed in the fields of the
+<I>sched_attr</I>
+
+structure pointed to by
+<I>attr</I>.
+
+The kernel sets
+<I>attr.size</I>
+
+to the size of its
+<I>sched_attr</I>
+
+structure.
+<P>
+
+If the caller-provided
+<I>attr</I>
+
+buffer is larger than the kernel's
+<I>sched_attr</I>
+
+structure,
+the additional bytes in the user-space structure are not touched.
+If the caller-provided structure is smaller than the kernel
+<I>sched_attr</I>
+
+structure and the kernel needs to return values outside the provided space,
+<B>sched_getattr</B>()
+
+fails with the error
+<B>E2BIG</B>.
+
+As with
+<B>sched_setattr</B>(),
+
+these semantics allow for future extensibility of the interface.
+<P>
+
+The
+<I>flags</I>
+
+argument is provided to allow for future extensions to the interface;
+in the current implementation it must be specified as 0.
+<A NAME="lbAG">&nbsp;</A>
+<H2>RETURN VALUE</H2>
+
+On success,
+<B>sched_setattr</B>()
+
+and
+<B>sched_getattr</B>()
+
+return 0.
+On error, -1 is returned, and
+<I>errno</I>
+
+is set to indicate the cause of the error.
+<A NAME="lbAH">&nbsp;</A>
+<H2>ERRORS</H2>
+
+<B>sched_getattr</B>()
+
+and
+<B>sched_setattr</B>()
+
+can both fail for the following reasons:
+<DL COMPACT>
+<DT id="21"><B>EINVAL</B>
+
+<DD>
+<I>attr</I>
+
+is NULL; or
+<I>pid</I>
+
+is negative; or
+<I>flags</I>
+
+is not zero.
+<DT id="22"><B>ESRCH</B>
+
+<DD>
+The thread whose ID is
+<I>pid</I>
+
+could not be found.
+</DL>
+<P>
+
+In addition,
+<B>sched_getattr</B>()
+
+can fail for the following reasons:
+<DL COMPACT>
+<DT id="23"><B>E2BIG</B>
+
+<DD>
+The buffer specified by
+<I>size</I>
+
+and
+<I>attr</I>
+
+is too small.
+<DT id="24"><B>EINVAL</B>
+
+<DD>
+<I>size</I>
+
+is invalid; that is, it is smaller than the initial version of the
+<I>sched_attr</I>
+
+structure (48 bytes) or larger than the system page size.
+</DL>
+<P>
+
+In addition,
+<B>sched_setattr</B>()
+
+can fail for the following reasons:
+<DL COMPACT>
+<DT id="25"><B>E2BIG</B>
+
+<DD>
+The buffer specified by
+<I>size</I>
+
+and
+<I>attr</I>
+
+is larger than the kernel structure,
+and one or more of the excess bytes is nonzero.
+<DT id="26"><B>EBUSY</B>
+
+<DD>
+<B>SCHED_DEADLINE</B>
+
+admission control failure, see
+<B><A HREF="/cgi-bin/man/man2html?7+sched">sched</A></B>(7).
+
+<DT id="27"><B>EINVAL</B>
+
+<DD>
+<I>attr.sched_policy</I>
+
+is not one of the recognized policies;
+<I>attr.sched_flags</I>
+
+contains a flag other than
+<B>SCHED_FLAG_RESET_ON_FORK</B>;
+
+or
+<I>attr.sched_priority</I>
+
+is invalid; or
+<I>attr.sched_policy</I>
+
+is
+<B>SCHED_DEADLINE</B>
+
+and the deadline scheduling parameters in
+<I>attr</I>
+
+are invalid.
+<DT id="28"><B>EPERM</B>
+
+<DD>
+The caller does not have appropriate privileges.
+<DT id="29"><B>EPERM</B>
+
+<DD>
+The CPU affinity mask of the thread specified by
+<I>pid</I>
+
+does not include all CPUs in the system
+(see
+<B><A HREF="/cgi-bin/man/man2html?2+sched_setaffinity">sched_setaffinity</A></B>(2)).
+
+</DL>
+<A NAME="lbAI">&nbsp;</A>
+<H2>VERSIONS</H2>
+
+These system calls first appeared in Linux 3.14.
+
+<A NAME="lbAJ">&nbsp;</A>
+<H2>CONFORMING TO</H2>
+
+These system calls are nonstandard Linux extensions.
+<A NAME="lbAK">&nbsp;</A>
+<H2>NOTES</H2>
+
+<B>sched_setattr</B>()
+
+provides a superset of the functionality of
+<B><A HREF="/cgi-bin/man/man2html?2+sched_setscheduler">sched_setscheduler</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+sched_setparam">sched_setparam</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+nice">nice</A></B>(2),
+
+and (other than the ability to set the priority of all processes
+belonging to a specified user or all processes in a specified group)
+<B><A HREF="/cgi-bin/man/man2html?2+setpriority">setpriority</A></B>(2).
+
+Analogously,
+<B>sched_getattr</B>()
+
+provides a superset of the functionality of
+<B><A HREF="/cgi-bin/man/man2html?2+sched_getscheduler">sched_getscheduler</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+sched_getparam">sched_getparam</A></B>(2),
+
+and (partially)
+<B><A HREF="/cgi-bin/man/man2html?2+getpriority">getpriority</A></B>(2).
+
+<A NAME="lbAL">&nbsp;</A>
+<H2>BUGS</H2>
+
+In Linux versions up to
+
+3.15,
+<B>sched_settattr</B>()
+
+failed with the error
+<B>EFAULT</B>
+
+instead of
+<B>E2BIG</B>
+
+for the case described in ERRORS.
+
+
+
+
+
+
+<A NAME="lbAM">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+
+
+<B><A HREF="/cgi-bin/man/man2html?1+chrt">chrt</A></B>(1),
+
+<B><A HREF="/cgi-bin/man/man2html?2+nice">nice</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+sched_get_priority_max">sched_get_priority_max</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+sched_get_priority_min">sched_get_priority_min</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+sched_getaffinity">sched_getaffinity</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+sched_getparam">sched_getparam</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+sched_getscheduler">sched_getscheduler</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+sched_rr_get_interval">sched_rr_get_interval</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+sched_setaffinity">sched_setaffinity</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+sched_setparam">sched_setparam</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+sched_setscheduler">sched_setscheduler</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+sched_yield">sched_yield</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?2+setpriority">setpriority</A></B>(2),
+
+<B><A HREF="/cgi-bin/man/man2html?3+pthread_getschedparam">pthread_getschedparam</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+pthread_setschedparam">pthread_setschedparam</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?3+pthread_setschedprio">pthread_setschedprio</A></B>(3),
+
+<B><A HREF="/cgi-bin/man/man2html?7+capabilities">capabilities</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+cpuset">cpuset</A></B>(7),
+
+<B><A HREF="/cgi-bin/man/man2html?7+sched">sched</A></B>(7)
+
+
+<A NAME="lbAN">&nbsp;</A>
+<H2>COLOPHON</H2>
+
+This page is part of release 5.05 of the Linux
+<I>man-pages</I>
+
+project.
+A description of the project,
+information about reporting bugs,
+and the latest version of this page,
+can be found at
+<A HREF="https://www.kernel.org/doc/man-pages/.">https://www.kernel.org/doc/man-pages/.</A>
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="30"><A HREF="#lbAB">NAME</A><DD>
+<DT id="31"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="32"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DL>
+<DT id="33"><A HREF="#lbAE">sched_setattr()</A><DD>
+<DT id="34"><A HREF="#lbAF">sched_getattr()</A><DD>
+</DL>
+<DT id="35"><A HREF="#lbAG">RETURN VALUE</A><DD>
+<DT id="36"><A HREF="#lbAH">ERRORS</A><DD>
+<DT id="37"><A HREF="#lbAI">VERSIONS</A><DD>
+<DT id="38"><A HREF="#lbAJ">CONFORMING TO</A><DD>
+<DT id="39"><A HREF="#lbAK">NOTES</A><DD>
+<DT id="40"><A HREF="#lbAL">BUGS</A><DD>
+<DT id="41"><A HREF="#lbAM">SEE ALSO</A><DD>
+<DT id="42"><A HREF="#lbAN">COLOPHON</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:05:34 GMT, March 31, 2021
+</BODY>
+</HTML>

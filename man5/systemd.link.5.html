@@ -1,0 +1,1028 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>Man page of SYSTEMD.LINK</TITLE>
+</HEAD><BODY>
+<H1>SYSTEMD.LINK</H1>
+Section: systemd.link (5)<BR>Updated: <BR><A HREF="#index">Index</A>
+<A HREF="/cgi-bin/man/man2html">Return to Main Contents</A><HR>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+systemd.link - Network device configuration
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<P>
+
+<I>link</I>.link
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+<P>
+
+A plain ini-style text file that encodes configuration for matching network devices, used by
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-udev">systemd-udev</A></B>(8)
+and in particular its
+<B>net_setup_link</B>
+builtin. See
+<B><A HREF="/cgi-bin/man/man2html?7+systemd.syntax">systemd.syntax</A></B>(7)
+for a general description of the syntax.
+<P>
+
+The link files are read from the files located in the system network directory
+/lib/systemd/network, the volatile runtime network directory
+/run/systemd/network, and the local administration network directory
+/etc/systemd/network. Link files must have the extension
+.link; other extensions are ignored. All link files are collectively sorted and processed in lexical order, regardless of the directories in which they live. However, files with identical filenames replace each other. Files in
+/etc
+have the highest priority, files in
+/run
+take precedence over files with the same name in
+/lib. This can be used to override a system-supplied link file with a local file if needed. As a special case, an empty file (file size 0) or symlink with the same name pointing to
+/dev/null
+disables the configuration file entirely (it is &quot;masked&quot;).
+<P>
+
+The link file contains a [Match] section, which determines if a given link file may be applied to a given device, as well as a [Link] section specifying how the device should be configured. The first (in lexical order) of the link files that matches a given device is applied. Note that a default file
+99-default.link
+is shipped by the system. Any user-supplied
+.link
+should hence have a lexically earlier name to be considered at all.
+<P>
+
+See
+<B><A HREF="/cgi-bin/man/man2html?8+udevadm">udevadm</A></B>(8)
+for diagnosing problems with
+.link
+files.
+<A NAME="lbAE">&nbsp;</A>
+<H2>[MATCH] SECTION OPTIONS</H2>
+
+<P>
+
+A link file is said to match a device if all matches specified by the
+&quot;[Match]&quot;
+section are satisfied. When a link file does not contain valid settings in
+&quot;[Match]&quot;
+section, then the file will match all devices and
+<B>systemd-udevd</B>
+warns about that. Hint: to avoid the warning and to make it clear that all interfaces shall be matched, add the following:
+<P>
+<DL COMPACT><DT id="1"><DD>
+
+
+
+<PRE>
+OriginalName=*
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+The following keys are accepted:
+<P>
+
+<I>MACAddress=</I>
+<DL COMPACT><DT id="2"><DD>
+A whitespace-separated list of hardware addresses. Use full colon-, hyphen- or dot-delimited hexadecimal. See the example below. This option may appear more than once, in which case the lists are merged. If the empty string is assigned to this option, the list of hardware addresses defined prior to this is reset.
+<P>
+Example:
+<P>
+<DL COMPACT><DT id="3"><DD>
+
+
+
+<PRE>
+MACAddress=01:23:45:67:89:ab 00-11-22-33-44-55 AABB.CCDD.EEFF
+</PRE>
+
+</DL>
+
+
+
+
+</DL>
+
+<P>
+
+<I>PermanentMACAddress=</I>
+<DL COMPACT><DT id="4"><DD>
+A whitespace-separated list of hardware's permanent addresses. While
+<I>MACAddress=</I>
+matches the device's current MAC address, this matches the device's permanent MAC address, which may be different from the current one. Use full colon-, hyphen- or dot-delimited hexadecimal. This option may appear more than once, in which case the lists are merged. If the empty string is assigned to this option, the list of hardware addresses defined prior to this is reset.
+</DL>
+
+<P>
+
+<I>Path=</I>
+<DL COMPACT><DT id="5"><DD>
+A whitespace-separated list of shell-style globs matching the persistent path, as exposed by the udev property
+<I>ID_PATH</I>.
+</DL>
+
+<P>
+
+<I>Driver=</I>
+<DL COMPACT><DT id="6"><DD>
+A whitespace-separated list of shell-style globs matching the driver currently bound to the device, as exposed by the udev property
+<I>ID_NET_DRIVER</I>
+of its parent device, or if that is not set, the driver as exposed by
+<B>ethtool -i</B>
+of the device itself. If the list is prefixed with a &quot;!&quot;, the test is inverted.
+</DL>
+
+<P>
+
+<I>Type=</I>
+<DL COMPACT><DT id="7"><DD>
+A whitespace-separated list of shell-style globs matching the device type, as exposed by
+<B>networkctl status</B>. If the list is prefixed with a &quot;!&quot;, the test is inverted.
+</DL>
+
+<P>
+
+<I>Property=</I>
+<DL COMPACT><DT id="8"><DD>
+A whitespace-separated list of udev property name with its value after a equal (&quot;=&quot;). If multiple properties are specified, the test results are ANDed. If the list is prefixed with a &quot;!&quot;, the test is inverted. If a value contains white spaces, then please quote whole key and value pair. If a value contains quotation, then please escape the quotation with
+&quot;\&quot;.
+<P>
+Example: if a .link file has the following:
+<P>
+<DL COMPACT><DT id="9"><DD>
+
+
+
+<PRE>
+Property=ID_MODEL_ID=9999 &quot;ID_VENDOR_FROM_DATABASE=vendor name&quot; &quot;KEY=with \&quot;quotation\&quot;&quot;
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+then, the .link file matches only when an interface has all the above three properties.
+</DL>
+
+<P>
+
+<I>OriginalName=</I>
+<DL COMPACT><DT id="10"><DD>
+A whitespace-separated list of shell-style globs matching the device name, as exposed by the udev property &quot;INTERFACE&quot;. This cannot be used to match on names that have already been changed from userspace. Caution is advised when matching on kernel-assigned names, as they are known to be unstable between reboots.
+</DL>
+
+<P>
+
+<I>Host=</I>
+<DL COMPACT><DT id="11"><DD>
+Matches against the hostname or machine ID of the host. See
+<I>ConditionHost=</I>
+in
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.unit">systemd.unit</A></B>(5)
+for details. When prefixed with an exclamation mark (&quot;!&quot;), the result is negated. If an empty string is assigned, then previously assigned value is cleared.
+</DL>
+
+<P>
+
+<I>Virtualization=</I>
+<DL COMPACT><DT id="12"><DD>
+Checks whether the system is executed in a virtualized environment and optionally test whether it is a specific implementation. See
+<I>ConditionVirtualization=</I>
+in
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.unit">systemd.unit</A></B>(5)
+for details. When prefixed with an exclamation mark (&quot;!&quot;), the result is negated. If an empty string is assigned, then previously assigned value is cleared.
+</DL>
+
+<P>
+
+<I>KernelCommandLine=</I>
+<DL COMPACT><DT id="13"><DD>
+Checks whether a specific kernel command line option is set. See
+<I>ConditionKernelCommandLine=</I>
+in
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.unit">systemd.unit</A></B>(5)
+for details. When prefixed with an exclamation mark (&quot;!&quot;), the result is negated. If an empty string is assigned, then previously assigned value is cleared.
+</DL>
+
+<P>
+
+<I>KernelVersion=</I>
+<DL COMPACT><DT id="14"><DD>
+Checks whether the kernel version (as reported by
+<B>uname -r</B>) matches a certain expression. See
+<I>ConditionKernelVersion=</I>
+in
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.unit">systemd.unit</A></B>(5)
+for details. When prefixed with an exclamation mark (&quot;!&quot;), the result is negated. If an empty string is assigned, then previously assigned value is cleared.
+</DL>
+
+<P>
+
+<I>Architecture=</I>
+<DL COMPACT><DT id="15"><DD>
+Checks whether the system is running on a specific architecture. See
+<I>ConditionArchitecture=</I>
+in
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.unit">systemd.unit</A></B>(5)
+for details. When prefixed with an exclamation mark (&quot;!&quot;), the result is negated. If an empty string is assigned, then previously assigned value is cleared.
+</DL>
+
+<A NAME="lbAF">&nbsp;</A>
+<H2>[LINK] SECTION OPTIONS</H2>
+
+<P>
+
+The [Link] section accepts the following keys:
+<P>
+
+<I>Description=</I>
+<DL COMPACT><DT id="16"><DD>
+A description of the device.
+</DL>
+
+<P>
+
+<I>Alias=</I>
+<DL COMPACT><DT id="17"><DD>
+The
+<I>ifalias</I>
+interface property is set to this value.
+</DL>
+
+<P>
+
+<I>MACAddressPolicy=</I>
+<DL COMPACT><DT id="18"><DD>
+The policy by which the MAC address should be set. The available policies are:
+<P>
+
+<B>persistent</B>
+<DL COMPACT><DT id="19"><DD>
+If the hardware has a persistent MAC address, as most hardware should, and if it is used by the kernel, nothing is done. Otherwise, a new MAC address is generated which is guaranteed to be the same on every boot for the given machine and the given device, but which is otherwise random. This feature depends on ID_NET_NAME_* properties to exist for the link. On hardware where these properties are not set, the generation of a persistent MAC address will fail.
+</DL>
+
+<P>
+
+<B>random</B>
+<DL COMPACT><DT id="20"><DD>
+If the kernel is using a random MAC address, nothing is done. Otherwise, a new address is randomly generated each time the device appears, typically at boot. Either way, the random address will have the
+&quot;unicast&quot;
+and
+&quot;locally administered&quot;
+bits set.
+</DL>
+
+<P>
+
+<B>none</B>
+<DL COMPACT><DT id="21"><DD>
+Keeps the MAC address assigned by the kernel.
+</DL>
+
+</DL>
+
+<P>
+
+<I>MACAddress=</I>
+<DL COMPACT><DT id="22"><DD>
+The MAC address to use, if no
+<I>MACAddressPolicy=</I>
+is specified.
+</DL>
+
+<P>
+
+<I>NamePolicy=</I>
+<DL COMPACT><DT id="23"><DD>
+An ordered, space-separated list of policies by which the interface name should be set.
+<I>NamePolicy=</I>
+may be disabled by specifying
+<B>net.ifnames=0</B>
+on the kernel command line. Each of the policies may fail, and the first successful one is used. The name is not set directly, but is exported to udev as the property
+<B>ID_NET_NAME</B>, which is, by default, used by a
+<B><A HREF="/cgi-bin/man/man2html?7+udev">udev</A></B>(7), rule to set
+<I>NAME</I>. The available policies are:
+<P>
+
+<B>kernel</B>
+<DL COMPACT><DT id="24"><DD>
+If the kernel claims that the name it has set for a device is predictable, then no renaming is performed.
+</DL>
+
+<P>
+
+<B>database</B>
+<DL COMPACT><DT id="25"><DD>
+The name is set based on entries in the udev's Hardware Database with the key
+<I>ID_NET_NAME_FROM_DATABASE</I>.
+</DL>
+
+<P>
+
+<B>onboard</B>
+<DL COMPACT><DT id="26"><DD>
+The name is set based on information given by the firmware for on-board devices, as exported by the udev property
+<I>ID_NET_NAME_ONBOARD</I>. See
+<B><A HREF="/cgi-bin/man/man2html?7+systemd.net-naming-scheme">systemd.net-naming-scheme</A></B>(7).
+</DL>
+
+<P>
+
+<B>slot</B>
+<DL COMPACT><DT id="27"><DD>
+The name is set based on information given by the firmware for hot-plug devices, as exported by the udev property
+<I>ID_NET_NAME_SLOT</I>. See
+<B><A HREF="/cgi-bin/man/man2html?7+systemd.net-naming-scheme">systemd.net-naming-scheme</A></B>(7).
+</DL>
+
+<P>
+
+<B>path</B>
+<DL COMPACT><DT id="28"><DD>
+The name is set based on the device's physical location, as exported by the udev property
+<I>ID_NET_NAME_PATH</I>. See
+<B><A HREF="/cgi-bin/man/man2html?7+systemd.net-naming-scheme">systemd.net-naming-scheme</A></B>(7).
+</DL>
+
+<P>
+
+<B>mac</B>
+<DL COMPACT><DT id="29"><DD>
+The name is set based on the device's persistent MAC address, as exported by the udev property
+<I>ID_NET_NAME_MAC</I>. See
+<B><A HREF="/cgi-bin/man/man2html?7+systemd.net-naming-scheme">systemd.net-naming-scheme</A></B>(7).
+</DL>
+
+<P>
+
+<B>keep</B>
+<DL COMPACT><DT id="30"><DD>
+If the device already had a name given by userspace (as part of creation of the device or a rename), keep it.
+</DL>
+
+</DL>
+
+<P>
+
+<I>Name=</I>
+<DL COMPACT><DT id="31"><DD>
+The interface name to use. This option has lower precedence than
+<I>NamePolicy=</I>, so for this setting to take effect,
+<I>NamePolicy=</I>
+must either be unset, empty, disabled, or all policies configured there must fail. Also see the example below with
+&quot;Name=dmz0&quot;.
+<P>
+Note that specifying a name that the kernel might use for another interface (for example
+&quot;eth0&quot;) is dangerous because the name assignment done by udev will race with the assignment done by the kernel, and only one interface may use the name. Depending on the order of operations, either udev or the kernel will win, making the naming unpredictable. It is best to use some different prefix, for example
+&quot;internal0&quot;/&quot;external0&quot;
+or
+&quot;lan0&quot;/&quot;lan1&quot;/&quot;lan3&quot;.
+</DL>
+
+<P>
+
+<I>AlternativeNamesPolicy=</I>
+<DL COMPACT><DT id="32"><DD>
+A space-separated list of policies by which the interface's alternative names should be set. Each of the policies may fail, and all successful policies are used. The available policies are
+&quot;database&quot;,
+&quot;onboard&quot;,
+&quot;slot&quot;,
+&quot;path&quot;, and
+&quot;mac&quot;. If the kernel does not support the alternative names, then this setting will be ignored.
+</DL>
+
+<P>
+
+<I>AlternativeName=</I>
+<DL COMPACT><DT id="33"><DD>
+The alternative interface name to use. This option can be specified multiple times. If the empty string is assigned to this option, the list is reset, and all prior assignments have no effect. If the kernel does not support the alternative names, then this setting will be ignored.
+</DL>
+
+<P>
+
+<I>MTUBytes=</I>
+<DL COMPACT><DT id="34"><DD>
+The maximum transmission unit in bytes to set for the device. The usual suffixes K, M, G, are supported and are understood to the base of 1024.
+</DL>
+
+<P>
+
+<I>BitsPerSecond=</I>
+<DL COMPACT><DT id="35"><DD>
+The speed to set for the device, the value is rounded down to the nearest Mbps. The usual suffixes K, M, G, are supported and are understood to the base of 1000.
+</DL>
+
+<P>
+
+<I>Duplex=</I>
+<DL COMPACT><DT id="36"><DD>
+The duplex mode to set for the device. The accepted values are
+<B>half</B>
+and
+<B>full</B>.
+</DL>
+
+<P>
+
+<I>AutoNegotiation=</I>
+<DL COMPACT><DT id="37"><DD>
+Takes a boolean. If set to yes, automatic negotiation of transmission parameters is enabled. Autonegotiation is a procedure by which two connected ethernet devices choose common transmission parameters, such as speed, duplex mode, and flow control. When unset, the kernel's default will be used.
+<P>
+Note that if autonegotiation is enabled, speed and duplex settings are read-only. If autonegotiation is disabled, speed and duplex settings are writable if the driver supports multiple link modes.
+</DL>
+
+<P>
+
+<I>WakeOnLan=</I>
+<DL COMPACT><DT id="38"><DD>
+The Wake-on-LAN policy to set for the device. The supported values are:
+<P>
+
+<B>phy</B>
+<DL COMPACT><DT id="39"><DD>
+Wake on PHY activity.
+</DL>
+
+<P>
+
+<B>unicast</B>
+<DL COMPACT><DT id="40"><DD>
+Wake on unicast messages.
+</DL>
+
+<P>
+
+<B>multicast</B>
+<DL COMPACT><DT id="41"><DD>
+Wake on multicast messages.
+</DL>
+
+<P>
+
+<B>broadcast</B>
+<DL COMPACT><DT id="42"><DD>
+Wake on broadcast messages.
+</DL>
+
+<P>
+
+<B>arp</B>
+<DL COMPACT><DT id="43"><DD>
+Wake on ARP.
+</DL>
+
+<P>
+
+<B>magic</B>
+<DL COMPACT><DT id="44"><DD>
+Wake on receipt of a magic packet.
+</DL>
+
+<P>
+
+<B>secureon</B>
+<DL COMPACT><DT id="45"><DD>
+Enable secureon(tm) password for MagicPacket(tm).
+</DL>
+
+<P>
+
+<B>off</B>
+<DL COMPACT><DT id="46"><DD>
+Never wake.
+</DL>
+
+<P>
+Defaults to
+<B>off</B>.
+</DL>
+
+<P>
+
+<I>Port=</I>
+<DL COMPACT><DT id="47"><DD>
+The port option is used to select the device port. The supported values are:
+<P>
+
+<B>tp</B>
+<DL COMPACT><DT id="48"><DD>
+An Ethernet interface using Twisted-Pair cable as the medium.
+</DL>
+
+<P>
+
+<B>aui</B>
+<DL COMPACT><DT id="49"><DD>
+Attachment Unit Interface (AUI). Normally used with hubs.
+</DL>
+
+<P>
+
+<B>bnc</B>
+<DL COMPACT><DT id="50"><DD>
+An Ethernet interface using BNC connectors and co-axial cable.
+</DL>
+
+<P>
+
+<B>mii</B>
+<DL COMPACT><DT id="51"><DD>
+An Ethernet interface using a Media Independent Interface (MII).
+</DL>
+
+<P>
+
+<B>fibre</B>
+<DL COMPACT><DT id="52"><DD>
+An Ethernet interface using Optical Fibre as the medium.
+</DL>
+
+</DL>
+
+<P>
+
+<I>Advertise=</I>
+<DL COMPACT><DT id="53"><DD>
+This sets what speeds and duplex modes of operation are advertised for auto-negotiation. This implies
+&quot;AutoNegotiation=yes&quot;. The supported values are:
+<P>
+
+
+
+<BR>
+
+<B>Table&nbsp;1.&nbsp;Supported advertise values</B>
+
+<TABLE BORDER>
+<TR VALIGN=top><TD><B>
+Advertise
+</B></TD><TD><B>
+Speed (Mbps)
+</B></TD><TD><B>
+Duplex Mode
+</B><BR></TD></TR>
+<TR VALIGN=top><TD>
+<B>10baset-half</B>
+</TD><TD>
+10
+</TD><TD>
+half
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+<B>10baset-full</B>
+</TD><TD>
+10
+</TD><TD>
+full
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+<B>100baset-half</B>
+</TD><TD>
+100
+</TD><TD>
+half
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+<B>100baset-full</B>
+</TD><TD>
+100
+</TD><TD>
+full
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+<B>1000baset-half</B>
+</TD><TD>
+1000
+</TD><TD>
+half
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+<B>1000baset-full</B>
+</TD><TD>
+1000
+</TD><TD>
+full
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+<B>10000baset-full</B>
+</TD><TD>
+10000
+</TD><TD>
+full
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+<B>2500basex-full</B>
+</TD><TD>
+2500
+</TD><TD>
+full
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+<B>1000basekx-full</B>
+</TD><TD>
+1000
+</TD><TD>
+full
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+<B>10000basekx4-full</B>
+</TD><TD>
+10000
+</TD><TD>
+full
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+<B>10000basekr-full</B>
+</TD><TD>
+10000
+</TD><TD>
+full
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+<B>10000baser-fec</B>
+</TD><TD>
+10000
+</TD><TD>
+full
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+<B>20000basemld2-full</B>
+</TD><TD>
+20000
+</TD><TD>
+full
+<BR></TD></TR>
+<TR VALIGN=top><TD>
+<B>20000basekr2-full</B>
+</TD><TD>
+20000
+</TD><TD>
+full
+<BR></TD></TR>
+</TABLE>
+
+<P>
+By default this is unset, i.e. all possible modes will be advertised. This option may be specified more than once, in which case all specified speeds and modes are advertised. If the empty string is assigned to this option, the list is reset, and all prior assignments have no effect.
+</DL>
+
+<P>
+
+<I>ReceiveChecksumOffload=</I>
+<DL COMPACT><DT id="54"><DD>
+Takes a boolean. If set to true, the hardware offload for checksumming of ingress network packets is enabled. When unset, the kernel's default will be used.
+</DL>
+
+<P>
+
+<I>TransmitChecksumOffload=</I>
+<DL COMPACT><DT id="55"><DD>
+Takes a boolean. If set to true, the hardware offload for checksumming of egress network packets is enabled. When unset, the kernel's default will be used.
+</DL>
+
+<P>
+
+<I>TCPSegmentationOffload=</I>
+<DL COMPACT><DT id="56"><DD>
+Takes a boolean. If set to true, the TCP Segmentation Offload (TSO) is enabled. When unset, the kernel's default will be used.
+</DL>
+
+<P>
+
+<I>TCP6SegmentationOffload=</I>
+<DL COMPACT><DT id="57"><DD>
+Takes a boolean. If set to true, the TCP6 Segmentation Offload (tx-tcp6-segmentation) is enabled. When unset, the kernel's default will be used.
+</DL>
+
+<P>
+
+<I>GenericSegmentationOffload=</I>
+<DL COMPACT><DT id="58"><DD>
+Takes a boolean. If set to true, the Generic Segmentation Offload (GSO) is enabled. When unset, the kernel's default will be used.
+</DL>
+
+<P>
+
+<I>GenericReceiveOffload=</I>
+<DL COMPACT><DT id="59"><DD>
+Takes a boolean. If set to true, the Generic Receive Offload (GRO) is enabled. When unset, the kernel's default will be used.
+</DL>
+
+<P>
+
+<I>LargeReceiveOffload=</I>
+<DL COMPACT><DT id="60"><DD>
+Takes a boolean. If set to true, the Large Receive Offload (LRO) is enabled. When unset, the kernel's default will be used.
+</DL>
+
+<P>
+
+<I>RxChannels=</I>
+<DL COMPACT><DT id="61"><DD>
+Sets the number of receive channels (a number between 1 and 4294967295) .
+</DL>
+
+<P>
+
+<I>TxChannels=</I>
+<DL COMPACT><DT id="62"><DD>
+Sets the number of transmit channels (a number between 1 and 4294967295).
+</DL>
+
+<P>
+
+<I>OtherChannels=</I>
+<DL COMPACT><DT id="63"><DD>
+Sets the number of other channels (a number between 1 and 4294967295).
+</DL>
+
+<P>
+
+<I>CombinedChannels=</I>
+<DL COMPACT><DT id="64"><DD>
+Sets the number of combined set channels (a number between 1 and 4294967295).
+</DL>
+
+<P>
+
+<I>RxBufferSize=</I>
+<DL COMPACT><DT id="65"><DD>
+Takes a integer. Specifies the NIC receive ring buffer size. When unset, the kernel's default will be used.
+</DL>
+
+<P>
+
+<I>TxBufferSize=</I>
+<DL COMPACT><DT id="66"><DD>
+Takes a integer. Specifies the NIC transmit ring buffer size. When unset, the kernel's default will be used.
+</DL>
+
+<A NAME="lbAG">&nbsp;</A>
+<H2>EXAMPLES</H2>
+
+<P>
+
+<B>Example&nbsp;1.&nbsp;/lib/systemd/network/99-default.link</B>
+<P>
+
+The link file
+99-default.link
+that is shipped with systemd defines the default naming policy for links.
+<P>
+<DL COMPACT><DT id="67"><DD>
+
+
+
+<PRE>
+[Link]
+NamePolicy=kernel database onboard slot path
+MACAddressPolicy=persistent
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+<B>Example&nbsp;2.&nbsp;/etc/systemd/network/10-dmz.link</B>
+<P>
+
+This example assigns the fixed name
+&quot;dmz0&quot;
+to the interface with the MAC address 00:a0:de:63:7a:e6:
+<P>
+<DL COMPACT><DT id="68"><DD>
+
+
+
+<PRE>
+[Match]
+MACAddress=00:a0:de:63:7a:e6
+
+[Link]
+Name=dmz0
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+<I>NamePolicy=</I>
+is not set, so
+<I>Name=</I>
+takes effect. We use the
+&quot;10-&quot;
+prefix to order this file early in the list. Note that it needs to be before
+&quot;99-link&quot;, i.e. it needs a numerical prefix, to have any effect at all.
+<P>
+
+<B>Example&nbsp;3.&nbsp;Debugging </B><I>NamePolicy=</I> assignments
+<P>
+<DL COMPACT><DT id="69"><DD>
+
+
+
+<PRE>
+$ sudo SYSTEMD_LOG_LEVEL=debug udevadm test-builtin net_setup_link /sys/class/net/hub0
+...
+Parsed configuration file /lib/systemd/network/99-default.link
+Parsed configuration file /etc/systemd/network/10-eth0.link
+ID_NET_DRIVER=cdc_ether
+Config file /etc/systemd/network/10-eth0.link applies to device hub0
+link_config: autonegotiation is unset or enabled, the speed and duplex are not writable.
+hub0: Device has name_assign_type=4
+Using default interface naming scheme 'v240'.
+hub0: Policies didn't yield a name, using specified Name=hub0.
+ID_NET_LINK_FILE=/etc/systemd/network/10-eth0.link
+ID_NET_NAME=hub0
+...
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+Explicit
+<I>Name=</I>
+configuration wins in this case.
+<P>
+<DL COMPACT><DT id="70"><DD>
+
+
+
+<PRE>
+sudo SYSTEMD_LOG_LEVEL=debug udevadm test-builtin net_setup_link /sys/class/net/enp0s31f6
+...
+Parsed configuration file /lib/systemd/network/99-default.link
+Parsed configuration file /etc/systemd/network/10-eth0.link
+Created link configuration context.
+ID_NET_DRIVER=e1000e
+Config file /lib/systemd/network/99-default.link applies to device enp0s31f6
+link_config: autonegotiation is unset or enabled, the speed and duplex are not writable.
+enp0s31f6: Device has name_assign_type=4
+Using default interface naming scheme 'v240'.
+enp0s31f6: Policy *keep*: keeping existing userspace name
+enp0s31f6: Device has addr_assign_type=0
+enp0s31f6: MAC on the device already matches policy *persistent*
+ID_NET_LINK_FILE=/lib/systemd/network/99-default.link
+...
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+In this case, the interface was already renamed, so the
+<B>keep</B>
+policy specified as the first option in
+99-default.link
+means that the existing name is preserved. If
+<B>keep</B>
+was removed, or if were in boot before the renaming has happened, we might get the following instead:
+<P>
+<DL COMPACT><DT id="71"><DD>
+
+
+
+<PRE>
+enp0s31f6: Policy *path* yields &quot;enp0s31f6&quot;.
+enp0s31f6: Device has addr_assign_type=0
+enp0s31f6: MAC on the device already matches policy *persistent*
+ID_NET_LINK_FILE=/lib/systemd/network/99-default.link
+ID_NET_NAME=enp0s31f6
+...
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+Please note that the details of output are subject to change.
+<P>
+
+<B>Example&nbsp;4.&nbsp;/etc/systemd/network/10-internet.link</B>
+<P>
+
+This example assigns the fixed name
+&quot;internet0&quot;
+to the interface with the device path
+&quot;pci-0000:00:1a.0-*&quot;:
+<P>
+<DL COMPACT><DT id="72"><DD>
+
+
+
+<PRE>
+[Match]
+Path=pci-0000:00:1a.0-*
+
+[Link]
+Name=internet0
+</PRE>
+
+</DL>
+
+
+
+
+<P>
+
+<B>Example&nbsp;5.&nbsp;/etc/systemd/network/25-wireless.link</B>
+<P>
+
+Here's an overly complex example that shows the use of a large number of [Match] and [Link] settings.
+<P>
+<DL COMPACT><DT id="73"><DD>
+
+
+
+<PRE>
+[Match]
+MACAddress=12:34:56:78:9a:bc
+Driver=brcmsmac
+Path=pci-0000:02:00.0-*
+Type=wlan
+Virtualization=no
+Host=my-laptop
+Architecture=x86-64
+
+[Link]
+Name=wireless0
+MTUBytes=1450
+BitsPerSecond=10M
+WakeOnLan=magic
+MACAddress=cb:a9:87:65:43:21
+</PRE>
+
+</DL>
+
+
+
+
+<A NAME="lbAH">&nbsp;</A>
+<H2>SEE ALSO</H2>
+
+<P>
+
+<B><A HREF="/cgi-bin/man/man2html?8+systemd-udevd.service">systemd-udevd.service</A></B>(8),
+<B><A HREF="/cgi-bin/man/man2html?8+udevadm">udevadm</A></B>(8),
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.netdev">systemd.netdev</A></B>(5),
+<B><A HREF="/cgi-bin/man/man2html?5+systemd.network">systemd.network</A></B>(5)
+<P>
+
+<HR>
+<A NAME="index">&nbsp;</A><H2>Index</H2>
+<DL>
+<DT id="74"><A HREF="#lbAB">NAME</A><DD>
+<DT id="75"><A HREF="#lbAC">SYNOPSIS</A><DD>
+<DT id="76"><A HREF="#lbAD">DESCRIPTION</A><DD>
+<DT id="77"><A HREF="#lbAE">[MATCH] SECTION OPTIONS</A><DD>
+<DT id="78"><A HREF="#lbAF">[LINK] SECTION OPTIONS</A><DD>
+<DT id="79"><A HREF="#lbAG">EXAMPLES</A><DD>
+<DT id="80"><A HREF="#lbAH">SEE ALSO</A><DD>
+</DL>
+<HR>
+This document was created by
+<A HREF="/cgi-bin/man/man2html">man2html</A>,
+using the manual pages.<BR>
+Time: 00:06:06 GMT, March 31, 2021
+</BODY>
+</HTML>
